@@ -1,0 +1,97 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e70261dd731255d43abea3db62d44dee, type: 3}
+  m_Name: BasicStrike
+  m_EditorClassIdentifier: Assembly-CSharp::SkillSO
+  icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  displayName: BasicStrike
+  description: 
+  kind: 0
+  target: 0
+  group: 0
+  element: 4
+  range: 0
+  hitAllEnemies: 0
+  hitAllAllies: 0
+  slotsRequired: 1
+  hasCondition: 1
+  condition:
+    scope: 0
+    kind: 0
+    parityRule: 0
+    thresholdCompare: 0
+    thresholdValue: 6
+    matchRule: 0
+    straightRule: 0
+  whenConditionIsMet:
+    overrideSlotsRequired: 0
+    slotsRequired: 1
+    overrideIdentity: 0
+    kind: 0
+    target: 0
+    group: 0
+    element: 4
+    range: 1
+    hitAllEnemies: 0
+    hitAllAllies: 0
+    overrideCost: 0
+    focusCost: 0
+    focusGainOnCast: 0
+    overrideDamage: 0
+    dieMultiplier: 1
+    flatDamage: 0
+    overrideSunderBonus: 0
+    sunderBonusIfTargetHasGuard: 1
+    sunderGuardDamageMultiplier: 2
+    overrideGuard: 0
+    guardDieMultiplier: 1
+    guardFlat: 0
+    overrideSpecialCombat: 0
+    bypassGuard: 0
+    clearsGuard: 0
+    canUseMarkMultiplier: 1
+    overrideBurnSpender: 0
+    consumesBurn: 0
+    burnDamagePerStack: 1
+    overrideApplyStatus: 0
+    applyBurn: 0
+    burnAddStacks: 2
+    burnRefreshTurns: 3
+    applyMark: 0
+    applyBleed: 0
+    bleedTurns: 3
+    applyFreeze: 0
+    freezeChance: 0.4
+    overrideVfx: 0
+    projectilePrefab: {fileID: 0}
+  focusCost: 0
+  focusGainOnCast: 1
+  dieMultiplier: 0
+  flatDamage: 4
+  sunderBonusIfTargetHasGuard: 1
+  sunderGuardDamageMultiplier: 2
+  guardDieMultiplier: 1
+  guardFlat: 0
+  bypassGuard: 0
+  clearsGuard: 0
+  canUseMarkMultiplier: 1
+  consumesBurn: 0
+  burnDamagePerStack: 1
+  applyBurn: 0
+  burnAddStacks: 2
+  burnRefreshTurns: 3
+  applyMark: 0
+  applyBleed: 0
+  bleedTurns: 3
+  applyFreeze: 0
+  freezeChance: 0.4
+  projectilePrefab: {fileID: 0}

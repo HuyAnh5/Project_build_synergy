@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e70261dd731255d43abea3db62d44dee, type: 3}
+  m_Name: Skill_Ice
+  m_EditorClassIdentifier: Assembly-CSharp::SkillSO
+  icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  displayName: Skill_Ice
+  description: Skill_Ice
+  kind: 0
+  target: 0
+  group: 0
+  element: 2
+  range: 1
+  slotsRequired: 3
+  focusCost: 2
+  focusGainOnCast: 0
+  dieMultiplier: 0.5
+  flatDamage: 0
+  sunderBonusIfTargetHasGuard: 1
+  sunderGuardDamageMultiplier: 2
+  guardDieMultiplier: 1
+  guardFlat: 0
+  bypassGuard: 0
+  clearsGuard: 0
+  canUseMarkMultiplier: 1
+  consumesBurn: 0
+  burnDamagePerStack: 1
+  applyBurn: 0
+  burnAddStacks: 2
+  burnRefreshTurns: 3
+  applyMark: 0
+  applyBleed: 0
+  bleedTurns: 3
+  applyFreeze: 0
+  freezeChance: 0.4
+  projectilePrefab: {fileID: 1405955094155794844, guid: 5d01605074727f547858efbc90cb9570, type: 3}

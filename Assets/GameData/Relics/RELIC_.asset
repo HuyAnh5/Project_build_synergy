@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0a1c8e374d758bf489d922e7ffb72d70, type: 3}
+  m_Name: RELIC_
+  m_EditorClassIdentifier: Assembly-CSharp::Data.Defs.RelicDef
+  id: 
+  displayName: 
+  rarity: 0
+  targetingRule: 0
+  charges: 1
+  useTiming: 1
+  effects:
+  - type: 1
+    value:
+      kind: 0
+      flat: 0
+      dieMultiplier: 0
+      statusSource: 0
+      perStack: 0
+    element: 0
+    stacks: 1
+    durationTurns: 3
+    chance: 0.4
+    ignoreMarkBonus: 0

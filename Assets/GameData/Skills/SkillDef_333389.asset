@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0ebe362653c901e4b87a5d0f12d0750c, type: 3}
+  m_Name: SkillDef_333389
+  m_EditorClassIdentifier: Assembly-CSharp::Data.Defs.SkillDef
+  icon: {fileID: 0}
+  id: 
+  displayName: 
+  rarity: 0
+  targetingRule: 1
+  tags: []
+  description: 
+  focusCost: 0
+  isBuiltIn: 0
+  isRemovable: 0
+  canAppearInShop: 0
+  effects:
+  - type: 0
+    diceTarget: 0
+    value:
+      kind: 1
+      flat: 0
+      dieMultiplier: 1
+      statusSource: 0
+      perStack: 1
+    element: 0
+    ignoreMarkBonus: 0
+    stacks: 1
+    durationTurns: 3
+    chance: 0.4
+    amount: 1
+    faceIndex: 0
+    fromFace: 0
+    toFace: 1
