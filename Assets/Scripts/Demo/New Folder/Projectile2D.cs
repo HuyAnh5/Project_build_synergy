@@ -5,26 +5,43 @@ public class Projectile2D : MonoBehaviour
 {
     public float speed = 12f;
 
+    [Header("Safety")]
+    public float maxLifeSeconds = 2.0f;
+    public float hitDistance = 0.05f;
+
     private Transform _target;
+    private Vector3 _targetPos;
     private Action _onHit;
     private bool _active;
+    private float _life;
 
     public void Launch(Transform target, Action onHit)
     {
         _target = target;
         _onHit = onHit;
         _active = true;
+        _life = 0f;
+
+        _targetPos = _target ? _target.position : transform.position;
     }
 
     void Update()
     {
-        if (!_active || _target == null) return;
+        if (!_active) return;
 
-        Vector3 t = _target.position;
-        transform.position = Vector3.MoveTowards(transform.position, t, speed * Time.deltaTime);
+        _life += Time.deltaTime;
 
-        // chạm gần target thì coi như hit
-        if (Vector3.SqrMagnitude(transform.position - t) < 0.05f * 0.05f)
+        if (_target != null) _targetPos = _target.position;
+
+        transform.position = Vector3.MoveTowards(transform.position, _targetPos, speed * Time.deltaTime);
+
+        if (Vector3.SqrMagnitude(transform.position - _targetPos) <= hitDistance * hitDistance)
+        {
+            Hit();
+            return;
+        }
+
+        if (_life >= maxLifeSeconds)
         {
             Hit();
         }
@@ -32,14 +49,10 @@ public class Projectile2D : MonoBehaviour
 
     private void Hit()
     {
+        if (!_active) return;
         _active = false;
+
         _onHit?.Invoke();
         Destroy(gameObject);
-    }
-
-    private void OnTriggerEnter2D(Collider2D other)
-    {
-        // nếu bạn muốn “đụng collider” mới hit thì dùng cái này thay cho khoảng cách
-        // Hit();
     }
 }

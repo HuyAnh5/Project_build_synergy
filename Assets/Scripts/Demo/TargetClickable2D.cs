@@ -9,6 +9,8 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler
     void Awake()
     {
         _actor = GetComponent<CombatActor>();
+        if (turn == null)
+            turn = FindObjectOfType<TurnManager>(true);
     }
 
     public void OnPointerClick(PointerEventData eventData)

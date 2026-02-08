@@ -20,11 +20,63 @@ MonoBehaviour:
   group: 0
   element: 2
   range: 1
-  slotsRequired: 3
-  focusCost: 2
+  hitAllEnemies: 0
+  hitAllAllies: 0
+  slotsRequired: 1
+  hasCondition: 0
+  condition:
+    scope: 0
+    kind: 0
+    parityRule: 0
+    thresholdCompare: 0
+    thresholdValue: 6
+    matchRule: 0
+    straightRule: 0
+  whenConditionIsMet:
+    overrideSlotsRequired: 0
+    slotsRequired: 1
+    overrideIdentity: 0
+    kind: 0
+    target: 0
+    group: 0
+    element: 4
+    range: 1
+    hitAllEnemies: 0
+    hitAllAllies: 0
+    overrideCost: 0
+    focusCost: 0
+    focusGainOnCast: 0
+    overrideDamage: 0
+    dieMultiplier: 1
+    flatDamage: 0
+    overrideSunderBonus: 0
+    sunderBonusIfTargetHasGuard: 1
+    sunderGuardDamageMultiplier: 2
+    overrideGuard: 0
+    guardDieMultiplier: 1
+    guardFlat: 0
+    overrideSpecialCombat: 0
+    bypassGuard: 0
+    clearsGuard: 0
+    canUseMarkMultiplier: 1
+    overrideBurnSpender: 0
+    consumesBurn: 0
+    burnDamagePerStack: 1
+    overrideApplyStatus: 0
+    applyBurn: 0
+    burnAddStacks: 2
+    burnRefreshTurns: 3
+    applyMark: 0
+    applyBleed: 0
+    bleedTurns: 3
+    applyFreeze: 0
+    freezeChance: 0.4
+    overrideVfx: 0
+    projectilePrefab: {fileID: 0}
+  focusCost: 0
   focusGainOnCast: 0
-  dieMultiplier: 0.5
-  flatDamage: 0
+  dieMultiplier: 0
+  flatDamage: 1
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
   guardDieMultiplier: 1

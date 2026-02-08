@@ -20,10 +20,10 @@ MonoBehaviour:
   group: 0
   element: 1
   range: 1
-  hitAllEnemies: 1
+  hitAllEnemies: 0
   hitAllAllies: 0
-  slotsRequired: 2
-  hasCondition: 1
+  slotsRequired: 1
+  hasCondition: 0
   condition:
     scope: 1
     kind: 0
@@ -35,18 +35,18 @@ MonoBehaviour:
   whenConditionIsMet:
     overrideSlotsRequired: 1
     slotsRequired: 1
-    overrideIdentity: 0
+    overrideIdentity: 1
     kind: 0
     target: 0
     group: 0
-    element: 4
+    element: 1
     range: 1
-    hitAllEnemies: 0
+    hitAllEnemies: 1
     hitAllAllies: 0
     overrideCost: 1
     focusCost: 2
     focusGainOnCast: 0
-    overrideDamage: 0
+    overrideDamage: 1
     dieMultiplier: 1
     flatDamage: 0
     overrideSunderBonus: 0
@@ -73,7 +73,7 @@ MonoBehaviour:
     freezeChance: 0.4
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
-  focusCost: 2
+  focusCost: 0
   focusGainOnCast: 0
   dieMultiplier: 1
   flatDamage: 0

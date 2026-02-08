@@ -10,6 +10,7 @@ public class TurnManager : MonoBehaviour
     [Header("Actors")]
     public CombatActor player;
     public CombatActor enemy;              // demo: single enemy
+    public BattlePartyManager2D party;     // preferred: multi enemy/ally roster
     public SkillExecutor executor;
 
     [Header("Dice Rig (IMPORTANT)")]
@@ -42,6 +43,13 @@ public class TurnManager : MonoBehaviour
     void Start()
     {
         _board.Reset();
+
+        // If party exists, prefer it as the source of player/enemies.
+        if (party != null)
+        {
+            party.EnsureSpawned();
+            if (party.Player != null) player = party.Player;
+        }
 
         if (diceRig != null)
         {
@@ -230,17 +238,17 @@ public class TurnManager : MonoBehaviour
 
         int dieSum = _board.GetDieSumForAnchor(_cursor, diceRig);
 
-        if (rt != null && executor != null)
-        {
-            // focus was reserved at equip time => skipCost = true
-            // consume NGAY khi bắt đầu thực hiện action (icon biến mất ngay)
-            _board.ConsumeGroupAtAnchor_NoRefund(_cursor);
-            RefreshAllPreviews();
-            UpdateAllIconsDim();
+        // focus was reserved at equip time => skipCost = true
+        // consume NGAY khi bắt đầu thực hiện action (icon biến mất ngay)
+        _board.ConsumeGroupAtAnchor_NoRefund(_cursor);
+        RefreshAllPreviews();
+        UpdateAllIconsDim();
 
-            // rồi mới chạy animation / projectile / damage
-            yield return executor.ExecuteSkill(rt, player, clicked, dieSum, skipCost: true);
-        }
+        // AoE: chỉ click 1 target để xác nhận, nhưng executor sẽ loop toàn bộ danh sách.
+        var aoeTargets = ResolveAoeTargets(rt);
+
+        // rồi mới chạy animation / projectile / damage
+        yield return executor.ExecuteSkill(rt, player, clicked, dieSum, skipCost: true, aoeTargets: aoeTargets);
 
         _cursor++;
         SkipEmptyOrNonAnchorForward();
@@ -259,32 +267,56 @@ public class TurnManager : MonoBehaviour
     {
         SetPhase(Phase.EnemyTurn);
 
-        if (enemy != null && enemy.status != null)
-        {
-            int dot = enemy.status.TickStartOfTurnDamage();
-            if (dot > 0) enemy.TakeDamage(dot, bypassGuard: true);
+        // Snapshot enemies còn sống
+        var enemies = ResolveAliveEnemiesSnapshot();
 
-            if (enemy.status.frozen)
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            var e = enemies[i];
+            if (e == null || e.IsDead) continue;
+
+            // 1) Start-of-turn tick cho CHÍNH enemy: bleed -1 HP, giảm duration, freeze skip 1 lượt
+            bool skipTurn = false;
+            if (e.status != null)
             {
-                enemy.status.frozen = false;
-                yield break;
+                int dot = e.status.OnTurnStarted(consumeFreezeToSkipTurn: true, out skipTurn);
+                if (dot > 0) e.TakeDamage(dot, bypassGuard: true);
             }
+
+            if (e.IsDead) continue;
+            if (skipTurn) continue; // enemy bị freeze -> skip 1 lượt của enemy đó
+
+            // 2) Enemy action (prototype)
+            if (player != null && !player.IsDead)
+            {
+                player.TakeDamage(4, bypassGuard: false);
+            }
+
+            if (player != null && player.IsDead)
+                break;
         }
 
-        if (player != null && !player.IsDead)
-        {
-            player.TakeDamage(4, bypassGuard: false);
-            player.guardPool = 0; // guard doesn't carry
-        }
+        // Guard không carry (prototype giữ như trước)
+        if (player != null) player.guardPool = 0;
 
         yield return null;
     }
+
 
     private void BeginNewPlayerTurn()
     {
         SetPhase(Phase.Planning);
 
-        // planning board should be empty now, but safe reset
+        // Start-of-turn tick cho player (bleed/burn duration).
+        // Player không “skip turn vì freeze” (hiện tại), nên consumeFreezeToSkipTurn = false.
+        if (player != null && player.status != null)
+        {
+            bool _unusedSkip;
+            int dot = player.status.OnTurnStarted(consumeFreezeToSkipTurn: false, out _unusedSkip);
+            if (dot > 0) player.TakeDamage(dot, bypassGuard: true);
+        }
+
+        // Reset board + UI như trước
         _board.Reset();
         RefreshAllPreviews();
         UpdateAllIconsDim();
@@ -294,6 +326,34 @@ public class TurnManager : MonoBehaviour
 
         RefreshPlanningInteractivity();
         LockPlanningUI(false);
+    }
+
+
+    // ---------------------------
+    // Helpers: roster snapshot
+    // ---------------------------
+    private System.Collections.Generic.IReadOnlyList<CombatActor> ResolveAoeTargets(SkillRuntime rt)
+    {
+        if (rt == null) return null;
+        if (!rt.hitAllEnemies && !rt.hitAllAllies) return null;
+
+        // Hiện tại bạn ưu tiên hitAllEnemies. (hitAllAllies sẽ implement sau khi có ally turn)
+        if (rt.hitAllEnemies)
+            return ResolveAliveEnemiesSnapshot();
+
+        return null;
+    }
+
+    private System.Collections.Generic.List<CombatActor> ResolveAliveEnemiesSnapshot()
+    {
+        // Preferred: BattlePartyManager2D
+        if (party != null)
+            return party.GetAliveEnemies(frontOnly: false);
+
+        // Legacy: single enemy
+        var list = new System.Collections.Generic.List<CombatActor>(1);
+        if (enemy != null && !enemy.IsDead) list.Add(enemy);
+        return list;
     }
 
     // ---------------------------
