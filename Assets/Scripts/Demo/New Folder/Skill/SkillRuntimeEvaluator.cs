@@ -44,10 +44,14 @@ public static class SkillRuntimeEvaluator
         return rt;
     }
 
-    private static List<int> GatherDiceForScope(SkillConditionScope scope, DiceSlotRig diceRig, int start0, int span)
+    private static List<int> GatherDiceForScope(
+    SkillConditionScope scope,
+    DiceSlotRig diceRig,
+    int start0,
+    int span,
+    int allDiceDelta = 0)
     {
         var list = new List<int>(3);
-
         if (diceRig == null) return list;
 
         if (scope == SkillConditionScope.SlotBound)
@@ -56,7 +60,7 @@ public static class SkillRuntimeEvaluator
             {
                 if (i < 0 || i > 2) continue;
                 if (!diceRig.IsSlotActive(i)) continue;
-                list.Add(diceRig.GetDieValue(i));
+                list.Add(diceRig.GetEffectiveDieValue(i, allDiceDelta));
             }
             return list;
         }
@@ -65,8 +69,9 @@ public static class SkillRuntimeEvaluator
         for (int i = 0; i < 3; i++)
         {
             if (!diceRig.IsSlotActive(i)) continue;
-            list.Add(diceRig.GetDieValue(i));
+            list.Add(diceRig.GetEffectiveDieValue(i, allDiceDelta));
         }
         return list;
     }
+
 }

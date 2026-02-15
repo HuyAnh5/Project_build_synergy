@@ -126,7 +126,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::CombatActor
   team: 1
   row: 0
-  isPlayer: 0
+  isPlayer: 1
   maxHP: 30
   hp: 30
   maxFocus: 9

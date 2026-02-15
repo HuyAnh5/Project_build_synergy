@@ -9,19 +9,20 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e70261dd731255d43abea3db62d44dee, type: 3}
-  m_Name: BasicGuard
-  m_EditorClassIdentifier: Assembly-CSharp::SkillSO
-  icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
-  displayName: BasicGuard
+  m_Script: {fileID: 11500000, guid: a042d137857b6b447b1a911238dc40d8, type: 3}
+  m_Name: SkillDamage_
+  m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
+  icon: {fileID: 0}
+  displayName: SkillDamage_
   description: 
-  kind: 1
-  target: 1
+  kind: 0
+  coreAction: 0
+  target: 4
   group: 0
-  element: 4
-  range: 0
+  element: 0
+  range: 1
   hitAllEnemies: 0
-  hitAllAllies: 0
+  hitAllAllies: 1
   slotsRequired: 1
   hasCondition: 1
   condition:
@@ -75,8 +76,8 @@ MonoBehaviour:
     projectilePrefab: {fileID: 0}
   focusCost: 0
   focusGainOnCast: 0
-  dieMultiplier: 0
-  flatDamage: 4
+  dieMultiplier: 1
+  flatDamage: 0
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
   guardDieMultiplier: 1

@@ -174,4 +174,11 @@ public class DiceSlotRig : MonoBehaviour
         if (slots == null || slot0 < 0 || slot0 > 2) return null;
         return slots[slot0] != null ? slots[slot0].dice : null;
     }
+
+    public int GetEffectiveDieValue(int slot0, int allDiceDelta)
+    {
+        int raw = GetDieValue(slot0);
+        return Mathf.Max(0, raw + allDiceDelta); // clamp min 0, no clamp max
+    }
+
 }

@@ -288,7 +288,7 @@ public class SkillPlanBoard
         return Mathf.Clamp(s, 0, 2);
     }
 
-    public int GetDieSumForAnchor(int anchor0, DiceSlotRig diceRig)
+    public int GetDieSumForAnchor(int anchor0, DiceSlotRig diceRig, int allDiceDelta = 0)
     {
         if (diceRig == null) return 0;
         if (anchor0 < 0 || anchor0 > 2) return 0;
@@ -297,20 +297,23 @@ public class SkillPlanBoard
         if (sp <= 0) return 0;
 
         int start0 = Mathf.Clamp(_anchorStart0[anchor0], 0, 2);
+
         if (sp == 1)
-        {
-            return diceRig.GetDieValue(anchor0);
-        }
+            return diceRig.GetEffectiveDieValue(anchor0, allDiceDelta);
+
         if (sp == 2)
         {
             int a = start0;
             int b = start0 + 1;
-            return diceRig.GetDieValue(a) + diceRig.GetDieValue(b);
+            return diceRig.GetEffectiveDieValue(a, allDiceDelta) + diceRig.GetEffectiveDieValue(b, allDiceDelta);
         }
 
         // sp == 3
-        return diceRig.GetDieValue(0) + diceRig.GetDieValue(1) + diceRig.GetDieValue(2);
+        return diceRig.GetEffectiveDieValue(0, allDiceDelta)
+             + diceRig.GetEffectiveDieValue(1, allDiceDelta)
+             + diceRig.GetEffectiveDieValue(2, allDiceDelta);
     }
+
 
     private int SanitizeStart0ForSpan(int start0, int span)
     {

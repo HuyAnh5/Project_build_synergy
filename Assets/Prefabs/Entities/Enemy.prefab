@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 3343973332019958161}
   - component: {fileID: 8780733521486567770}
   - component: {fileID: 6982064561166475885}
+  - component: {fileID: 5561527520343481321}
   m_Layer: 0
   m_Name: Enemy
   m_TagString: Untagged
@@ -195,6 +196,24 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1.6249452, y: 1.6770236}
   m_EdgeRadius: 0
+--- !u!114 &5561527520343481321
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 380198500699652695}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: df9f5d24772022c46885568d6e05b98c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SkillExecutor
+  delayBetweenActions: 0.25
+  projectileMaxWaitSeconds: 2.5
+  meleeLungeDistanceX: 1.3
+  meleeLungeTime: 0.1
+  meleeReturnTime: 0.08
+  lungeIgnoreTimeScale: 0
 --- !u!1 &7865205329936715492
 GameObject:
   m_ObjectHideFlags: 0

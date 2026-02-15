@@ -12,6 +12,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 668d10c3208069a47bf736fe7211172b, type: 3}
   m_Name: SkillDataBase
   m_EditorClassIdentifier: Assembly-CSharp::SkillDatabaseSO
+  damageSkills: []
+  buffDebuffSkills: []
+  passiveSkills: []
   skills:
   - {fileID: 11400000, guid: c6574525cdda39e40abdb110998f5d64, type: 2}
   - {fileID: 11400000, guid: f8ebb87232ea33e48be6a48c20b05a84, type: 2}

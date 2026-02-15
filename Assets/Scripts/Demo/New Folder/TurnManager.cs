@@ -200,10 +200,26 @@ public class TurnManager : MonoBehaviour
         if (!IsPlanning) return;
 
         LockPlanningUI(true);
-        SetPhase(Phase.AwaitTarget);
+
         _cursor = 0;
         SkipEmptyOrNonAnchorForward();
+
+        // ✅ Không có action nào được plan -> skip player turn, sang enemy luôn
+        if (_cursor >= 3)
+        {
+            StartCoroutine(EnemyTurnThenBeginNewPlayerTurn());
+            return;
+        }
+
+        SetPhase(Phase.AwaitTarget);
     }
+
+    private IEnumerator EnemyTurnThenBeginNewPlayerTurn()
+    {
+        yield return EnemyTurnRoutine();
+        BeginNewPlayerTurn();
+    }
+
 
     public void OnTargetClicked(CombatActor clicked)
     {
@@ -250,6 +266,23 @@ public class TurnManager : MonoBehaviour
         // rồi mới chạy animation / projectile / damage
         yield return executor.ExecuteSkill(rt, player, clicked, dieSum, skipCost: true, aoeTargets: aoeTargets);
 
+        // ✅ Guard = End Turn ngay: skip toàn bộ slot phía sau + refund focus (chỉ refund nếu reservedCost > 0)
+        if (rt.kind == SkillKind.Guard)
+        {
+            for (int i = _cursor + 1; i < 3; i++)
+            {
+                if (_board.IsAnchorSlot(i))
+                    _board.ClearGroupAtAnchor(i, player); // ClearGroupAtAnchor tự refund theo reserved cost (0 thì không refund)
+            }
+
+            RefreshAllPreviews();
+            UpdateAllIconsDim();
+
+            yield return EnemyTurnRoutine();
+            BeginNewPlayerTurn();
+            yield break;
+        }
+
         _cursor++;
         SkipEmptyOrNonAnchorForward();
 
@@ -262,6 +295,7 @@ public class TurnManager : MonoBehaviour
 
         SetPhase(Phase.AwaitTarget);
     }
+
 
     private IEnumerator EnemyTurnRoutine()
     {
@@ -316,6 +350,10 @@ public class TurnManager : MonoBehaviour
             if (dot > 0) player.TakeDamage(dot, bypassGuard: true);
         }
 
+        // ✅ +1 Focus mỗi lần bắt đầu lượt của player
+        if (player != null && !player.IsDead)
+            player.GainFocus(1);
+
         // Reset board + UI như trước
         _board.Reset();
         RefreshAllPreviews();
@@ -327,6 +365,7 @@ public class TurnManager : MonoBehaviour
         RefreshPlanningInteractivity();
         LockPlanningUI(false);
     }
+
 
 
     // ---------------------------
@@ -469,15 +508,46 @@ public class TurnManager : MonoBehaviour
     // ---------------------------
     // Target gating
     // ---------------------------
+    // ---------------------------
+    // Target gating
+    // ---------------------------
     private bool IsValidTargetForPendingSkill(CombatActor clicked)
     {
         var rt = _board.GetAnchorRuntime(_cursor);
         if (rt == null || clicked == null || player == null) return false;
 
         if (rt.target == TargetRule.Self) return clicked == player;
-        if (rt.target == TargetRule.Enemy) return clicked != player;
+
+        if (rt.target == TargetRule.Enemy)
+        {
+            if (clicked == player) return false;
+
+            // ✅ Melee single-target: nếu còn bất kỳ enemy Front sống => chỉ được target enemy có tag Front
+            // (AoE melee hitAllEnemies: bỏ qua rule này)
+            if (rt.kind == SkillKind.Attack && rt.range == RangeType.Melee && !rt.hitAllEnemies)
+            {
+                bool anyFrontAlive = false;
+
+                if (party != null)
+                {
+                    var fronts = party.GetAliveEnemies(frontOnly: true);
+                    anyFrontAlive = fronts != null && fronts.Count > 0;
+                }
+                else
+                {
+                    anyFrontAlive = (enemy != null && !enemy.IsDead && enemy.row == CombatActor.RowTag.Front);
+                }
+
+                if (anyFrontAlive && clicked.row != CombatActor.RowTag.Front)
+                    return false;
+            }
+
+            return true;
+        }
+
         return false;
     }
+
 
     // ---------------------------
     // Input
