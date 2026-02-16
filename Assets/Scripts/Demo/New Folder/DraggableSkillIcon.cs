@@ -2,9 +2,24 @@
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
+/// <summary>
+/// Drag source for skill icons.
+///
+/// Backward compatible:
+/// - Legacy path uses <see cref="skill"/> (SkillSO) exactly as before.
+/// - New V2 path can bind to SkillDamageSO / SkillBuffDebuffSO / SkillPassiveSO without breaking old scenes.
+/// </summary>
 public class DraggableSkillIcon : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
 {
+    [Header("Legacy (SkillSO)")]
     public SkillSO skill;
+
+    [Header("V2 (optional)")]
+    public SkillDamageSO damageSkill;
+    public SkillBuffDebuffSO buffDebuffSkill;
+    public SkillPassiveSO passiveSkill;
+
+    [Header("Runtime")]
     public TurnManager turn;
 
     [Range(0f, 1f)] public float inUseAlpha = 0.6f;
@@ -17,6 +32,43 @@ public class DraggableSkillIcon : MonoBehaviour, IBeginDragHandler, IDragHandler
     private CanvasGroup _cg;
 
     private RectTransform _ghostRT;
+
+    public enum SkillIconKind
+    {
+        None,
+        Legacy,
+        Damage,
+        BuffDebuff,
+        Passive
+    }
+
+    public SkillIconKind Kind
+    {
+        get
+        {
+            // Keep legacy priority so old prefabs behave exactly the same.
+            if (skill != null) return SkillIconKind.Legacy;
+            if (damageSkill != null) return SkillIconKind.Damage;
+            if (buffDebuffSkill != null) return SkillIconKind.BuffDebuff;
+            if (passiveSkill != null) return SkillIconKind.Passive;
+            return SkillIconKind.None;
+        }
+    }
+
+    public bool IsV2ActiveSkill => Kind == SkillIconKind.Damage || Kind == SkillIconKind.BuffDebuff;
+    public bool IsV2PassiveOnly => Kind == SkillIconKind.Passive;
+
+    public Sprite IconSprite
+    {
+        get
+        {
+            if (skill != null) return skill.icon;
+            if (damageSkill != null) return damageSkill.icon;
+            if (buffDebuffSkill != null) return buffDebuffSkill.icon;
+            if (passiveSkill != null) return passiveSkill.icon;
+            return null;
+        }
+    }
 
     private void Awake()
     {
@@ -33,9 +85,12 @@ public class DraggableSkillIcon : MonoBehaviour, IBeginDragHandler, IDragHandler
 
     public void Refresh()
     {
-        if (_img && skill && skill.icon)
+        if (!_img) return;
+
+        var spr = IconSprite;
+        if (spr != null)
         {
-            _img.sprite = skill.icon;
+            _img.sprite = spr;
             _img.preserveAspect = true;
         }
     }
@@ -48,16 +103,19 @@ public class DraggableSkillIcon : MonoBehaviour, IBeginDragHandler, IDragHandler
         _img.color = c;
     }
 
-    // Click = auto equip (still allows duplicates)
+    // Click = auto equip (legacy path only for now; V2 click-to-equip will be wired when TurnManager/PlanBoard are refactored)
     public void OnPointerClick(PointerEventData eventData)
     {
         if (!turn || !turn.IsPlanning) return;
+        if (skill == null) return; // keep behavior unchanged for legacy
         turn.TryAutoAssignFromClick(skill);
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (!turn || !turn.IsPlanning) return;
+        if (IsV2PassiveOnly) return; // Passive cannot be dragged.
+        if (Kind == SkillIconKind.None) return;
 
         CreateGhost();
         MoveGhost(eventData.position);
@@ -77,6 +135,30 @@ public class DraggableSkillIcon : MonoBehaviour, IBeginDragHandler, IDragHandler
         _ghostRT = null;
 
         _cg.blocksRaycasts = true;
+    }
+
+    public bool TryGetLegacySkill(out SkillSO s)
+    {
+        s = skill;
+        return s != null;
+    }
+
+    public bool TryGetV2Damage(out SkillDamageSO s)
+    {
+        s = (skill == null) ? damageSkill : null; // do not mix with legacy
+        return s != null;
+    }
+
+    public bool TryGetV2BuffDebuff(out SkillBuffDebuffSO s)
+    {
+        s = (skill == null) ? buffDebuffSkill : null;
+        return s != null;
+    }
+
+    public bool TryGetV2Passive(out SkillPassiveSO s)
+    {
+        s = (skill == null && damageSkill == null && buffDebuffSkill == null) ? passiveSkill : null;
+        return s != null;
     }
 
     private void CreateGhost()
@@ -110,5 +192,4 @@ public class DraggableSkillIcon : MonoBehaviour, IBeginDragHandler, IDragHandler
 
         _ghostRT.anchoredPosition = localPoint;
     }
-
 }

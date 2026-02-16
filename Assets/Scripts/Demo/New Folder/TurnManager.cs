@@ -20,6 +20,10 @@ public class TurnManager : MonoBehaviour
     public CanvasGroup skillBarGroup;
     public CanvasGroup slotsPanelGroup;
 
+    [Tooltip("If TRUE, disables planning UI until dice have finished rolling.\n" +
+             "If your Roll button lives inside these CanvasGroups, keep this FALSE or move the Roll button out.")]
+    public bool lockPlanningUIUntilRolled = false;
+
     public enum Phase { Planning, AwaitTarget, Executing, EnemyTurn }
     public Phase phase = Phase.Planning;
 
@@ -32,19 +36,14 @@ public class TurnManager : MonoBehaviour
         phase == Phase.Planning &&
         (diceRig == null || (diceRig.HasRolledThisTurn && !diceRig.IsRolling));
 
-    // UI slot drops register here (slotIndex: 1..3)
     private readonly ActionSlotDrop[] _drops = new ActionSlotDrop[3];
-
-    // Plan board (3-slot grouping + reserved focus + runtime evaluation)
     private readonly SkillPlanBoard _board = new SkillPlanBoard();
-
     private int _cursor = 0;
 
     void Start()
     {
         _board.Reset();
 
-        // If party exists, prefer it as the source of player/enemies.
         if (party != null)
         {
             party.EnsureSpawned();
@@ -70,7 +69,7 @@ public class TurnManager : MonoBehaviour
 
     void Update()
     {
-        // Press Space to roll ONCE during Planning (before placing skills).
+        // Press Space to roll ONCE during Planning
         if (phase == Phase.Planning && diceRig != null)
         {
             if (!diceRig.HasRolledThisTurn && !diceRig.IsRolling && SpacePressedThisFrame())
@@ -87,9 +86,18 @@ public class TurnManager : MonoBehaviour
         }
     }
 
-    // ---------------------------
-    // Registration (ActionSlotDrop should call this in Awake/Start)
-    // ---------------------------
+    // Optional UI button hook
+    public void OnRollPressed()
+    {
+        if (phase != Phase.Planning) return;
+        if (diceRig == null) return;
+        if (diceRig.HasRolledThisTurn || diceRig.IsRolling) return;
+
+        diceRig.RollOnce();
+        RefreshPlanningInteractivity();
+    }
+
+    // Registration (ActionSlotDrop should call this)
     public void RegisterDrop(ActionSlotDrop drop)
     {
         if (!drop) return;
@@ -101,7 +109,7 @@ public class TurnManager : MonoBehaviour
     }
 
     // ---------------------------
-    // Equip APIs (called by drag-drop / click)
+    // Equip APIs (Legacy SkillSO)
     // ---------------------------
     public bool TryAssignSkillToSlot(int slotIndex1Based, SkillSO skill)
     {
@@ -116,15 +124,12 @@ public class TurnManager : MonoBehaviour
         if (!_board.ResolvePlacementForDrop(drop0, span, out int start0, out int anchor0))
             return false;
 
-        // block multi-slot placement if slots are not active
         if (!AreSlotsActiveInRange(start0, span))
             return false;
 
-        // also respect DiceSlotRig rule (covers edge cases)
         if (diceRig != null && !diceRig.CanFitAtDrop(start0, span))
             return false;
 
-        // transaction: try apply & recalc. If cost is impossible, rollback.
         var snap = _board.Capture(player);
 
         _board.ClearGroupsInRange(start0, span, player);
@@ -143,7 +148,6 @@ public class TurnManager : MonoBehaviour
         return true;
     }
 
-    // Click-to-equip: ONLY fills empty placement (no replace when full)
     public bool TryAutoAssignFromClick(SkillSO skill)
     {
         if (!IsPlanning) return false;
@@ -193,18 +197,113 @@ public class TurnManager : MonoBehaviour
     public bool IsSkillEquipped(SkillSO skill) => _board.IsSkillEquipped(skill);
 
     // ---------------------------
-    // Continue / Target flow
+    // NEW Equip APIs (Damage/BuffDebuff)
+    // ---------------------------
+    public bool TryAssignSkillToSlot(int slotIndex1Based, SkillDamageSO skill)
+        => TryAssignActiveSkillToSlot(slotIndex1Based, skill);
+
+    public bool TryAssignSkillToSlot(int slotIndex1Based, SkillBuffDebuffSO skill)
+        => TryAssignActiveSkillToSlot(slotIndex1Based, skill);
+
+    private bool TryAssignActiveSkillToSlot(int slotIndex1Based, ScriptableObject activeSkill)
+    {
+        if (!IsPlanning) return false;
+        if (player == null || activeSkill == null) return false;
+        if (activeSkill is SkillPassiveSO) return false;
+
+        int drop0 = slotIndex1Based - 1;
+        if (drop0 < 0 || drop0 > 2) return false;
+
+        int span = 1;
+        if (activeSkill is SkillDamageSO dmg) span = Mathf.Clamp(dmg.slotsRequired, 1, 3);
+        else if (activeSkill is SkillBuffDebuffSO bd) span = Mathf.Clamp(bd.slotsRequired, 1, 3);
+        else if (activeSkill is SkillSO legacy) span = Mathf.Clamp(legacy.slotsRequired, 1, 3);
+        else return false;
+
+        if (!_board.ResolvePlacementForDrop(drop0, span, out int start0, out int anchor0))
+            return false;
+
+        if (!AreSlotsActiveInRange(start0, span))
+            return false;
+
+        if (diceRig != null && !diceRig.CanFitAtDrop(start0, span))
+            return false;
+
+        var snap = _board.Capture(player);
+
+        _board.ClearGroupsInRange(start0, span, player);
+        _board.PlaceGroup(start0, anchor0, span, activeSkill);
+
+        if (!_board.RecalculateRuntimesAndRebalance(player, diceRig))
+        {
+            _board.Restore(snap, player);
+            RefreshAllPreviews();
+            UpdateAllIconsDim();
+            return false;
+        }
+
+        RefreshAllPreviews();
+        UpdateAllIconsDim();
+        return true;
+    }
+
+    public bool TryAutoAssignFromClick(SkillDamageSO skill) => TryAutoAssignActiveFromClick(skill);
+    public bool TryAutoAssignFromClick(SkillBuffDebuffSO skill) => TryAutoAssignActiveFromClick(skill);
+
+    private bool TryAutoAssignActiveFromClick(ScriptableObject activeSkill)
+    {
+        if (!IsPlanning) return false;
+        if (player == null || activeSkill == null) return false;
+        if (activeSkill is SkillPassiveSO) return false;
+
+        int span = 1;
+        if (activeSkill is SkillDamageSO dmg) span = Mathf.Clamp(dmg.slotsRequired, 1, 3);
+        else if (activeSkill is SkillBuffDebuffSO bd) span = Mathf.Clamp(bd.slotsRequired, 1, 3);
+        else if (activeSkill is SkillSO legacy) span = Mathf.Clamp(legacy.slotsRequired, 1, 3);
+        else return false;
+
+        if (!_board.TryFindEmptyPlacement(span, IsSlotActive0, out int start0, out int anchor0))
+            return false;
+
+        if (!AreSlotsActiveInRange(start0, span))
+            return false;
+
+        if (diceRig != null && !diceRig.CanFitAtDrop(start0, span))
+            return false;
+
+        var snap = _board.Capture(player);
+
+        _board.PlaceGroup(start0, anchor0, span, activeSkill);
+
+        if (!_board.RecalculateRuntimesAndRebalance(player, diceRig))
+        {
+            _board.Restore(snap, player);
+            RefreshAllPreviews();
+            UpdateAllIconsDim();
+            return false;
+        }
+
+        RefreshAllPreviews();
+        UpdateAllIconsDim();
+        return true;
+    }
+
+    public bool IsSkillEquipped(SkillDamageSO skill) => _board.IsSkillEquipped(skill);
+    public bool IsSkillEquipped(SkillBuffDebuffSO skill) => _board.IsSkillEquipped(skill);
+
+    // ---------------------------
+    // Continue / Target flow (giữ như batch 3 của bạn)
     // ---------------------------
     public void OnContinue()
     {
         if (!IsPlanning) return;
 
-        LockPlanningUI(true);
+        if (lockPlanningUIUntilRolled)
+            LockPlanningUI(true);
 
         _cursor = 0;
         SkipEmptyOrNonAnchorForward();
 
-        // ✅ Không có action nào được plan -> skip player turn, sang enemy luôn
         if (_cursor >= 3)
         {
             StartCoroutine(EnemyTurnThenBeginNewPlayerTurn());
@@ -219,7 +318,6 @@ public class TurnManager : MonoBehaviour
         yield return EnemyTurnRoutine();
         BeginNewPlayerTurn();
     }
-
 
     public void OnTargetClicked(CombatActor clicked)
     {
@@ -237,10 +335,7 @@ public class TurnManager : MonoBehaviour
         if (rt == null)
         {
             var sk = _board.GetCellSkill(_cursor);
-            Debug.LogError($"[TurnManager] AnchorRuntime NULL at cursor={_cursor}, skill={(sk ? sk.name : "NULL")}. " +
-                           $"Did SkillRuntimeEvaluator return null or did board not recalc?", this);
-
-            // ĐỪNG cho mất lượt oan
+            Debug.LogError($"[TurnManager] AnchorRuntime NULL at cursor={_cursor}, skill={(sk ? sk.name : "NULL")}.", this);
             SetPhase(Phase.AwaitTarget);
             yield break;
         }
@@ -254,25 +349,20 @@ public class TurnManager : MonoBehaviour
 
         int dieSum = _board.GetDieSumForAnchor(_cursor, diceRig);
 
-        // focus was reserved at equip time => skipCost = true
-        // consume NGAY khi bắt đầu thực hiện action (icon biến mất ngay)
         _board.ConsumeGroupAtAnchor_NoRefund(_cursor);
         RefreshAllPreviews();
         UpdateAllIconsDim();
 
-        // AoE: chỉ click 1 target để xác nhận, nhưng executor sẽ loop toàn bộ danh sách.
         var aoeTargets = ResolveAoeTargets(rt);
 
-        // rồi mới chạy animation / projectile / damage
         yield return executor.ExecuteSkill(rt, player, clicked, dieSum, skipCost: true, aoeTargets: aoeTargets);
 
-        // ✅ Guard = End Turn ngay: skip toàn bộ slot phía sau + refund focus (chỉ refund nếu reservedCost > 0)
         if (rt.kind == SkillKind.Guard)
         {
             for (int i = _cursor + 1; i < 3; i++)
             {
                 if (_board.IsAnchorSlot(i))
-                    _board.ClearGroupAtAnchor(i, player); // ClearGroupAtAnchor tự refund theo reserved cost (0 thì không refund)
+                    _board.ClearGroupAtAnchor(i, player);
             }
 
             RefreshAllPreviews();
@@ -296,12 +386,10 @@ public class TurnManager : MonoBehaviour
         SetPhase(Phase.AwaitTarget);
     }
 
-
     private IEnumerator EnemyTurnRoutine()
     {
         SetPhase(Phase.EnemyTurn);
 
-        // Snapshot enemies còn sống
         var enemies = ResolveAliveEnemiesSnapshot();
 
         for (int i = 0; i < enemies.Count; i++)
@@ -309,7 +397,6 @@ public class TurnManager : MonoBehaviour
             var e = enemies[i];
             if (e == null || e.IsDead) continue;
 
-            // 1) Start-of-turn tick cho CHÍNH enemy: bleed -1 HP, giảm duration, freeze skip 1 lượt
             bool skipTurn = false;
             if (e.status != null)
             {
@@ -318,9 +405,8 @@ public class TurnManager : MonoBehaviour
             }
 
             if (e.IsDead) continue;
-            if (skipTurn) continue; // enemy bị freeze -> skip 1 lượt của enemy đó
+            if (skipTurn) continue;
 
-            // 2) Enemy action (prototype)
             if (player != null && !player.IsDead)
             {
                 player.TakeDamage(4, bypassGuard: false);
@@ -330,19 +416,15 @@ public class TurnManager : MonoBehaviour
                 break;
         }
 
-        // Guard không carry (prototype giữ như trước)
         if (player != null) player.guardPool = 0;
 
         yield return null;
     }
 
-
     private void BeginNewPlayerTurn()
     {
         SetPhase(Phase.Planning);
 
-        // Start-of-turn tick cho player (bleed/burn duration).
-        // Player không “skip turn vì freeze” (hiện tại), nên consumeFreezeToSkipTurn = false.
         if (player != null && player.status != null)
         {
             bool _unusedSkip;
@@ -350,11 +432,9 @@ public class TurnManager : MonoBehaviour
             if (dot > 0) player.TakeDamage(dot, bypassGuard: true);
         }
 
-        // ✅ +1 Focus mỗi lần bắt đầu lượt của player
         if (player != null && !player.IsDead)
             player.GainFocus(1);
 
-        // Reset board + UI như trước
         _board.Reset();
         RefreshAllPreviews();
         UpdateAllIconsDim();
@@ -366,17 +446,12 @@ public class TurnManager : MonoBehaviour
         LockPlanningUI(false);
     }
 
-
-
-    // ---------------------------
-    // Helpers: roster snapshot
-    // ---------------------------
+    // -------- helpers --------
     private System.Collections.Generic.IReadOnlyList<CombatActor> ResolveAoeTargets(SkillRuntime rt)
     {
         if (rt == null) return null;
         if (!rt.hitAllEnemies && !rt.hitAllAllies) return null;
 
-        // Hiện tại bạn ưu tiên hitAllEnemies. (hitAllAllies sẽ implement sau khi có ally turn)
         if (rt.hitAllEnemies)
             return ResolveAliveEnemiesSnapshot();
 
@@ -385,19 +460,14 @@ public class TurnManager : MonoBehaviour
 
     private System.Collections.Generic.List<CombatActor> ResolveAliveEnemiesSnapshot()
     {
-        // Preferred: BattlePartyManager2D
         if (party != null)
             return party.GetAliveEnemies(frontOnly: false);
 
-        // Legacy: single enemy
         var list = new System.Collections.Generic.List<CombatActor>(1);
         if (enemy != null && !enemy.IsDead) list.Add(enemy);
         return list;
     }
 
-    // ---------------------------
-    // Internals: slot checks / cursor
-    // ---------------------------
     private bool IsSlotActive0(int i0) => diceRig == null || diceRig.IsSlotActive(i0);
 
     private bool AreSlotsActiveInRange(int start0, int span)
@@ -416,12 +486,8 @@ public class TurnManager : MonoBehaviour
         }
     }
 
-    // ---------------------------
-    // UI Preview positioning (center icon for 2/3 slots)
-    // ---------------------------
     private void RefreshAllPreviews()
     {
-        // clear all previews and reset their icon position to their slot center
         for (int i = 0; i < 3; i++)
         {
             var d = GetDrop(i);
@@ -431,7 +497,6 @@ public class TurnManager : MonoBehaviour
             d.iconPreview.rectTransform.position = ((RectTransform)d.transform).position;
         }
 
-        // draw ONLY at anchors, place at center of occupied slots
         for (int a = 0; a < 3; a++)
         {
             if (!_board.IsAnchorSlot(a)) continue;
@@ -456,7 +521,6 @@ public class TurnManager : MonoBehaviour
             return (pA + pB) * 0.5f;
         }
 
-        // sp == 3 => center is slot2 (index 1)
         return GetDrop(1).transform.position;
     }
 
@@ -464,6 +528,7 @@ public class TurnManager : MonoBehaviour
 
     private void UpdateAllIconsDim()
     {
+        // Legacy dimming still works.
         var all = FindObjectsOfType<DraggableSkillIcon>(true);
         foreach (var ic in all)
         {
@@ -472,12 +537,8 @@ public class TurnManager : MonoBehaviour
         }
     }
 
-    // ---------------------------
-    // Planning UI lock
-    // ---------------------------
     private void OnDiceRolled()
     {
-        // If you allow any reroll / dice edit later, this keeps reserved cost in sync.
         _board.RecalculateRuntimesAndRebalance(player, diceRig);
         RefreshAllPreviews();
         RefreshPlanningInteractivity();
@@ -486,6 +547,12 @@ public class TurnManager : MonoBehaviour
     private void RefreshPlanningInteractivity()
     {
         if (phase != Phase.Planning) return;
+
+        if (!lockPlanningUIUntilRolled)
+        {
+            LockPlanningUI(false); // preserves old roll button layouts
+            return;
+        }
 
         bool locked = (diceRig != null) && (!diceRig.HasRolledThisTurn || diceRig.IsRolling);
         LockPlanningUI(locked);
@@ -505,12 +572,6 @@ public class TurnManager : MonoBehaviour
         }
     }
 
-    // ---------------------------
-    // Target gating
-    // ---------------------------
-    // ---------------------------
-    // Target gating
-    // ---------------------------
     private bool IsValidTargetForPendingSkill(CombatActor clicked)
     {
         var rt = _board.GetAnchorRuntime(_cursor);
@@ -522,8 +583,6 @@ public class TurnManager : MonoBehaviour
         {
             if (clicked == player) return false;
 
-            // ✅ Melee single-target: nếu còn bất kỳ enemy Front sống => chỉ được target enemy có tag Front
-            // (AoE melee hitAllEnemies: bỏ qua rule này)
             if (rt.kind == SkillKind.Attack && rt.range == RangeType.Melee && !rt.hitAllEnemies)
             {
                 bool anyFrontAlive = false;
@@ -548,10 +607,6 @@ public class TurnManager : MonoBehaviour
         return false;
     }
 
-
-    // ---------------------------
-    // Input
-    // ---------------------------
     private static bool SpacePressedThisFrame()
     {
 #if ENABLE_INPUT_SYSTEM
@@ -562,9 +617,6 @@ public class TurnManager : MonoBehaviour
 #endif
     }
 
-    // ---------------------------
-    // Debug logging
-    // ---------------------------
     private void SetPhase(Phase newPhase)
     {
         if (phase == newPhase) return;

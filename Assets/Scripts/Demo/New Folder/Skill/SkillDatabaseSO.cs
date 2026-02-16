@@ -31,6 +31,28 @@ public class SkillDatabaseSO : ScriptableObject
     [InlineEditor(InlineEditorObjectFieldModes.Boxed)]
     public List<SkillSO> skills = new();
 
+    // ---------------------------
+    // Helper APIs (non-breaking)
+    // ---------------------------
+    /// <summary>
+    /// Enumerate V2 active skills (Damage + BuffDebuff). This does NOT include passives.
+    /// Useful for UI panels that show only draggable/equippable skills.
+    /// </summary>
+    public IEnumerable<ScriptableObject> EnumerateActiveV2()
+    {
+        for (int i = 0; i < damageSkills.Count; i++) if (damageSkills[i]) yield return damageSkills[i];
+        for (int i = 0; i < buffDebuffSkills.Count; i++) if (buffDebuffSkills[i]) yield return buffDebuffSkills[i];
+    }
+
+    /// <summary>
+    /// Enumerate all V2 skills (Damage + BuffDebuff + Passive).
+    /// </summary>
+    public IEnumerable<ScriptableObject> EnumerateAllV2()
+    {
+        foreach (var s in EnumerateActiveV2()) yield return s;
+        for (int i = 0; i < passiveSkills.Count; i++) if (passiveSkills[i]) yield return passiveSkills[i];
+    }
+
 #if UNITY_EDITOR
     [TabGroup("Skills", "Damage")]
     [Button(ButtonSizes.Medium)]

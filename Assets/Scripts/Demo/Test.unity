@@ -483,6 +483,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
   skill: {fileID: 11400000, guid: c6574525cdda39e40abdb110998f5d64, type: 2}
+  damageSkill: {fileID: 0}
+  buffDebuffSkill: {fileID: 0}
+  passiveSkill: {fileID: 0}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &115104248
@@ -1658,6 +1661,7 @@ MonoBehaviour:
   diceRig: {fileID: 1499909187}
   skillBarGroup: {fileID: 1770123173}
   slotsPanelGroup: {fileID: 192904715}
+  lockPlanningUIUntilRolled: 0
   phase: 0
   logPhase: 1
   toggleLogKey: 291
@@ -2641,6 +2645,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
   skill: {fileID: 11400000, guid: 767abd92a102e024bb8dbb6f2ca991fb, type: 2}
+  damageSkill: {fileID: 0}
+  buffDebuffSkill: {fileID: 0}
+  passiveSkill: {fileID: 0}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &1250167324
@@ -2776,6 +2783,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
   skill: {fileID: 11400000, guid: d4daa61c99c013c4a82c78e9fdce35c7, type: 2}
+  damageSkill: {fileID: 0}
+  buffDebuffSkill: {fileID: 0}
+  passiveSkill: {fileID: 0}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &1346108748
@@ -2930,16 +2940,28 @@ MonoBehaviour:
   slots:
   - active: 1
     dice: {fileID: 1214275106}
-    diceRoot: {fileID: 580896588}
-    slotRoot: {fileID: 1843755233}
+    diceRoot: {fileID: 1214275105}
+    slotRoot: {fileID: 1214275105}
   - active: 1
     dice: {fileID: 1181993424}
-    diceRoot: {fileID: 445306997}
-    slotRoot: {fileID: 1887413256}
+    diceRoot: {fileID: 1181993423}
+    slotRoot: {fileID: 445306997}
   - active: 1
     dice: {fileID: 1638378651}
-    diceRoot: {fileID: 2007361237}
-    slotRoot: {fileID: 336094395}
+    diceRoot: {fileID: 1638378649}
+    slotRoot: {fileID: 2007361237}
+  dice1: {fileID: 1214275106}
+  dice2: {fileID: 0}
+  dice3: {fileID: 0}
+  diceRoot1: {fileID: 0}
+  diceRoot2: {fileID: 0}
+  diceRoot3: {fileID: 0}
+  slotRoot1: {fileID: 0}
+  slotRoot2: {fileID: 0}
+  slotRoot3: {fileID: 0}
+  slot0Active: 1
+  slot1Active: 1
+  slot2Active: 1
   disableDiceSelfInput: 1
 --- !u!1 &1552281185
 GameObject:
@@ -3230,6 +3252,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
   skill: {fileID: 11400000, guid: 8506c5b0eb55e134489448bc8722ad7c, type: 2}
+  damageSkill: {fileID: 0}
+  buffDebuffSkill: {fileID: 0}
+  passiveSkill: {fileID: 0}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &1661062085
@@ -3334,6 +3359,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
   skill: {fileID: 11400000, guid: ca37e5f3cb06c0140a5cda3280ef03e6, type: 2}
+  damageSkill: {fileID: 0}
+  buffDebuffSkill: {fileID: 0}
+  passiveSkill: {fileID: 0}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &1664891460
@@ -3715,6 +3743,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
   skill: {fileID: 11400000, guid: f8ebb87232ea33e48be6a48c20b05a84, type: 2}
+  damageSkill: {fileID: 0}
+  buffDebuffSkill: {fileID: 0}
+  passiveSkill: {fileID: 0}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &1810816296
@@ -4288,6 +4319,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
   skill: {fileID: 11400000, guid: 779dca9a4fe5cc54ea6e180653df7758, type: 2}
+  damageSkill: {fileID: 0}
+  buffDebuffSkill: {fileID: 0}
+  passiveSkill: {fileID: 0}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &1917549800
@@ -4425,6 +4459,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
   skill: {fileID: 11400000, guid: 8e0f306e3d0f0274fb2a84cef4bede55, type: 2}
+  damageSkill: {fileID: 0}
+  buffDebuffSkill: {fileID: 0}
+  passiveSkill: {fileID: 0}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &2046769252

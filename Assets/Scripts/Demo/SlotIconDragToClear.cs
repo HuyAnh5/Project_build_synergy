@@ -98,5 +98,4 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
         if (drop != null)
             drop.OnDrop(eventData);
     }
-
 }
