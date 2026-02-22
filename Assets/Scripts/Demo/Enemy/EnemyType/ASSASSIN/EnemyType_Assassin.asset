@@ -1,0 +1,81 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 718f017c0fb732b4792dd172eb09d2cd, type: 3}
+  m_Name: EnemyType_Assassin
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinitionSO
+  enemyId: EnemyType_Assassin
+  displayName: Assassin
+  role: 2
+  extraTags: []
+  maxHP: 30
+  startingGuard: 0
+  damageScalar: 1
+  burstCapPercent: 0.8
+  noRepeatTwice: 1
+  historyWindow: 2
+  moves:
+  - moveId: asn_burst
+    displayName: Burst Strike
+    intent: 0
+    tags: 3
+    weight: 12
+    cooldownTurns: 2
+    maxConsecutive: 1
+    hpPctMin: 0
+    hpPctMax: 1
+    ignoreNoRepeat: 0
+    minTurnIndex: 1
+    forceOnTurn: 2
+    damageSkill: {fileID: 11400000, guid: c59d983e67ce53f4384850905e0ebb21, type: 2}
+    buffDebuffSkill: {fileID: 0}
+  - moveId: asn_punish
+    displayName: Guard Punish
+    intent: 0
+    tags: 9
+    weight: 10
+    cooldownTurns: 3
+    maxConsecutive: 1
+    hpPctMin: 0
+    hpPctMax: 1
+    ignoreNoRepeat: 0
+    minTurnIndex: 1
+    forceOnTurn: 0
+    damageSkill: {fileID: 11400000, guid: 80344646fc3da2a44adfa5d3164b7a15, type: 2}
+    buffDebuffSkill: {fileID: 0}
+  - moveId: asn_stab
+    displayName: Quick Stab
+    intent: 0
+    tags: 1
+    weight: 11
+    cooldownTurns: 0
+    maxConsecutive: 2
+    hpPctMin: 0
+    hpPctMax: 1
+    ignoreNoRepeat: 0
+    minTurnIndex: 1
+    forceOnTurn: 1
+    damageSkill: {fileID: 11400000, guid: 211fb5aafaf9d8e459e61a5caa5c2393, type: 2}
+    buffDebuffSkill: {fileID: 0}
+  - moveId: asn_evade
+    displayName: Evade / Guard
+    intent: 1
+    tags: 132
+    weight: 8
+    cooldownTurns: 2
+    maxConsecutive: 1
+    hpPctMin: 0
+    hpPctMax: 0.6
+    ignoreNoRepeat: 0
+    minTurnIndex: 1
+    forceOnTurn: 0
+    damageSkill: {fileID: 11400000, guid: 18b03a66c1da9c6479fea027a92fdd54, type: 2}
+    buffDebuffSkill: {fileID: 0}

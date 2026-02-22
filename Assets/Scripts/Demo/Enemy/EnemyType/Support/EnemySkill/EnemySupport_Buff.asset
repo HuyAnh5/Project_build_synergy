@@ -10,32 +10,32 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 39f7c47594403f4418d7f6d7b3d68fad, type: 3}
-  m_Name: SkillBuffDebuff_
+  m_Name: EnemySupport_Buff
   m_EditorClassIdentifier: Assembly-CSharp::SkillBuffDebuffSO
-  icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
-  displayName: SkillBuffDebuff_
+  icon: {fileID: 0}
+  displayName: EnemySupport_Buff
   description: 
-  identity: 1
-  target: 0
+  identity: 0
+  target: 2
   applyDelayTurns: 0
   slotsRequired: 1
-  focusCost: 1
+  focusCost: 0
   focusGainOnCast: 0
-  _focusDelayedDelayWarning: 0
+  _focusDelayedDelayWarning: 1
   effects:
-  - id: 6
+  - id: 0
     durationTurns: 2
-    compactParam: 30
+    compactParam: 1.5
     parityEvenDelta: -2
     parityOddDelta: -1
     _slotCollapseHelp: 1
     _healByDiceHelp: 1
-  applyAilment: 1
+  applyAilment: 0
   ailment:
-    ailment: 2
-    durationTurns: 5
-    chanceTuningMultiplier: 2
-    breakOnDamage: 0
+    ailment: 0
+    durationTurns: 1
+    chanceTuningMultiplier: 1
+    breakOnDamage: 1
     sleep_damageBonusOnWake: 0.5
     sleep_healPercentOnTurnStart: 0.2
     dizzy_damageReductionPercent: 0.25

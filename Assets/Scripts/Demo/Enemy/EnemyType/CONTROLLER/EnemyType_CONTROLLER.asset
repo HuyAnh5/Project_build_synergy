@@ -1,0 +1,73 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 718f017c0fb732b4792dd172eb09d2cd, type: 3}
+  m_Name: EnemyType_CONTROLLER
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyDefinitionSO
+  enemyId: enemy_CONTROLLER
+  displayName: CONTROLLER
+  role: 1
+  extraTags: []
+  maxHP: 30
+  startingGuard: 0
+  damageScalar: 1
+  burstCapPercent: 0.8
+  noRepeatTwice: 1
+  historyWindow: 2
+  moves:
+  - moveId: ctl_poke
+    displayName: Small Strike
+    intent: 0
+    tags: 1
+    weight: 12
+    cooldownTurns: 0
+    maxConsecutive: 3
+    hpPctMin: 0
+    hpPctMax: 1
+    ignoreNoRepeat: 1
+    damageSkill: {fileID: 11400000, guid: 13d772801966b3a48b1c4d9b7727b79c, type: 2}
+    buffDebuffSkill: {fileID: 0}
+  - moveId: ctl_ail
+    displayName: Apply Ailment
+    intent: 3
+    tags: 48
+    weight: 10
+    cooldownTurns: 3
+    maxConsecutive: 1
+    hpPctMin: 0
+    hpPctMax: 1
+    ignoreNoRepeat: 0
+    damageSkill: {fileID: 0}
+    buffDebuffSkill: {fileID: 11400000, guid: 3c3023b0ef132d546903cd50d473d084, type: 2}
+  - moveId: ctl_debuff
+    displayName: Apply Debuff
+    intent: 3
+    tags: 16
+    weight: 11
+    cooldownTurns: 1
+    maxConsecutive: 1
+    hpPctMin: 0
+    hpPctMax: 1
+    ignoreNoRepeat: 0
+    damageSkill: {fileID: 0}
+    buffDebuffSkill: {fileID: 11400000, guid: 53f6e6104fd6d4843bb163e8ab557175, type: 2}
+  - moveId: ctl_mark
+    displayName: Mark Target
+    intent: 3
+    tags: 16
+    weight: 8
+    cooldownTurns: 2
+    maxConsecutive: 1
+    hpPctMin: 0
+    hpPctMax: 1
+    ignoreNoRepeat: 0
+    damageSkill: {fileID: 11400000, guid: d8f1b6805d24fc64884387eec893c9ff, type: 2}
+    buffDebuffSkill: {fileID: 0}

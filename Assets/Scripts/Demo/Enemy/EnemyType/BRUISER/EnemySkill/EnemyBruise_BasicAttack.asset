@@ -10,15 +10,15 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a042d137857b6b447b1a911238dc40d8, type: 3}
-  m_Name: SkillDamage_
+  m_Name: EnemyBruise_BasicAttack
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
-  icon: {fileID: 10911, guid: 0000000000000000f000000000000000, type: 0}
-  displayName: SkillDamage_
+  icon: {fileID: 0}
+  displayName: EnemyBruise_BasicAttack
   description: 
   kind: 0
-  coreAction: 0
+  coreAction: 1
   target: 1
-  group: 2
+  group: 0
   element: 4
   range: 0
   hitAllEnemies: 0
@@ -34,9 +34,9 @@ MonoBehaviour:
     matchRule: 0
     straightRule: 0
   whenConditionIsMet:
-    overrideSlotsRequired: 1
-    slotsRequired: 2
-    overrideIdentity: 1
+    overrideSlotsRequired: 0
+    slotsRequired: 1
+    overrideIdentity: 0
     kind: 0
     target: 1
     group: 0
@@ -44,10 +44,10 @@ MonoBehaviour:
     range: 1
     hitAllEnemies: 0
     hitAllAllies: 0
-    overrideCost: 1
-    focusCost: 2
-    focusGainOnCast: 1
-    overrideDamage: 1
+    overrideCost: 0
+    focusCost: 0
+    focusGainOnCast: 0
+    overrideDamage: 0
     dieMultiplier: 1
     flatDamage: 0
     overrideSunderBonus: 0
@@ -63,15 +63,15 @@ MonoBehaviour:
     overrideBurnSpender: 0
     consumesBurn: 0
     burnDamagePerStack: 1
-    overrideApplyStatus: 1
-    applyBurn: 1
+    overrideApplyStatus: 0
+    applyBurn: 0
     burnAddStacks: 2
     burnRefreshTurns: 3
-    applyMark: 1
-    applyBleed: 1
+    applyMark: 0
+    applyBleed: 0
     bleedTurns: 3
-    applyFreeze: 1
-    freezeChance: 1
+    applyFreeze: 0
+    freezeChance: 0.4
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
   focusCost: 0
@@ -84,15 +84,15 @@ MonoBehaviour:
   guardFlat: 0
   bypassGuard: 0
   clearsGuard: 0
-  canUseMarkMultiplier: 0
+  canUseMarkMultiplier: 1
   consumesBurn: 0
-  burnDamagePerStack: 2
+  burnDamagePerStack: 1
   applyBurn: 0
   burnAddStacks: 2
   burnRefreshTurns: 3
   applyMark: 0
   applyBleed: 0
   bleedTurns: 3
-  applyFreeze: 1
-  freezeChance: 1
-  projectilePrefab: {fileID: 1405955094155794844, guid: 5d01605074727f547858efbc90cb9570, type: 3}
+  applyFreeze: 0
+  freezeChance: 0.4
+  projectilePrefab: {fileID: 0}

@@ -15,8 +15,9 @@ GameObject:
   - component: {fileID: 8780733521486567770}
   - component: {fileID: 6982064561166475885}
   - component: {fileID: 5561527520343481321}
+  - component: {fileID: 7728371431179285906}
   m_Layer: 0
-  m_Name: Enemy
+  m_Name: Enemy_Bruiser
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -113,6 +114,11 @@ MonoBehaviour:
   marked: 0
   bleedTurns: 0
   frozen: 0
+  _hasAilment: 0
+  _ailmentType: 0
+  _ailmentTurnsLeft: 0
+  debugForceAilmentChance100: 1
+  debugLog: 1
 --- !u!114 &3343973332019958161
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -214,6 +220,20 @@ MonoBehaviour:
   meleeLungeTime: 0.1
   meleeReturnTime: 0.08
   lungeIgnoreTimeScale: 0
+--- !u!114 &7728371431179285906
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 380198500699652695}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b658bb45f2c7b3e448cc1e8e41f9bc41, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnemyBrainController
+  definition: {fileID: 11400000, guid: 7200c0fcb4718ba4ea4f6ac1a01e060e, type: 2}
+  actor: {fileID: 3343973332019958161}
 --- !u!1 &7865205329936715492
 GameObject:
   m_ObjectHideFlags: 0

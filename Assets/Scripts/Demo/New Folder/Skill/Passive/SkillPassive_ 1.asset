@@ -17,7 +17,7 @@ MonoBehaviour:
   description: 
   effects:
   - id: 3
-    valueF: 0.2
+    valueF: 1
     valueI: 1
     element: 4
     attackType: 0

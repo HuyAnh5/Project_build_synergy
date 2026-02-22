@@ -138,9 +138,19 @@ public class SkillExecutor : MonoBehaviour
 
         if (rt.kind == SkillKind.Guard)
         {
-            int g = rt.CalculateGuard(dieValue);
-            caster.SetGuard(g);
+            int baseGuard = rt.CalculateGuard(dieValue);
+
+            // apply GuardGainPercent passive
+            float pct = 0f;
+            var ps = caster.GetComponent<PassiveSystem>();
+            if (ps != null) pct = ps.GetGuardGainPercent();
+
+            float mult = 1f + Mathf.Max(-0.99f, pct);
+            int scaledGuard = Mathf.CeilToInt(baseGuard * mult);
+
+            caster.SetGuard(scaledGuard);
             caster.GainFocus(rt.focusGainOnCast);
+
             yield return new WaitForSeconds(delayBetweenActions);
             yield break;
         }

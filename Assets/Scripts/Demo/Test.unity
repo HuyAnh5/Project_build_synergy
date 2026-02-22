@@ -1718,14 +1718,6 @@ MonoBehaviour:
   - label: 
     prefab: {fileID: 3343973332019958161, guid: dc54dd17b8c3f6841be18416536e9200, type: 3}
     row: 0
-    orderInRow: 0
-  - label: 
-    prefab: {fileID: 3343973332019958161, guid: dc54dd17b8c3f6841be18416536e9200, type: 3}
-    row: 0
-    orderInRow: 1
-  - label: 
-    prefab: {fileID: 3343973332019958161, guid: dc54dd17b8c3f6841be18416536e9200, type: 3}
-    row: 1
     orderInRow: 1
   depthOffset: 0.6
   spacingFor2: 2
@@ -2145,9 +2137,9 @@ MonoBehaviour:
   - uiIcon: {fileID: 1346108747}
     skillAsset: {fileID: 0}
   - uiIcon: {fileID: 2046769251}
-    skillAsset: {fileID: 11400000, guid: 9a24c243c26a3374b99dbc0d83d4db04, type: 2}
-  - uiIcon: {fileID: 1917549799}
     skillAsset: {fileID: 11400000, guid: 68b115a564e681c40aa72f4723768ea6, type: 2}
+  - uiIcon: {fileID: 1917549799}
+    skillAsset: {fileID: 11400000, guid: 9a24c243c26a3374b99dbc0d83d4db04, type: 2}
   relicSlots:
   - asset: {fileID: 0}
     charges: 0

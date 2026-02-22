@@ -525,10 +525,114 @@ public class TurnManager : MonoBehaviour
 
             if (player != null && !player.IsDead)
             {
-                player.TakeDamage(4, bypassGuard: false);
-                if (logPhase) Debug.Log($"[TM] Enemy {e.name} attacks player -> playerHP={player.hp} guard={player.guardPool}", this);
+                var brain = e.GetComponent<EnemyBrainController>();
 
-                // ✅ Delay trước khi tới enemy tiếp theo
+                // nếu có brain+definition thì cast skill thật
+                if (brain != null && brain.definition != null && brain.definition.moves != null && brain.definition.moves.Count > 0)
+                {
+                    // nếu chưa có intent thì decide ngay (tạm thời; STS chuẩn là decide cuối lượt player)
+                    if (!brain.CurrentIntent.hasIntent)
+                        brain.DecideNextIntent(player);
+
+                    if (brain.CurrentIntent.hasIntent)
+                    {
+                        var move = brain.definition.moves[brain.CurrentIntent.moveIndex];
+
+                        // chọn skill để cast: ưu tiên BuffDebuff nếu có, không thì Damage
+                        if (move.buffDebuffSkill != null)
+                        {
+                            // resolve target cho buff/debuff
+                            CombatActor clicked = null;
+                            IReadOnlyList<CombatActor> aoe = null;
+
+                            switch (move.buffDebuffSkill.target)
+                            {
+                                case SkillTargetRule.Self:
+                                    clicked = e;
+                                    break;
+
+                                case SkillTargetRule.SingleEnemy:
+                                    clicked = player;
+                                    break;
+
+                                case SkillTargetRule.SingleAlly:
+                                    // ✅ heal ally yếu nhất nếu move tag Heal
+                                    if ((move.tags & EnemyDefinitionSO.EnemyMoveTag.Heal) != 0)
+                                        clicked = brain.PickMostInjuredEnemyAlly(party, includeSelf: true);
+                                    else
+                                        clicked = e; // fallback
+                                    break;
+
+                                case SkillTargetRule.AllEnemies:
+                                    aoe = party != null ? party.GetAliveAllies(includePlayer: true) : null;
+                                    clicked = (aoe != null && aoe.Count > 0) ? aoe[0] : player;
+                                    break;
+
+                                case SkillTargetRule.AllAllies:
+                                    aoe = party != null ? party.GetAliveEnemies(frontOnly: false) : null;
+                                    clicked = e;
+                                    break;
+
+                                case SkillTargetRule.AllUnits:
+                                    if (party != null)
+                                    {
+                                        var tmp = new List<CombatActor>();
+                                        tmp.AddRange(party.GetAliveAllies(includePlayer: true));
+                                        tmp.AddRange(party.GetAliveEnemies(frontOnly: false));
+                                        aoe = tmp;
+                                        clicked = (aoe.Count > 0) ? aoe[0] : player;
+                                    }
+                                    else clicked = player;
+                                    break;
+                            }
+
+                            // nếu SingleAlly heal mà không ai thiếu máu => fallback attack nhẹ (hoặc skip)
+                            if (move.buffDebuffSkill.target == SkillTargetRule.SingleAlly && clicked == null)
+                            {
+                                // fallback: đánh player bằng damageSkill nếu có
+                                if (move.damageSkill != null)
+                                    yield return executor.ExecuteSkill(move.damageSkill, e, player, dieValue: 3, skipCost: true);
+                            }
+                            else
+                            {
+                                yield return executor.ExecuteSkill(
+                                    move.buffDebuffSkill, e, clicked,
+                                    rolledValue: 3, maxFaceValue: 6,
+                                    skipCost: true,
+                                    aoeTargets: aoe
+                                );
+                            }
+                        }
+                        else if (move.damageSkill != null)
+                        {
+                            // resolve target cho damage
+                            CombatActor target = null;
+                            switch (move.damageSkill.target)
+                            {
+                                case SkillTargetRule.Self: target = e; break;
+                                case SkillTargetRule.SingleEnemy: target = player; break;
+                                case SkillTargetRule.SingleAlly: target = e; break; // damage hiếm khi dùng
+                                default: target = player; break;
+                            }
+
+                            if (target != null)
+                                yield return executor.ExecuteSkill(move.damageSkill, e, target, dieValue: 3, skipCost: true);
+                        }
+
+                        // consume intent + tick cooldown turn (tối thiểu để cooldown hoạt động)
+                        brain.ConsumeCurrentIntent();
+                        brain.AdvanceTurnTick();
+
+                        if (delayBetweenEnemyAttacks > 0f)
+                            yield return new WaitForSeconds(delayBetweenEnemyAttacks);
+
+                        if (e.status != null) e.status.OnOwnerTurnEnded();
+                        continue;
+                    }
+                }
+
+                // fallback cuối cùng nếu chưa có brain/move/skill
+                player.TakeDamage(4, bypassGuard: false);
                 if (delayBetweenEnemyAttacks > 0f)
                     yield return new WaitForSeconds(delayBetweenEnemyAttacks);
             }
