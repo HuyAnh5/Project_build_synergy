@@ -1,29 +1,52 @@
 ﻿using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using Sirenix.OdinInspector;
 
 /// <summary>
-/// Drag source for skill icons.
+/// UI icon for a skill. Source of truth should be RunInventoryManager.
+/// - If Bind To Inventory Slot = true: skill is resolved from inventory (Fixed/Owned + index)
+/// - Else: use Skill Asset Override (single ScriptableObject)
 ///
-/// Backward compatible:
-/// - Legacy path uses <see cref="skill"/> (SkillSO) exactly as before.
-/// - New V2 path can bind to SkillDamageSO / SkillBuffDebuffSO / SkillPassiveSO without breaking old scenes.
+/// Supports drag/click equip for active skills (SkillDamageSO / SkillBuffDebuffSO / legacy SkillSO if you still have it).
+/// Passive (SkillPassiveSO) is NOT draggable and NOT click-to-equip.
 /// </summary>
-public class DraggableSkillIcon : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
+public class DraggableSkillIcon : MonoBehaviour,
+    IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
 {
-    [Header("Legacy (SkillSO)")]
-    public SkillSO skill;
+    // -------------------------
+    // Binding (Inspector clean)
+    // -------------------------
+    [Title("Source")]
+    [Tooltip("If enabled, this icon always reads the skill from RunInventoryManager (Fixed/Owned slot).")]
+    [SerializeField] private bool bindToInventorySlot = true;
 
-    [Header("V2 (optional)")]
-    public SkillDamageSO damageSkill;
-    public SkillBuffDebuffSO buffDebuffSkill;
-    public SkillPassiveSO passiveSkill;
+    [ShowIf(nameof(bindToInventorySlot))]
+    [SerializeField] private RunInventoryManager inventory;
 
-    [Header("Runtime")]
-    public TurnManager turn;
+    public enum InventorySkillSource { Fixed, Owned }
 
-    [Range(0f, 1f)] public float inUseAlpha = 0.6f;
+    [ShowIf(nameof(bindToInventorySlot))]
+    [SerializeField] private InventorySkillSource inventorySource = InventorySkillSource.Owned;
 
+    [ShowIf(nameof(bindToInventorySlot))]
+    [Min(0)]
+    [SerializeField] private int inventoryIndex = 0;
+
+    [HideIf(nameof(bindToInventorySlot))]
+    [Tooltip("Used only when not bound to inventory. Single reference, no legacy/new split.")]
+    [SerializeField] private ScriptableObject skillAssetOverride;
+
+    [Title("Turn")]
+    [SerializeField] private TurnManager turn;
+
+    [Title("Visual")]
+    [Range(0f, 1f)]
+    [SerializeField] private float inUseAlpha = 0.6f;
+
+    // -------------------------
+    // Runtime
+    // -------------------------
     private Canvas _canvas;
     private RectTransform _canvasRT;
     private Camera _uiCam;
@@ -33,43 +56,11 @@ public class DraggableSkillIcon : MonoBehaviour, IBeginDragHandler, IDragHandler
 
     private RectTransform _ghostRT;
 
-    public enum SkillIconKind
-    {
-        None,
-        Legacy,
-        Damage,
-        BuffDebuff,
-        Passive
-    }
+    private ScriptableObject _resolvedAsset;
 
-    public SkillIconKind Kind
-    {
-        get
-        {
-            // Keep legacy priority so old prefabs behave exactly the same.
-            if (skill != null) return SkillIconKind.Legacy;
-            if (damageSkill != null) return SkillIconKind.Damage;
-            if (buffDebuffSkill != null) return SkillIconKind.BuffDebuff;
-            if (passiveSkill != null) return SkillIconKind.Passive;
-            return SkillIconKind.None;
-        }
-    }
-
-    public bool IsV2ActiveSkill => Kind == SkillIconKind.Damage || Kind == SkillIconKind.BuffDebuff;
-    public bool IsV2PassiveOnly => Kind == SkillIconKind.Passive;
-
-    public Sprite IconSprite
-    {
-        get
-        {
-            if (skill != null) return skill.icon;
-            if (damageSkill != null) return damageSkill.icon;
-            if (buffDebuffSkill != null) return buffDebuffSkill.icon;
-            if (passiveSkill != null) return passiveSkill.icon;
-            return null;
-        }
-    }
-
+    // -------------------------
+    // Unity
+    // -------------------------
     private void Awake()
     {
         _canvas = GetComponentInParent<Canvas>();
@@ -83,16 +74,78 @@ public class DraggableSkillIcon : MonoBehaviour, IBeginDragHandler, IDragHandler
         SetInUse(false);
     }
 
+    private void OnEnable()
+    {
+        if (bindToInventorySlot && inventory != null)
+            inventory.InventoryChanged += OnInventoryChanged;
+
+        Refresh();
+    }
+
+    private void OnDisable()
+    {
+        if (inventory != null)
+            inventory.InventoryChanged -= OnInventoryChanged;
+    }
+
+    private void OnInventoryChanged()
+    {
+        Refresh();
+    }
+
+    // -------------------------
+    // Public helpers (keep functions)
+    // -------------------------
+    public bool IsPassive
+    {
+        get
+        {
+            var a = GetSkillAsset();
+            return a is SkillPassiveSO;
+        }
+    }
+
+    public ScriptableObject GetSkillAsset()
+    {
+        // 1) Inventory slot binding (source of truth)
+        if (bindToInventorySlot && inventory != null)
+        {
+            // ✅ Use RunInventoryManager API (no FixedSkills/OwnedSkills properties needed)
+            var src = (inventorySource == InventorySkillSource.Fixed)
+                ? RunInventoryManager.SkillSource.Fixed
+                : RunInventoryManager.SkillSource.Owned;
+
+            _resolvedAsset = inventory.GetSkill(src, inventoryIndex);
+            return _resolvedAsset;
+        }
+
+        // 2) Single override reference
+        _resolvedAsset = skillAssetOverride;
+        return _resolvedAsset;
+    }
+
+
+    private Sprite GetIcon()
+    {
+        var a = GetSkillAsset();
+        if (a is SkillDamageSO ds) return ds.icon;
+        if (a is SkillBuffDebuffSO bd) return bd.icon;
+        if (a is SkillPassiveSO ps) return ps.icon;
+
+        // Optional legacy support if you still keep SkillSO in project:
+        if (a is SkillSO ls) return ls.icon;
+
+        return null;
+    }
+
     public void Refresh()
     {
         if (!_img) return;
+        _img.sprite = GetIcon();
+        _img.preserveAspect = true;
 
-        var spr = IconSprite;
-        if (spr != null)
-        {
-            _img.sprite = spr;
-            _img.preserveAspect = true;
-        }
+        // If slot is empty, you can hide icon visually (optional):
+        // gameObject.SetActive(_img.sprite != null);
     }
 
     public void SetInUse(bool inUse)
@@ -103,19 +156,33 @@ public class DraggableSkillIcon : MonoBehaviour, IBeginDragHandler, IDragHandler
         _img.color = c;
     }
 
-    // Click = auto equip (legacy path only for now; V2 click-to-equip will be wired when TurnManager/PlanBoard are refactored)
+    // -------------------------
+    // Click = auto equip (ONLY active)
+    // -------------------------
     public void OnPointerClick(PointerEventData eventData)
     {
         if (!turn || !turn.IsPlanning) return;
-        if (skill == null) return; // keep behavior unchanged for legacy
-        turn.TryAutoAssignFromClick(skill);
+
+        var a = GetSkillAsset();
+        if (a == null) return;
+        if (a is SkillPassiveSO) return;
+
+        // Call the overloads you already use in your TurnManager.
+        if (a is SkillDamageSO ds) { turn.TryAutoAssignFromClick(ds); return; }
+        if (a is SkillBuffDebuffSO bd) { turn.TryAutoAssignFromClick(bd); return; }
+        if (a is SkillSO ls) { turn.TryAutoAssignFromClick(ls); return; }
     }
 
+    // -------------------------
+    // Drag
+    // -------------------------
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (!turn || !turn.IsPlanning) return;
-        if (IsV2PassiveOnly) return; // Passive cannot be dragged.
-        if (Kind == SkillIconKind.None) return;
+
+        var a = GetSkillAsset();
+        if (a == null) return;
+        if (a is SkillPassiveSO) return;
 
         CreateGhost();
         MoveGhost(eventData.position);
@@ -135,30 +202,6 @@ public class DraggableSkillIcon : MonoBehaviour, IBeginDragHandler, IDragHandler
         _ghostRT = null;
 
         _cg.blocksRaycasts = true;
-    }
-
-    public bool TryGetLegacySkill(out SkillSO s)
-    {
-        s = skill;
-        return s != null;
-    }
-
-    public bool TryGetV2Damage(out SkillDamageSO s)
-    {
-        s = (skill == null) ? damageSkill : null; // do not mix with legacy
-        return s != null;
-    }
-
-    public bool TryGetV2BuffDebuff(out SkillBuffDebuffSO s)
-    {
-        s = (skill == null) ? buffDebuffSkill : null;
-        return s != null;
-    }
-
-    public bool TryGetV2Passive(out SkillPassiveSO s)
-    {
-        s = (skill == null && damageSkill == null && buffDebuffSkill == null) ? passiveSkill : null;
-        return s != null;
     }
 
     private void CreateGhost()
@@ -191,5 +234,16 @@ public class DraggableSkillIcon : MonoBehaviour, IBeginDragHandler, IDragHandler
             _canvasRT, screenPos, _uiCam, out var localPoint);
 
         _ghostRT.anchoredPosition = localPoint;
+    }
+
+    public void SetBindToInventory(RunInventoryManager inv, bool isFixed, int index)
+    {
+        bindToInventorySlot = true;
+        inventory = inv;
+        inventorySource = isFixed
+            ? InventorySkillSource.Fixed
+            : InventorySkillSource.Owned;
+        inventoryIndex = index;
+        Refresh();
     }
 }

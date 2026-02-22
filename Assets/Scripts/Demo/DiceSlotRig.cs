@@ -1,15 +1,12 @@
 ﻿using System;
 using System.Collections;
 using UnityEngine;
+using Sirenix.OdinInspector;
 
-/// <summary>
-/// KEEP legacy behaviour + ADD new APIs for the new skill system.
-/// Fixes common "can't roll after refactor" by auto-creating null entries
-/// and bootstrapping from legacy dice1/dice2/dice3 fields if present.
-/// </summary>
 public class DiceSlotRig : MonoBehaviour
 {
     [Serializable]
+    [InlineProperty, HideLabel]
     public class Entry
     {
         public bool active = true;
@@ -24,42 +21,26 @@ public class DiceSlotRig : MonoBehaviour
         public GameObject slotRoot;
     }
 
-    [Header("Slots (1..3)")]
+
+    [ListDrawerSettings(Expanded = true, DraggableItems = false, ShowIndexLabels = false)]
+    [LabelText("Slots (1..3)")]
     public Entry[] slots = new Entry[3];
 
-    // -----------------------------
-    // Legacy fields (optional)
-    // If older prefabs/scenes used these, Unity can rebind them when you paste this file.
-    // -----------------------------
-    [Header("Legacy (optional) — kept for prefab/scene migration")]
-    public DiceSpinnerGeneric dice1;
-    public DiceSpinnerGeneric dice2;
-    public DiceSpinnerGeneric dice3;
 
-    public GameObject diceRoot1;
-    public GameObject diceRoot2;
-    public GameObject diceRoot3;
-
-    public GameObject slotRoot1;
-    public GameObject slotRoot2;
-    public GameObject slotRoot3;
-
-    public bool slot0Active = true;
-    public bool slot1Active = true;
-    public bool slot2Active = true;
-
-    [Header("Options")]
+    [Title("Options")]
     [Tooltip("Disable DiceSpinnerGeneric self input so ONLY TurnManager controls rolling.")]
     public bool disableDiceSelfInput = true;
 
+    [ShowInInspector, ReadOnly]
     public bool HasRolledThisTurn { get; private set; } = false;
 
+    [ShowInInspector, ReadOnly]
     public bool IsRolling
     {
         get
         {
-            EnsureSlotsCreatedAndBootstrapped();
-            for (int i = 0; i < 3; i++)
+            EnsureSlots();
+            for (int i = 0; i < slots.Length; i++)
             {
                 if (!IsSlotActive(i)) continue;
                 var d = GetDice(i);
@@ -72,33 +53,34 @@ public class DiceSlotRig : MonoBehaviour
     public event Action onAllDiceRolled;
 
     /// <summary>
-    /// NEW (Batch 3+): dice-layer delta from statuses/buffs (e.g., AllDiceDelta debuff).
-    /// Subscribers return a delta; values are summed.
+    /// Dice-layer delta from statuses/buffs (e.g., -2 All Dice for 1 turn).
+    /// Subscribers return delta; values are summed.
     /// </summary>
     public event Func<CombatActor, int> onComputeAllDiceDelta;
 
-    void Awake()
+    private void Awake()
     {
-        EnsureSlotsCreatedAndBootstrapped();
+        EnsureSlots();
         ApplyActiveStates();
     }
 
-    void OnValidate()
+    private void OnValidate()
     {
-        EnsureSlotsCreatedAndBootstrapped();
+        EnsureSlots();
         ApplyActiveStates();
     }
 
     public void BeginNewTurn()
     {
         HasRolledThisTurn = false;
-        EnsureSlotsCreatedAndBootstrapped();
+        EnsureSlots();
         ApplyActiveStates();
     }
 
+    [Button(ButtonSizes.Medium)]
     public void RollOnce()
     {
-        EnsureSlotsCreatedAndBootstrapped();
+        EnsureSlots();
         if (HasRolledThisTurn) return;
         if (IsRolling) return;
 
@@ -107,11 +89,11 @@ public class DiceSlotRig : MonoBehaviour
 
     private IEnumerator RollRoutine()
     {
-        EnsureSlotsCreatedAndBootstrapped();
+        EnsureSlots();
         ApplyActiveStates();
 
         // Kick roll on all ACTIVE dice
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < slots.Length; i++)
         {
             if (!IsSlotActive(i)) continue;
 
@@ -131,8 +113,9 @@ public class DiceSlotRig : MonoBehaviour
 
     public bool IsSlotActive(int slot0)
     {
-        EnsureSlotsCreatedAndBootstrapped();
-        if (slots == null || slot0 < 0 || slot0 > 2) return false;
+        EnsureSlots();
+        if (slot0 < 0 || slot0 >= slots.Length) return false;
+
         var e = slots[slot0];
         if (e == null) return false;
         if (!e.active) return false;
@@ -141,6 +124,14 @@ public class DiceSlotRig : MonoBehaviour
         if (e.slotRoot != null && !e.slotRoot.activeInHierarchy) return false;
 
         return true;
+    }
+
+    public void SetSlotActive(int slot0, bool on)
+    {
+        EnsureSlots();
+        if (slot0 < 0 || slot0 >= slots.Length) return;
+        slots[slot0].active = on;
+        ApplyActiveStates();
     }
 
     public int GetDieValue(int slot0)
@@ -152,14 +143,16 @@ public class DiceSlotRig : MonoBehaviour
 
     public int ActiveSlotCount()
     {
+        EnsureSlots();
         int c = 0;
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < slots.Length; i++)
             if (IsSlotActive(i)) c++;
         return c;
     }
 
     public bool CanFitAtDrop(int dropSlot0, int requiredSlots)
     {
+        EnsureSlots();
         requiredSlots = Mathf.Clamp(requiredSlots, 1, 3);
 
         if (requiredSlots == 1)
@@ -178,10 +171,10 @@ public class DiceSlotRig : MonoBehaviour
 
     public void ApplyActiveStates()
     {
-        EnsureSlotsCreatedAndBootstrapped();
+        EnsureSlots();
         if (slots == null) return;
 
-        for (int i = 0; i < Mathf.Min(3, slots.Length); i++)
+        for (int i = 0; i < slots.Length; i++)
         {
             var e = slots[i];
             if (e == null) continue;
@@ -201,7 +194,7 @@ public class DiceSlotRig : MonoBehaviour
     }
 
     // -----------------------------
-    // NEW APIs (Batch 3): resolved die value + debuff layer
+    // Resolved value with debuff layer
     // -----------------------------
     public int GetResolvedDieValue(int slot0, CombatActor owner)
     {
@@ -223,65 +216,32 @@ public class DiceSlotRig : MonoBehaviour
         return v;
     }
 
-    // Back-compat alias
-    public int GetEffectiveDieValue(int slot0, CombatActor owner) => GetResolvedDieValue(slot0, owner);
-
-    // Legacy overload KEEP
-    public int GetEffectiveDieValue(int slot0, int allDiceDelta)
-    {
-        int raw = GetDieValue(slot0);
-        if (raw <= 0) return raw;
-        int v = raw + allDiceDelta;
-        if (v < 0) v = 0;
-        return v;
-    }
-
     public int GetMaxFaceValue(int slot0)
     {
         var d = GetDice(slot0);
         if (d == null || d.faces == null || d.faces.Length == 0) return 6;
+
         int max = 0;
         for (int i = 0; i < d.faces.Length; i++)
-        {
             if (d.faces[i].value > max) max = d.faces[i].value;
-        }
+
         return Mathf.Max(1, max);
     }
 
     private DiceSpinnerGeneric GetDice(int slot0)
     {
-        EnsureSlotsCreatedAndBootstrapped();
-        if (slots == null || slot0 < 0 || slot0 > 2) return null;
+        EnsureSlots();
+        if (slot0 < 0 || slot0 >= slots.Length) return null;
         return slots[slot0] != null ? slots[slot0].dice : null;
     }
 
-    private void EnsureSlotsCreatedAndBootstrapped()
+    private void EnsureSlots()
     {
         if (slots == null || slots.Length != 3)
             slots = new Entry[3];
 
         for (int i = 0; i < 3; i++)
-        {
             if (slots[i] == null)
                 slots[i] = new Entry();
-        }
-
-        // bootstrap dice refs from legacy fields
-        if (slots[0].dice == null && dice1 != null) slots[0].dice = dice1;
-        if (slots[1].dice == null && dice2 != null) slots[1].dice = dice2;
-        if (slots[2].dice == null && dice3 != null) slots[2].dice = dice3;
-
-        if (slots[0].diceRoot == null && diceRoot1 != null) slots[0].diceRoot = diceRoot1;
-        if (slots[1].diceRoot == null && diceRoot2 != null) slots[1].diceRoot = diceRoot2;
-        if (slots[2].diceRoot == null && diceRoot3 != null) slots[2].diceRoot = diceRoot3;
-
-        if (slots[0].slotRoot == null && slotRoot1 != null) slots[0].slotRoot = slotRoot1;
-        if (slots[1].slotRoot == null && slotRoot2 != null) slots[1].slotRoot = slotRoot2;
-        if (slots[2].slotRoot == null && slotRoot3 != null) slots[2].slotRoot = slotRoot3;
-
-        // bootstrap actives
-        slots[0].active = slots[0].active && slot0Active;
-        slots[1].active = slots[1].active && slot1Active;
-        slots[2].active = slots[2].active && slot2Active;
     }
 }

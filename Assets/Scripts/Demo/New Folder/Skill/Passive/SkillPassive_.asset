@@ -12,7 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6e4b4cbdc1fc78d4fb4b5a9145440d66, type: 3}
   m_Name: SkillPassive_
   m_EditorClassIdentifier: Assembly-CSharp::SkillPassiveSO
-  icon: {fileID: 0}
+  icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
   displayName: SkillPassive_
   description: 
-  effects: []
+  effects:
+  - id: 4
+    valueF: 0.2
+    valueI: 10
+    element: 4
+    attackType: 0
+    targetRow: 0
+    _guardNote: 1

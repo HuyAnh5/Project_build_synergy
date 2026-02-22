@@ -9,14 +9,15 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e70261dd731255d43abea3db62d44dee, type: 3}
-  m_Name: Skill_Fire
-  m_EditorClassIdentifier: Assembly-CSharp::SkillSO
-  icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
-  displayName: Skill_Fire
-  description: Skill_Fire
+  m_Script: {fileID: 11500000, guid: a042d137857b6b447b1a911238dc40d8, type: 3}
+  m_Name: Skill_fire
+  m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
+  icon: {fileID: 10911, guid: 0000000000000000f000000000000000, type: 0}
+  displayName: Skill_fire
+  description: 
   kind: 0
-  target: 0
+  coreAction: 0
+  target: 1
   group: 0
   element: 1
   range: 1
@@ -25,7 +26,7 @@ MonoBehaviour:
   slotsRequired: 1
   hasCondition: 0
   condition:
-    scope: 1
+    scope: 0
     kind: 0
     parityRule: 0
     thresholdCompare: 0
@@ -33,20 +34,20 @@ MonoBehaviour:
     matchRule: 0
     straightRule: 0
   whenConditionIsMet:
-    overrideSlotsRequired: 1
+    overrideSlotsRequired: 0
     slotsRequired: 1
-    overrideIdentity: 1
+    overrideIdentity: 0
     kind: 0
-    target: 0
+    target: 1
     group: 0
-    element: 1
+    element: 4
     range: 1
-    hitAllEnemies: 1
+    hitAllEnemies: 0
     hitAllAllies: 0
-    overrideCost: 1
-    focusCost: 2
+    overrideCost: 0
+    focusCost: 0
     focusGainOnCast: 0
-    overrideDamage: 1
+    overrideDamage: 0
     dieMultiplier: 1
     flatDamage: 0
     overrideSunderBonus: 0
@@ -62,8 +63,8 @@ MonoBehaviour:
     overrideBurnSpender: 0
     consumesBurn: 0
     burnDamagePerStack: 1
-    overrideApplyStatus: 1
-    applyBurn: 1
+    overrideApplyStatus: 0
+    applyBurn: 0
     burnAddStacks: 2
     burnRefreshTurns: 3
     applyMark: 0
@@ -73,7 +74,7 @@ MonoBehaviour:
     freezeChance: 0.4
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
-  focusCost: 0
+  focusCost: 1
   focusGainOnCast: 0
   dieMultiplier: 1
   flatDamage: 0
@@ -94,4 +95,4 @@ MonoBehaviour:
   bleedTurns: 3
   applyFreeze: 0
   freezeChance: 0.4
-  projectilePrefab: {fileID: 1405955094155794844, guid: 5d01605074727f547858efbc90cb9570, type: 3}
+  projectilePrefab: {fileID: 0}

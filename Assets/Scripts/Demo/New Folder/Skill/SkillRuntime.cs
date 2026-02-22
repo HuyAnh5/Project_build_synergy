@@ -10,6 +10,16 @@ public class SkillRuntime
 {
     public SkillSO source;
 
+    // New-system source (SkillDamageSO / SkillBuffDebuffSO / SkillPassiveSO), used for UI & bridging
+    public ScriptableObject sourceAsset;
+
+    // New targeting (SkillTargetRule). Legacy flow still uses TargetRule + hitAll flags.
+    public bool useV2Targeting;
+    public SkillTargetRule targetRuleV2;
+
+    // Optional tag for built-in actions (BasicStrike/BasicGuard) when coming from SkillDamageSO
+    public CoreAction coreAction;
+
     // Identity
     public SkillKind kind;
     public TargetRule target;
@@ -74,6 +84,15 @@ public class SkillRuntime
         var rt = new SkillRuntime
         {
             source = s,
+            sourceAsset = s,
+
+            useV2Targeting = false,
+            // best-effort mapping for UI/targeting bridge
+            targetRuleV2 = (s.target == TargetRule.Self)
+                ? (s.hitAllAllies ? SkillTargetRule.AllAllies : SkillTargetRule.Self)
+                : (s.hitAllEnemies ? SkillTargetRule.AllEnemies : SkillTargetRule.SingleEnemy),
+
+            coreAction = CoreAction.None,
 
             kind = s.kind,
             target = s.target,
@@ -131,6 +150,83 @@ public class SkillRuntime
         }
         if (rt.target == TargetRule.Self) rt.hitAllEnemies = false;
         if (rt.target == TargetRule.Enemy) rt.hitAllAllies = false;
+
+        return rt;
+    }
+
+    public static SkillRuntime FromDamage(SkillDamageSO s)
+    {
+        if (s == null) return null;
+
+        var rt = new SkillRuntime
+        {
+            source = null,
+            sourceAsset = s,
+
+            useV2Targeting = true,
+            targetRuleV2 = s.target,
+            coreAction = s.coreAction,
+
+            kind = s.kind,
+            // Legacy target is kept for old code paths. Executor will prefer targetRuleV2 when useV2Targeting=true.
+            target = (s.target == SkillTargetRule.SingleEnemy || s.target == SkillTargetRule.AllEnemies || s.target == SkillTargetRule.AllUnits)
+                ? TargetRule.Enemy
+                : TargetRule.Self,
+
+            group = s.group,
+            element = (ElementType)(int)s.element,
+            range = s.range,
+
+            hitAllEnemies = (s.target == SkillTargetRule.AllEnemies || s.target == SkillTargetRule.AllUnits),
+            hitAllAllies = (s.target == SkillTargetRule.AllAllies || s.target == SkillTargetRule.AllUnits),
+
+            slotsRequired = Mathf.Clamp(s.slotsRequired, 1, 3),
+
+            focusCost = Mathf.Max(0, s.focusCost),
+            focusGainOnCast = s.focusGainOnCast,
+
+            dieMultiplier = s.dieMultiplier,
+            flatDamage = s.flatDamage,
+
+            sunderBonusIfTargetHasGuard = s.sunderBonusIfTargetHasGuard,
+            sunderGuardDamageMultiplier = s.sunderGuardDamageMultiplier,
+
+            guardDieMultiplier = s.guardDieMultiplier,
+            guardFlat = s.guardFlat,
+
+            bypassGuard = s.bypassGuard,
+            clearsGuard = s.clearsGuard,
+            canUseMarkMultiplier = s.canUseMarkMultiplier,
+
+            consumesBurn = s.consumesBurn,
+            burnDamagePerStack = s.burnDamagePerStack,
+
+            applyBurn = s.applyBurn,
+            burnAddStacks = s.burnAddStacks,
+            burnRefreshTurns = s.burnRefreshTurns,
+
+            applyMark = s.applyMark,
+
+            applyBleed = s.applyBleed,
+            bleedTurns = s.bleedTurns,
+
+            applyFreeze = s.applyFreeze,
+            freezeChance = s.freezeChance,
+
+            projectilePrefab = s.projectilePrefab,
+
+            conditionMet = false
+        };
+
+        // safety
+        if (rt.kind == SkillKind.Guard || rt.coreAction == CoreAction.BasicGuard)
+        {
+            rt.kind = SkillKind.Guard;
+            rt.targetRuleV2 = SkillTargetRule.Self;
+            rt.target = TargetRule.Self;
+            rt.hitAllEnemies = false;
+            rt.hitAllAllies = false;
+        }
 
         return rt;
     }

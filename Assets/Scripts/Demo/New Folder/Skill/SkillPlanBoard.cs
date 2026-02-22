@@ -1,18 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
 /// Owns the 3-slot plan grid, multi-slot grouping, reserved focus costs, and per-anchor runtime evaluation.
-///
-/// Batch-2 goal:
-/// - Slot storage is no longer SkillSO-only.
-/// - Cells store an "active skill" as ScriptableObject (SkillSO legacy OR SkillDamageSO OR SkillBuffDebuffSO).
-/// - Passive skills are forbidden here.
-/// - Keep legacy API so existing UI / prefabs / TurnManager (batch 3) won't break.
-///
-/// IMPORTANT:
-/// - This board is a pure C# class (NOT a MonoBehaviour). Do NOT FindObjectOfType on it.
+/// TurnManager delegates planning logic to this class to stay smaller.
+/// 
+/// Supports BOTH:
+/// - Legacy SkillSO
+/// - New SkillDamageSO / SkillBuffDebuffSO (active skills)
+/// Passive skills are not stored here.
 /// </summary>
 public class SkillPlanBoard
 {
@@ -21,18 +17,13 @@ public class SkillPlanBoard
     private readonly int[] _cellAnchor = new int[3];          // -1 empty, else anchor index
     private readonly int[] _anchorSpan = new int[3];          // CURRENT occupied span (1..3)
     private readonly int[] _anchorStart0 = new int[3];        // CURRENT start slot for that anchor
-    private readonly int[] _anchorBaseStart0 = new int[3];    // BASE start slot (stable condition scope)
-    private readonly int[] _anchorReservedCost = new int[3];  // reserved focus cost (anchor-only)
+    private readonly int[] _anchorBaseStart0 = new int[3];    // BASE start slot (used for condition evaluation)
+    private readonly int[] _anchorReservedCost = new int[3];  // valid only at anchor: reserved focus cost
     private readonly SkillRuntime[] _anchorRuntime = new SkillRuntime[3];
 
     public struct Snapshot
     {
-        // Legacy snapshot (kept so older code that reads this field won't break)
-        public SkillSO[] cellSkill;
-
-        // New snapshot (true source of truth)
-        public ScriptableObject[] cellSkillObj;
-
+        public ScriptableObject[] cellSkill;
         public int[] cellAnchor;
         public int[] anchorSpan;
         public int[] anchorStart0;
@@ -52,47 +43,34 @@ public class SkillPlanBoard
             _anchorStart0[i] = -1;
             _anchorBaseStart0[i] = -1;
             _anchorReservedCost[i] = 0;
-            _anchorRuntime[i] = null;
+            _anchorRuntime[i] = default;
         }
     }
 
     public Snapshot Capture(CombatActor player)
     {
-        // Build legacy-only view (derived)
-        SkillSO[] legacy = new SkillSO[3];
-        for (int i = 0; i < 3; i++) legacy[i] = _cellSkill[i] as SkillSO;
-
         return new Snapshot
         {
-            cellSkill = legacy,
-            cellSkillObj = (ScriptableObject[])_cellSkill.Clone(),
+            cellSkill = (ScriptableObject[])_cellSkill.Clone(),
             cellAnchor = (int[])_cellAnchor.Clone(),
             anchorSpan = (int[])_anchorSpan.Clone(),
             anchorStart0 = (int[])_anchorStart0.Clone(),
             anchorBaseStart0 = (int[])_anchorBaseStart0.Clone(),
             anchorReservedCost = (int[])_anchorReservedCost.Clone(),
             anchorRuntime = (SkillRuntime[])_anchorRuntime.Clone(),
-            playerFocus = (player != null) ? player.focus : 0,
+            playerFocus = (player != null) ? player.focus : 0
         };
     }
 
     public void Restore(Snapshot s, CombatActor player)
     {
-        if (s.cellSkillObj != null)
-            Array.Copy(s.cellSkillObj, _cellSkill, 3);
-        else
-        {
-            // Back-compat restore (legacy only)
-            for (int i = 0; i < 3; i++)
-                _cellSkill[i] = (s.cellSkill != null && i < s.cellSkill.Length) ? s.cellSkill[i] : null;
-        }
-
-        if (s.cellAnchor != null) Array.Copy(s.cellAnchor, _cellAnchor, 3);
-        if (s.anchorSpan != null) Array.Copy(s.anchorSpan, _anchorSpan, 3);
+        Array.Copy(s.cellSkill, _cellSkill, 3);
+        Array.Copy(s.cellAnchor, _cellAnchor, 3);
+        Array.Copy(s.anchorSpan, _anchorSpan, 3);
         if (s.anchorStart0 != null) Array.Copy(s.anchorStart0, _anchorStart0, 3);
         if (s.anchorBaseStart0 != null) Array.Copy(s.anchorBaseStart0, _anchorBaseStart0, 3);
-        if (s.anchorReservedCost != null) Array.Copy(s.anchorReservedCost, _anchorReservedCost, 3);
-        if (s.anchorRuntime != null) Array.Copy(s.anchorRuntime, _anchorRuntime, 3);
+        Array.Copy(s.anchorReservedCost, _anchorReservedCost, 3);
+        Array.Copy(s.anchorRuntime, _anchorRuntime, 3);
 
         if (player != null) player.focus = s.playerFocus;
     }
@@ -101,7 +79,7 @@ public class SkillPlanBoard
     // Queries
     // ---------------------------
 
-    public bool IsSkillEquipped(SkillSO skill)
+    public bool IsSkillEquipped(ScriptableObject skill)
     {
         if (skill == null) return false;
         for (int i = 0; i < 3; i++)
@@ -109,33 +87,19 @@ public class SkillPlanBoard
         return false;
     }
 
-    public bool IsSkillEquipped(SkillDamageSO skill)
-    {
-        if (skill == null) return false;
-        for (int i = 0; i < 3; i++)
-            if (_cellSkill[i] == skill) return true;
-        return false;
-    }
+    // Legacy helpers
+    public bool IsSkillEquipped(SkillSO skill) => IsSkillEquipped((ScriptableObject)skill);
+    public bool IsSkillEquipped(SkillDamageSO skill) => IsSkillEquipped((ScriptableObject)skill);
+    public bool IsSkillEquipped(SkillBuffDebuffSO skill) => IsSkillEquipped((ScriptableObject)skill);
 
-    public bool IsSkillEquipped(SkillBuffDebuffSO skill)
-    {
-        if (skill == null) return false;
-        for (int i = 0; i < 3; i++)
-            if (_cellSkill[i] == skill) return true;
-        return false;
-    }
+    public ScriptableObject GetCellSkillAsset(int i0) => (i0 >= 0 && i0 < 3) ? _cellSkill[i0] : null;
 
-    // Legacy getter (kept): returns SkillSO or null if a V2 skill is in that cell.
-    public SkillSO GetCellSkill(int i0) => (i0 >= 0 && i0 < 3) ? (_cellSkill[i0] as SkillSO) : null;
-
-    // New getter: returns actual stored object (SkillSO / SkillDamageSO / SkillBuffDebuffSO)
-    public ScriptableObject GetCellSkillObject(int i0) => (i0 >= 0 && i0 < 3) ? _cellSkill[i0] : null;
-    public SkillDamageSO GetCellDamageSkill(int i0) => (i0 >= 0 && i0 < 3) ? (_cellSkill[i0] as SkillDamageSO) : null;
-    public SkillBuffDebuffSO GetCellBuffDebuffSkill(int i0) => (i0 >= 0 && i0 < 3) ? (_cellSkill[i0] as SkillBuffDebuffSO) : null;
+    // Legacy getter (returns null when the cell holds a new-skill type)
+    public SkillSO GetCellSkill(int i0) => GetCellSkillAsset(i0) as SkillSO;
 
     public int GetCellAnchor(int i0) => (i0 >= 0 && i0 < 3) ? _cellAnchor[i0] : -1;
     public int GetAnchorSpan(int anchor0) => (anchor0 >= 0 && anchor0 < 3) ? _anchorSpan[anchor0] : 0;
-    public SkillRuntime GetAnchorRuntime(int anchor0) => (anchor0 >= 0 && anchor0 < 3) ? _anchorRuntime[anchor0] : null;
+    public SkillRuntime GetAnchorRuntime(int anchor0) => (anchor0 >= 0 && anchor0 < 3) ? _anchorRuntime[anchor0] : default;
     public int GetAnchorReservedCost(int anchor0) => (anchor0 >= 0 && anchor0 < 3) ? _anchorReservedCost[anchor0] : 0;
 
     public bool IsAnchorSlot(int i0) => (i0 >= 0 && i0 < 3) && _cellSkill[i0] != null && _cellAnchor[i0] == i0;
@@ -274,8 +238,6 @@ public class SkillPlanBoard
 
     public void ClearGroupAtAnchor(int anchor0, CombatActor player)
     {
-        if (anchor0 < 0 || anchor0 > 2) return;
-
         int refund = _anchorReservedCost[anchor0];
         if (refund > 0 && player != null) player.GainFocus(refund);
 
@@ -292,7 +254,7 @@ public class SkillPlanBoard
         _anchorSpan[anchor0] = 0;
         _anchorStart0[anchor0] = -1;
         _anchorBaseStart0[anchor0] = -1;
-        _anchorRuntime[anchor0] = null;
+        _anchorRuntime[anchor0] = default;
     }
 
     /// <summary>
@@ -315,22 +277,17 @@ public class SkillPlanBoard
         _anchorSpan[anchor0] = 0;
         _anchorStart0[anchor0] = -1;
         _anchorBaseStart0[anchor0] = -1;
-        _anchorRuntime[anchor0] = null;
+        _anchorRuntime[anchor0] = default;
     }
 
     /// <summary>
     /// Place a group and let RecalculateRuntimesAndRebalance() reserve the cost.
-    /// Supports legacy SkillSO and V2 active skills (SkillDamageSO / SkillBuffDebuffSO).
-    /// Passive skills must never be placed.
     /// </summary>
-    public void PlaceGroup(int start0, int anchor0, int span, ScriptableObject skillObj)
+    public void PlaceGroup(int start0, int anchor0, int span, ScriptableObject skill)
     {
-        if (skillObj == null) return;
-        if (skillObj is SkillPassiveSO) return; // safety
-
         for (int j = start0; j < start0 + span; j++)
         {
-            _cellSkill[j] = skillObj;
+            _cellSkill[j] = skill;
             _cellAnchor[j] = anchor0;
         }
 
@@ -338,12 +295,11 @@ public class SkillPlanBoard
         _anchorStart0[anchor0] = start0;
         _anchorBaseStart0[anchor0] = start0;
         _anchorReservedCost[anchor0] = 0; // reserved later
-        _anchorRuntime[anchor0] = null;
+        _anchorRuntime[anchor0] = default;
     }
 
-    // Legacy overload kept so older call sites don't break
-    public void PlaceGroup(int start0, int anchor0, int span, SkillSO skill)
-        => PlaceGroup(start0, anchor0, span, (ScriptableObject)skill);
+    // Legacy wrapper
+    public void PlaceGroup(int start0, int anchor0, int span, SkillSO skill) => PlaceGroup(start0, anchor0, span, (ScriptableObject)skill);
 
     // ---------------------------
     // Dice sum / runtime eval
@@ -387,119 +343,21 @@ public class SkillPlanBoard
         return 0;
     }
 
-    private static int GetSlotsRequired(ScriptableObject skillObj)
+    private static int GetSlotsRequired(ScriptableObject skill)
     {
-        if (skillObj == null) return 1;
-        if (skillObj is SkillSO s) return s.slotsRequired;
-        if (skillObj is SkillDamageSO d) return d.slotsRequired;
-        if (skillObj is SkillBuffDebuffSO b) return b.slotsRequired;
-        return 1;
-    }
-
-    private static int GetFocusCost(ScriptableObject skillObj, SkillRuntime rt)
-    {
-        if (rt != null) return rt.focusCost;
-        if (skillObj is SkillSO s) return s.focusCost;
-        if (skillObj is SkillDamageSO d) return d.focusCost;
-        if (skillObj is SkillBuffDebuffSO b) return b.focusCost;
-        return 0;
-    }
-
-    private static SkillRuntime EvaluateRuntimeForPlanning(ScriptableObject skillObj, DiceSlotRig diceRig, int anchor0, int span, int start0)
-    {
-        if (skillObj == null) return null;
-
-        // Legacy path
-        if (skillObj is SkillSO legacy)
-            return SkillRuntimeEvaluator.Evaluate(legacy, diceRig, anchor0, span, start0);
-
-        // V2 Damage path (minimal runtime: focus/slots + condition overrides for those only)
-        if (skillObj is SkillDamageSO dmg)
+        switch (skill)
         {
-            var rt = new SkillRuntime
-            {
-                source = null,
-                kind = dmg.kind,
-                slotsRequired = Mathf.Clamp(dmg.slotsRequired, 1, 3),
-                focusCost = Mathf.Max(0, dmg.focusCost),
-                focusGainOnCast = dmg.focusGainOnCast,
-                conditionMet = false,
-            };
-
-            if (dmg.hasCondition && dmg.condition != null && diceRig != null)
-            {
-                var dice = GatherDiceForScope(dmg.condition.scope, diceRig, start0, span);
-                bool met = dmg.condition.Evaluate(dice);
-                rt.conditionMet = met;
-
-                if (met && dmg.whenConditionIsMet != null)
-                {
-                    var ov = dmg.whenConditionIsMet;
-                    if (ov.overrideCost)
-                    {
-                        rt.focusCost = Mathf.Max(0, ov.focusCost);
-                        rt.focusGainOnCast = ov.focusGainOnCast;
-                    }
-                    if (ov.overrideSlotsRequired)
-                    {
-                        rt.slotsRequired = Mathf.Clamp(ov.slotsRequired, 1, 3);
-                    }
-                    if (ov.overrideIdentity)
-                    {
-                        rt.kind = ov.kind;
-                    }
-                }
-            }
-
-            return rt;
+            case SkillSO s: return Mathf.Clamp(s.slotsRequired, 1, 3);
+            case SkillDamageSO d: return Mathf.Clamp(d.slotsRequired, 1, 3);
+            case SkillBuffDebuffSO b: return Mathf.Clamp(b.slotsRequired, 1, 3);
+            default: return 1;
         }
-
-        // V2 Buff/Debuff path (no condition)
-        if (skillObj is SkillBuffDebuffSO bd)
-        {
-            return new SkillRuntime
-            {
-                source = null,
-                kind = SkillKind.Attack, // placeholder (not used by board)
-                slotsRequired = Mathf.Clamp(bd.slotsRequired, 1, 3),
-                focusCost = Mathf.Max(0, bd.focusCost),
-                focusGainOnCast = bd.focusGainOnCast,
-                conditionMet = false,
-            };
-        }
-
-        return null;
-    }
-
-    private static List<int> GatherDiceForScope(SkillConditionScope scope, DiceSlotRig diceRig, int start0, int span)
-    {
-        var list = new List<int>(3);
-        if (diceRig == null) return list;
-
-        if (scope == SkillConditionScope.SlotBound)
-        {
-            for (int i = start0; i < start0 + span; i++)
-            {
-                if (i < 0 || i > 2) continue;
-                if (!diceRig.IsSlotActive(i)) continue;
-                list.Add(diceRig.GetDieValue(i));
-            }
-            return list;
-        }
-
-        // Global
-        for (int i = 0; i < 3; i++)
-        {
-            if (!diceRig.IsSlotActive(i)) continue;
-            list.Add(diceRig.GetDieValue(i));
-        }
-        return list;
     }
 
     /// <summary>
     /// Resize the CURRENT occupied group for an anchor to a new span (1..3) without changing anchor index.
     /// - Shrink is always allowed.
-    /// - Expand only succeeds if newly needed cells are empty (or already belong to the same anchor) and active.
+    /// - Expand only succeeds if the newly needed cells are empty (or already belong to the same anchor) and active.
     /// </summary>
     private bool TryResizeGroupToSpan(int anchor0, int desiredSpan, DiceSlotRig diceRig)
     {
@@ -510,12 +368,12 @@ public class SkillPlanBoard
         int currentSpan = Mathf.Clamp(_anchorSpan[anchor0], 1, 3);
         if (desiredSpan == currentSpan) return true;
 
-        ScriptableObject skillObj = _cellSkill[anchor0];
-        if (skillObj == null) return false;
+        ScriptableObject skill = _cellSkill[anchor0];
+        if (skill == null) return false;
 
         int currentStart0 = SanitizeStart0ForSpan(_anchorStart0[anchor0], currentSpan);
 
-        // choose desired start0 that keeps anchor inside range and is stable
+        // choose a desired start0 that keeps the anchor slot inside the range and stays as stable as possible
         int desiredStart0;
         if (desiredSpan == 3)
         {
@@ -523,16 +381,22 @@ public class SkillPlanBoard
         }
         else if (desiredSpan == 2)
         {
-            int optA = Mathf.Clamp(anchor0, 0, 1);
-            int optB = Mathf.Clamp(anchor0 - 1, 0, 1);
+            // valid starts are 0 or 1; need anchor in [start, start+1]
+            int optA = Mathf.Clamp(anchor0, 0, 1);      // anchor as left cell (if anchor0<=1)
+            int optB = Mathf.Clamp(anchor0 - 1, 0, 1);  // anchor as right cell (if anchor0>=1)
 
-            bool currentOk = (currentStart0 >= 0 && currentStart0 <= 1 && anchor0 >= currentStart0 && anchor0 <= currentStart0 + 1);
-            if (currentOk) desiredStart0 = currentStart0;
-            else
-            {
-                // prefer the option closer to currentStart0
+            bool optAValid = (anchor0 >= optA && anchor0 <= optA + 1);
+            bool optBValid = (anchor0 >= optB && anchor0 <= optB + 1);
+
+            // prefer currentStart0 if it still contains the anchor
+            if (currentStart0 >= 0 && currentStart0 <= 1 && anchor0 >= currentStart0 && anchor0 <= currentStart0 + 1)
+                desiredStart0 = currentStart0;
+            else if (optAValid && optBValid)
                 desiredStart0 = (Mathf.Abs(currentStart0 - optA) <= Mathf.Abs(currentStart0 - optB)) ? optA : optB;
-            }
+            else if (optAValid)
+                desiredStart0 = optA;
+            else
+                desiredStart0 = optB;
         }
         else
         {
@@ -549,7 +413,7 @@ public class SkillPlanBoard
             if (occ != -1 && occ != anchor0) return false;
         }
 
-        // Clear old cells outside new range
+        // Clear old cells that are outside the new range
         for (int i = 0; i < 3; i++)
         {
             if (_cellAnchor[i] != anchor0) continue;
@@ -564,7 +428,7 @@ public class SkillPlanBoard
         // Fill new range
         for (int i = desiredStart0; i < desiredStart0 + desiredSpan; i++)
         {
-            _cellSkill[i] = skillObj;
+            _cellSkill[i] = skill;
             _cellAnchor[i] = anchor0;
         }
 
@@ -573,9 +437,164 @@ public class SkillPlanBoard
         return true;
     }
 
+    private static TargetRule MapTargetRule(SkillTargetRule tr, out bool hitAllEnemies, out bool hitAllAllies)
+    {
+        hitAllEnemies = (tr == SkillTargetRule.AllEnemies || tr == SkillTargetRule.AllUnits);
+        hitAllAllies = (tr == SkillTargetRule.AllAllies || tr == SkillTargetRule.AllUnits);
+
+        // Note: legacy TargetRule can't represent "ally" separately.
+        // For now we map SingleAlly -> Self (actual ally targeting can be added later in TurnManager/Executor).
+        if (tr == SkillTargetRule.Self) return TargetRule.Self;
+        if (tr == SkillTargetRule.SingleEnemy) return TargetRule.Enemy;
+        if (tr == SkillTargetRule.SingleAlly) return TargetRule.Self;
+
+        if (tr == SkillTargetRule.AllEnemies) return TargetRule.Enemy;
+        if (tr == SkillTargetRule.AllAllies) return TargetRule.Self;
+
+        // AllUnits -> treat as Enemy (and set both AoE flags)
+        return TargetRule.Enemy;
+    }
+
+    private static ElementType MapElementTag(ElementTag tag)
+    {
+        // ElementTag order differs from ElementType (legacy). Map explicitly.
+        switch (tag)
+        {
+            case ElementTag.Neutral: return ElementType.Neutral;
+            case ElementTag.Physical: return ElementType.Physical;
+            case ElementTag.Fire: return ElementType.Fire;
+            case ElementTag.Ice: return ElementType.Ice;
+            case ElementTag.Lightning: return ElementType.Lightning;
+            default: return ElementType.Neutral;
+        }
+    }
+
+    private static SkillRuntime BuildRuntimeFromDamageSkill(SkillDamageSO s)
+    {
+        if (s == null) return null;
+
+        var rt = new SkillRuntime
+        {
+            source = null,
+
+            kind = s.kind,
+            group = s.group,
+            element = MapElementTag(s.element),
+            range = s.range,
+
+            slotsRequired = Mathf.Clamp(s.slotsRequired, 1, 3),
+
+            focusCost = Mathf.Max(0, s.focusCost),
+            focusGainOnCast = s.focusGainOnCast,
+
+            dieMultiplier = s.dieMultiplier,
+            flatDamage = s.flatDamage,
+
+            sunderBonusIfTargetHasGuard = s.sunderBonusIfTargetHasGuard,
+            sunderGuardDamageMultiplier = s.sunderGuardDamageMultiplier,
+
+            guardDieMultiplier = s.guardDieMultiplier,
+            guardFlat = s.guardFlat,
+
+            bypassGuard = s.bypassGuard,
+            clearsGuard = s.clearsGuard,
+            canUseMarkMultiplier = s.canUseMarkMultiplier,
+
+            consumesBurn = s.consumesBurn,
+            burnDamagePerStack = s.burnDamagePerStack,
+
+            applyBurn = s.applyBurn,
+            burnAddStacks = s.burnAddStacks,
+            burnRefreshTurns = s.burnRefreshTurns,
+
+            applyMark = s.applyMark,
+
+            applyBleed = s.applyBleed,
+            bleedTurns = s.bleedTurns,
+
+            applyFreeze = s.applyFreeze,
+            freezeChance = s.freezeChance,
+
+            projectilePrefab = s.projectilePrefab,
+
+            conditionMet = false
+        };
+
+        rt.target = MapTargetRule(s.target, out rt.hitAllEnemies, out rt.hitAllAllies);
+
+        // safety like legacy
+        if (rt.kind == SkillKind.Guard)
+        {
+            rt.target = TargetRule.Self;
+            rt.hitAllEnemies = false;
+            rt.hitAllAllies = false;
+        }
+        if (rt.target == TargetRule.Self) rt.hitAllEnemies = false;
+        if (rt.target == TargetRule.Enemy) rt.hitAllAllies = false;
+
+        return rt;
+    }
+
+    private static SkillRuntime BuildRuntimeFromBuffDebuffSkill(SkillBuffDebuffSO b)
+    {
+        if (b == null) return null;
+
+        var rt = new SkillRuntime
+        {
+            source = null,
+            sourceAsset = b,
+
+            useV2Targeting = true,
+            targetRuleV2 = b.target,
+
+            // Buff/debuff is Utility/Effect (no damage)
+            kind = SkillKind.Utility,
+            group = DamageGroup.Effect,
+            element = ElementType.Neutral,
+            range = RangeType.Ranged,
+
+            slotsRequired = Mathf.Clamp(b.slotsRequired, 1, 3),
+            focusCost = Mathf.Max(0, b.focusCost),
+            focusGainOnCast = b.focusGainOnCast,
+
+            dieMultiplier = 0,
+            flatDamage = 0,
+
+            conditionMet = false
+        };
+
+        rt.target = MapTargetRule(b.target, out rt.hitAllEnemies, out rt.hitAllAllies);
+
+        // safety
+        if (rt.target == TargetRule.Self) rt.hitAllEnemies = false;
+        if (rt.target == TargetRule.Enemy) rt.hitAllAllies = false;
+
+        return rt;
+    }
+
+
+    private static SkillRuntime EvaluateRuntimeForSkillAsset(ScriptableObject skill, DiceSlotRig diceRig, int anchor0, int baseSpan, int baseStart0)
+    {
+        switch (skill)
+        {
+            case SkillSO legacy:
+                return SkillRuntimeEvaluator.Evaluate(legacy, diceRig, anchor0, baseSpan, baseStart0);
+
+            case SkillDamageSO dmg:
+                // ✅ FIX: SkillDamageSO phải đi qua evaluator để merge condition/overrides
+                return SkillRuntimeEvaluator.Evaluate(dmg, diceRig, anchor0, baseSpan, baseStart0);
+
+            case SkillBuffDebuffSO buff:
+                return BuildRuntimeFromBuffDebuffSkill(buff);
+
+            default:
+                return null;
+        }
+    }
+
     /// <summary>
-    /// Re-evaluate all anchor runtimes (planning view) then rebalance reserved focus costs.
-    /// Returns false if player doesn't have enough focus to satisfy new costs (caller should rollback).
+    /// Re-evaluate conditional runtimes for all anchors, then rebalance reserved focus costs.
+    /// Returns false if not enough focus to satisfy new costs (caller should rollback).
     /// </summary>
     public bool RecalculateRuntimesAndRebalance(CombatActor player, DiceSlotRig diceRig)
     {
@@ -584,42 +603,53 @@ public class SkillPlanBoard
         {
             if (!IsAnchorSlot(a))
             {
-                _anchorRuntime[a] = null;
+                _anchorRuntime[a] = default;
                 continue;
             }
 
-            ScriptableObject skillObj = _cellSkill[a];
-            if (skillObj == null)
+            ScriptableObject skill = _cellSkill[a];
+            if (skill == null)
             {
-                _anchorRuntime[a] = null;
+                _anchorRuntime[a] = default;
                 continue;
             }
 
-            int baseSpan = Mathf.Clamp(GetSlotsRequired(skillObj), 1, 3);
+            int baseSpan = Mathf.Clamp(GetSlotsRequired(skill), 1, 3);
             int baseStart0 = SanitizeStart0ForSpan(_anchorBaseStart0[a], baseSpan);
 
-            _anchorRuntime[a] = EvaluateRuntimeForPlanning(skillObj, diceRig, a, baseSpan, baseStart0);
+            _anchorRuntime[a] = EvaluateRuntimeForSkillAsset(skill, diceRig, a, baseSpan, baseStart0);
 
-            int desiredSpan = Mathf.Clamp((_anchorRuntime[a] != null ? _anchorRuntime[a].slotsRequired : baseSpan), 1, 3);
+            if (_anchorRuntime[a] == null)
+            {
+                _anchorRuntime[a] = default;
+                continue;
+            }
+
+            int desiredSpan = Mathf.Clamp(_anchorRuntime[a].slotsRequired, 1, 3);
             int currentSpan = Mathf.Clamp(_anchorSpan[a], 1, 3);
             if (desiredSpan != currentSpan)
             {
                 bool ok = TryResizeGroupToSpan(a, desiredSpan, diceRig);
-                if (!ok && _anchorRuntime[a] != null)
+                if (!ok)
                 {
-                    // Can't expand -> keep gameplay span consistent
+                    // ✅ STRICT expand for SkillDamageSO: condition met mà muốn EXPAND nhưng không đủ chỗ => rollback placement
+                    if (_cellSkill[a] is SkillDamageSO && desiredSpan > currentSpan)
+                        return false;
+
+                    // legacy / shrink / other types: fallback clamp như cũ
                     _anchorRuntime[a].slotsRequired = currentSpan;
                 }
             }
+
         }
 
-        // 2) Rebalance reserved focus cost (only in planning)
+        // Rebalance reserved focus cost
         for (int a = 0; a < 3; a++)
         {
             int desired = 0;
             if (IsAnchorSlot(a))
             {
-                desired = Mathf.Max(0, GetFocusCost(_cellSkill[a], _anchorRuntime[a]));
+                desired = Mathf.Max(0, _anchorRuntime[a].focusCost);
             }
 
             int current = _anchorReservedCost[a];

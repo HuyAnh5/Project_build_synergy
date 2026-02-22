@@ -35,35 +35,26 @@ public class ActorWorldUI : MonoBehaviour
             return;
         }
 
-        // attach to actor (ưu tiên uiAnchor nếu có)
         Transform anchor = actor.uiAnchor ? actor.uiAnchor : actor.transform;
         transform.SetParent(anchor, worldPositionStays: false);
         transform.localPosition = localOffset;
 
-        // Nếu prefab có Canvas/UGUI thì phải disable raycast để không chặn click
         DisableAllGraphicRaycasts();
-
-        // Nếu bạn chưa tạo text trong prefab, script sẽ tạo TextMeshPro (3D) luôn
         EnsureTextsExist_3D_TMP();
 
         if (forceSorting)
-            ForceSortingOrder();
+            ForceSortingOrder(sortingOrder);
 
         Refresh();
     }
 
-    void LateUpdate()
+    private void LateUpdate()
     {
-        if (!actor)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
+        if (!actor) return;
         Refresh();
     }
 
-    private void Refresh()
+    void Refresh()
     {
         if (!actor) return;
 
@@ -76,11 +67,12 @@ public class ActorWorldUI : MonoBehaviour
     {
         if (!st) return "";
 
-        // format đúng yêu cầu:
+        // format:
         // Burn:2, 3T
         // Bleed:2
         // Mark
         // Freeze
+        // Sleep:2T (Ailment)
 
         var sb = new StringBuilder(64);
         bool first = true;
@@ -104,14 +96,15 @@ public class ActorWorldUI : MonoBehaviour
         if (st.frozen)
             AddLine("Freeze");
 
+        // ✅ Ailment display
+        if (st.HasAilment(out var at, out var left))
+            AddLine($"{at}:{left}T");
+
         return sb.ToString();
     }
 
     private void EnsureTextsExist_3D_TMP()
     {
-        // Nếu bạn đã gán sẵn trong inspector thì giữ nguyên.
-        // Nếu chưa có thì tự tạo 3D TextMeshPro (không Canvas).
-
         if (hpText == null)
             hpText = Create3DText("HP_Text", new Vector3(0f, 0f, 0f), hpFontSize, TextAlignmentOptions.Center);
 
@@ -125,49 +118,33 @@ public class ActorWorldUI : MonoBehaviour
     private TMP_Text Create3DText(string name, Vector3 localPos, float fontSize, TextAlignmentOptions align)
     {
         var go = new GameObject(name);
-        go.transform.SetParent(transform, false);
+        go.transform.SetParent(transform, worldPositionStays: false);
         go.transform.localPosition = localPos;
+        go.transform.localRotation = Quaternion.identity;
+        go.transform.localScale = Vector3.one;
 
         var t = go.AddComponent<TextMeshPro>();
         t.text = "";
         t.fontSize = fontSize;
         t.alignment = align;
         t.enableWordWrapping = false;
-        t.richText = false;
 
-        // Gợi ý: nếu chữ quá to/nhỏ thì chỉnh SCALE của prefab world-ui (ví dụ 0.1 / 0.05)
         return t;
     }
 
     private void DisableAllGraphicRaycasts()
     {
-        // Nếu prefab có UGUI (Canvas + TMP_Text (UGUI) + Image...) thì disable raycast để không chặn click
-        var cg = GetComponent<CanvasGroup>();
-        if (cg != null)
-        {
-            cg.blocksRaycasts = false;
-            cg.interactable = false;
-        }
-
         var graphics = GetComponentsInChildren<Graphic>(true);
-        foreach (var g in graphics)
-            if (g) g.raycastTarget = false;
+        for (int i = 0; i < graphics.Length; i++)
+            graphics[i].raycastTarget = false;
     }
 
-    private void ForceSortingOrder()
+    private void ForceSortingOrder(int order)
     {
-        // Case A: Canvas
-        var canvas = GetComponentInChildren<Canvas>(true);
-        if (canvas != null)
-        {
-            canvas.overrideSorting = true;
-            canvas.sortingOrder = sortingOrder;
-            return;
-        }
-
-        // Case B: TextMeshPro 3D (MeshRenderer)
         var renderers = GetComponentsInChildren<Renderer>(true);
-        foreach (var r in renderers)
-            r.sortingOrder = sortingOrder;
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            renderers[i].sortingOrder = order;
+        }
     }
 }

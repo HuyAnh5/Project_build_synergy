@@ -150,28 +150,25 @@ public class AilmentConfig
 [Serializable, InlineProperty]
 public class BuffDebuffEffectEntry
 {
-    [HorizontalGroup("H", Width = 240)]
-    [HideLabel]
+    [LabelText("Effect")]
     public BuffDebuffEffectId id = BuffDebuffEffectId.DamageMultiplier;
 
-    [HorizontalGroup("H", Width = 90)]
     [LabelText("Turns")]
     [Min(0)]
     public int durationTurns = 1;
 
-    [HorizontalGroup("H")]
     [ShowIf(nameof(ShowCompactParam))]
     [LabelText("@CompactLabel")]
     public float compactParam = 1.5f;
 
     // ---- ParityFocusDelta ----
     [ShowIf(nameof(ShowParityParams))]
-    [HorizontalGroup("ParityRow", LabelWidth = 55)]
+    [BoxGroup("Parity")]
     [LabelText("Even")]
     public int parityEvenDelta = -2;
 
     [ShowIf(nameof(ShowParityParams))]
-    [HorizontalGroup("ParityRow", LabelWidth = 55)]
+    [BoxGroup("Parity")]
     [LabelText("Odd")]
     public int parityOddDelta = -1;
 

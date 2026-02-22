@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 2511759822590512691}
   - component: {fileID: 7070623645544398135}
   - component: {fileID: 1369509094544705414}
+  - component: {fileID: 6491087091743927717}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -112,6 +113,11 @@ MonoBehaviour:
   marked: 0
   bleedTurns: 0
   frozen: 0
+  _hasAilment: 0
+  _ailmentType: 0
+  _ailmentTurnsLeft: 0
+  debugForceAilmentChance100: 1
+  debugLog: 1
 --- !u!114 &2511759822590512691
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -195,6 +201,22 @@ BoxCollider2D:
   m_AutoTiling: 0
   m_Size: {x: 1.6249452, y: 1.6770236}
   m_EdgeRadius: 0
+--- !u!114 &6491087091743927717
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5866872626840541541}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed840b86cc4a5b74d9ea73876a75f735, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PassiveSystem
+  autoSyncFromInventory: 1
+  inventory: {fileID: 0}
+  autoFindInventory: 1
+  equipped: []
 --- !u!1 &7257027493111128746
 GameObject:
   m_ObjectHideFlags: 0

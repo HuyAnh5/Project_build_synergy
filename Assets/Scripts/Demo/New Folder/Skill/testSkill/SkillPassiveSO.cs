@@ -46,17 +46,17 @@ public enum PassiveEffectId
 [Serializable, InlineProperty]
 public class PassiveEffectEntry
 {
-    [HorizontalGroup("Row", Width = 290)]
-    [HideLabel]
+    [BoxGroup("Effect")]
+    [LabelText("Effect")]
     public PassiveEffectId id = PassiveEffectId.DamagePercentByElement;
 
+    [BoxGroup("Effect")]
     [ShowIf(nameof(UsesFloatValue))]
-    [HorizontalGroup("Row", Width = 140)]
     [LabelText("@FloatLabel")]
     public float valueF = 0.2f;
 
+    [BoxGroup("Effect")]
     [ShowIf(nameof(UsesIntValue))]
-    [HorizontalGroup("Row", Width = 140)]
     [LabelText("@IntLabel")]
     public int valueI = 1;
 

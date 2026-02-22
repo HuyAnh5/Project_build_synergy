@@ -14,7 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDatabaseSO
   damageSkills: []
   buffDebuffSkills: []
-  passiveSkills: []
+  passiveSkills:
+  - {fileID: 11400000, guid: 68b115a564e681c40aa72f4723768ea6, type: 2}
   skills:
   - {fileID: 11400000, guid: c6574525cdda39e40abdb110998f5d64, type: 2}
   - {fileID: 11400000, guid: f8ebb87232ea33e48be6a48c20b05a84, type: 2}

@@ -482,10 +482,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4f88490389331f479f88624994281c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
-  skill: {fileID: 11400000, guid: c6574525cdda39e40abdb110998f5d64, type: 2}
-  damageSkill: {fileID: 0}
-  buffDebuffSkill: {fileID: 0}
-  passiveSkill: {fileID: 0}
+  bindToInventorySlot: 1
+  inventory: {fileID: 1082519198}
+  inventorySource: 0
+  inventoryIndex: 1
+  skillAssetOverride: {fileID: 0}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &115104248
@@ -1285,7 +1286,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Sample text
+  m_text: "\u2026"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -1439,7 +1440,7 @@ GameObject:
   - component: {fileID: 683847628}
   - component: {fileID: 683847627}
   m_Layer: 0
-  m_Name: Text (TMP) (1)
+  m_Name: Text (TMP)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1465,7 +1466,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Sample text
+  m_text: 7
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -1595,7 +1596,7 @@ RectTransform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 683847626}
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: -0, y: -0, z: 0.000000014901159, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
@@ -1604,7 +1605,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -0.2, y: 2.0225}
+  m_AnchoredPosition: {x: -0.19999975, y: 2.0225}
   m_SizeDelta: {x: 3.3732, y: 1.4006}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &733054725
@@ -1663,7 +1664,8 @@ MonoBehaviour:
   slotsPanelGroup: {fileID: 192904715}
   lockPlanningUIUntilRolled: 0
   phase: 0
-  logPhase: 1
+  delayBetweenEnemyAttacks: 0.5
+  logPhase: 0
   toggleLogKey: 291
 --- !u!114 &733054729
 MonoBehaviour:
@@ -2083,6 +2085,77 @@ Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 3d1019bd343e5c14ba63fc67d2f0a781, type: 3}
   m_PrefabInstance: {fileID: 1040620068}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1082519196
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1082519197}
+  - component: {fileID: 1082519198}
+  m_Layer: 0
+  m_Name: PlayerManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1082519197
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1082519196}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.78474, y: -2.8057, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1373064734}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1082519198
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1082519196}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 26e6fce102d1e6f4baaceb7ffdb65639, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::RunInventoryManager
+  diceRig: {fileID: 1499909187}
+  fixedSlots:
+  - uiIcon: {fileID: 1810816295}
+    skillAsset: {fileID: 11400000, guid: 5dc328d855292cc4c8da94e48d2e6923, type: 2}
+  - uiIcon: {fileID: 115104247}
+    skillAsset: {fileID: 11400000, guid: f89babf2570fdea4bb41463ec889e897, type: 2}
+  ownedSlots:
+  - uiIcon: {fileID: 1664891459}
+    skillAsset: {fileID: 11400000, guid: cd7a3a2cea683f94caf31f81b286dbe6, type: 2}
+  - uiIcon: {fileID: 1661062084}
+    skillAsset: {fileID: 11400000, guid: ca37e5f3cb06c0140a5cda3280ef03e6, type: 2}
+  - uiIcon: {fileID: 1250167323}
+    skillAsset: {fileID: 0}
+  - uiIcon: {fileID: 1346108747}
+    skillAsset: {fileID: 0}
+  - uiIcon: {fileID: 2046769251}
+    skillAsset: {fileID: 11400000, guid: 9a24c243c26a3374b99dbc0d83d4db04, type: 2}
+  - uiIcon: {fileID: 1917549799}
+    skillAsset: {fileID: 11400000, guid: 68b115a564e681c40aa72f4723768ea6, type: 2}
+  relicSlots:
+  - asset: {fileID: 0}
+    charges: 0
+  - asset: {fileID: 0}
+    charges: 0
+  - asset: {fileID: 0}
+    charges: 0
+  gold: 0
 --- !u!1 &1138865257
 GameObject:
   m_ObjectHideFlags: 0
@@ -2140,7 +2213,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: Sample text
+  m_text: 1
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -2644,10 +2717,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4f88490389331f479f88624994281c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
-  skill: {fileID: 11400000, guid: 767abd92a102e024bb8dbb6f2ca991fb, type: 2}
-  damageSkill: {fileID: 0}
-  buffDebuffSkill: {fileID: 0}
-  passiveSkill: {fileID: 0}
+  bindToInventorySlot: 1
+  inventory: {fileID: 1082519198}
+  inventorySource: 1
+  inventoryIndex: 2
+  skillAssetOverride: {fileID: 11400000, guid: ca37e5f3cb06c0140a5cda3280ef03e6, type: 2}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &1250167324
@@ -2782,10 +2856,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4f88490389331f479f88624994281c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
-  skill: {fileID: 11400000, guid: d4daa61c99c013c4a82c78e9fdce35c7, type: 2}
-  damageSkill: {fileID: 0}
-  buffDebuffSkill: {fileID: 0}
-  passiveSkill: {fileID: 0}
+  bindToInventorySlot: 1
+  inventory: {fileID: 1082519198}
+  inventorySource: 1
+  inventoryIndex: 3
+  skillAssetOverride: {fileID: 0}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &1346108748
@@ -2829,6 +2904,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
+  - {fileID: 1082519197}
   - {fileID: 733054726}
   - {fileID: 1888259524}
   m_Father: {fileID: 0}
@@ -2941,7 +3017,7 @@ MonoBehaviour:
   - active: 1
     dice: {fileID: 1214275106}
     diceRoot: {fileID: 1214275105}
-    slotRoot: {fileID: 1214275105}
+    slotRoot: {fileID: 580896588}
   - active: 1
     dice: {fileID: 1181993424}
     diceRoot: {fileID: 1181993423}
@@ -2950,18 +3026,6 @@ MonoBehaviour:
     dice: {fileID: 1638378651}
     diceRoot: {fileID: 1638378649}
     slotRoot: {fileID: 2007361237}
-  dice1: {fileID: 1214275106}
-  dice2: {fileID: 0}
-  dice3: {fileID: 0}
-  diceRoot1: {fileID: 0}
-  diceRoot2: {fileID: 0}
-  diceRoot3: {fileID: 0}
-  slotRoot1: {fileID: 0}
-  slotRoot2: {fileID: 0}
-  slotRoot3: {fileID: 0}
-  slot0Active: 1
-  slot1Active: 1
-  slot2Active: 1
   disableDiceSelfInput: 1
 --- !u!1 &1552281185
 GameObject:
@@ -3251,10 +3315,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4f88490389331f479f88624994281c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
-  skill: {fileID: 11400000, guid: 8506c5b0eb55e134489448bc8722ad7c, type: 2}
-  damageSkill: {fileID: 0}
-  buffDebuffSkill: {fileID: 0}
-  passiveSkill: {fileID: 0}
+  bindToInventorySlot: 1
+  inventory: {fileID: 1082519198}
+  inventorySource: 1
+  inventoryIndex: 1
+  skillAssetOverride: {fileID: 11400000, guid: cd7a3a2cea683f94caf31f81b286dbe6, type: 2}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &1661062085
@@ -3358,10 +3423,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4f88490389331f479f88624994281c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
-  skill: {fileID: 11400000, guid: ca37e5f3cb06c0140a5cda3280ef03e6, type: 2}
-  damageSkill: {fileID: 0}
-  buffDebuffSkill: {fileID: 0}
-  passiveSkill: {fileID: 0}
+  bindToInventorySlot: 1
+  inventory: {fileID: 1082519198}
+  inventorySource: 1
+  inventoryIndex: 0
+  skillAssetOverride: {fileID: 11400000, guid: 5dc328d855292cc4c8da94e48d2e6923, type: 2}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &1664891460
@@ -3742,10 +3808,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4f88490389331f479f88624994281c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
-  skill: {fileID: 11400000, guid: f8ebb87232ea33e48be6a48c20b05a84, type: 2}
-  damageSkill: {fileID: 0}
-  buffDebuffSkill: {fileID: 0}
-  passiveSkill: {fileID: 0}
+  bindToInventorySlot: 1
+  inventory: {fileID: 1082519198}
+  inventorySource: 0
+  inventoryIndex: 0
+  skillAssetOverride: {fileID: 0}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &1810816296
@@ -4318,10 +4385,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4f88490389331f479f88624994281c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
-  skill: {fileID: 11400000, guid: 779dca9a4fe5cc54ea6e180653df7758, type: 2}
-  damageSkill: {fileID: 0}
-  buffDebuffSkill: {fileID: 0}
-  passiveSkill: {fileID: 0}
+  bindToInventorySlot: 1
+  inventory: {fileID: 1082519198}
+  inventorySource: 1
+  inventoryIndex: 5
+  skillAssetOverride: {fileID: 11400000, guid: 68b115a564e681c40aa72f4723768ea6, type: 2}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &1917549800
@@ -4458,10 +4526,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b4f88490389331f479f88624994281c9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DraggableSkillIcon
-  skill: {fileID: 11400000, guid: 8e0f306e3d0f0274fb2a84cef4bede55, type: 2}
-  damageSkill: {fileID: 0}
-  buffDebuffSkill: {fileID: 0}
-  passiveSkill: {fileID: 0}
+  bindToInventorySlot: 1
+  inventory: {fileID: 1082519198}
+  inventorySource: 1
+  inventoryIndex: 4
+  skillAssetOverride: {fileID: 0}
   turn: {fileID: 733054728}
   inUseAlpha: 0.4
 --- !u!225 &2046769252

@@ -55,6 +55,12 @@ public class CombatActor : MonoBehaviour
         guardPool = Mathf.Max(0, value);
     }
 
+    public void AddGuard(int amount)
+    {
+        if (amount == 0) return;
+        guardPool = Mathf.Max(0, guardPool + amount);
+    }
+
     public void TakeDamage(int dmg, bool bypassGuard)
     {
         int remaining = dmg;
