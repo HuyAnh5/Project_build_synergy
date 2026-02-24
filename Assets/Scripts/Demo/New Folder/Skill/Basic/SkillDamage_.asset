@@ -76,8 +76,8 @@ MonoBehaviour:
     projectilePrefab: {fileID: 0}
   focusCost: 0
   focusGainOnCast: 0
-  dieMultiplier: 0
-  flatDamage: 5
+  dieMultiplier: 1
+  flatDamage: 0
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
   guardDieMultiplier: 1
@@ -94,5 +94,5 @@ MonoBehaviour:
   applyBleed: 0
   bleedTurns: 3
   applyFreeze: 1
-  freezeChance: 1
+  freezeChance: 0.2
   projectilePrefab: {fileID: 1405955094155794844, guid: 5d01605074727f547858efbc90cb9570, type: 3}

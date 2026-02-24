@@ -1716,9 +1716,9 @@ MonoBehaviour:
     orderInRow: 0
   enemySlots:
   - label: 
-    prefab: {fileID: 3343973332019958161, guid: dc54dd17b8c3f6841be18416536e9200, type: 3}
-    row: 0
-    orderInRow: 1
+    prefab: {fileID: 3343973332019958161, guid: d47881532a6e00b4e9440794ac7c9552, type: 3}
+    row: 1
+    orderInRow: 3
   depthOffset: 0.6
   spacingFor2: 2
   spacingFor3: 1.5

@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: SkillPassive_
   description: 
   effects:
-  - id: 3
+  - id: 9
     valueF: 1
     valueI: 1
     element: 4

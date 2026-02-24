@@ -25,24 +25,24 @@ MonoBehaviour:
   moves:
   - moveId: sup_light
     displayName: Light Strike
-    intent: 0
-    tags: 1
+    intent: 2
+    tags: 128
     weight: 12
-    cooldownTurns: 0
-    maxConsecutive: 3
+    cooldownTurns: 3
+    maxConsecutive: 1
     hpPctMin: 0
     hpPctMax: 1
     ignoreNoRepeat: 0
     minTurnIndex: 1
     forceOnTurn: 0
     damageSkill: {fileID: 0}
-    buffDebuffSkill: {fileID: 0}
+    buffDebuffSkill: {fileID: 11400000, guid: c6ccd5e9ab81f574fa5cfe7918166b35, type: 2}
   - moveId: sup_heal
     displayName: Heal Ally
     intent: 2
     tags: 64
     weight: 10
-    cooldownTurns: 3
+    cooldownTurns: 2
     maxConsecutive: 1
     hpPctMin: 0
     hpPctMax: 1
@@ -56,19 +56,19 @@ MonoBehaviour:
     intent: 2
     tags: 128
     weight: 10
-    cooldownTurns: 5
+    cooldownTurns: 2
     maxConsecutive: 1
     hpPctMin: 0
     hpPctMax: 1
     ignoreNoRepeat: 0
     minTurnIndex: 1
-    forceOnTurn: 1
+    forceOnTurn: 0
     damageSkill: {fileID: 0}
-    buffDebuffSkill: {fileID: 11400000, guid: c6ccd5e9ab81f574fa5cfe7918166b35, type: 2}
+    buffDebuffSkill: {fileID: 0}
   - moveId: sup_guard
     displayName: Guard Ally
     intent: 1
-    tags: 132
+    tags: 4
     weight: 9
     cooldownTurns: 2
     maxConsecutive: 1

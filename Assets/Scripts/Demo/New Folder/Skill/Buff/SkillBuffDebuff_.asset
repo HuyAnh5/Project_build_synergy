@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: SkillBuffDebuff_
   description: 
   identity: 1
-  target: 0
+  target: 1
   applyDelayTurns: 0
   slotsRequired: 1
   focusCost: 1
@@ -24,13 +24,13 @@ MonoBehaviour:
   _focusDelayedDelayWarning: 0
   effects:
   - id: 6
-    durationTurns: 2
+    durationTurns: 1
     compactParam: 30
     parityEvenDelta: -2
     parityOddDelta: -1
     _slotCollapseHelp: 1
     _healByDiceHelp: 1
-  applyAilment: 1
+  applyAilment: 0
   ailment:
     ailment: 2
     durationTurns: 5
