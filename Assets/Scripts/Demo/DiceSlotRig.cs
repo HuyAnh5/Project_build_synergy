@@ -21,18 +21,40 @@ public class DiceSlotRig : MonoBehaviour
         public GameObject slotRoot;
     }
 
+    [Serializable]
+    public struct RollInfo
+    {
+        public int rolledValue;
+        public int minFaceAtRoll;
+        public int maxFaceAtRoll;
+        public bool isCrit;
+        public bool isFail;
+
+        public int Contribution => isFail ? 0 : rolledValue;
+    }
+
+    [Serializable]
+    public struct SpanStats
+    {
+        public int sumContribution;
+        public bool critAny;
+        public bool critAll;
+        public bool failAny;
+    }
 
     [ListDrawerSettings(Expanded = true, DraggableItems = false, ShowIndexLabels = false)]
     [LabelText("Slots (1..3)")]
     public Entry[] slots = new Entry[3];
-
 
     [Title("Options")]
     [Tooltip("Disable DiceSpinnerGeneric self input so ONLY TurnManager controls rolling.")]
     public bool disableDiceSelfInput = true;
 
     [ShowInInspector, ReadOnly]
-    public bool HasRolledThisTurn { get; private set; } = false;
+    public bool HasRolledThisTurn { get; private set; }
+
+    [ShowInInspector, ReadOnly]
+    public RollInfo[] LastRollInfos { get; private set; } = new RollInfo[3];
 
     [ShowInInspector, ReadOnly]
     public bool IsRolling
@@ -43,7 +65,7 @@ public class DiceSlotRig : MonoBehaviour
             for (int i = 0; i < slots.Length; i++)
             {
                 if (!IsSlotActive(i)) continue;
-                var d = GetDice(i);
+                DiceSpinnerGeneric d = GetDice(i);
                 if (d != null && d.IsRolling) return true;
             }
             return false;
@@ -51,16 +73,12 @@ public class DiceSlotRig : MonoBehaviour
     }
 
     public event Action onAllDiceRolled;
-
-    /// <summary>
-    /// Dice-layer delta from statuses/buffs (e.g., -2 All Dice for 1 turn).
-    /// Subscribers return delta; values are summed.
-    /// </summary>
     public event Func<CombatActor, int> onComputeAllDiceDelta;
 
     private void Awake()
     {
         EnsureSlots();
+        ClearRollInfos();
         ApplyActiveStates();
     }
 
@@ -74,6 +92,7 @@ public class DiceSlotRig : MonoBehaviour
     {
         HasRolledThisTurn = false;
         EnsureSlots();
+        ClearRollInfos();
         ApplyActiveStates();
     }
 
@@ -92,22 +111,21 @@ public class DiceSlotRig : MonoBehaviour
         EnsureSlots();
         ApplyActiveStates();
 
-        // Kick roll on all ACTIVE dice
         for (int i = 0; i < slots.Length; i++)
         {
             if (!IsSlotActive(i)) continue;
 
-            var d = GetDice(i);
+            DiceSpinnerGeneric d = GetDice(i);
             if (d == null) continue;
 
             d.RollRandomFace();
         }
 
-        // Wait until all done (animation complete)
         while (IsRolling)
             yield return null;
 
         HasRolledThisTurn = true;
+        CacheRollInfos();
         onAllDiceRolled?.Invoke();
     }
 
@@ -116,13 +134,10 @@ public class DiceSlotRig : MonoBehaviour
         EnsureSlots();
         if (slot0 < 0 || slot0 >= slots.Length) return false;
 
-        var e = slots[slot0];
+        Entry e = slots[slot0];
         if (e == null) return false;
         if (!e.active) return false;
-
-        // if user provided a slotRoot, it must be active too
         if (e.slotRoot != null && !e.slotRoot.activeInHierarchy) return false;
-
         return true;
     }
 
@@ -134,11 +149,69 @@ public class DiceSlotRig : MonoBehaviour
         ApplyActiveStates();
     }
 
+    public void AssignDiceToSlot(int slot0, DiceSpinnerGeneric dice)
+    {
+        EnsureSlots();
+        if (slot0 < 0 || slot0 >= slots.Length) return;
+
+        Entry entry = slots[slot0];
+        entry.dice = dice;
+        if (entry.diceRoot == null && dice != null)
+            entry.diceRoot = dice.gameObject;
+        slots[slot0] = entry;
+        ApplyActiveStates();
+    }
+
+    public void SwapDiceSlots(int a, int b)
+    {
+        EnsureSlots();
+        if (a < 0 || a >= slots.Length) return;
+        if (b < 0 || b >= slots.Length) return;
+        if (a == b) return;
+
+        DiceSpinnerGeneric tmpDice = slots[a].dice;
+        slots[a].dice = slots[b].dice;
+        slots[b].dice = tmpDice;
+
+        GameObject tmpRoot = slots[a].diceRoot;
+        slots[a].diceRoot = slots[b].diceRoot;
+        slots[b].diceRoot = tmpRoot;
+        ApplyActiveStates();
+    }
+
     public int GetDieValue(int slot0)
     {
         if (!HasRolledThisTurn) return 0;
-        var d = GetDice(slot0);
+        DiceSpinnerGeneric d = GetDice(slot0);
         return d != null ? d.LastRolledValue : 0;
+    }
+
+    public RollInfo GetRollInfo(int slot0)
+    {
+        EnsureSlots();
+        if (slot0 < 0 || slot0 >= LastRollInfos.Length) return default;
+        return LastRollInfos[slot0];
+    }
+
+    public int GetContribution(int slot0)
+    {
+        if (!HasRolledThisTurn) return 0;
+        return GetRollInfo(slot0).Contribution;
+    }
+
+    public bool IsCrit(int slot0) => GetRollInfo(slot0).isCrit;
+    public bool IsFail(int slot0) => GetRollInfo(slot0).isFail;
+
+    public int GetResolvedContribution(int slot0, CombatActor owner)
+    {
+        RollInfo info = GetRollInfo(slot0);
+        if (!HasRolledThisTurn) return 0;
+        if (info.isFail) return 0;
+
+        int delta = ComputeAllDiceDelta(owner);
+        int value = info.rolledValue + delta;
+        if (value < 1) value = 1;
+        return value;
     }
 
     public int ActiveSlotCount()
@@ -176,7 +249,7 @@ public class DiceSlotRig : MonoBehaviour
 
         for (int i = 0; i < slots.Length; i++)
         {
-            var e = slots[i];
+            Entry e = slots[i];
             if (e == null) continue;
 
             if (e.diceRoot == null && e.dice != null)
@@ -193,14 +266,66 @@ public class DiceSlotRig : MonoBehaviour
         }
     }
 
-    // -----------------------------
-    // Resolved value with debuff layer
-    // -----------------------------
+    // Legacy API name kept for compatibility.
+    // For dice-scaled combat this now returns resolved CONTRIBUTION,
+    // so fail dice contribute 0 exactly as requested.
     public int GetResolvedDieValue(int slot0, CombatActor owner)
     {
-        int raw = GetDieValue(slot0);
-        if (raw <= 0) return raw;
+        return GetResolvedContribution(slot0, owner);
+    }
 
+    public int GetMinFaceValue(int slot0)
+    {
+        DiceSpinnerGeneric d = GetDice(slot0);
+        if (d == null) return 1;
+        return d.GetMinFaceValue();
+    }
+
+    public int GetMaxFaceValue(int slot0)
+    {
+        DiceSpinnerGeneric d = GetDice(slot0);
+        if (d == null) return 6;
+        return d.GetMaxFaceValue();
+    }
+
+    public SpanStats ComputeSpanStats(int start0, int span, CombatActor owner = null)
+    {
+        EnsureSlots();
+
+        span = Mathf.Clamp(span, 1, 3);
+        int end0 = Mathf.Min(2, start0 + span - 1);
+
+        int count = 0;
+        int sum = 0;
+        bool critAny = false;
+        bool critAll = true;
+        bool failAny = false;
+
+        for (int i = start0; i <= end0; i++)
+        {
+            if (!IsSlotActive(i)) continue;
+            count++;
+
+            RollInfo info = GetRollInfo(i);
+            sum += GetResolvedContribution(i, owner);
+            critAny |= info.isCrit;
+            critAll &= info.isCrit;
+            failAny |= info.isFail;
+        }
+
+        if (count == 0) critAll = false;
+
+        return new SpanStats
+        {
+            sumContribution = sum,
+            critAny = critAny,
+            critAll = critAll,
+            failAny = failAny
+        };
+    }
+
+    private int ComputeAllDiceDelta(CombatActor owner)
+    {
         int delta = 0;
         if (onComputeAllDiceDelta != null)
         {
@@ -210,22 +335,48 @@ public class DiceSlotRig : MonoBehaviour
                 catch { }
             }
         }
-
-        int v = raw + delta;
-        if (v < 1) v = 1;
-        return v;
+        return delta;
     }
 
-    public int GetMaxFaceValue(int slot0)
+    private void CacheRollInfos()
     {
-        var d = GetDice(slot0);
-        if (d == null || d.faces == null || d.faces.Length == 0) return 6;
+        EnsureSlots();
+        for (int i = 0; i < 3; i++)
+        {
+            if (!IsSlotActive(i))
+            {
+                LastRollInfos[i] = default;
+                continue;
+            }
 
-        int max = 0;
-        for (int i = 0; i < d.faces.Length; i++)
-            if (d.faces[i].value > max) max = d.faces[i].value;
+            DiceSpinnerGeneric d = GetDice(i);
+            if (d == null)
+            {
+                LastRollInfos[i] = default;
+                continue;
+            }
 
-        return Mathf.Max(1, max);
+            d.GetRollExtents(out int minFace, out int maxFace);
+            int rolled = d.LastRolledValue;
+            bool isCrit = rolled == maxFace;
+            bool isFail = minFace != maxFace && rolled == minFace && !isCrit;
+
+            LastRollInfos[i] = new RollInfo
+            {
+                rolledValue = rolled,
+                minFaceAtRoll = minFace,
+                maxFaceAtRoll = maxFace,
+                isCrit = isCrit,
+                isFail = isFail
+            };
+        }
+    }
+
+    private void ClearRollInfos()
+    {
+        EnsureSlots();
+        for (int i = 0; i < LastRollInfos.Length; i++)
+            LastRollInfos[i] = default;
     }
 
     private DiceSpinnerGeneric GetDice(int slot0)
@@ -243,5 +394,8 @@ public class DiceSlotRig : MonoBehaviour
         for (int i = 0; i < 3; i++)
             if (slots[i] == null)
                 slots[i] = new Entry();
+
+        if (LastRollInfos == null || LastRollInfos.Length != 3)
+            LastRollInfos = new RollInfo[3];
     }
 }

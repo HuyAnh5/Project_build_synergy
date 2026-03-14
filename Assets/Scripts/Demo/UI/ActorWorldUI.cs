@@ -2,11 +2,14 @@
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using DG.Tweening;
 
 public class ActorWorldUI : MonoBehaviour
 {
     [Header("Bind")]
     public CombatActor actor;
+    public TMP_Text intentText;
+    public float intentFontSize = 3.5f;
 
     [Header("Follow")]
     public Vector3 localOffset = new Vector3(0f, 1.2f, 0f);
@@ -61,17 +64,27 @@ public class ActorWorldUI : MonoBehaviour
         if (hpText) hpText.text = $"{actor.hp}/{actor.maxHP}";
         if (guardText) guardText.text = actor.guardPool > 0 ? $"Guard:{actor.guardPool}" : "Guard:0";
         if (statusText) statusText.text = BuildStatusString(actor.status);
+
+        var brain = actor.GetComponent<EnemyBrainController>();
+        if (intentText)
+        {
+            if (brain != null && brain.CurrentIntent.hasIntent)
+                intentText.text = brain.CurrentIntent.previewText;
+            else
+                intentText.text = "";
+        }
     }
 
     private string BuildStatusString(StatusController st)
     {
         if (!st) return "";
 
-        // format:
-        // Burn:2, 3T
-        // Bleed:2
-        // Mark
+        // Format:
         // Freeze
+        // Mark
+        // Burn: Burn:{stack}({turn}T)
+        // Bleed: Bleed:{stack}
+        // Chilled: Chilled:{turn}T
         // Sleep:2T (Ailment)
 
         var sb = new StringBuilder(64);
@@ -84,17 +97,20 @@ public class ActorWorldUI : MonoBehaviour
             first = false;
         }
 
+        if (st.frozen) AddLine("Freeze");
+        if (st.marked) AddLine("Mark");
+
+        // ✅ Burn: stack + turn
         if (st.burnStacks > 0 || st.burnTurns > 0)
-            AddLine($"Burn:{st.burnStacks}, {st.burnTurns}T");
+            AddLine($"Burn:{st.burnStacks}({st.burnTurns}T)");
 
-        if (st.bleedTurns > 0)
-            AddLine($"Bleed:{st.bleedTurns}");
+        // ✅ Bleed: stack
+        if (st.bleedStacks > 0)
+            AddLine($"Bleed:{st.bleedStacks}");
 
-        if (st.marked)
-            AddLine("Mark");
-
-        if (st.frozen)
-            AddLine("Freeze");
+        // ✅ Chilled: turn
+        if (st.chilledTurns > 0)
+            AddLine($"Chilled:{st.chilledTurns}T");
 
         // ✅ Ailment display
         if (st.HasAilment(out var at, out var left))
@@ -113,6 +129,12 @@ public class ActorWorldUI : MonoBehaviour
 
         if (statusText == null)
             statusText = Create3DText("Status_Text", new Vector3(0f, -0.55f * lineSpacing, 0f), statusFontSize, TextAlignmentOptions.Center);
+
+        if (intentText == null)
+            intentText = Create3DText("Intent_Text", new Vector3(0f, -0.45f * lineSpacing, 0f), intentFontSize, TextAlignmentOptions.Center);
+
+        if (statusText == null)
+            statusText = Create3DText("Status_Text", new Vector3(0f, -0.70f * lineSpacing, 0f), statusFontSize, TextAlignmentOptions.Center);
     }
 
     private TMP_Text Create3DText(string name, Vector3 localPos, float fontSize, TextAlignmentOptions align)
@@ -146,5 +168,21 @@ public class ActorWorldUI : MonoBehaviour
         {
             renderers[i].sortingOrder = order;
         }
+    }
+
+    public void ShowIntentImmediate()
+    {
+        if (intentText == null) return;
+        intentText.DOKill();
+        var c = intentText.color;
+        c.a = 1f;
+        intentText.color = c;
+    }
+
+    public void FadeIntent(float duration = 0.25f)
+    {
+        if (intentText == null) return;
+        intentText.DOKill();
+        intentText.DOFade(0f, duration).SetEase(Ease.OutQuad);
     }
 }

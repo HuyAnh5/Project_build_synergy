@@ -325,28 +325,43 @@ public class EnemyBrainController : MonoBehaviour
 
     private string BuildBasicPreview(EnemyDefinitionSO.EnemyMoveSlot move, CombatActor player)
     {
-        // Skeleton preview: chỉ dựa vào intent tag + tags.
-        // Sau này bạn có thể build preview thật từ SkillRuntime/SkillSO fields.
+        // Rule bạn muốn:
+        // - Attack/Guard: có số (Attack:3, Guard:3)
+        // - Burn/Mark/Freeze/Bleed: chỉ ghi "Effect"
+        // - Ailment: chỉ ghi "Ail"
+        // - Buff/Heal/Debuff: chỉ ghi label
+
+        // Ưu tiên tags trước
+        if ((move.tags & EnemyDefinitionSO.EnemyMoveTag.Heal) != 0) return "Heal";
+        if ((move.tags & EnemyDefinitionSO.EnemyMoveTag.Buff) != 0) return "Buff";
+        if ((move.tags & EnemyDefinitionSO.EnemyMoveTag.Debuff) != 0) return "Debuff";
+        if ((move.tags & EnemyDefinitionSO.EnemyMoveTag.Ailment) != 0) return "Ail";
+
+        // Effect bucket (burn/mark/freeze/bleed) — tạm gom chung đúng ý bạn
+        // (nếu sau này muốn hiện đúng tên từng effect thì đổi tại đây)
+        if ((move.tags & EnemyDefinitionSO.EnemyMoveTag.Special) != 0 && move.intent == EnemyDefinitionSO.EnemyIntentTag.Special)
+            return "Special";
+
+        // Attack/Guard: cố lấy value từ skill nếu có
+        if (move.damageSkill != null)
+        {
+            var rt = SkillRuntime.FromDamage(move.damageSkill);
+
+            if (rt.kind == SkillKind.Attack)
+                return $"Attack:{Mathf.Max(0, rt.CalculateDamage(0))}";
+
+            if (rt.kind == SkillKind.Guard)
+                return $"Guard:{Mathf.Max(0, rt.CalculateGuard(0))}";
+        }
+
+        // fallback theo intent
         switch (move.intent)
         {
-            case EnemyDefinitionSO.EnemyIntentTag.Attack:
-                if ((move.tags & EnemyDefinitionSO.EnemyMoveTag.Heavy) != 0) return $"{move.displayName} (Heavy)";
-                return move.displayName;
-
-            case EnemyDefinitionSO.EnemyIntentTag.Defend:
-                return $"{move.displayName} (Guard)";
-
-            case EnemyDefinitionSO.EnemyIntentTag.Buff:
-                return $"{move.displayName} (Buff)";
-
-            case EnemyDefinitionSO.EnemyIntentTag.Debuff:
-                return $"{move.displayName} (Debuff)";
-
-            case EnemyDefinitionSO.EnemyIntentTag.Summon:
-                return $"{move.displayName} (Summon)";
-
-            default:
-                return move.displayName;
+            case EnemyDefinitionSO.EnemyIntentTag.Attack: return "Attack";
+            case EnemyDefinitionSO.EnemyIntentTag.Defend: return "Guard";
+            case EnemyDefinitionSO.EnemyIntentTag.Buff: return "Buff";
+            case EnemyDefinitionSO.EnemyIntentTag.Debuff: return "Debuff";
+            default: return move.intent.ToString();
         }
     }
 

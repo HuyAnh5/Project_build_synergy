@@ -83,7 +83,7 @@ public class CombatHUD : MonoBehaviour
         }
 
         if (st.burnStacks > 0 || st.burnTurns > 0) Add($"Burn:{st.burnStacks},{st.burnTurns}T");
-        if (st.bleedTurns > 0) Add($"Bleed:{st.bleedTurns}");
+        if (st.bleedStacks > 0) Add($"Bleed:{st.bleedStacks}");
         if (st.marked) Add("Mark");
         if (st.frozen) Add("Freeze");
 

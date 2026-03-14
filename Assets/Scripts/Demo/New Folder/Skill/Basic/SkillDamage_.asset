@@ -75,7 +75,7 @@ MonoBehaviour:
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
   focusCost: 0
-  focusGainOnCast: 0
+  focusGainOnCast: 1
   dieMultiplier: 1
   flatDamage: 0
   sunderBonusIfTargetHasGuard: 1

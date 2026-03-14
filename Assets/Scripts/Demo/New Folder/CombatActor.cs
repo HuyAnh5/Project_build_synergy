@@ -61,6 +61,37 @@ public class CombatActor : MonoBehaviour
         guardPool = Mathf.Max(0, guardPool + amount);
     }
 
+    public struct DamageResult
+    {
+        public int requested;
+        public int blocked;
+        public int hpLost;
+    }
+
+    public DamageResult TakeDamageDetailed(int dmg, bool bypassGuard)
+    {
+        DamageResult r = new DamageResult { requested = Mathf.Max(0, dmg), blocked = 0, hpLost = 0 };
+
+        int remaining = r.requested;
+
+        if (!bypassGuard && guardPool > 0)
+        {
+            int blocked = Mathf.Min(guardPool, remaining);
+            guardPool -= blocked;
+            remaining -= blocked;
+            r.blocked = blocked;
+        }
+
+        if (remaining > 0)
+        {
+            int before = hp;
+            hp = Mathf.Max(0, hp - remaining);
+            r.hpLost = before - hp;
+        }
+
+        return r;
+    }
+
     public void TakeDamage(int dmg, bool bypassGuard)
     {
         int remaining = dmg;
@@ -75,10 +106,23 @@ public class CombatActor : MonoBehaviour
         if (remaining > 0) hp = Mathf.Max(0, hp - remaining);
     }
 
-    public void Heal(int amount)
+    public int Heal(int amount)
     {
-        if (amount <= 0) return;
+        if (amount <= 0) return 0;
+
+        int before = hp;
         hp = Mathf.Clamp(hp + amount, 0, maxHP);
+        int healed = hp - before;
+        if (healed <= 0) return 0;
+
+        // Spawn popup xanh trên chính target được heal
+        var pop = Object.FindObjectOfType<DamagePopupSystem>();
+        if (pop != null)
+        {
+            pop.SpawnHeal(this, this, healed);
+        }
+
+        return healed;
     }
 
     public void ResetForBattle(bool resetHp)

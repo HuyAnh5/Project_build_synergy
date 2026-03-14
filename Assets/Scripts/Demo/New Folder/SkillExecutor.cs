@@ -16,6 +16,16 @@ public class SkillExecutor : MonoBehaviour
     public float meleeReturnTime = 0.08f;
     public bool lungeIgnoreTimeScale = false;
 
+    [Header("Damage Popup")]
+    public DamagePopupSystem damagePopups;
+
+    private DamagePopupSystem GetPopups()
+    {
+        if (damagePopups != null) return damagePopups;
+        damagePopups = FindObjectOfType<DamagePopupSystem>();
+        return damagePopups;
+    }
+
     public IEnumerator ExecuteSkill(SkillSO skill, CombatActor caster, CombatActor target, int dieValue, bool skipCost = false)
     {
         var rt = SkillRuntime.FromSkill(skill);
@@ -160,10 +170,23 @@ public class SkillExecutor : MonoBehaviour
             // MELEE (visual 1 lần)
             if (rt.range == RangeType.Melee)
             {
-                yield return MeleeLungeDOTween(caster, primaryTarget);
+                yield return MeleeLungeDOTween_HitMoment(caster, primaryTarget, () =>
+                {
+                    CombatActor.DamageResult res = default;
 
-                if (useAoe) ApplyAttackToTargets(rt, caster, aoeTargets, dieValue);
-                else ApplyAttack(rt, caster, primaryTarget, dieValue);
+                    // Apply đúng 1 lần tại hit moment
+                    if (useAoe)
+                    {
+                        ApplyAttackToTargets(rt, caster, aoeTargets, dieValue);
+                    }
+                    else
+                    {
+                        res = ApplyAttack(rt, caster, primaryTarget, dieValue);
+                        var popups = GetPopups();
+                        if (popups != null && primaryTarget != null)
+                            popups.SpawnDamageSplit(caster, primaryTarget, res.blocked, res.hpLost);
+                    }
+                });
 
                 caster.GainFocus(rt.focusGainOnCast);
                 yield return new WaitForSeconds(delayBetweenActions);
@@ -179,13 +202,23 @@ public class SkillExecutor : MonoBehaviour
                 var proj = Instantiate(rt.projectilePrefab, caster.firePoint.position, caster.firePoint.rotation);
                 proj.Launch(primaryTarget.transform, () =>
                 {
-                    if (useAoe) ApplyAttackToTargets(rt, caster, aoeTargets, dieValue);
-                    else ApplyAttack(rt, caster, primaryTarget, dieValue);
+                        CombatActor.DamageResult res = default;
 
-                    done = true;
+                        if (useAoe)
+                        {
+                            ApplyAttackToTargets(rt, caster, aoeTargets, dieValue);
+                        }
+                        else
+                        {
+                            res = ApplyAttack(rt, caster, primaryTarget, dieValue);
+                            var popups = GetPopups();
+                            if (popups != null && primaryTarget != null)
+                                popups.SpawnDamageSplit(caster, primaryTarget, res.blocked, res.hpLost);
+                        }
 
-                    // nếu projectile prefab không tự destroy thì destroy ở đây vẫn an toàn
-                    if (proj != null) Destroy(proj.gameObject);
+                        done = true;
+
+                        if (proj != null) Destroy(proj.gameObject);
                 });
 
                 while (!done && elapsed < projectileMaxWaitSeconds)
@@ -254,7 +287,7 @@ public class SkillExecutor : MonoBehaviour
         return null;
     }
 
-    private IEnumerator MeleeLungeDOTween(CombatActor caster, CombatActor target)
+    private IEnumerator MeleeLungeDOTween_HitMoment(CombatActor caster, CombatActor target, System.Action onHit)
     {
         if (caster == null) yield break;
 
@@ -272,8 +305,22 @@ public class SkillExecutor : MonoBehaviour
 
         t.DOKill(false);
 
+        bool hitFired = false;
+
         Sequence seq = DOTween.Sequence();
+
+        // đi tới apex
         seq.Append(t.DOMoveX(midX, Mathf.Max(0.01f, meleeLungeTime)).SetEase(Ease.OutQuad));
+
+        // HIT MOMENT: ngay khi tới apex
+        seq.AppendCallback(() =>
+        {
+            if (hitFired) return;
+            hitFired = true;
+            onHit?.Invoke();
+        });
+
+        // lùi về
         seq.Append(t.DOMoveX(startX, Mathf.Max(0.01f, meleeReturnTime)).SetEase(Ease.InQuad));
 
         if (lungeIgnoreTimeScale) seq.SetUpdate(true);
@@ -294,13 +341,13 @@ public class SkillExecutor : MonoBehaviour
         {
             var t = targets[i];
             if (t == null || t.IsDead) continue;
-            ApplyAttack(rt, caster, t, dieValue);
+            ApplyAttack(rt, caster, t, dieValue); // ignore result (AoE popup optional)
         }
     }
 
-    private void ApplyAttack(SkillRuntime rt, CombatActor caster, CombatActor target, int dieValue)
+    private CombatActor.DamageResult ApplyAttack(SkillRuntime rt, CombatActor caster, CombatActor target, int dieValue)
     {
-        if (rt == null || target == null) return;
+        if (rt == null || target == null) return default;
 
         int baseDmg = rt.CalculateDamage(dieValue);
 
@@ -384,7 +431,23 @@ public class SkillExecutor : MonoBehaviour
             Debug.Log($"[EXEC] ApplyAttack rt={rt.kind}/{rt.group}/{rt.element} die={dieValue} base={baseDmg} statusOutMul={statusOutMul:0.###} passiveOutMul={passiveOutMul:0.###} sleepMul={sleepMul:0.###} finalDmg={dmg} hasPassiveSystem={hasPS}", this);
         }
 
-        target.TakeDamage(dmg, bypassGuard: info.bypassGuard);
+        var dmgResult = target.TakeDamageDetailed(dmg, bypassGuard: info.bypassGuard);
+
+        // ❄ Ice reward khi hit Freeze hoặc Chilled (KHÔNG break Freeze)
+        if (info.isDamage && rt.element == ElementType.Ice && target.status != null)
+        {
+            bool isFrozen = target.status.frozen;
+            bool isChilled = target.status.chilledTurns > 0;
+
+            if (isFrozen || isChilled)
+            {
+                int dealt = dmgResult.hpLost + dmgResult.blocked; // "damage gây ra" tính cả guard block
+                int guardGain = Mathf.RoundToInt(dealt * 0.45f);  // 40–50% -> bạn có thể đổi 0.45f
+                if (guardGain > 0) caster.AddGuard(guardGain);
+                caster.GainFocus(1);
+            }
+        }
+
         if (info.clearsGuard) target.guardPool = 0;
 
         if (target.status != null && caster != null)
@@ -399,6 +462,8 @@ public class SkillExecutor : MonoBehaviour
         }
 
         ApplyStatusesAfterHit(rt, target);
+        
+        return dmgResult;
     }
 
 

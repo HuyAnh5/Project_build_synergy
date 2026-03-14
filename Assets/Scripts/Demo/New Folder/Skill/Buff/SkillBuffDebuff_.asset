@@ -15,7 +15,7 @@ MonoBehaviour:
   icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
   displayName: SkillBuffDebuff_
   description: 
-  identity: 1
+  identity: 0
   target: 1
   applyDelayTurns: 0
   slotsRequired: 1
@@ -23,9 +23,9 @@ MonoBehaviour:
   focusGainOnCast: 0
   _focusDelayedDelayWarning: 0
   effects:
-  - id: 6
-    durationTurns: 1
-    compactParam: 30
+  - id: 2
+    durationTurns: 0
+    compactParam: 6
     parityEvenDelta: -2
     parityOddDelta: -1
     _slotCollapseHelp: 1

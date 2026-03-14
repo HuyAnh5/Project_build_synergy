@@ -12,11 +12,15 @@ public class StatusController : MonoBehaviour
     // Mark: tồn tại tới hit kế tiếp
     public bool marked;
 
-    // Bleed: stack = số turn còn lại
-    public int bleedTurns;
+    // Bleed: stack giảm dần (-1 mỗi cuối turn), đầu turn mất HP = stack
+    public int bleedStacks;
 
-    // Freeze: nếu proc thì skip 1 lượt (duration 1 turn)
+    // Freeze: skip 1 turn
     public bool frozen;
+
+    // Chilled: tồn tại 2 turn sau khi hết Freeze, không stack
+    public int chilledTurns;
+    private bool _chilledJustAppliedThisTurn;
 
     // -------------------- NEW: Buff/Debuff/Ailment layer (non-breaking) --------------------
 
@@ -76,7 +80,8 @@ public class StatusController : MonoBehaviour
         burnStacks = 0;
         burnTurns = 0;
         marked = false;
-        bleedTurns = 0;
+        bleedStacks = 0;
+        chilledTurns = 0;
         frozen = false;
 
         _pending.Clear();
@@ -259,6 +264,21 @@ public class StatusController : MonoBehaviour
             _ailmentTurnsLeft--;
             if (_ailmentTurnsLeft <= 0) ClearAilment();
         }
+
+        // ✅ Bleed: cuối turn stack -1
+        if (bleedStacks > 0)
+            bleedStacks = Mathf.Max(0, bleedStacks - 1);
+
+        // ✅ Chilled: không trừ ngay trong turn vừa set từ Freeze
+        if (_chilledJustAppliedThisTurn)
+        {
+            _chilledJustAppliedThisTurn = false;
+        }
+        else
+        {
+            if (chilledTurns > 0)
+                chilledTurns = Mathf.Max(0, chilledTurns - 1);
+        }
     }
 
     public void ApplyBurn(int addStacks, int refreshTurns)
@@ -269,13 +289,17 @@ public class StatusController : MonoBehaviour
 
     public void ApplyMark() => marked = true;
 
-    public void ApplyBleed(int turns)
+    public void ApplyBleed(int stacks)
     {
-        if (turns <= 0) return;
-        bleedTurns += turns;
+        if (stacks <= 0) return;
+        bleedStacks += stacks;
     }
 
-    public void ApplyFreeze() => frozen = true;
+    public void ApplyFreeze()
+    {
+        frozen = true;
+        chilledTurns = 0; // rule: Freeze & Chilled không cùng tồn tại
+    }
 
     // gọi ở "đầu lượt của mục tiêu" (Bleed tick + giảm duration Burn)
     public int TickStartOfTurnDamage()
@@ -283,10 +307,9 @@ public class StatusController : MonoBehaviour
         int dot = 0;
 
         // Bleed: -1 HP mỗi đầu lượt của target
-        if (bleedTurns > 0)
+        if (bleedStacks > 0)
         {
-            dot += 1;
-            bleedTurns -= 1;
+            dot += bleedStacks; // đầu turn mất = stack hiện tại
         }
 
         // Burn không DoT nhưng giảm turn; hết turn thì mất stacks
@@ -303,15 +326,17 @@ public class StatusController : MonoBehaviour
 
         int dot = TickStartOfTurnDamage();
 
+        // Freeze: skip đúng 1 turn, sau đó chuyển sang Chilled 2 turns
         if (consumeFreezeToSkipTurn && frozen)
         {
             frozen = false;
-            skipTurn = true; // skip đúng 1 lượt của chính target
+            skipTurn = true;
+
+            chilledTurns = 2;                  // ✅ đúng yêu cầu
+            _chilledJustAppliedThisTurn = true; // ✅ tránh bị trừ ngay trong end-turn của turn skip
         }
 
-        // NEW: delayed buff/debuff + ailment applications
         ProcessPendingAtTurnStart();
-
         return dot;
     }
 
@@ -339,13 +364,6 @@ public class StatusController : MonoBehaviour
         {
             burnStacks = 0;
             burnTurns = 0;
-        }
-
-        // Freeze: bị xóa khi bị Ice damage; phá freeze thưởng focus +1
-        if (frozen && info.element == ElementType.Ice && info.isDamage)
-        {
-            frozen = false;
-            reward += 1;
         }
 
         return reward;

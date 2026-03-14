@@ -88,6 +88,8 @@ public class TurnManager : MonoBehaviour
         RefreshPlanningInteractivity();
         RefreshAllPreviews();
         UpdateAllIconsDim();
+        BeginNewPlayerTurn();
+        EnsureAllEnemyIntentsNow();
     }
 
 
@@ -486,6 +488,9 @@ public class TurnManager : MonoBehaviour
     {
         SetPhase(Phase.EnemyTurn);
 
+        // ✅ Intent fade out when enemy turn starts (STS feel)
+        FadeAllEnemyIntents(0.25f);
+
         // ✅ Delay trước enemy đầu tiên (để không đánh ngay lập tức khi vừa bấm Continue)
         if (delayBetweenEnemyAttacks > 0f)
             yield return new WaitForSeconds(delayBetweenEnemyAttacks);
@@ -503,7 +508,7 @@ public class TurnManager : MonoBehaviour
             {
                 int dot = e.status.OnTurnStarted(consumeFreezeToSkipTurn: true, out skipTurn);
                 if (logPhase) Debug.Log(
-                    $"[TM] EnemyTurnStart {e.name}: dot={dot} skip={skipTurn} bleed={e.status.bleedTurns} burnStacks={e.status.burnStacks} burnTurns={e.status.burnTurns} frozen={e.status.frozen}",
+                    $"[TM] EnemyTurnStart {e.name}: dot={dot} skip={skipTurn} bleed={e.status.bleedStacks} burnStacks={e.status.burnStacks} burnTurns={e.status.burnTurns} frozen={e.status.frozen}",
                     this
                 );
 
@@ -530,9 +535,6 @@ public class TurnManager : MonoBehaviour
                 // nếu có brain+definition thì cast skill thật
                 if (brain != null && brain.definition != null && brain.definition.moves != null && brain.definition.moves.Count > 0)
                 {
-                    // nếu chưa có intent thì decide ngay (tạm thời; STS chuẩn là decide cuối lượt player)
-                    if (!brain.CurrentIntent.hasIntent)
-                        brain.DecideNextIntent(player);
 
                     if (brain.CurrentIntent.hasIntent)
                     {
@@ -622,6 +624,7 @@ public class TurnManager : MonoBehaviour
                         // consume intent + tick cooldown turn (tối thiểu để cooldown hoạt động)
                         brain.ConsumeCurrentIntent();
                         brain.AdvanceTurnTick();
+                        brain.DecideNextIntent(player);
 
                         if (delayBetweenEnemyAttacks > 0f)
                             yield return new WaitForSeconds(delayBetweenEnemyAttacks);
@@ -700,6 +703,20 @@ public class TurnManager : MonoBehaviour
 
         RefreshPlanningInteractivity();
         LockPlanningUI(false);
+
+        // ✅ Ensure enemy has intent for THIS upcoming enemy turn (STS style)
+        var enemies = ResolveAliveEnemiesSnapshot();
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            var e = enemies[i];
+            if (e == null || e.IsDead) continue;
+            var brain = e.GetComponent<EnemyBrainController>();
+            if (brain != null && !brain.CurrentIntent.hasIntent)
+                brain.DecideNextIntent(player);
+        }
+
+        // show intent during player turn
+        ShowAllEnemyIntentsImmediate();
     }
 
 
@@ -1166,5 +1183,46 @@ public class TurnManager : MonoBehaviour
 
         if (logPhase)
             Debug.Log($"[TM] SlotCollapse ON -> keep slot {_slotCollapseKeepIndex}", this);
+    }
+
+    private void ShowAllEnemyIntentsImmediate()
+    {
+        var enemies = ResolveAliveEnemiesSnapshot();
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            var e = enemies[i];
+            if (e == null) continue;
+            var ui = e.GetComponentInChildren<ActorWorldUI>(true);
+            if (ui != null) ui.ShowIntentImmediate();
+        }
+    }
+
+    private void FadeAllEnemyIntents(float dur = 0.25f)
+    {
+        var enemies = ResolveAliveEnemiesSnapshot();
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            var e = enemies[i];
+            if (e == null) continue;
+            var ui = e.GetComponentInChildren<ActorWorldUI>(true);
+            if (ui != null) ui.FadeIntent(dur);
+        }
+    }
+
+    private void EnsureAllEnemyIntentsNow()
+    {
+        var enemies = ResolveAliveEnemiesSnapshot();
+        for (int i = 0; i < enemies.Count; i++)
+        {
+            var e = enemies[i];
+            if (e == null || e.IsDead) continue;
+
+            var brain = e.GetComponent<EnemyBrainController>();
+            if (brain != null && !brain.CurrentIntent.hasIntent)
+                brain.DecideNextIntent(player);
+
+            var ui = e.GetComponentInChildren<ActorWorldUI>(true);
+            if (ui != null) ui.ShowIntentImmediate();
+        }
     }
 }
