@@ -75,6 +75,113 @@ public class SkillPlanBoard
         if (player != null) player.focus = s.playerFocus;
     }
 
+    public bool TryApplyLanePermutation(int[] permutation, CombatActor player, DiceSlotRig diceRig)
+    {
+        if (permutation == null || permutation.Length < 3)
+            return false;
+
+        bool[] seen = new bool[3];
+        for (int i = 0; i < 3; i++)
+        {
+            int v = permutation[i];
+            if (v < 0 || v > 2 || seen[v])
+                return false;
+            seen[v] = true;
+        }
+
+        Snapshot snap = Capture(player);
+
+        ScriptableObject[] oldCellSkill = (ScriptableObject[])_cellSkill.Clone();
+        int[] oldCellAnchor = (int[])_cellAnchor.Clone();
+        int[] oldAnchorSpan = (int[])_anchorSpan.Clone();
+        int[] oldAnchorReservedCost = (int[])_anchorReservedCost.Clone();
+
+        Reset();
+        if (player != null)
+            player.focus = snap.playerFocus;
+
+        for (int oldAnchor = 0; oldAnchor < 3; oldAnchor++)
+        {
+            if (oldAnchorSpan[oldAnchor] <= 0)
+                continue;
+            if (oldCellSkill[oldAnchor] == null || oldCellAnchor[oldAnchor] != oldAnchor)
+                continue;
+
+            bool[] oldOccupied = new bool[3];
+            for (int oldCell = 0; oldCell < 3; oldCell++)
+            {
+                if (oldCellAnchor[oldCell] == oldAnchor && oldCellSkill[oldCell] != null)
+                    oldOccupied[oldCell] = true;
+            }
+
+            int[] newOccupied = new int[3];
+            int newCount = 0;
+            for (int newCell = 0; newCell < 3; newCell++)
+            {
+                int oldCell = permutation[newCell];
+                if (oldOccupied[oldCell])
+                    newOccupied[newCount++] = newCell;
+            }
+
+            if (newCount != oldAnchorSpan[oldAnchor])
+            {
+                Restore(snap, player);
+                return false;
+            }
+
+            for (int i = 1; i < newCount; i++)
+            {
+                if (newOccupied[i] != newOccupied[i - 1] + 1)
+                {
+                    Restore(snap, player);
+                    return false;
+                }
+            }
+
+            int newStart0 = newOccupied[0];
+            int newAnchor0;
+            switch (newCount)
+            {
+                case 1:
+                    newAnchor0 = newStart0;
+                    break;
+                case 2:
+                    if (newStart0 == 0 && newOccupied[1] == 1) newAnchor0 = 0;
+                    else if (newStart0 == 1 && newOccupied[1] == 2) newAnchor0 = 1;
+                    else
+                    {
+                        Restore(snap, player);
+                        return false;
+                    }
+                    break;
+                case 3:
+                    if (newStart0 != 0 || newOccupied[1] != 1 || newOccupied[2] != 2)
+                    {
+                        Restore(snap, player);
+                        return false;
+                    }
+                    newAnchor0 = 1;
+                    break;
+                default:
+                    Restore(snap, player);
+                    return false;
+            }
+
+            ScriptableObject skill = oldCellSkill[oldAnchor];
+            PlaceGroup(newStart0, newAnchor0, newCount, skill);
+            _anchorReservedCost[newAnchor0] = oldAnchorReservedCost[oldAnchor];
+            _anchorRuntime[newAnchor0] = snap.anchorRuntime[oldAnchor];
+        }
+
+        if (!RecalculateRuntimesAndRebalance(player, diceRig))
+        {
+            Restore(snap, player);
+            return false;
+        }
+
+        return true;
+    }
+
     // ---------------------------
     // Queries
     // ---------------------------

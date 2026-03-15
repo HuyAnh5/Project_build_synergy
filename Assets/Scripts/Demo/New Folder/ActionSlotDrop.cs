@@ -16,6 +16,12 @@ public class ActionSlotDrop : MonoBehaviour, IDropHandler
         if (turn) turn.RegisterDrop(this);
     }
 
+    public void SetVisualLaneIndex(int lane1Based)
+    {
+        slotIndex = Mathf.Clamp(lane1Based, 1, 3);
+        if (turn) turn.RegisterDrop(this);
+    }
+
     public void OnDrop(PointerEventData eventData)
     {
         if (!turn || !turn.IsPlanning) return;

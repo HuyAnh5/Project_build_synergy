@@ -5,6 +5,16 @@ using DG.Tweening;
 
 public class SkillExecutor : MonoBehaviour
 {
+    [System.Serializable]
+    public struct AttackPreview
+    {
+        public int effectiveDieValue;
+        public int baseDamage;
+        public int bonusDamage;
+        public int finalDamage;
+        public bool canDealDamage;
+    }
+
     public float delayBetweenActions = 0.25f;
 
     [Header("Projectile Safety")]
@@ -156,7 +166,7 @@ public class SkillExecutor : MonoBehaviour
             if (ps != null) pct = ps.GetGuardGainPercent();
 
             float mult = 1f + Mathf.Max(-0.99f, pct);
-            int scaledGuard = Mathf.CeilToInt(baseGuard * mult);
+            int scaledGuard = Mathf.FloorToInt(baseGuard * mult);
 
             caster.SetGuard(scaledGuard);
             caster.GainFocus(rt.focusGainOnCast);
@@ -202,23 +212,23 @@ public class SkillExecutor : MonoBehaviour
                 var proj = Instantiate(rt.projectilePrefab, caster.firePoint.position, caster.firePoint.rotation);
                 proj.Launch(primaryTarget.transform, () =>
                 {
-                        CombatActor.DamageResult res = default;
+                    CombatActor.DamageResult res = default;
 
-                        if (useAoe)
-                        {
-                            ApplyAttackToTargets(rt, caster, aoeTargets, dieValue);
-                        }
-                        else
-                        {
-                            res = ApplyAttack(rt, caster, primaryTarget, dieValue);
-                            var popups = GetPopups();
-                            if (popups != null && primaryTarget != null)
-                                popups.SpawnDamageSplit(caster, primaryTarget, res.blocked, res.hpLost);
-                        }
+                    if (useAoe)
+                    {
+                        ApplyAttackToTargets(rt, caster, aoeTargets, dieValue);
+                    }
+                    else
+                    {
+                        res = ApplyAttack(rt, caster, primaryTarget, dieValue);
+                        var popups = GetPopups();
+                        if (popups != null && primaryTarget != null)
+                            popups.SpawnDamageSplit(caster, primaryTarget, res.blocked, res.hpLost);
+                    }
 
-                        done = true;
+                    done = true;
 
-                        if (proj != null) Destroy(proj.gameObject);
+                    if (proj != null) Destroy(proj.gameObject);
                 });
 
                 while (!done && elapsed < projectileMaxWaitSeconds)
@@ -335,23 +345,39 @@ public class SkillExecutor : MonoBehaviour
         }
     }
 
-    private void ApplyAttackToTargets(SkillRuntime rt, CombatActor caster, IReadOnlyList<CombatActor> targets, int dieValue)
+    public int PreviewDamage(SkillRuntime rt, CombatActor caster, CombatActor target, int dieValue)
     {
-        for (int i = 0; i < targets.Count; i++)
-        {
-            var t = targets[i];
-            if (t == null || t.IsDead) continue;
-            ApplyAttack(rt, caster, t, dieValue); // ignore result (AoE popup optional)
-        }
+        return BuildAttackPreview(rt, caster, target, dieValue).finalDamage;
     }
 
-    private CombatActor.DamageResult ApplyAttack(SkillRuntime rt, CombatActor caster, CombatActor target, int dieValue)
+    public int PreviewDamage(SkillDamageSO skill, CombatActor caster, CombatActor target, int dieValue)
     {
-        if (rt == null || target == null) return default;
+        if (skill == null) return 0;
+        return PreviewDamage(SkillRuntime.FromDamage(skill), caster, target, dieValue);
+    }
 
-        int baseDmg = rt.CalculateDamage(dieValue);
+    public int PreviewDamage(SkillSO skill, CombatActor caster, CombatActor target, int dieValue)
+    {
+        if (skill == null) return 0;
+        return PreviewDamage(SkillRuntime.FromSkill(skill), caster, target, dieValue);
+    }
 
-        // ---- multipliers (order is deterministic; keep legacy behaviors intact) ----
+    public AttackPreview BuildAttackPreview(SkillRuntime rt, CombatActor caster, CombatActor target, int dieValue)
+    {
+        AttackPreview preview = new AttackPreview
+        {
+            effectiveDieValue = Mathf.Max(0, dieValue),
+            baseDamage = 0,
+            bonusDamage = 0,
+            finalDamage = 0,
+            canDealDamage = false
+        };
+
+        if (rt == null || rt.kind != SkillKind.Attack)
+            return preview;
+
+        preview.baseDamage = rt.CalculateDamage(preview.effectiveDieValue);
+
         float statusOutMul = 1f;
         if (caster != null && caster.status != null)
             statusOutMul = caster.status.GetOutgoingDamageMultiplier();
@@ -367,8 +393,69 @@ public class SkillExecutor : MonoBehaviour
         if (target != null && target.status != null && target.status.HasAilmentType(AilmentType.Sleep) && rt.group != DamageGroup.Effect)
             sleepMul = 1.5f;
 
-        // --- keep legacy logic (guard, mark, sunder...) ---
+        bool targetHasGuard = target != null && target.guardPool > 0;
+        int dmg = preview.baseDamage;
+
+        if (!Mathf.Approximately(statusOutMul, 1f))
+            dmg = Mathf.FloorToInt(dmg * statusOutMul);
+
+        if (!Mathf.Approximately(passiveOutMul, 1f))
+            dmg = Mathf.FloorToInt(dmg * passiveOutMul);
+
+        if (!Mathf.Approximately(sleepMul, 1f))
+            dmg = Mathf.FloorToInt(dmg * sleepMul);
+
+        if (rt.canUseMarkMultiplier && target != null && target.status != null && target.status.marked)
+        {
+            float mul = (rt.element == ElementType.Lightning) ? 2f : 1.25f;
+            if (ps != null && rt.element == ElementType.Lightning)
+                mul += ps.GetLightningVsMarkMultiplierAdd();
+            dmg = Mathf.FloorToInt(dmg * mul);
+        }
+
+        if (rt.group == DamageGroup.Sunder && rt.sunderBonusIfTargetHasGuard && targetHasGuard)
+            dmg = Mathf.FloorToInt(dmg * Mathf.Max(0f, rt.sunderGuardDamageMultiplier));
+
+        if (rt.element == ElementType.Fire && rt.consumesBurn && target != null && target.status != null)
+        {
+            int burnStacks = target.status.burnStacks;
+            if (burnStacks > 0)
+            {
+                float burnMul = (ps != null) ? ps.GetBurnConsumeMultiplier() : 1f;
+                int add = Mathf.FloorToInt(burnStacks * Mathf.Max(0, rt.burnDamagePerStack) * Mathf.Max(0f, burnMul));
+                preview.bonusDamage += add;
+                dmg += add;
+            }
+        }
+
+        bool attemptedDamage = preview.baseDamage > 0 || preview.bonusDamage > 0;
+        if (attemptedDamage && dmg < 1)
+            dmg = 1;
+
+        preview.finalDamage = Mathf.Max(0, dmg);
+        preview.canDealDamage = preview.finalDamage > 0;
+        return preview;
+    }
+
+    private void ApplyAttackToTargets(SkillRuntime rt, CombatActor caster, IReadOnlyList<CombatActor> targets, int dieValue)
+    {
+        for (int i = 0; i < targets.Count; i++)
+        {
+            var t = targets[i];
+            if (t == null || t.IsDead) continue;
+            ApplyAttack(rt, caster, t, dieValue); // ignore result (AoE popup optional)
+        }
+    }
+
+    private CombatActor.DamageResult ApplyAttack(SkillRuntime rt, CombatActor caster, CombatActor target, int dieValue)
+    {
+        if (rt == null || target == null) return default;
+
+        PassiveSystem ps = null;
+        if (caster != null) ps = caster.GetComponent<PassiveSystem>();
+
         bool hadGuardBeforeHit = target.guardPool > 0;
+        AttackPreview preview = BuildAttackPreview(rt, caster, target, dieValue);
 
         var info = new DamageInfo
         {
@@ -377,63 +464,23 @@ public class SkillExecutor : MonoBehaviour
             bypassGuard = rt.bypassGuard,
             clearsGuard = rt.clearsGuard,
             canUseMarkMultiplier = rt.canUseMarkMultiplier,
-            isDamage = false
+            isDamage = preview.finalDamage > 0
         };
 
-        int dmg = baseDmg;
-
-        // Status buff/debuff outgoing multiplier
-        if (!Mathf.Approximately(statusOutMul, 1f))
-            dmg = Mathf.CeilToInt(dmg * statusOutMul);
-
-        // Passive outgoing multiplier
-        if (!Mathf.Approximately(passiveOutMul, 1f))
-            dmg = Mathf.CeilToInt(dmg * passiveOutMul);
-
-        // Ailment vulnerability (Sleep)
-        if (!Mathf.Approximately(sleepMul, 1f))
-            dmg = Mathf.CeilToInt(dmg * sleepMul);
-
-        // Mark multiplier (legacy), with optional passive add for Lightning vs Mark
-        if (rt.canUseMarkMultiplier && target.status != null && target.status.marked)
+        if (rt.element == ElementType.Fire && rt.consumesBurn && target.status != null && target.status.burnStacks > 0)
         {
-            float mul = (rt.element == ElementType.Lightning) ? 2f : 1.25f;
-            if (ps != null && rt.element == ElementType.Lightning)
-                mul += ps.GetLightningVsMarkMultiplierAdd();
-            dmg = Mathf.RoundToInt(dmg * mul);
+            target.status.burnStacks = 0;
+            target.status.burnTurns = 0;
         }
-
-        // Sunder bonus vs Guard (legacy)
-        if (rt.group == DamageGroup.Sunder && rt.sunderBonusIfTargetHasGuard && hadGuardBeforeHit)
-        {
-            dmg = Mathf.RoundToInt(dmg * Mathf.Max(0f, rt.sunderGuardDamageMultiplier));
-        }
-
-        // Burn consume (legacy) + passive multiplier hook
-        if (rt.element == ElementType.Fire && rt.consumesBurn && target.status != null)
-        {
-            int b = target.status.burnStacks;
-            if (b > 0)
-            {
-                float burnMul = (ps != null) ? ps.GetBurnConsumeMultiplier() : 1f;
-                int add = Mathf.RoundToInt(b * Mathf.Max(0, rt.burnDamagePerStack) * Mathf.Max(0f, burnMul));
-                dmg += add;
-                target.status.burnStacks = 0;
-                target.status.burnTurns = 0;
-            }
-        }
-
-        info.isDamage = (dmg > 0);
 
         if (Debug.isDebugBuild)
         {
             bool hasPS = ps != null;
-            Debug.Log($"[EXEC] ApplyAttack rt={rt.kind}/{rt.group}/{rt.element} die={dieValue} base={baseDmg} statusOutMul={statusOutMul:0.###} passiveOutMul={passiveOutMul:0.###} sleepMul={sleepMul:0.###} finalDmg={dmg} hasPassiveSystem={hasPS}", this);
+            Debug.Log($"[EXEC] ApplyAttack rt={rt.kind}/{rt.group}/{rt.element} die={dieValue} base={preview.baseDamage} bonus={preview.bonusDamage} finalDmg={preview.finalDamage} hadGuard={hadGuardBeforeHit} hasPassiveSystem={hasPS}", this);
         }
 
-        var dmgResult = target.TakeDamageDetailed(dmg, bypassGuard: info.bypassGuard);
+        var dmgResult = target.TakeDamageDetailed(preview.finalDamage, bypassGuard: info.bypassGuard);
 
-        // ❄ Ice reward khi hit Freeze hoặc Chilled (KHÔNG break Freeze)
         if (info.isDamage && rt.element == ElementType.Ice && target.status != null)
         {
             bool isFrozen = target.status.frozen;
@@ -441,8 +488,8 @@ public class SkillExecutor : MonoBehaviour
 
             if (isFrozen || isChilled)
             {
-                int dealt = dmgResult.hpLost + dmgResult.blocked; // "damage gây ra" tính cả guard block
-                int guardGain = Mathf.RoundToInt(dealt * 0.45f);  // 40–50% -> bạn có thể đổi 0.45f
+                int dealt = dmgResult.hpLost + dmgResult.blocked;
+                int guardGain = Mathf.FloorToInt(dealt * 0.45f);
                 if (guardGain > 0) caster.AddGuard(guardGain);
                 caster.GainFocus(1);
             }
@@ -454,7 +501,6 @@ public class SkillExecutor : MonoBehaviour
         {
             int reward = target.status.OnHitByDamageReturnFocusReward(ref info);
 
-            // Passive bonus: break Freeze -> +extra Focus
             if (reward > 0 && ps != null)
                 reward += ps.GetFreezeBreakFocusBonusAdd();
 
@@ -462,7 +508,7 @@ public class SkillExecutor : MonoBehaviour
         }
 
         ApplyStatusesAfterHit(rt, target);
-        
+
         return dmgResult;
     }
 

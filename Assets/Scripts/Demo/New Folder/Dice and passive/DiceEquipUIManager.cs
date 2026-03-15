@@ -60,16 +60,23 @@ public class DiceEquipUIManager : MonoBehaviour
     public Ease anchorEase = Ease.OutCubic;
     public Ease itemEase = Ease.OutBack;
 
+    [Header("Combat Slot Preview Tween")]
+    public float combatSlotPreviewDuration = 0.18f;
+    public Ease combatSlotPreviewEase = Ease.OutBack;
+
     public DiceDraggableUI[] equipped = new DiceDraggableUI[3];
     public bool WasDropConsumedThisFrame { get; private set; }
 
     private readonly float[] _combatSlotBaseY = new float[3];
+    private readonly RectTransform[] _combatSlotIdentity = new RectTransform[3];
     private readonly DiceDraggableUI[] _displayOrderBuffer = new DiceDraggableUI[3];
+    private readonly RectTransform[] _combatDisplayBuffer = new RectTransform[3];
     private readonly DiceDraggableUI[] _worldSlotOwners = new DiceDraggableUI[3];
     private readonly Transform[] _worldSlotRoots = new Transform[3];
     private bool _capturedCombatSlotY;
 
     private DiceDraggableUI _draggingDice;
+    private RectTransform _draggingCombatSlot;
     private int _dragSourceIndex = -1;
     private int _previewInsertIndex = -1;
     private Canvas _rootCanvas;
@@ -92,6 +99,7 @@ public class DiceEquipUIManager : MonoBehaviour
     private void Start()
     {
         ApplyAdaptiveLayout(true);
+        RebindCombatSlotLaneIndices();
         RefreshAllSlots(true);
         SyncOutputs();
         SyncWorldSlotRootsToUI(true);
@@ -106,8 +114,12 @@ public class DiceEquipUIManager : MonoBehaviour
     public bool CanInteract()
     {
         if (!lockWhenCombatManagerExists) return true;
+
         RefreshTurnManagerRef();
-        return turnManager == null || !turnManager.isActiveAndEnabled;
+        if (turnManager == null) return true;
+        if (!turnManager.isActiveAndEnabled) return true;
+
+        return turnManager.IsPlanning;
     }
 
     public void Register(DiceDraggableUI dice)
@@ -138,6 +150,7 @@ public class DiceEquipUIManager : MonoBehaviour
         CompactEquipped();
         RebindWorldSlotOwnersFromCurrentOrder();
         ApplyAdaptiveLayout(true);
+        RebindCombatSlotLaneIndices();
         RefreshAllSlots(true);
         SyncOutputs();
         SyncWorldSlotRootsToUI(true);
@@ -150,6 +163,8 @@ public class DiceEquipUIManager : MonoBehaviour
         _draggingDice = dice;
         _dragSourceIndex = GetEquippedIndex(dice);
         _previewInsertIndex = _dragSourceIndex;
+        _draggingCombatSlot = GetCombatSlotAt(_dragSourceIndex);
+        RefreshCombatSlotPreview(true);
     }
 
     public void NotifyDrag(DiceDraggableUI dice, Vector2 screenPosition, Camera eventCamera)
@@ -158,14 +173,13 @@ public class DiceEquipUIManager : MonoBehaviour
         if (_dragSourceIndex < 0) return;
 
         int nextInsertIndex = GetInsertIndexFromScreenPosition(screenPosition, eventCamera);
-        if (nextInsertIndex == _previewInsertIndex)
+        if (nextInsertIndex != _previewInsertIndex)
         {
-            SyncWorldSlotRootsToUI(false);
-            return;
+            _previewInsertIndex = nextInsertIndex;
+            RefreshAllSlots();
+            RefreshCombatSlotPreview();
         }
 
-        _previewInsertIndex = nextInsertIndex;
-        RefreshAllSlots();
         SyncWorldSlotRootsToUI(false);
     }
 
@@ -231,8 +245,22 @@ public class DiceEquipUIManager : MonoBehaviour
 
         equipped[slotIndex] = dice;
 
+        if (linkedCombatSlotAnchors != null && fromSlot >= 0 && fromSlot < linkedCombatSlotAnchors.Length && slotIndex < linkedCombatSlotAnchors.Length)
+        {
+            RectTransform movingCombat = linkedCombatSlotAnchors[fromSlot];
+            RectTransform destinationCombat = linkedCombatSlotAnchors[slotIndex];
+
+            linkedCombatSlotAnchors[fromSlot] = null;
+            if (destinationCombat != null)
+                linkedCombatSlotAnchors[fromSlot] = destinationCombat;
+
+            linkedCombatSlotAnchors[slotIndex] = movingCombat;
+            CompactCombatSlotAnchors();
+        }
+
         CompactEquipped();
         ApplyAdaptiveLayout();
+        RebindCombatSlotLaneIndices();
         RefreshAllSlots();
         SyncOutputs();
         SyncWorldSlotRootsToUI(false);
@@ -259,12 +287,33 @@ public class DiceEquipUIManager : MonoBehaviour
         }
 
         insertIndex = Mathf.Clamp(insertIndex, 0, Mathf.Max(0, count - 1));
+        _previewInsertIndex = insertIndex;
+
+        DiceDraggableUI[] oldEquipped = (DiceDraggableUI[])equipped.Clone();
+        RectTransform[] oldCombatAnchors = linkedCombatSlotAnchors != null ? (RectTransform[])linkedCombatSlotAnchors.Clone() : null;
+        int[] permutation = BuildCommittedPermutation();
+
         ApplyInsertedOrder(insertIndex);
+        ApplyInsertedOrderToCombatSlots(insertIndex);
+        RebindCombatSlotLaneIndices();
+        SyncOutputs();
+
+        bool committed = true;
+        if (turnManager != null)
+            committed = turnManager.CommitDiceLaneReorder(permutation);
+
+        if (!committed)
+        {
+            equipped = oldEquipped;
+            if (oldCombatAnchors != null)
+                linkedCombatSlotAnchors = oldCombatAnchors;
+            RebindCombatSlotLaneIndices();
+            SyncOutputs();
+        }
 
         ClearDragState();
         ApplyAdaptiveLayout();
         RefreshAllSlots();
-        SyncOutputs();
         SyncWorldSlotRootsToUI(false);
     }
 
@@ -298,9 +347,107 @@ public class DiceEquipUIManager : MonoBehaviour
         equipped = reordered;
     }
 
+    private void ApplyInsertedOrderToCombatSlots(int insertIndex)
+    {
+        if (linkedCombatSlotAnchors == null || linkedCombatSlotAnchors.Length == 0)
+            return;
+
+        RectTransform dragged = _draggingCombatSlot;
+        if (dragged == null)
+            return;
+
+        int count = Mathf.Min(CountEquipped(), linkedCombatSlotAnchors.Length);
+        RectTransform[] reordered = new RectTransform[linkedCombatSlotAnchors.Length];
+        int write = 0;
+        bool inserted = false;
+
+        for (int i = 0; i < count; i++)
+        {
+            RectTransform current = linkedCombatSlotAnchors[i];
+            if (current == null || current == dragged)
+                continue;
+
+            if (!inserted && write == insertIndex)
+            {
+                reordered[write++] = dragged;
+                inserted = true;
+            }
+
+            if (write < reordered.Length)
+                reordered[write++] = current;
+        }
+
+        if (!inserted && write < reordered.Length)
+            reordered[write++] = dragged;
+
+        for (int i = count; i < linkedCombatSlotAnchors.Length; i++)
+            reordered[i] = linkedCombatSlotAnchors[i];
+
+        linkedCombatSlotAnchors = reordered;
+    }
+
+    private int[] BuildCommittedPermutation()
+    {
+        int[] permutation = new int[3] { 0, 1, 2 };
+        DiceDraggableUI[] oldOrder = (DiceDraggableUI[])equipped.Clone();
+        DiceDraggableUI[] newOrder = (DiceDraggableUI[])equipped.Clone();
+        DiceDraggableUI dragged = _draggingDice;
+
+        int count = CountEquipped();
+        int insertIndex = Mathf.Clamp(_previewInsertIndex, 0, Mathf.Max(0, count - 1));
+        int write = 0;
+        bool inserted = false;
+
+        for (int i = 0; i < oldOrder.Length; i++)
+        {
+            DiceDraggableUI current = oldOrder[i];
+            if (current == null || current == dragged)
+                continue;
+
+            if (!inserted && write == insertIndex)
+            {
+                newOrder[write++] = dragged;
+                inserted = true;
+            }
+
+            if (write < newOrder.Length)
+                newOrder[write++] = current;
+        }
+
+        if (!inserted && write < newOrder.Length)
+            newOrder[write] = dragged;
+
+        for (int newIndex = 0; newIndex < 3; newIndex++)
+        {
+            permutation[newIndex] = newIndex;
+            DiceDraggableUI obj = newOrder[newIndex];
+            if (obj == null)
+                continue;
+
+            for (int oldIndex = 0; oldIndex < 3; oldIndex++)
+            {
+                if (oldOrder[oldIndex] == obj)
+                {
+                    permutation[newIndex] = oldIndex;
+                    break;
+                }
+            }
+        }
+
+        return permutation;
+    }
+
+    private RectTransform GetCombatSlotAt(int index)
+    {
+        if (linkedCombatSlotAnchors == null) return null;
+        if (index < 0 || index >= linkedCombatSlotAnchors.Length) return null;
+        return linkedCombatSlotAnchors[index];
+    }
+
     private void ClearDragState()
     {
         _draggingDice = null;
+        _draggingCombatSlot = null;
         _dragSourceIndex = -1;
         _previewInsertIndex = -1;
     }
@@ -316,6 +463,68 @@ public class DiceEquipUIManager : MonoBehaviour
             compact[write++] = equipped[i];
         }
         equipped = compact;
+    }
+
+    private void CompactCombatSlotAnchors()
+    {
+        if (linkedCombatSlotAnchors == null || linkedCombatSlotAnchors.Length == 0)
+            return;
+
+        RectTransform[] compact = new RectTransform[linkedCombatSlotAnchors.Length];
+        int write = 0;
+
+        for (int i = 0; i < linkedCombatSlotAnchors.Length; i++)
+        {
+            RectTransform current = linkedCombatSlotAnchors[i];
+            if (current == null)
+                continue;
+
+            if (write >= compact.Length)
+                break;
+
+            compact[write++] = current;
+        }
+
+        linkedCombatSlotAnchors = compact;
+    }
+
+    private void RebindCombatSlotLaneIndices()
+    {
+        if (linkedCombatSlotAnchors == null || linkedCombatSlotAnchors.Length == 0)
+            return;
+
+        RefreshTurnManagerRef();
+
+        for (int lane0 = 0; lane0 < linkedCombatSlotAnchors.Length; lane0++)
+        {
+            RectTransform laneRoot = linkedCombatSlotAnchors[lane0];
+            if (laneRoot == null)
+                continue;
+
+            ActionSlotDrop drop = laneRoot.GetComponent<ActionSlotDrop>();
+            if (drop == null)
+                drop = laneRoot.GetComponentInChildren<ActionSlotDrop>(true);
+
+            if (drop != null)
+            {
+                if (drop.turn == null && turnManager != null)
+                    drop.turn = turnManager;
+
+                drop.SetVisualLaneIndex(lane0 + 1);
+            }
+
+            SlotIconDragToClear clear = laneRoot.GetComponent<SlotIconDragToClear>();
+            if (clear == null)
+                clear = laneRoot.GetComponentInChildren<SlotIconDragToClear>(true);
+
+            if (clear != null)
+            {
+                if (clear.turn == null && turnManager != null)
+                    clear.turn = turnManager;
+
+                clear.SetVisualLaneIndex(lane0 + 1);
+            }
+        }
     }
 
     private int CountEquipped()
@@ -370,6 +579,108 @@ public class DiceEquipUIManager : MonoBehaviour
             if (dice == null || dice == _draggingDice) continue;
             SnapToEquip(i, dice, instant);
         }
+    }
+
+    private void RefreshCombatSlotPreview(bool instant = false)
+    {
+        if (!mirrorAdaptiveLayoutToCombatSlots)
+            return;
+
+        if (linkedCombatSlotAnchors == null || linkedCombatSlotAnchors.Length == 0)
+            return;
+
+        CaptureCombatSlotBaseY();
+        BuildDisplayedCombatSlotOrder();
+
+        int count = CountEquipped();
+        Vector2[] dicePositions = BuildAdaptivePositions(count, rowY);
+
+        for (int i = 0; i < _combatDisplayBuffer.Length; i++)
+        {
+            RectTransform slot = _combatDisplayBuffer[i];
+            if (slot == null)
+                continue;
+
+            bool occupied = i < count;
+            slot.gameObject.SetActive(!hideEmptyCombatSlotAnchors || occupied);
+            if (!occupied)
+                continue;
+
+            Vector2 pos = dicePositions[Mathf.Clamp(i, 0, dicePositions.Length - 1)];
+            float y = GetCombatBaseY(slot);
+            Vector2 target = new Vector2(pos.x + combatSlotsXOffset, y);
+
+            MoveCombatSlot(slot, target, instant, combatSlotPreviewDuration, combatSlotPreviewEase);
+        }
+    }
+
+    private void BuildDisplayedCombatSlotOrder()
+    {
+        for (int i = 0; i < _combatDisplayBuffer.Length; i++)
+            _combatDisplayBuffer[i] = null;
+
+        if (linkedCombatSlotAnchors == null)
+            return;
+
+        if (_draggingCombatSlot == null || _dragSourceIndex < 0 || _previewInsertIndex < 0)
+        {
+            for (int i = 0; i < linkedCombatSlotAnchors.Length && i < _combatDisplayBuffer.Length; i++)
+                _combatDisplayBuffer[i] = linkedCombatSlotAnchors[i];
+            return;
+        }
+
+        int count = Mathf.Min(CountEquipped(), linkedCombatSlotAnchors.Length);
+        int insertIndex = Mathf.Clamp(_previewInsertIndex, 0, Mathf.Max(0, count - 1));
+        int write = 0;
+        bool inserted = false;
+
+        for (int i = 0; i < count; i++)
+        {
+            RectTransform current = linkedCombatSlotAnchors[i];
+            if (current == null || current == _draggingCombatSlot)
+                continue;
+
+            if (!inserted && write == insertIndex)
+            {
+                _combatDisplayBuffer[write++] = _draggingCombatSlot;
+                inserted = true;
+            }
+
+            if (write < _combatDisplayBuffer.Length)
+                _combatDisplayBuffer[write++] = current;
+        }
+
+        if (!inserted && write < _combatDisplayBuffer.Length)
+            _combatDisplayBuffer[write] = _draggingCombatSlot;
+    }
+
+    private float GetCombatBaseY(RectTransform slot)
+    {
+        if (slot == null)
+            return 0f;
+
+        for (int i = 0; i < _combatSlotIdentity.Length && i < _combatSlotBaseY.Length; i++)
+        {
+            if (_combatSlotIdentity[i] == slot)
+                return _combatSlotBaseY[i];
+        }
+
+        return slot.anchoredPosition.y;
+    }
+
+    private static void MoveCombatSlot(RectTransform slot, Vector2 target, bool instant, float duration, Ease ease)
+    {
+        if (slot == null)
+            return;
+
+        slot.DOKill();
+        if (instant || duration <= 0f)
+        {
+            slot.anchoredPosition = target;
+            return;
+        }
+
+        slot.DOAnchorPos(target, duration).SetEase(ease).SetUpdate(true);
     }
 
     private void BuildDisplayedOrder()
@@ -542,6 +853,7 @@ public class DiceEquipUIManager : MonoBehaviour
         for (int i = 0; i < linkedCombatSlotAnchors.Length && i < _combatSlotBaseY.Length; i++)
         {
             RectTransform rt = linkedCombatSlotAnchors[i];
+            _combatSlotIdentity[i] = rt;
             _combatSlotBaseY[i] = rt != null ? rt.anchoredPosition.y : 0f;
         }
 
@@ -556,13 +868,51 @@ public class DiceEquipUIManager : MonoBehaviour
 
         if (runInventory != null)
             runInventory.SetDiceLayout(assets);
-        else if (diceRig != null)
+
+        if (diceRig != null)
         {
             for (int i = 0; i < 3; i++)
             {
                 diceRig.AssignDiceToSlot(i, assets[i]);
                 diceRig.SetSlotActive(i, assets[i] != null);
             }
+
+            RefreshDiceRigRollInfosAfterReorder();
+        }
+    }
+
+    private void RefreshDiceRigRollInfosAfterReorder()
+    {
+        if (diceRig == null) return;
+        if (!diceRig.HasRolledThisTurn) return;
+        if (diceRig.IsRolling) return;
+        if (diceRig.LastRollInfos == null || diceRig.LastRollInfos.Length < 3) return;
+
+        for (int i = 0; i < 3; i++)
+        {
+            if (!diceRig.IsSlotActive(i))
+            {
+                diceRig.LastRollInfos[i] = default;
+                continue;
+            }
+
+            DiceSpinnerGeneric d = (diceRig.slots != null && i < diceRig.slots.Length && diceRig.slots[i] != null) ? diceRig.slots[i].dice : null;
+            if (d == null)
+            {
+                diceRig.LastRollInfos[i] = default;
+                continue;
+            }
+
+            d.GetRollExtents(out int minFace, out int maxFace);
+            int rolled = d.LastRolledValue;
+            diceRig.LastRollInfos[i] = new DiceSlotRig.RollInfo
+            {
+                rolledValue = rolled,
+                minFaceAtRoll = minFace,
+                maxFaceAtRoll = maxFace,
+                isCrit = rolled == maxFace,
+                isFail = rolled == minFace,
+            };
         }
     }
 

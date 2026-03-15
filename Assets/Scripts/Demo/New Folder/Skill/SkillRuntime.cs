@@ -234,14 +234,14 @@ public class SkillRuntime
     public int CalculateDamage(int dieValue)
     {
         if (kind != SkillKind.Attack) return 0;
-        int dmg = Mathf.RoundToInt(dieValue * dieMultiplier) + flatDamage;
+        int dmg = Mathf.FloorToInt(dieValue * dieMultiplier) + flatDamage;
         return Mathf.Max(0, dmg);
     }
 
     public int CalculateGuard(int dieValue)
     {
         if (kind != SkillKind.Guard) return 0;
-        int g = Mathf.RoundToInt(dieValue * guardDieMultiplier) + guardFlat;
+        int g = Mathf.FloorToInt(dieValue * guardDieMultiplier) + guardFlat;
         return Mathf.Max(0, g);
     }
 }

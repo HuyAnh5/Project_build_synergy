@@ -5,6 +5,10 @@ using Sirenix.OdinInspector;
 
 public class DiceSlotRig : MonoBehaviour
 {
+    public const float GenericCritPercent = 0.20f;
+    public const float GenericFailPercent = -0.50f;
+    public const float PhysicalCritPercent = 0.50f;
+
     [Serializable]
     [InlineProperty, HideLabel]
     public class Entry
@@ -30,7 +34,25 @@ public class DiceSlotRig : MonoBehaviour
         public bool isCrit;
         public bool isFail;
 
-        public int Contribution => isFail ? 0 : rolledValue;
+        [LabelText("Generic Added")]
+        public int genericAddedValue;
+
+        [LabelText("Generic Resolved")]
+        public int genericResolvedValue;
+
+        public int Contribution => genericResolvedValue;
+    }
+
+    [Serializable]
+    public struct ResolvedDieBreakdown
+    {
+        public int baseValue;
+        public int critFailAddedValue;
+        public int passiveAddedValue;
+        public int totalAddedValue;
+        public int resolvedValue;
+        public bool isCrit;
+        public bool isFail;
     }
 
     [Serializable]
@@ -193,6 +215,12 @@ public class DiceSlotRig : MonoBehaviour
         return LastRollInfos[slot0];
     }
 
+    public int GetBaseValue(int slot0)
+    {
+        if (!HasRolledThisTurn) return 0;
+        return GetRollInfo(slot0).rolledValue;
+    }
+
     public int GetContribution(int slot0)
     {
         if (!HasRolledThisTurn) return 0;
@@ -202,16 +230,45 @@ public class DiceSlotRig : MonoBehaviour
     public bool IsCrit(int slot0) => GetRollInfo(slot0).isCrit;
     public bool IsFail(int slot0) => GetRollInfo(slot0).isFail;
 
+    public int GetAddedValue(int slot0, CombatActor owner, ElementType skillElement = ElementType.Neutral)
+    {
+        if (!HasRolledThisTurn) return 0;
+        ResolvedDieBreakdown b = GetResolvedBreakdown(slot0, owner, skillElement);
+        return b.totalAddedValue;
+    }
+
     public int GetResolvedContribution(int slot0, CombatActor owner)
     {
-        RollInfo info = GetRollInfo(slot0);
-        if (!HasRolledThisTurn) return 0;
-        if (info.isFail) return 0;
+        return GetResolvedContribution(slot0, owner, ElementType.Neutral);
+    }
 
-        int delta = ComputeAllDiceDelta(owner);
-        int value = info.rolledValue + delta;
-        if (value < 1) value = 1;
-        return value;
+    public int GetResolvedContribution(int slot0, CombatActor owner, ElementType skillElement)
+    {
+        if (!HasRolledThisTurn) return 0;
+        return GetResolvedBreakdown(slot0, owner, skillElement).resolvedValue;
+    }
+
+    public ResolvedDieBreakdown GetResolvedBreakdown(int slot0, CombatActor owner, ElementType skillElement = ElementType.Neutral)
+    {
+        RollInfo info = GetRollInfo(slot0);
+        if (!HasRolledThisTurn) return default;
+
+        int critFailAdded = ComputeCritFailAddedValue(info, skillElement);
+        int passiveAdded = ComputeAllDiceDelta(owner);
+        int totalAdded = critFailAdded + passiveAdded;
+        int resolved = info.rolledValue + totalAdded;
+        if (resolved < 1) resolved = 1;
+
+        return new ResolvedDieBreakdown
+        {
+            baseValue = info.rolledValue,
+            critFailAddedValue = critFailAdded,
+            passiveAddedValue = passiveAdded,
+            totalAddedValue = totalAdded,
+            resolvedValue = resolved,
+            isCrit = info.isCrit,
+            isFail = info.isFail
+        };
     }
 
     public int ActiveSlotCount()
@@ -266,12 +323,14 @@ public class DiceSlotRig : MonoBehaviour
         }
     }
 
-    // Legacy API name kept for compatibility.
-    // For dice-scaled combat this now returns resolved CONTRIBUTION,
-    // so fail dice contribute 0 exactly as requested.
     public int GetResolvedDieValue(int slot0, CombatActor owner)
     {
-        return GetResolvedContribution(slot0, owner);
+        return GetResolvedContribution(slot0, owner, ElementType.Neutral);
+    }
+
+    public int GetResolvedDieValue(int slot0, CombatActor owner, ElementType skillElement)
+    {
+        return GetResolvedContribution(slot0, owner, skillElement);
     }
 
     public int GetMinFaceValue(int slot0)
@@ -290,6 +349,11 @@ public class DiceSlotRig : MonoBehaviour
 
     public SpanStats ComputeSpanStats(int start0, int span, CombatActor owner = null)
     {
+        return ComputeSpanStats(start0, span, owner, ElementType.Neutral);
+    }
+
+    public SpanStats ComputeSpanStats(int start0, int span, CombatActor owner, ElementType skillElement)
+    {
         EnsureSlots();
 
         span = Mathf.Clamp(span, 1, 3);
@@ -307,7 +371,7 @@ public class DiceSlotRig : MonoBehaviour
             count++;
 
             RollInfo info = GetRollInfo(i);
-            sum += GetResolvedContribution(i, owner);
+            sum += GetResolvedContribution(i, owner, skillElement);
             critAny |= info.isCrit;
             critAll &= info.isCrit;
             failAny |= info.isFail;
@@ -338,6 +402,21 @@ public class DiceSlotRig : MonoBehaviour
         return delta;
     }
 
+    private int ComputeCritFailAddedValue(RollInfo info, ElementType skillElement)
+    {
+        if (info.rolledValue <= 0) return 0;
+        if (info.isFail) return FloorScaled(info.rolledValue, GenericFailPercent);
+        if (!info.isCrit) return 0;
+
+        float critPercent = (skillElement == ElementType.Physical) ? PhysicalCritPercent : GenericCritPercent;
+        return FloorScaled(info.rolledValue, critPercent);
+    }
+
+    private static int FloorScaled(int value, float factor)
+    {
+        return Mathf.FloorToInt(value * factor);
+    }
+
     private void CacheRollInfos()
     {
         EnsureSlots();
@@ -358,8 +437,15 @@ public class DiceSlotRig : MonoBehaviour
 
             d.GetRollExtents(out int minFace, out int maxFace);
             int rolled = d.LastRolledValue;
-            bool isCrit = rolled == maxFace;
-            bool isFail = minFace != maxFace && rolled == minFace && !isCrit;
+            bool isCrit = d.IsCritValue(rolled);
+            bool isFail = d.IsFailValue(rolled);
+
+            int genericAdded = 0;
+            if (isFail) genericAdded = FloorScaled(rolled, GenericFailPercent);
+            else if (isCrit) genericAdded = FloorScaled(rolled, GenericCritPercent);
+
+            int genericResolved = rolled + genericAdded;
+            if (genericResolved < 1) genericResolved = 1;
 
             LastRollInfos[i] = new RollInfo
             {
@@ -367,7 +453,9 @@ public class DiceSlotRig : MonoBehaviour
                 minFaceAtRoll = minFace,
                 maxFaceAtRoll = maxFace,
                 isCrit = isCrit,
-                isFail = isFail
+                isFail = isFail,
+                genericAddedValue = genericAdded,
+                genericResolvedValue = genericResolved
             };
         }
     }

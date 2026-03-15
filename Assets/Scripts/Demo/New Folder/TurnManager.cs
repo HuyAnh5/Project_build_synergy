@@ -140,6 +140,15 @@ public class TurnManager : MonoBehaviour
         int i = drop.slotIndex - 1;
         if (i < 0 || i > 2) return;
 
+        // IMPORTANT:
+        // A combat slot pair (e.g. IconSlot1) can move to another visual lane after dice reorder.
+        // Remove stale references first so the same drop is never registered in multiple lanes.
+        for (int k = 0; k < _drops.Length; k++)
+        {
+            if (_drops[k] == drop)
+                _drops[k] = null;
+        }
+
         _drops[i] = drop;
         RefreshAllPreviews();
     }
@@ -330,6 +339,24 @@ public class TurnManager : MonoBehaviour
 
     public bool IsSkillEquipped(SkillDamageSO skill) => _board.IsSkillEquipped(skill);
     public bool IsSkillEquipped(SkillBuffDebuffSO skill) => _board.IsSkillEquipped(skill);
+
+    public bool CommitDiceLaneReorder(int[] permutation)
+    {
+        if (!IsPlanning) return false;
+
+        var snap = _board.Capture(player);
+        if (!_board.TryApplyLanePermutation(permutation, player, diceRig))
+        {
+            _board.Restore(snap, player);
+            RefreshAllPreviews();
+            UpdateAllIconsDim();
+            return false;
+        }
+
+        RefreshAllPreviews();
+        UpdateAllIconsDim();
+        return true;
+    }
 
     // ---------------------------
     // Continue / Target flow (giữ như batch 3 của bạn)

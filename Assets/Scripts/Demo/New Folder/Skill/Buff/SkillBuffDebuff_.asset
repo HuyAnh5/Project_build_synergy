@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 39f7c47594403f4418d7f6d7b3d68fad, type: 3}
   m_Name: SkillBuffDebuff_
   m_EditorClassIdentifier: Assembly-CSharp::SkillBuffDebuffSO
-  icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  icon: {fileID: 21300000, guid: 44a054df1702e39458b7072b08d0f212, type: 3}
   displayName: SkillBuffDebuff_
   description: 
   identity: 0
@@ -22,20 +22,13 @@ MonoBehaviour:
   focusCost: 1
   focusGainOnCast: 0
   _focusDelayedDelayWarning: 0
-  effects:
-  - id: 2
-    durationTurns: 0
-    compactParam: 6
-    parityEvenDelta: -2
-    parityOddDelta: -1
-    _slotCollapseHelp: 1
-    _healByDiceHelp: 1
-  applyAilment: 0
+  effects: []
+  applyAilment: 1
   ailment:
-    ailment: 2
+    ailment: 0
     durationTurns: 5
     chanceTuningMultiplier: 2
-    breakOnDamage: 0
+    breakOnDamage: 1
     sleep_damageBonusOnWake: 0.5
     sleep_healPercentOnTurnStart: 0.2
     dizzy_damageReductionPercent: 0.25

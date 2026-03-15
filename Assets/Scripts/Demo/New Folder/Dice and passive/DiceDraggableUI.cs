@@ -89,6 +89,15 @@ public class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     {
         if (!_dragging) return;
 
+        if (manager != null && !manager.CanInteract())
+        {
+            _dragging = false;
+            _cg.blocksRaycasts = true;
+            _cg.alpha = 1f;
+            manager.HandleInvalidDrop(this);
+            return;
+        }
+
         MoveWithPointer(eventData.position, eventData.pressEventCamera);
 
         if (manager != null)
@@ -105,6 +114,12 @@ public class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
 
         if (manager != null)
         {
+            if (!manager.CanInteract())
+            {
+                manager.HandleInvalidDrop(this);
+                return;
+            }
+
             if (!manager.WasDropConsumedThisFrame)
                 manager.NotifyEndDrag(this, eventData.position, eventData.pressEventCamera);
         }

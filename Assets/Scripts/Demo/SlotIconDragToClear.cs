@@ -21,6 +21,11 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
         _uiCam = (_canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : _canvas.worldCamera;
     }
 
+    public void SetVisualLaneIndex(int lane1Based)
+    {
+        slotIndex = Mathf.Clamp(lane1Based, 1, 3);
+    }
+
     // Unequip by clicking the slot icon (not the skill icon)
     public void OnPointerClick(PointerEventData eventData)
     {
