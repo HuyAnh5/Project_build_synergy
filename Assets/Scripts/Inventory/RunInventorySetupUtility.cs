@@ -1,0 +1,54 @@
+using UnityEngine;
+
+public static class RunInventorySetupUtility
+{
+    public static void EnsureSizes(
+        ref RunInventoryManager.SlotBinding[] fixedSlots,
+        ref RunInventoryManager.SlotBinding[] ownedSlots,
+        ref RunInventoryManager.RelicSlot[] relicSlots,
+        ref DiceSpinnerGeneric[] equippedDice,
+        ref SkillPassiveSO[] equippedPassives)
+    {
+        if (fixedSlots == null || fixedSlots.Length != RunInventoryManager.FIXED_SKILL_COUNT)
+            fixedSlots = new RunInventoryManager.SlotBinding[RunInventoryManager.FIXED_SKILL_COUNT];
+
+        if (ownedSlots == null || ownedSlots.Length != RunInventoryManager.OWNED_SKILL_COUNT)
+            ownedSlots = new RunInventoryManager.SlotBinding[RunInventoryManager.OWNED_SKILL_COUNT];
+
+        for (int i = 0; i < RunInventoryManager.FIXED_SKILL_COUNT; i++)
+            if (fixedSlots[i] == null) fixedSlots[i] = new RunInventoryManager.SlotBinding();
+
+        for (int i = 0; i < RunInventoryManager.OWNED_SKILL_COUNT; i++)
+            if (ownedSlots[i] == null) ownedSlots[i] = new RunInventoryManager.SlotBinding();
+
+        if (relicSlots == null || relicSlots.Length != RunInventoryManager.RELIC_SLOT_COUNT)
+            relicSlots = new RunInventoryManager.RelicSlot[RunInventoryManager.RELIC_SLOT_COUNT];
+
+        if (equippedDice == null || equippedDice.Length != RunInventoryManager.EQUIPPED_DICE_COUNT)
+            equippedDice = new DiceSpinnerGeneric[RunInventoryManager.EQUIPPED_DICE_COUNT];
+
+        if (equippedPassives == null || equippedPassives.Length != RunInventoryManager.PASSIVE_SLOT_COUNT)
+            equippedPassives = new SkillPassiveSO[RunInventoryManager.PASSIVE_SLOT_COUNT];
+    }
+
+    public static void BootstrapEquippedDiceFromRigIfNeeded(DiceSlotRig diceRig, DiceSpinnerGeneric[] equippedDice)
+    {
+        if (diceRig == null || equippedDice == null) return;
+
+        bool anyAssigned = false;
+        for (int i = 0; i < RunInventoryManager.EQUIPPED_DICE_COUNT; i++)
+        {
+            if (equippedDice[i] != null)
+            {
+                anyAssigned = true;
+                break;
+            }
+        }
+
+        if (anyAssigned) return;
+        if (diceRig.slots == null) return;
+
+        for (int i = 0; i < RunInventoryManager.EQUIPPED_DICE_COUNT && i < diceRig.slots.Length; i++)
+            equippedDice[i] = diceRig.slots[i] != null ? diceRig.slots[i].dice : null;
+    }
+}
