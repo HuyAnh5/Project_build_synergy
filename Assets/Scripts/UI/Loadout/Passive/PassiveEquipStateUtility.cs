@@ -29,7 +29,7 @@ internal static class PassiveEquipStateUtility
         }
 
         if (!inserted && write < reordered.Length)
-            reordered[write] = draggedItem;
+            reordered[write++] = draggedItem;
 
         return reordered;
     }

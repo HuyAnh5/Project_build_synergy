@@ -108,7 +108,6 @@ public class SkillExecutor : MonoBehaviour
             if (t.status != null)
             {
                 t.status.ApplyBuffDebuffSkill(skill, caster, rolledValue, maxFaceValue);
-
                 bool hasAil = t.status.HasAilment(out var at, out var left);
                 Debug.Log($"[EXEC] Apply -> target={t.name} hp:{hpBefore}->{t.hp} focus:{focusBefore}->{t.focus} hasAilment={hasAil} {(hasAil ? ($"type={at} left={left}") : "")}", this);
             }
@@ -166,6 +165,7 @@ public class SkillExecutor : MonoBehaviour
         if (rt.kind == SkillKind.Guard)
         {
             int baseGuard = rt.CalculateGuard(dieValue);
+            baseGuard = ApplyCustomGuardBehavior(rt, caster, baseGuard);
 
             // apply GuardGainPercent passive
             float pct = 0f;
@@ -175,7 +175,7 @@ public class SkillExecutor : MonoBehaviour
             float mult = 1f + Mathf.Max(-0.99f, pct);
             int scaledGuard = Mathf.FloorToInt(baseGuard * mult);
 
-            caster.SetGuard(scaledGuard);
+            caster.AddGuard(scaledGuard);
             caster.GainFocus(rt.focusGainOnCast);
 
             yield return new WaitForSeconds(delayBetweenActions);
@@ -393,6 +393,20 @@ public class SkillExecutor : MonoBehaviour
             if (popups != null)
                 popups.SpawnDamageSplit(caster, t, res.blocked, res.hpLost);
         }
+    }
+
+    private int ApplyCustomGuardBehavior(SkillRuntime rt, CombatActor caster, int baseGuard)
+    {
+        if (rt == null || caster == null)
+            return baseGuard;
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.BloodWard))
+            return Mathf.Max(0, SkillBehaviorRuntimeUtility.CountBleedOnEnemyTeam(caster));
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.ColdSnap))
+            return Mathf.Max(0, SkillBehaviorRuntimeUtility.GetHighestBaseValue(rt));
+
+        return baseGuard;
     }
 
 }

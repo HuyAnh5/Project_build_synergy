@@ -7,7 +7,6 @@ using UnityEngine;
 /// - Reorder / swap supported.
 /// - Kept usable during combat by default.
 /// - Adaptive 'joker row' layout.
-/// - Optional linked passive roots that follow the paired PassiveUi live, including while dragging.
 /// </summary>
 public class PassiveEquipUIManager : MonoBehaviour
 {
@@ -15,14 +14,6 @@ public class PassiveEquipUIManager : MonoBehaviour
     public RectTransform[] equipSlotAnchors = new RectTransform[3];
     public RectTransform dragLayer;
     public RunInventoryManager runInventory;
-
-    [Header("Linked Passive Roots (optional)")]
-    [Tooltip("Optional transforms that should follow PassiveUi_1..3 live, including while dragging. Can be world objects or UI transforms.")]
-    public Transform[] linkedPassiveRoots = new Transform[3];
-    [Tooltip("If enabled, linked passive roots follow the paired PassiveUi live.")]
-    public bool mirrorLinkedPassiveRootsWithLiveUI = true;
-    [Tooltip("Camera used to convert PassiveUi screen position into world position. Leave empty to use Canvas worldCamera or Camera.main.")]
-    public Camera worldFollowCamera;
 
     [Header("Behavior")]
     [Tooltip("Optional manual lock. Leave false if you want passive drag even during combat.")]
@@ -45,33 +36,28 @@ public class PassiveEquipUIManager : MonoBehaviour
     public bool WasDropConsumedThisFrame { get; private set; }
 
     private readonly PassiveDraggableUI[] _displayOrderBuffer = new PassiveDraggableUI[3];
-    private readonly PassiveDraggableUI[] _linkedPassiveOwners = new PassiveDraggableUI[3];
     private PassiveDraggableUI _draggingPassive;
     private int _dragSourceIndex = -1;
     private int _previewInsertIndex = -1;
-    private Canvas _rootCanvas;
 
     private void Awake()
     {
-        _rootCanvas = GetComponentInParent<Canvas>();
-
         if (runInventory == null)
             runInventory = GetComponentInParent<RunInventoryManager>(true);
 
-        RebindLinkedPassiveOwnersFromCurrentOrder();
+        BootstrapFromAnchorsIfNeeded();
     }
 
     private void Start()
     {
+        BootstrapFromAnchorsIfNeeded();
         ApplyAdaptiveLayout(true);
         RefreshAllSlots(true);
         SyncToRunInventory();
-        SyncLinkedPassiveRootsToUI(true);
     }
 
     private void LateUpdate()
     {
-        SyncLinkedPassiveRootsToUI(false);
         WasDropConsumedThisFrame = false;
     }
 
@@ -104,11 +90,9 @@ public class PassiveEquipUIManager : MonoBehaviour
         }
 
         CompactEquipped();
-        RebindLinkedPassiveOwnersFromCurrentOrder();
         ApplyAdaptiveLayout(true);
         RefreshAllSlots(true);
         SyncToRunInventory();
-        SyncLinkedPassiveRootsToUI(true);
     }
 
     public void NotifyBeginDrag(PassiveDraggableUI passive)
@@ -127,14 +111,10 @@ public class PassiveEquipUIManager : MonoBehaviour
 
         int nextInsertIndex = GetInsertIndexFromScreenPosition(screenPosition, eventCamera);
         if (nextInsertIndex == _previewInsertIndex)
-        {
-            SyncLinkedPassiveRootsToUI(false);
             return;
-        }
 
         _previewInsertIndex = nextInsertIndex;
         RefreshAllSlots();
-        SyncLinkedPassiveRootsToUI(false);
     }
 
     public void NotifyEndDrag(PassiveDraggableUI passive, Vector2 screenPosition, Camera eventCamera)
@@ -178,7 +158,6 @@ public class PassiveEquipUIManager : MonoBehaviour
         {
             ApplyAdaptiveLayout();
             SnapToEquip(slotIndex, passive);
-            SyncLinkedPassiveRootsToUI(false);
             return;
         }
 
@@ -187,7 +166,6 @@ public class PassiveEquipUIManager : MonoBehaviour
             passive.ReturnToCachedHome();
             ApplyAdaptiveLayout();
             RefreshAllSlots();
-            SyncLinkedPassiveRootsToUI(false);
             return;
         }
 
@@ -203,7 +181,6 @@ public class PassiveEquipUIManager : MonoBehaviour
         ApplyAdaptiveLayout();
         RefreshAllSlots();
         SyncToRunInventory();
-        SyncLinkedPassiveRootsToUI(false);
     }
 
     public void HandleInvalidDrop(PassiveDraggableUI passive)
@@ -214,7 +191,6 @@ public class PassiveEquipUIManager : MonoBehaviour
         passive.ReturnToCachedHome();
         ApplyAdaptiveLayout();
         RefreshAllSlots();
-        SyncLinkedPassiveRootsToUI(false);
     }
 
     private void FinalizeDraggedPassive(int insertIndex)
@@ -230,11 +206,9 @@ public class PassiveEquipUIManager : MonoBehaviour
         equipped = PassiveEquipStateUtility.InsertDraggedItem(equipped, _draggingPassive, insertIndex);
 
         ClearDragState();
-        RebindLinkedPassiveOwnersFromCurrentOrder();
         ApplyAdaptiveLayout();
         RefreshAllSlots();
         SyncToRunInventory();
-        SyncLinkedPassiveRootsToUI(false);
     }
 
     private void ClearDragState()
@@ -242,6 +216,75 @@ public class PassiveEquipUIManager : MonoBehaviour
         _draggingPassive = null;
         _dragSourceIndex = -1;
         _previewInsertIndex = -1;
+    }
+
+    private void BootstrapFromAnchorsIfNeeded()
+    {
+        if (equipSlotAnchors == null || equipSlotAnchors.Length == 0)
+            return;
+
+        bool hasSerializedEquipped = false;
+        bool needsManagerRebind = false;
+        bool foundPassiveChildInAnchor = false;
+
+        if (equipped == null || equipped.Length != 3)
+            equipped = new PassiveDraggableUI[3];
+
+        for (int i = 0; i < equipped.Length; i++)
+        {
+            PassiveDraggableUI passive = equipped[i];
+            if (passive == null)
+                continue;
+
+            hasSerializedEquipped = true;
+            if (passive.manager != this)
+                needsManagerRebind = true;
+        }
+
+        for (int i = 0; i < equipSlotAnchors.Length; i++)
+        {
+            RectTransform anchor = equipSlotAnchors[i];
+            if (anchor == null)
+                continue;
+
+            PassiveDraggableUI childPassive = anchor.GetComponentInChildren<PassiveDraggableUI>(true);
+            if (childPassive == null)
+                continue;
+
+            foundPassiveChildInAnchor = true;
+            if (childPassive.manager != this)
+                needsManagerRebind = true;
+        }
+
+        if (!foundPassiveChildInAnchor)
+            return;
+
+        if (!hasSerializedEquipped || needsManagerRebind)
+        {
+            for (int i = 0; i < equipped.Length; i++)
+                equipped[i] = null;
+
+            for (int i = 0; i < equipSlotAnchors.Length && i < equipped.Length; i++)
+            {
+                RectTransform anchor = equipSlotAnchors[i];
+                if (anchor == null)
+                    continue;
+
+                PassiveDraggableUI passive = anchor.GetComponentInChildren<PassiveDraggableUI>(true);
+                if (passive == null)
+                    continue;
+
+                Register(passive);
+                equipped[i] = passive;
+            }
+
+            CompactEquipped();
+        }
+        else
+        {
+            for (int i = 0; i < equipped.Length; i++)
+                Register(equipped[i]);
+        }
     }
 
     private void CompactEquipped()
@@ -319,36 +362,4 @@ public class PassiveEquipUIManager : MonoBehaviour
 
     private void SyncToRunInventory()
         => PassiveEquipPresentationUtility.SyncToRunInventory(equipped, runInventory);
-
-    private void RebindLinkedPassiveOwnersFromCurrentOrder()
-        => PassiveEquipWorldSyncUtility.RebindLinkedPassiveOwnersFromCurrentOrder(equipped, _linkedPassiveOwners);
-
-    private void SyncLinkedPassiveRootsToUI(bool instant)
-    {
-        if (!mirrorLinkedPassiveRootsWithLiveUI) return;
-        if (linkedPassiveRoots == null || linkedPassiveRoots.Length == 0) return;
-
-        if (_linkedPassiveOwners[0] == null && _linkedPassiveOwners[1] == null && _linkedPassiveOwners[2] == null)
-            RebindLinkedPassiveOwnersFromCurrentOrder();
-
-        Camera uiCamera = GetUICamera();
-        Camera worldCameraToUse = GetWorldFollowCamera();
-        PassiveEquipWorldSyncUtility.SyncLinkedPassiveRootsToUI(
-            mirrorLinkedPassiveRootsWithLiveUI,
-            linkedPassiveRoots,
-            _linkedPassiveOwners,
-            instant,
-            uiCamera,
-            worldCameraToUse);
-    }
-
-    private Camera GetUICamera()
-    {
-        if (_rootCanvas == null)
-            _rootCanvas = GetComponentInParent<Canvas>();
-        return PassiveEquipWorldSyncUtility.GetUICamera(_rootCanvas);
-    }
-
-    private Camera GetWorldFollowCamera()
-        => PassiveEquipWorldSyncUtility.GetWorldFollowCamera(worldFollowCamera, GetUICamera());
 }

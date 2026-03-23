@@ -10,20 +10,33 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a042d137857b6b447b1a911238dc40d8, type: 3}
-  m_Name: Skill_fire 1
+  m_Name: Skill_Lightning_Thunderclap
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
-  icon: {fileID: 10905, guid: 0000000000000000f000000000000000, type: 0}
-  displayName: Skill_fire
-  description: 
+  icon: {fileID: 0}
+  displayName: 'Thunderclap'
+  description: 'X equals the highest die in the group. Deal X damage to all enemies, then add 4 damage for each enemy that has Mark.'
+  spec:
+    rarity: 0
+    specState: 0
+    buildRole: 10
+    implementationCoverage: 1
+    normalizedText: 'X = highest die in the group. Deal X damage to all enemies and add 4 damage for each Marked enemy.'
+    designIntent: 'AoE finisher for Lightning board control.'
+  behaviorFamily: 3
+  fireBehaviorId: 0
+  iceBehaviorId: 0
+  lightningBehaviorId: 4
+  bleedBehaviorId: 0
+  physicalBehaviorId: 0
   kind: 0
   coreAction: 0
-  target: 1
+  target: 3
   group: 0
-  element: 2
-  range: 0
+  element: 3
+  range: 1
   hitAllEnemies: 0
   hitAllAllies: 0
-  slotsRequired: 1
+  slotsRequired: 3
   hasCondition: 0
   condition:
     scope: 0
@@ -62,7 +75,7 @@ MonoBehaviour:
     canUseMarkMultiplier: 1
     overrideBurnSpender: 0
     consumesBurn: 0
-    burnDamagePerStack: 1
+    burnDamagePerStack: 2
     overrideApplyStatus: 0
     applyBurn: 0
     burnAddStacks: 2
@@ -74,7 +87,7 @@ MonoBehaviour:
     freezeChance: 0.4
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
-  focusCost: 1
+  focusCost: 4
   focusGainOnCast: 0
   dieMultiplier: 1
   flatDamage: 0
@@ -85,7 +98,7 @@ MonoBehaviour:
   bypassGuard: 0
   clearsGuard: 0
   canUseMarkMultiplier: 1
-  consumesBurn: 1
+  consumesBurn: 0
   burnDamagePerStack: 2
   applyBurn: 0
   burnAddStacks: 2
@@ -95,4 +108,4 @@ MonoBehaviour:
   bleedTurns: 3
   applyFreeze: 0
   freezeChance: 0.4
-  projectilePrefab: {fileID: 1405955094155794844, guid: 5d01605074727f547858efbc90cb9570, type: 3}
+  projectilePrefab: {fileID: 0}

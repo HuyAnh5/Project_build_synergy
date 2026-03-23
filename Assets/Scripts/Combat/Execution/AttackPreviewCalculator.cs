@@ -40,6 +40,14 @@ public static class AttackPreviewCalculator
         bool targetHasGuard = target != null && target.guardPool > 0;
         int dmg = preview.baseDamage;
 
+        if (IsBasicStrike(rt) && caster != null && caster.status != null && caster.status.emberWeaponTurns > 0)
+        {
+            preview.bonusDamage += 1;
+            dmg += 1;
+        }
+
+        ApplyBehaviorPreviewBonuses(rt, caster, target, ref preview, ref dmg);
+
         if (!Mathf.Approximately(statusOutMul, 1f))
             dmg = Mathf.FloorToInt(dmg * statusOutMul);
 
@@ -58,7 +66,8 @@ public static class AttackPreviewCalculator
             if (burnStacks > 0)
             {
                 float burnMul = (ps != null) ? ps.GetBurnConsumeMultiplier() : 1f;
-                int add = Mathf.FloorToInt(burnStacks * GetBurnConsumeDamagePerStack(rt) * Mathf.Max(0f, burnMul));
+                int damagePerStack = GetBurnConsumeDamagePerStack(rt);
+                int add = Mathf.FloorToInt(burnStacks * damagePerStack * Mathf.Max(0f, burnMul));
                 preview.bonusDamage += add;
                 dmg += add;
             }
@@ -87,6 +96,92 @@ public static class AttackPreviewCalculator
         return preview;
     }
 
+    private static void ApplyBehaviorPreviewBonuses(SkillRuntime rt, CombatActor caster, CombatActor target, ref SkillExecutor.AttackPreview preview, ref int dmg)
+    {
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.PrecisionStrike))
+        {
+            if (SkillBehaviorRuntimeUtility.TryGetSingleBaseValue(rt, out int baseValue) &&
+                (baseValue % 2) == 0 &&
+                !rt.localCritAny)
+            {
+                int critAdd = Mathf.FloorToInt(baseValue * DiceSlotRig.PhysicalCritPercent);
+                preview.bonusDamage += critAdd;
+                dmg += critAdd;
+            }
+            return;
+        }
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.HeavyCleave))
+        {
+            int add = SkillBehaviorRuntimeUtility.GetHighestBaseValue(rt);
+            if (add > 0)
+            {
+                preview.bonusDamage += add;
+                dmg += add;
+            }
+            return;
+        }
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.Execution))
+        {
+            SkillCombatState state = caster != null ? caster.GetComponent<SkillCombatState>() : null;
+            if (state != null && state.ExecutionCarryActive > 0)
+            {
+                preview.bonusDamage += state.ExecutionCarryActive;
+                dmg += state.ExecutionCarryActive;
+            }
+            return;
+        }
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.WintersBite))
+        {
+            preview.baseDamage = 6;
+            dmg = 6 + preview.bonusDamage;
+            return;
+        }
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.ColdSnap))
+        {
+            int low = SkillBehaviorRuntimeUtility.GetLowestBaseValue(rt);
+            preview.baseDamage = Mathf.Max(0, low);
+            dmg = preview.baseDamage + preview.bonusDamage;
+            return;
+        }
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, LightningDamageBehaviorId.Overload))
+        {
+            int add = 4 * SkillBehaviorRuntimeUtility.CountMarkedEnemies(caster);
+            if (add > 0)
+            {
+                preview.bonusDamage += add;
+                dmg += add;
+            }
+            return;
+        }
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, LightningDamageBehaviorId.Thunderclap))
+        {
+            int high = SkillBehaviorRuntimeUtility.GetHighestResolvedValue(rt);
+            preview.baseDamage = Mathf.Max(0, high);
+            dmg = preview.baseDamage + preview.bonusDamage;
+
+            int add = 4 * SkillBehaviorRuntimeUtility.CountMarkedEnemies(caster);
+            if (add > 0)
+            {
+                preview.bonusDamage += add;
+                dmg += add;
+            }
+            return;
+        }
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.BloodWard))
+        {
+            preview.baseDamage = 0;
+            preview.bonusDamage = 0;
+            dmg = 0;
+        }
+    }
+
     public static bool CanUseMarkPayoff(SkillRuntime rt, CombatActor target)
     {
         return rt != null &&
@@ -112,5 +207,12 @@ public static class AttackPreviewCalculator
     {
         if (rt == null) return DefaultBurnConsumeDamagePerStack;
         return Mathf.Max(DefaultBurnConsumeDamagePerStack, rt.burnDamagePerStack);
+    }
+
+    private static bool IsBasicStrike(SkillRuntime rt)
+    {
+        if (rt == null)
+            return false;
+        return rt.coreAction == CoreAction.BasicStrike;
     }
 }

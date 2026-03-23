@@ -285,7 +285,7 @@ internal static class SkillPlanBoardStateUtility
             int baseSpan = Mathf.Clamp(SkillPlanRuntimeUtility.GetSlotsRequired(skill), 1, 3);
             int baseStart0 = SanitizeStart0ForSpan(anchorBaseStart0[a], baseSpan);
 
-            anchorRuntime[a] = SkillPlanRuntimeUtility.EvaluateRuntimeForSkillAsset(skill, diceRig, a, baseSpan, baseStart0);
+            anchorRuntime[a] = SkillPlanRuntimeUtility.EvaluateRuntimeForSkillAsset(skill, player, diceRig, a, baseSpan, baseStart0);
             if (anchorRuntime[a] == null)
             {
                 anchorRuntime[a] = default;

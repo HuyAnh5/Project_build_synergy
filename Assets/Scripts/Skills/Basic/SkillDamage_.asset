@@ -15,11 +15,19 @@ MonoBehaviour:
   icon: {fileID: 10911, guid: 0000000000000000f000000000000000, type: 0}
   displayName: SkillDamage_
   description: 
+  spec:
+    rarity: 0
+    specState: 0
+    buildRole: 1
+    implementationCoverage: 0
+    normalizedText: 
+    designIntent: 
+  behaviorId: 0
   kind: 0
-  coreAction: 0
+  coreAction: 1
   target: 1
-  group: 2
-  element: 4
+  group: 0
+  element: 0
   range: 0
   hitAllEnemies: 0
   hitAllAllies: 0

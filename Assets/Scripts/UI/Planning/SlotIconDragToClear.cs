@@ -7,18 +7,22 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
     public TurnManager turn;
     public int slotIndex = 1; // 1..3
     public Image iconPreview;
+    public bool enableTwoSlotGroupReorderDrag = true;
 
     private Canvas _canvas;
     private RectTransform _canvasRT;
     private Camera _uiCam;
 
     private RectTransform _ghostRT;
+    private DiceEquipUIManager _diceUiManager;
+    private bool _groupReorderDrag;
 
     private void Awake()
     {
         _canvas = GetComponentInParent<Canvas>();
         _canvasRT = _canvas.transform as RectTransform;
         _uiCam = (_canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : _canvas.worldCamera;
+        EnsurePreviewInputForwarder();
     }
 
     public void SetVisualLaneIndex(int lane1Based)
@@ -39,6 +43,7 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
         if (!turn || !turn.IsPlanning) return;
         if (!iconPreview || iconPreview.sprite == null) return;
 
+        _groupReorderDrag = ShouldUseTwoSlotGroupReorderDrag();
         CreateGhost();
         MoveGhost(eventData.position);
     }
@@ -54,6 +59,15 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
         _ghostRT = null;
 
         if (!turn || !turn.IsPlanning) return;
+
+        if (_groupReorderDrag)
+        {
+            _groupReorderDrag = false;
+            DiceEquipUIManager diceUiManager = GetDiceUiManager();
+            if (diceUiManager != null)
+                diceUiManager.TryMovePlannedTwoSlotGroup(slotIndex, eventData.position, eventData.pressEventCamera);
+            return;
+        }
 
         // If not dropped on any slot => clear
         var hitGo = eventData.pointerCurrentRaycast.gameObject;
@@ -102,5 +116,40 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
         var drop = GetComponentInParent<ActionSlotDrop>();
         if (drop != null)
             drop.OnDrop(eventData);
+    }
+
+    private bool ShouldUseTwoSlotGroupReorderDrag()
+    {
+        if (!enableTwoSlotGroupReorderDrag || turn == null)
+            return false;
+
+        DiceEquipUIManager diceUiManager = GetDiceUiManager();
+        if (diceUiManager == null || !diceUiManager.enableGroupedSkillDiceReorder)
+            return false;
+
+        if (!turn.TryGetPlannedGroupAtLane(slotIndex, out int anchor0, out _, out int span))
+            return false;
+
+        return span == 2 && anchor0 == slotIndex - 1;
+    }
+
+    private DiceEquipUIManager GetDiceUiManager()
+    {
+        if (_diceUiManager == null)
+            _diceUiManager = FindObjectOfType<DiceEquipUIManager>();
+        return _diceUiManager;
+    }
+
+    private void EnsurePreviewInputForwarder()
+    {
+        if (iconPreview == null)
+            return;
+
+        SlotIconPreviewInputForwarder forwarder = iconPreview.GetComponent<SlotIconPreviewInputForwarder>();
+        if (forwarder == null)
+            forwarder = iconPreview.gameObject.AddComponent<SlotIconPreviewInputForwarder>();
+
+        forwarder.owner = this;
+        iconPreview.raycastTarget = true;
     }
 }

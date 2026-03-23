@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: Guard_Def
   description: 
   kind: 1
-  coreAction: 0
+  coreAction: 2
   target: 0
   group: 2
   element: 4

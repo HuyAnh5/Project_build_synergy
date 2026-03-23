@@ -1,612 +1,517 @@
-# AGENTS.md
+# AGENTS_LOGIC_ONLY.md
 
-## 1. Mục đích
+> Đây là bản **logic + content handoff file** của project.
+> Mục tiêu: gửi sang chat AI khác hoặc cho người khác đọc nhanh mà vẫn hiểu đúng gameplay logic, skill/passive hiện tại, và triết lý thiết kế.
+> File này **không chứa code architecture, class name, folder structure, refactor state, implementation note**.
+> Nếu cần hiểu codebase hoặc implementation state thì phải đọc `PROJECT_META.md`.
 
-File này là context chính để agent làm việc với project Unity này.
-Đọc hết file trước khi sửa code.
+---
 
-Mục tiêu:
+## 1. Mục đích của file này
 
-* hiểu đúng combat spec hiện tại
-* hiểu đúng cấu trúc code hiện tại
-* tránh phá những phần đã ổn định
-* ưu tiên patch gọn, dễ review, dễ test
+File này dùng cho 5 việc:
+
+1. Giải thích game này là game gì và cảm giác chơi mong muốn là gì.
+2. Ghi lại các rule gameplay đã chốt: dice, focus, skill, status, lane, payoff.
+3. Ghi lại toàn bộ skill/passive hiện tại với context thiết kế.
+4. Ghi lại triết lý build, boss, relic và content direction hiện tại.
+5. Làm handoff document để gửi sang chat khác mà không cần paste file master dài.
 
 ---
 
 ## 2. Tổng quan project
 
-Đây là game roguelike turn-based trên mobile, trọng tâm là:
+Đây là game **roguelike turn-based mobile** với mô tả đúng nhất hiện tại là:
 
-* dice
-* skill slot
-* passive
-* status / payoff
-* lane order / action order
+**Dice-driven Tactical Combat Roguelike**
 
-Vòng chơi combat có logic chính:
+### Platform
 
-* roll dice
-* gán skill vào lane
-* khóa plan
-* chọn target
-* execute từ trái sang phải theo lane hiện tại
+**PC trước, mobile sau** — giống Balatro và STS. Design và playtest trên PC cho đến khi combat feel ổn, sau đó mới port lên mobile.
 
-Game không đi theo hướng bắt người chơi phải tính nhẩm quá nhiều.
-Tooltip / preview về sau phải hiện kết quả cuối cùng, không ép player tự quy đổi Base / Added mới chơi được.
+### Nguồn cảm hứng chính
 
----
+- **Balatro**: passive kiểu joker, build engine, custom dice giống custom deck, consumable có tính bẻ hướng run, endless mode.
+- **Slay the Spire**: combat theo nhịp turn rõ ràng, intent system, boss là bức tường cơ chế thay vì chỉ là bao cát máu lớn.
+- **Persona / Expedition 33**: loadout kỹ năng rõ ràng, decision-based combat.
+- **D&D**: crit/fail, giá trị mặt xúc xắc là identity thật của hành động, exact value matters.
 
-## 3. Action economy
+### Bản sắc cốt lõi
 
-Player có:
+Game xoay quanh 5 trụ chính: dice, skill slot, passive, status/payoff, lane order/action order.
 
-* 6 skill slot
-* 3 passive slot
-* tối đa 3 dice
+**Dice là trung tâm, mọi thứ còn lại phải xoay quanh dice.**
 
-Đầu run chỉ có 1 dice.
+### Trải nghiệm mong muốn mỗi turn
 
-Focus:
-
-* reset sau mỗi combat
-* đầu combat có 2 Focus
-* đầu mỗi turn +1 Focus
-* turn 1 thực tế là 3 Focus
-* không cho nợ Focus
-
-Basic action:
-
-* Basic Attack: 0 Focus, 4 damage cố định, +1 Focus
-* Basic Guard: 0 Focus, Guard bằng Base Value của die
+1. Dùng die nào cho skill nào
+2. Dùng thứ tự nào
+3. Setup trước hay nổ trước
+4. Chấp nhận lock plan và sống với kết quả roll đó
 
 ---
 
-## 4. Dice rules đã chốt
+## 3. Core Loop
 
-### 4.1 Base và Added
+**Roll dice → Plan → Lock → Execute → Enemy turn**
 
-* Base Value = mặt thật roll ra
-* Added Value = phần cộng trừ thêm vào output cuối
-* Mọi condition phải đọc từ Base Value
-* Added Value không đổi bản chất của die
+- **Roll**: roll tất cả dice hiện đang equip cho turn đó.
+- **Plan**: kéo dice vào skill slot, chọn cách gán, có thể reorder cặp hành động trong planning.
+- **Lock**: xác nhận kế hoạch, từ thời điểm này không đổi thứ tự nữa.
+- **Execute**: các action chạy từ trái sang phải theo lane hiện tại.
+- **Enemy turn**: enemy hành động, status tick, cleanup, chuẩn bị sang lượt mới.
 
-Condition phải đọc theo Base:
+---
 
-* chẵn / lẻ
-* crit / fail
-* <= 3
-* exact value
-* highest / lowest
+## 4. Action Economy và Loadout
 
-### 4.2 Local die context
+### 4.1 Những gì player có trong combat
 
-Nếu skill 2-3 slot có text kiểu lấy die cao nhất / thấp nhất,
-chỉ xét trong chính nhóm die của skill đó, không xét cả bàn.
+- **6 skill slot**
+- **3 passive slot**
+- **1 đến 3 dice** (đầu run = 1 dice)
 
-### 4.3 Crit / Fail
+Số dice equip = số action groups mỗi turn.
 
-* Crit = roll đúng giá trị mặt cao nhất của die
-* Fail = roll đúng giá trị mặt thấp nhất của die
-* Crit / Fail không đổi Base Value
-* Crit / Fail chỉ sinh Added Value
+### 4.2 Focus economy
 
 Rule đã chốt:
 
-* Crit thường = +20% Base
-* Crit Physical = +50% Base
-* Fail = -50% Base
+- **Max Focus = 9**
+- **Start combat = 2 Focus**
+- **Đầu mỗi turn = +1 Focus**
+- **Không được nợ Focus**
+- Turn 1 thực tế = **3 Focus**
 
-### 4.4 Dice có nhiều mặt trùng max / min
+### 4.3 Basic actions
 
-* Nhiều mặt cùng max -> tất cả là crit
-* Nhiều mặt cùng min -> tất cả là fail
-* Nếu max == min -> tất cả là crit, không có fail
-* Trong case max == min, crit thắng fail
+Luôn có sẵn, không nằm trong 6 skill slot chính:
 
-### 4.5 Làm tròn
+- **Basic Attack**: 0 Focus, 4 damage cố định, +1 Focus
+- **Basic Guard**: 0 Focus, Guard = Base Value của die dùng cho action đó
 
-* Toàn game dùng floor
-* Damage hợp lệ sau tính toán nếu < 1 thì vẫn là minimum 1
-* Ngoại lệ: Guard chặn hết thì có thể không mất HP
+Vai trò: luôn cho player lựa chọn hợp lệ khi roll xấu hoặc thiếu Focus.
 
-### 4.6 Pipeline mong muốn
+### 4.4 Loadout ngoài combat
 
-* `baseValue`
-* `critFailAddedValue`
-* `passiveAddedValue`
-* `totalAddedValue`
-* `resolvedValue`
-
-`DiceSlotRig` là source of truth chính cho dice math.
+- 6 skill slot: swap tự do ngoài combat, mua ở shop, bán ngoài combat.
+- 3 passive slot: swap tự do ngoài combat.
+- 1-3 dice slot: số dice equip = số action/turn.
+- Basic Attack + Basic Guard luôn tồn tại, không thể bỏ.
 
 ---
 
-## 5. Turn flow đã chốt
+## 5. Dice System — Rule quan trọng nhất
 
-1. Start Phase
+### 5.1 Base Value và Added Value
 
-* +1 Focus
-* passive đầu lượt
-* enemy chốt intent
+- **Base Value** = mặt thật roll ra
+- **Added Value** = phần cộng thêm vào output cuối
+- **Mọi condition phải đọc từ Base Value**
+- Added Value không làm thay đổi bản chất của die
 
-2. Roll Phase
+Các condition phải đọc theo Base Value: chẵn/lẻ, crit/fail, exact number, ≤ hoặc ≥ ngưỡng, die cao nhất/thấp nhất.
 
-* roll các dice hiện có
+### 5.2 Local die context
 
-3. Planning Phase
+Skill 2-3 slot có text "die cao nhất / thấp nhất / exact value trong nhóm" → chỉ xét trong nhóm dice của chính skill đó, không xét toàn bàn.
 
-* kéo dice vào skill slot
-* được reorder dice trong phase này
+### 5.3 Crit / Fail
 
-4. Execution Phase
+- **Crit** = roll trúng giá trị mặt cao nhất của die
+- **Fail** = roll trúng giá trị mặt thấp nhất của die
+- Crit / Fail không đổi Base Value, chỉ tạo bonus/penalty lên output
 
-* skill chạy từ trái sang phải theo lane hiện tại
-* vào execute thì khóa reorder
+Hệ số đã chốt:
 
-5. Enemy / End Phase
+- **Crit thường = +20% Base**
+- **Crit Physical = +50% Base**
+- **Fail = -50% Base**
 
-* enemy hành động
-* xử lý status tick / cleanup
-* player mất Guard cuối lượt trừ khi có rule giữ Guard
+### 5.4 Trường hợp dice đã custom mạnh
 
-Phần reorder / lane mapping đang được xem là ổn ở mức nền tảng.
-Đừng sửa vào đây nếu không thật sự cần.
+- Nhiều mặt cùng max → tất cả là Crit
+- Nhiều mặt cùng min → tất cả là Fail
+- Nếu max == min → tất cả là Crit, không có Fail (Crit thắng Fail)
 
----
+### 5.5 Làm tròn và minimum output
 
-## 6. Core combat rule đã chốt
+- Toàn game dùng **floor**
+- Damage sau tính toán nếu còn dương mà < 1 → **minimum 1**
+- Guard chặn hết → có thể không mất HP
 
-### 6.1 Damage
+### 5.6 Dice customization
 
-* Damage trừ Guard trước
-* Dư mới vào HP
+- Từng mặt dice có thể chỉnh Base Value bằng consumable
+- Đơn vị tăng trưởng cơ bản: **+1 base cho 1 mặt**
+- Giá trị max 1 mặt: **99**
+- Kể cả d2 có thể thành `1 / 99` nếu đầu tư đủ sâu
+- Custom dice thay đổi toàn bộ logic crit/fail, parity, exact, threshold
 
-### 6.2 Stagger
+### 5.7 Reorder trong Planning
 
-Rule đã chốt:
+Player có thể kéo **cặp dice + skill** sang vị trí khác trong Planning.
+Reorder ảnh hưởng đồng thời tới dice assignment và thứ tự execute.
+Khi đã vào Execute phase thì reorder bị khóa.
 
-* khi Guard từ > 0 về 0, mục tiêu vào `Stagger`
-* overflow của hit phá Guard vẫn vào HP bình thường
-* overflow đó không được x1.2
-* chỉ hit kế tiếp duy nhất mới ăn `x1.2 tổng damage`
-* hết turn mà không có hit bồi thì `Stagger` biến mất
-
-Chi tiết:
-
-* `Lightning shock` không consume `Stagger`
-* `Bleed tick` không consume `Stagger`
-* `Burn consume` nằm trong direct-hit thì được tính vào tổng damage trước khi nhân `1.2`
-
-### 6.3 Tag skill
-
-Tag chính:
-
-* `Attack`
-* `Guard`
-* `Status`
-* `Sunder`
-
-`Sunder` không có bonus ẩn. Nếu có tương tác đặc biệt thì phải viết rõ trong rule / text thật.
+Ý nghĩa thiết kế: dùng lane đầu để setup trạng thái/phá Guard, lane cuối làm finisher bằng die mạnh.
 
 ---
 
-## 7. Element / effect đã chốt
+## 6. Turn Flow — Rule đã chốt
 
-### 7.1 Physical
-
-* burst / anti-Guard / damage thẳng
-* Crit Physical dùng `+50% Base`
-
-### 7.2 Fire / Burn
-
-Burn không phải DoT chính. Burn là resource để consume.
-
-Rule:
-
-* Burn có stack
-* consume mặc định = `+2 damage mỗi stack Burn bị xóa`
-* chỉ skill đặc biệt mới override
-
-### 7.3 Ice / Freeze / Chilled
-
-Rule:
-
-* Freeze: skip 1 turn
-* hết Freeze -> thành Chilled
-* Chilled tồn tại 2 turn
-* đang Freeze hoặc Chilled thì miễn Freeze mới
-* Ice damage hit vào target Freeze / Chilled -> player `+1 Focus +3 Guard`
-
-### 7.4 Lightning / Mark
-
-Mark:
-
-* không stack
-* là điểm yếu để direct-hit xử lý
-* shock phụ của Lightning không làm mất Mark
-
-Non-Lightning hit vào Mark:
-
-* `+4 direct damage` lên chính mục tiêu đó
-
-Lightning hit vào Mark:
-
-* hit chính gây damage bình thường
-* sau đó proc `4 damage all enemies`
-
-Rule shock phụ:
-
-* không cộng Added Value
-* không tiêu Mark
-* không proc Mark
-* không chain tiếp
-
-Nếu AoE Lightning direct-hit nhiều mục tiêu có Mark:
-
-* mỗi mục tiêu có Mark tạo 1 shock proc
-* shock chạy tuần tự
-* mỗi proc cách nhau `0.2s`
-
-### 7.5 Bleed
-
-* gây damage đầu lượt
-* bỏ qua Guard
-* giảm dần theo lượt
+1. **Start phase**: +1 Focus, passive đầu lượt, enemy chốt intent
+2. **Roll phase**: roll các dice đang có
+3. **Planning phase**: gán dice vào skill, reorder được
+4. **Execution phase**: chạy trái sang phải theo lane hiện tại, khóa reorder
+5. **Enemy / End phase**: enemy hành động, status tick và cleanup, Guard của player thường biến mất cuối lượt trừ khi có rule giữ Guard
 
 ---
 
-## 8. Ailment
+## 7. Core Combat Rules
 
-Ailment hiện được coi là enemy-side system.
+### 7.1 Damage và Guard
 
-Nghĩa là:
+- Damage trừ Guard trước, phần dư mới trừ vào HP.
 
-* không xem ailment như nhóm skill player cast lên enemy
-* enemy là bên sử dụng ailment lên player / combat state
+### 7.2 Stagger
 
-Rule chance hiện tại trong code:
+- Khi Guard từ > 0 về 0 → mục tiêu vào **Stagger**
+- Overflow của hit phá Guard vẫn vào HP bình thường, không được ×1.2
+- Chỉ **hit kế tiếp duy nhất** ăn **×1.2 tổng damage**
+- Hết turn không có hit bồi → Stagger biến mất
+- Lightning shock không consume Stagger
+- Bleed tick không consume Stagger
+- Burn consume trong direct-hit → tính vào tổng damage trước khi nhân 1.2
 
-* enemy -> player = 100%
+### 7.3 Skill tags nền tảng
 
-Nếu trong code còn helper player -> enemy thì đó không còn là gameplay ưu tiên.
-
----
-
-## 9. Tooltip / preview direction
-
-Hướng design đã chốt:
-
-Trong shop / khi chưa có dice:
-
-* hiện dạng tĩnh: `Deal X damage`, `Gain X Guard`
-
-Trong combat / khi đã roll:
-
-* hiện số thật đã resolve
-
-Tooltip / preview / execute về sau phải dùng cùng một nguồn số.
-
-Trạng thái hiện tại:
-
-* đã có icon preview nền tảng
-* formatter runtime text chưa cần chốt ngay
-* phần này để sau khi chuẩn hóa skill data
+- `Attack`, `Guard`, `Status`, `Sunder`, `Buff`, `Debuff`
+- **Sunder không có hidden bonus** — tương tác đặc biệt phải viết rõ
 
 ---
 
-## 10. Lane mapping rule cần giữ
+## 8. 5 hệ chính và các effect cốt lõi
 
-Rule cốt lõi:
+### 8.1 Physical
 
-`1/2/3 là identity của cặp dice/icon, A/B/C là lane hiện tại. Logic phải đọc theo A/B/C, không đọc theo 1/2/3.`
+- Burst thẳng, anti-Guard, damage đơn giản
+- **Crit Physical = +50% Base**
 
-Phần này đang được xem là đã ổn:
+### 8.2 Fire / Burn
 
-* reorder trong Planning
-* execution order theo lane mới
-* damage order theo lane mới
-* phase lock khi vào execute
+Burn **không phải DoT chính**. Burn là **tài nguyên để consume**.
 
----
+- Burn có stack
+- Consume mặc định = **+2 damage mỗi stack Burn bị xóa**
+- Chỉ skill đặc biệt mới override baseline này
 
-## 11. Hệ thống chính trong code
+### 8.3 Ice / Freeze / Chilled
 
-Những class quan trọng:
+- **Freeze**: skip 1 turn
+- Hết Freeze → thành **Chilled** (tồn tại 2 turn)
+- Đang Freeze hoặc Chilled → miễn Freeze mới
+- Ice damage hit vào target Freeze/Chilled → player **+1 Focus +3 Guard**
 
-* `TurnManager`
-* `SkillPlanBoard`
-* `SkillExecutor`
-* `CombatActor`
-* `StatusController`
-* `BattlePartyManager2D`
-* `DiceSlotRig`
-* `DiceSpinnerGeneric`
-* `RunInventoryManager`
-* `PassiveSystem`
-* `DamagePopupSystem`
-* `CombatHUD`
-* `ActorWorldUI`
-* `TargetClickable2D`
+### 8.4 Lightning / Mark
 
----
+Mark là weak point để direct-hit khai thác. Mark **không stack**.
 
-## 12. Kiến trúc skill data
+- **Non-Lightning hit vào Mark**: +4 direct damage lên chính mục tiêu đó
+- **Lightning hit vào Mark**: hit chính damage bình thường → proc **4 damage all enemies**
+- Shock phụ của Lightning: không cộng Added Value, không tiêu Mark, không proc Mark, không chain tiếp
+- AoE Lightning hit nhiều target có Mark → mỗi target tạo 1 shock proc, chạy tuần tự, cách nhau 0.2s
 
-Project đang dùng hướng tách skill thành các nhóm:
+### 8.5 Bleed
 
-* `SkillDamageSO`
-* `SkillBuffDebuffSO`
-* `SkillPassiveSO`
-
-Legacy `SkillSO_Legacy` và `SkillConditionalOverrides` đã bị bỏ.
-Không dùng lại pipeline `SkillSO` cũ nữa.
-
-Khi sửa, cẩn thận compatibility với scene / prefab cũ.
-User ưu tiên chuẩn hóa skill data sau.
-Không cần cố gắng động vào content layer nếu task hiện tại là combat / refactor code runtime.
+- Gây damage **đầu lượt**, bỏ qua Guard
+- Giảm dần: **-1 stack mỗi cuối lượt**
 
 ---
 
-## 13. Cấu trúc `Assets/Scripts` hiện tại
+## 9. Ailment
 
-Code chính hiện nằm dưới `Assets/Scripts`, không còn để trong `Assets/Scripts/Demo`.
+Ailment hiện được xem là **enemy-side system**.
 
-Cấu trúc domain hiện tại:
-
-* `Assets/Scripts/Combat/Actors`
-* `Assets/Scripts/Combat/Execution`
-* `Assets/Scripts/Combat/Status`
-* `Assets/Scripts/Combat/Turn`
-* `Assets/Scripts/Dice`
-* `Assets/Scripts/Enemies`
-* `Assets/Scripts/Inventory`
-* `Assets/Scripts/Skills/Basic`
-* `Assets/Scripts/Skills/Buff`
-* `Assets/Scripts/Skills/Damage`
-* `Assets/Scripts/Skills/Debuff`
-* `Assets/Scripts/Skills/Definitions`
-* `Assets/Scripts/Skills/Effect`
-* `Assets/Scripts/Skills/Legacy`
-* `Assets/Scripts/Skills/Passive`
-* `Assets/Scripts/Skills/Planning`
-* `Assets/Scripts/Skills/Runtime`
-* `Assets/Scripts/UI/Combat`
-* `Assets/Scripts/UI/Loadout/Dice`
-* `Assets/Scripts/UI/Loadout/Passive`
-* `Assets/Scripts/UI/Planning`
-
-Khi mở file hoặc viết note mới:
-
-* không dùng lại path cũ kiểu `Assets/Scripts/Demo/...`
-* không mặc định `Assets/Scripts/Combat/Core/...` nữa
+- Enemy là bên chủ yếu dùng ailment lên player
+- Player-side ailment không phải trục gameplay ưu tiên
+- **Enemy → player = 100% chance** hiện tại
 
 ---
 
-## 14. Tình hình hiện tại của project
+## 10. Lane Mapping / Reorder / Pair Identity Rule
 
-### 14.1 Đã xong ở combat core
+**`1/2/3` là identity ban đầu. `A/B/C` là lane hiện tại. Logic phải đọc theo `A/B/C`, không đọc theo `1/2/3`.**
 
-Những rule / hệ thống đã cập nhật theo spec mới:
+Điều cấm kỵ:
 
-* Focus đầu combat = 2, turn 1 thực tế = 3
-* Burn consume baseline = `+2 / stack`
-* Freeze / Chilled immunity và Ice reward = `+1 Focus +3 Guard`
-* Bleed tick đầu lượt bỏ qua Guard
-* Mark / Lightning theo rule direct-hit + shock proc
-* shock Lightning chạy tuần tự với delay `0.2s`
-* `Stagger` đã được implement và hiển thị như một status thật
-* ailment direction hiện là enemy-side, enemy -> player = 100%
-
-### 14.2 Tình hình refactor file lớn
-
-Refactor đã làm theo hướng:
-
-* giữ class Unity gốc
-* tách logic nặng ra utility / helper mới
-* giảm rủi ro mất reference scene / prefab
-
-Đã tách:
-
-`TurnManager`
-
-* `Assets/Scripts/Combat/Turn/TurnManagerCombatUtility.cs`
-* `Assets/Scripts/Combat/Turn/TurnManagerLifecycleUtility.cs`
-* `Assets/Scripts/Combat/Turn/TurnManagerPlanningUtility.cs`
-* `Assets/Scripts/Combat/Turn/TurnManagerTargetingUtility.cs`
-* `Assets/Scripts/Combat/Turn/TurnManagerViewUtility.cs`
-
-`SkillExecutor`
-
-* `Assets/Scripts/Combat/Execution/AttackPreviewCalculator.cs`
-* `Assets/Scripts/Combat/Execution/SkillAttackResolutionUtility.cs`
-* `Assets/Scripts/Combat/Execution/SkillTargetResolver.cs`
-
-`StatusController`
-
-* `Assets/Scripts/Combat/Status/StatusRuntimeEntries.cs`
-* `Assets/Scripts/Combat/Status/StatusBuffDebuffUtility.cs`
-* `Assets/Scripts/Combat/Status/StatusAilmentUtility.cs`
-* `Assets/Scripts/Combat/Status/StatusStateUtility.cs`
-
-`SkillPlanBoard`
-
-* `Assets/Scripts/Skills/Planning/SkillPlanBoardStateUtility.cs`
-* `Assets/Scripts/Skills/Planning/SkillPlanRuntimeUtility.cs`
-
-`RunInventoryManager`
-
-* `Assets/Scripts/Inventory/RunInventoryBindingUtility.cs`
-* `Assets/Scripts/Inventory/RunInventorySetupUtility.cs`
-* `Assets/Scripts/Inventory/RunInventoryLoadoutUtility.cs`
-
-`EnemyBrainController`
-
-* `Assets/Scripts/Enemies/EnemyIntentSelectionUtility.cs`
-* `Assets/Scripts/Enemies/EnemyIntentPreviewUtility.cs`
-
-Loadout UI - Dice:
-
-* `Assets/Scripts/UI/Loadout/Dice/DiceEquipLayoutUtility.cs`
-* `Assets/Scripts/UI/Loadout/Dice/DiceEquipWorldSyncUtility.cs`
-* `Assets/Scripts/UI/Loadout/Dice/DiceEquipStateUtility.cs`
-* `Assets/Scripts/UI/Loadout/Dice/DiceEquipPresentationUtility.cs`
-* `Assets/Scripts/UI/Loadout/Dice/DiceEquipWorldFollowUtility.cs`
-
-Loadout UI - Passive:
-
-* `Assets/Scripts/UI/Loadout/Passive/PassiveEquipLayoutUtility.cs`
-* `Assets/Scripts/UI/Loadout/Passive/PassiveEquipWorldSyncUtility.cs`
-* `Assets/Scripts/UI/Loadout/Passive/PassiveEquipStateUtility.cs`
-* `Assets/Scripts/UI/Loadout/Passive/PassiveEquipPresentationUtility.cs`
-
-### 14.3 Những phần đang ổn
-
-Những vùng này được xem là khá ổn và không nên động vào nếu không cần:
-
-* planning -> await target -> executing -> enemy turn
-* reorder dice trong planning
-* execution order / damage order theo lane hiện tại
-* lane mapping giữa pair identity và lane
-* consume rule nền tảng
-
-### 14.4 Những việc còn lại hợp lý cho chat sau
-
-Nếu tiếp tục ở đoạn chat sau, ưu tiên hợp lý là:
-
-* tiếp tục tách file nếu có file nào thật sự vẫn ôm quá nhiều logic
-* chuẩn hóa skill data / content layer
-* tooltip / runtime preview formatter sau khi skill data ổn
-* polish dice feedback UI
-
-Nếu combat core đã ổn và file đã ở mức chấp nhận được, không cần cố gắng tách thêm chỉ vì số dòng.
+- Không đọc execute order theo 1/2/3 cố định
+- Không để UI reorder chỉ đổi hình mà logic không đổi lane thật
+- Không đập lại reorder chỉ vì muốn refactor nếu chưa có bug rõ
 
 ---
 
-## 15. Quy tắc khi agent sửa code
+## 11. Relic / Consumable System
 
-Bắt buộc:
+- Player có **3 relic slot**
+- Relic là **one-shot consumable** — dùng xong mất khỏi slot
+- Pool relic lớn là chủ đích — tìm đúng relic cần là chuyện khó (giống Balatro tarot)
+- Drop thường xuyên từ enemy hoặc passive/skill
 
-* đừng phá những phần reorder / lane / execution đang ổn
-* execute, preview, tooltip không được nói ba kiểu nếu sửa dice math
-* effect phải bám theo spec trong file này, không bám logic cũ nếu logic cũ lệch
-* ưu tiên patch nhỏ, dễ review
-* nếu refactor lớn, phải nói rõ vì sao
-* luôn nêu file nào sửa và vì sao
-* nếu có thể, đưa checklist test thủ công
+**Type A — dùng trong combat**: quick action, không chiếm dice slot, có thể cần chọn target.
 
-Khi sửa combat:
-
-* ưu tiên bảo toàn behavior đúng trước
-* utility mới chỉ nên tách khi giúp code dễ đọc hơn thật sự
-* giữ `SkillPlanBoard` là source of truth cho lane planning
-* giữ `DiceSlotRig` là source of truth cho resolved dice math
-* không để UI trở thành source of truth thứ hai
+**Type B — chỉnh dice ngoài combat**: forge +/- pip, move pip, copy face value, tăng base 1 mặt.
 
 ---
 
-## 16. Cách trả lời mong muốn
+## 12. Boss Design Philosophy
 
-User thường viết bằng tiếng Việt.
-Ưu tiên trả lời bằng tiếng Việt, ngắn, rõ, thẳng vào vấn đề.
+- Boss là **bức tường cơ chế**, không phải stat wall
+- Boss **không hard counter hoàn toàn** bất kỳ build nào
+- Boss tạo **friction** — Fire build vẫn thắng được nhưng nhọc hơn
+- Player luôn có ít nhất 3 hướng: adapt, chấp nhận khó hơn, brute force nếu build đủ mạnh
 
-Nếu sửa code, nên nêu:
-
-1. Nguyên nhân
-2. File nào sửa
-3. Vì sao sửa như vậy
-4. Checklist test
-
----
-
-## 17. Tóm tắt cực ngắn
-
-Nếu chỉ nhớ vài điểm, hãy nhớ:
-
-1. Đây là game dice-slot tactical combat trên mobile
-2. Đừng phá flow combat, reorder và lane mapping đang ổn
-3. Player có 6 skill slot, 3 passive slot, tối đa 3 dice
-4. `DiceSlotRig` là source of truth của dice math
-5. `SkillPlanBoard` là source of truth của lane planning
-6. `Ailment` hiện là enemy-side system
-7. Combat core đã cập nhật Burn, Mark/Lightning, Freeze/Chilled, Bleed, Stagger; việc lớn tiếp theo nghiêng về skill data và tiếp tục dọn code khi cần
+Ví dụ đúng tinh thần:
+- Không nên: `miễn Burn hoàn toàn`
+- Nên: `đầu lượt tự clear 2 Burn stack`
+- Không nên: `reflect mọi damage`
+- Nên: `mỗi khi nhận Burn thì +2 Guard`
 
 ---
 
-## 18. Ghi chú bổ sung từ chat gần đây
+## 13. Endless Mode và Hidden Boss
 
-### 18.1 Reorder / lane mapping
+### Endless Mode
 
-Theo trạng thái mới nhất mà user chốt:
+Sau khi thắng boss cuối, player có thể tiếp tục.
 
-* reorder trong Planning đang được xem là ổn ở mức nền tảng
-* execution order theo lane mới đang ổn
-* damage order theo lane mới đang ổn
-* phase lock khi vào execute đang ổn
+3 loại player được serve:
+- **Player A**: thắng boss sớm, build chưa xong → Endless để tiếp tục
+- **Player B**: thắng boss đúng lúc → kết thúc tự nhiên
+- **Player C**: muốn perfect build trước khi vào boss → grind Endless trước
 
-Chỉ sửa vùng này nếu có bug rõ ràng được tái hiện lại.
-Không tự ý refactor lại reorder nếu không có lý do mạnh.
+### Hidden Boss
 
-### 18.2 Combat core đã cập nhật theo spec mới
-
-Những phần được xem là đã cập nhật và không nên coi là "còn thiếu" nữa:
-
-* Burn consume baseline
-* Mark / Lightning proc rule
-* Freeze / Chilled immunity và Ice reward
-* Bleed tick bỏ qua Guard
-* Stagger core behavior
-
-### 18.3 Ailment là enemy-side system
-
-Khi viết mô tả, tooltip, plan refactor hoặc content note:
-
-* không mô tả Ailment như một bộ player skill
-* coi nó là enemy-side debuff / combat control system
-
-### 18.4 Hướng ưu tiên hiện tại
-
-Theo user, hướng hợp lý cho chat sau là:
-
-* tiếp tục tách file nếu thật sự cần để dễ đọc / dễ quản lý
-* chuẩn hóa skill data / content layer
-* tooltip / runtime preview formatter sau khi skill data ổn
-* polish thêm dice feedback UI
-
-Nếu combat core đang ổn và không có bug cần sửa ngay, không cần tiếp tục đập lớn vào core combat chỉ để refactor.
-
-### 18.5 Trạng thái skill legacy
-
-Những file / pipeline sau đã bị loại bỏ:
-
-* `SkillSO_Legacy`
-* `SkillConditionalOverrides`
-
-Không đưa lại reference tới `SkillSO` cũ khi sửa code mới.
-
-### 18.6 Ghi chú thực tế cho agent ở đoạn chat sau
-
-Nếu tiếp tục làm việc ở đoạn chat khác, hãy giả định đúng các điểm sau:
-
-* `Assets/Scripts/Demo` không còn là nơi chứa code chính
-* `Assets/Scripts/Combat/Core` không còn là cây thư mục dùng
-* combat core đã được cập nhật theo spec mới cho Burn, Mark / Lightning, Freeze / Chilled, Bleed, Stagger
-* `Ailment` hiện được coi là enemy-side system
-* ưu tiên hiện tại là giữ combat rule ổn định
-* chỉ refactor tiếp khi nó thực sự làm code dễ đọc hơn
-* không cần cố tách thêm nếu file hiện tại đã ở mức chấp nhận được
+- **Chỉ xuất hiện trong Endless mode**
+- Placement: đủ sâu để không thấy ngay, không quá sâu đến mức full build cũng không tới
+- Mechanic: **rotate ability của các boss khác mỗi 2-3 turn**
+- Không có tất cả ability cùng lúc — lấy từ pool toàn bộ boss trong game
+- Đây là thử thách tối thượng của game
 
 ---
 
-## 19. Hiện trạng trước khi commit
+## 14. Unlock System
 
-Nếu combat đã được test qua trong Unity và console sạch, có thể xem scope chat này là xong ở mức runtime / refactor.
+Giống Balatro — skill và passive không phải lúc nào cũng có sẵn trong pool ngay từ đầu. Player phải đạt điều kiện cụ thể để unlock, sau đó mới có cơ hội thấy nó xuất hiện trong run.
 
-Trước khi commit:
+Ý nghĩa thiết kế:
 
-* kiểm tra console Unity không còn lỗi compile
-* test nhanh roll -> planning -> target -> execute -> enemy turn
-* test nhanh reorder dice
-* test nhanh reorder passive
+- Kiểm soát tốc độ lộ mechanic — player không bị overwhelm bởi toàn bộ 5 hệ ngay run đầu
+- Unlock condition gắn với gameplay thật, không phải grind số
+- Skill phức tạp / cần setup sâu chỉ xuất hiện khi player đã chứng minh hiểu cơ chế liên quan
+- Tăng replay value — mỗi lần unlock là discovery moment
 
-Nếu không có vấn đề, có thể commit.
+Ví dụ định hướng:
+
+- **Hellfire** — unlock khi có 30 Burn trên 1 kẻ địch (chứng minh hiểu Fire engine trước khi thấy payoff lớn nhất)
+- Balatro tương đương: Brainstorm yêu cầu bỏ 1 Royal Flush để unlock
+
+Unlock condition chưa được thiết kế đầy đủ cho toàn bộ skill pool — đây là phần còn mở.
+
+---
+
+## 15. Lenticular Design / Build Philosophy
+
+### Nguyên tắc cốt lõi
+
+Không làm 20 skill = 20 build rời nhau. Làm theo kiểu skill/passive tương tác với nhau → build nảy sinh từ mạng lưới tương tác.
+
+### Phân lớp rarity
+
+- **Common**: tự đủ dùng, ít cần setup, mạnh ổn định ngay.
+- **Uncommon**: mạnh hơn khi canh điều kiện, đúng tình huống thì bùng rõ.
+- **Rare**: một mình vẫn hữu ích; khi đúng engine thì cực mạnh.
+
+### Trục tương tác chính
+
+**Trục dice**: Crit/Fail, Chẵn/Lẻ, Cao/Thấp, Exact value, Highest/Lowest trong nhóm
+
+**Trục trạng thái trên target**: Burn stacks, Mark, Freeze/Chilled, Bleed stacks, Stagger
+
+**Trục tài nguyên player**: Focus hiện tại, Guard hiện tại, lane đã dùng/còn trống
+
+---
+
+## 16. Skills — Đã Chốt
+
+### Ember Weapon [Status / Buff] — 1 slot, 2 Focus, Uncommon
+
+Trong **3 turn tiếp theo**, Basic Attack gây thêm **+1 damage** và áp **Burn = tổng damage gây ra**.
+
+> Basic Attack base 4 dmg → với Ember Weapon = 5 dmg, áp 5 Burn/hit
+> Với Elemental Catalyst passive → 6 Burn/hit
+
+---
+
+### Hellfire [Attack] — 3 slot, 2 Focus, Rare
+
+Consume toàn bộ Burn, gây **3 damage mỗi stack Burn**. Sau đó mỗi dice trong nhóm đổ ra đúng **7** → áp lại **7 Burn mới**.
+
+> Điều kiện exact 7 là intentional — chỉ hoạt động sau khi mod dice
+> **Anti-synergy cứng với Crit Escalation** (intentional)
+> Loop win condition: 3 dice mod 100% mặt 7 → 21 Burn → Hellfire mỗi turn → 63 dmg/turn
+
+---
+
+## 17. Skills — Chưa Chốt
+
+### 16.1 Hệ Physical
+
+| Skill | Tag | Slot / Focus | Rarity | Effect |
+|---|---|---|---|---|
+| **Precision Strike** | Attack | 1 / 2 | Common | Gây X dmg. Nếu Base Value chẵn → luôn Crit (×1.5). |
+| **Brutal Smash** | Attack | 1 / 1 | Common | Gây 12 dmg cố định. Nếu target có Mark trước khi trúng → hồi 1 Focus. |
+| **Heavy Cleave** | Attack | 2 / 3 | Uncommon | Gây dmg = X + Base Value cao nhất trong 2 dice đang dùng. |
+| **Execution** | Attack | 3 / 4 | Rare | Gây tổng X dmg. Nếu target chết → overkill dmg cộng vào Added Value cho Attack/Sunder đầu tiên lượt kế. |
+| **Sunder** | Sunder | 2 / 2 | Uncommon | Gây X dmg. Bỏ qua Guard và xóa toàn bộ Guard của target. |
+| **Fated Sunder** | Sunder | 1 / 2 | Uncommon | Gây 2 dmg. Nếu Base Value = "số định mệnh" của combat đó → xóa sạch Guard trước khi gây dmg. Không hưởng ×1.2 từ Stagger. |
+
+### 16.2 Hệ Fire
+
+| Skill | Tag | Slot / Focus | Rarity | Effect |
+|---|---|---|---|---|
+| **Ignite** | Status / Debuff | 1 / 2 | Common | Áp X Burn. Nếu Base Value lẻ → áp thêm 2 Burn. |
+| **Cauterize** | Status / Buff / Debuff | 2 / 2 | Uncommon | Áp Burn = dice thấp nhất. Nhận Guard = dice cao nhất trong 2 dice đang dùng. |
+| **Fire Slash** | Attack | 1 / 2 | Common | Gây X dmg. Consume toàn bộ Burn → +2 dmg/stack. |
+
+### 16.3 Hệ Ice
+
+| Skill | Tag | Slot / Focus | Rarity | Effect |
+|---|---|---|---|---|
+| **Deep Freeze** | Status / Debuff | 1 / 3 | Common | Áp Freeze. Không tác dụng nếu target đã Freeze/Chilled. |
+| **Shatter** | Attack | 1 / 2 | Uncommon | Gây X dmg. Nếu target đang Chilled → +50% Guard hiện có của player (tối đa +20). |
+| **Frost Shield** | Guard / Buff | 2 / 2 | Common | Nhận X Guard. |
+| **Winter's Bite** | Attack | 1 / 1 | Common | Gây 6 dmg cố định. Kéo dài Chilled thêm 1 turn. |
+| **Permafrost Chain** | Status / Debuff | 2 / 6 | Rare | Áp Freeze lên 1 địch. Khi Freeze hết → nảy sang 1 địch khác (ưu tiên chưa bị khống chế). |
+| **Cold Snap** | Attack | 2 / 2 | Uncommon | X = dice thấp nhất trong cụm. Gây X dmg và Freeze ngẫu nhiên 1 địch. |
+
+### 16.4 Hệ Lightning
+
+| Skill | Tag | Slot / Focus | Rarity | Effect |
+|---|---|---|---|---|
+| **Static Conduit** | Status / Debuff | 2 / 2 | Uncommon | Gây 4 dmg. Nếu target có Mark → áp Mark lên toàn bộ địch còn lại. |
+| **Flash Step** | Status / Debuff | 1 / 1 | Common | Áp Mark lên target. Ghi đè Base Value của dice tiếp theo bằng giá trị dice hiện tại. |
+| **Spark Barrage** | Attack | 1 / 2 | Uncommon | Gây X dmg. Nếu Base Value chẵn → hit nảy sang 1 target khác. |
+| **Overload** | Attack | 1 / 2 | Uncommon | Gây X dmg + **4 dmg cho mỗi Mark trên toàn sân**. Ví dụ: die 20, 3 Mark → 32 dmg. |
+| **Thunderclap** | Attack | 3 / 4 | Rare | X = dice cao nhất. Gây X dmg lên tất cả. +4 dmg cho mỗi địch đang có Mark. |
+
+### 16.5 Hệ Bleed
+
+| Skill | Tag | Slot / Focus | Rarity | Effect |
+|---|---|---|---|---|
+| **Lacerate** | Attack / Debuff | 1 / 3 | Common | Áp X Bleed. Nếu Crit → áp thêm X Bleed nữa. |
+| **Blood Ward** | Guard / Buff | 1 / 2 | Uncommon | Nhận Guard = tổng Bleed stack trên tất cả địch. |
+| **Siphon** | Status | 2 / 3 | Uncommon | Consume toàn bộ Bleed trên 1 target. Cứ 5 Bleed → tạo 1 Consumable ngẫu nhiên (tối đa 3). |
+| **Hemorrhage** | Attack / Debuff | 2 / 2 | Rare | Áp Bleed lên target = đúng số HP player đã mất ở lượt trước. |
+
+---
+
+## 18. Passives — Chưa Chốt
+
+> Rarity mapping đã có, text chưa phải final.
+
+| Passive | Rarity | Text hiện tại |
+|---|---|---|
+| **Crit Escalation** | Rare | Mỗi khi roll Crit → toàn bộ mặt dice nhận +1 base cho đến hết combat. |
+| **Dice Forging** | Rare | Lần đầu tiên mỗi trận dùng Basic Attack → mặt dice vừa dùng nhận +1 base vĩnh viễn cho toàn bộ Run. |
+| **Clear Mind** | Rare | Bắt đầu mỗi lượt, hồi thêm 1 Focus (tổng hồi 2 mỗi lượt). |
+| **Iron Stance** | Rare | Guard không biến mất vào cuối lượt của Player. |
+| **Even Resonance** | Uncommon | Mỗi dice có Base Value chẵn nhận thêm +3 Added Value cho đòn đó. |
+| **Elemental Catalyst** | Uncommon | Khi địch nhận Burn hoặc Bleed, cộng thêm 1 stack khuyến mãi. |
+| **Spiked Armor** | Uncommon | Khi địch đánh vào Guard của bạn, chúng nhận lại Physical damage = lượng Guard bị phá vỡ. |
+| **Mitigation (Desperate Guard)** | Common | Dùng Basic Guard bằng dice có Base Value ≤ 3 → tạo 1 Consumable. |
+| **Fail Forward** | Common | Mỗi khi roll ra Fail (mặt thấp nhất) → nhận ngay 3 Guard. |
+| **Alchemist** | Common | Bắt đầu mỗi combat, nhận 1 Consumable ngẫu nhiên. |
+
+---
+
+## 19. Anti-Synergy Notes
+
+| Cặp | Loại | Lý do |
+|---|---|---|
+| **Hellfire + Crit Escalation** | Hard anti-synergy | Crit Escalation đẩy mặt dice lên → exact 7 của Hellfire không còn đúng. **Intentional.** |
+| **Hellfire + Clear Mind** | Synergy mạnh | Clear Mind +1 Focus/turn → Hellfire loop 2 Focus/turn tự duy trì hoàn toàn. Sacrifice toàn bộ passive flexibility còn lại. |
+| **Dice Forging + Crit Escalation** | Dùng được chung | Permanent theo run vs in-combat. Target khác nhau, không cancel nhau. |
+| **Iron Stance + Guard build** | Synergy mạnh | Guard không mất cuối lượt → Frost Shield, Blood Ward, Cauterize tích lũy qua nhiều turn. |
+| **Even Resonance + Precision Strike** | Synergy | Precision Strike crit khi chẵn → Even Resonance cộng thêm Added Value cho chính lượt đó. |
+| **Elemental Catalyst + Ember Weapon** | Synergy | Basic Attack apply Burn → Elemental Catalyst +1 stack → Hellfire nhận thêm stack. |
+
+---
+
+## 20. Combo Engines đã Identify
+
+### Fire Loop Engine
+
+```text
+Ember Weapon (slot 1)
+→ Basic Attack × 2: áp 10 Burn, +2 Focus
+→ Turn sau: Hellfire → consume Burn, 30 dmg
+→ Với Elemental Catalyst: 12 Burn → 36 dmg
+→ Dice mod 100% mặt 7: Hellfire loop → 63 dmg/turn vô tận
+```
+
+### Lightning Board Control
+
+```text
+Flash Step (Mark 1 target) → Static Conduit (Mark all) → Overload (X + 4×marks)
+Hoặc: Static Conduit → Thunderclap (X all + 4/mark)
+```
+
+### Bleed Resource Engine
+
+```text
+Lacerate (Crit → double Bleed) → Blood Ward (Guard = total Bleed) → Siphon (Bleed → Consumable)
+```
+
+### Crit Snowball
+
+```text
+Crit Escalation → Precision Strike (chẵn = Crit) → face tăng → chẵn nhiều hơn → Crit nhiều hơn
+→ Lacerate Crit → double Bleed → Blood Ward Guard
+```
+
+### Dice Customization Engine
+
+```text
+Dice Forging → Basic Attack mỗi combat → mặt specific tăng base vĩnh viễn
+→ Even Resonance (+3 Added khi chẵn) → Spark Barrage (chẵn nảy) → Overload
+```
+
+---
+
+## 21. Những gì chưa nên coi là final
+
+- Full content list chi tiết của mọi skill và passive (chỉ Hellfire + Ember Weapon đã chốt)
+- Toàn bộ con số balance cuối
+- Run structure chi tiết (map, node types, shop placement)
+- Regular enemy design chi tiết
+- Consumable pool chi tiết
+- Tooltip / runtime preview formatter final
+- Hidden boss placement cụ thể trong Endless
+
+---
+
+## 22. Kết luận thực dụng
+
+1. Đây là **dice-driven tactical roguelike**, dice là trung tâm.
+2. Core loop: **Roll → Plan → Lock → Execute → Enemy turn**.
+3. Player có **6 skill slot, 3 passive slot, 1-3 dice, Focus economy rõ ràng**.
+4. **Base Value** quyết định condition; **Added Value** chỉ tăng output.
+5. Crit/Fail, exact value, parity, threshold đều là **trục build thật**.
+6. 5 hệ: **Physical, Fire, Ice, Lightning, Bleed**. 4 effect cốt lõi: **Burn, Freeze/Chilled, Mark, Bleed**.
+7. **Lane mapping phải đọc theo lane hiện tại (A/B/C), không đọc theo identity ban đầu (1/2/3)**.
+8. Boss phải là **mechanic wall**, không hard-counter hoàn toàn build.
+9. Relic và custom dice là trục progression quan trọng.
+10. Đây là game theo hướng **lenticular design** — không phải 1 skill = 1 build.
+
+Nếu cần implementation context hoặc codebase state → đọc `PROJECT_META.md`.

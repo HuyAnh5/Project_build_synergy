@@ -33,6 +33,7 @@ public class PassiveDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler
         _rootCanvas = GetComponentInParent<Canvas>();
         _cg = GetComponent<CanvasGroup>();
         if (_cg == null) _cg = gameObject.AddComponent<CanvasGroup>();
+        if (manager == null) manager = GetComponentInParent<PassiveEquipUIManager>();
 
         RefreshVisual();
     }
@@ -110,6 +111,15 @@ public class PassiveDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler
     {
         if (!_dragging) return;
 
+        if (manager != null && !manager.CanInteract())
+        {
+            _dragging = false;
+            _cg.blocksRaycasts = true;
+            _cg.alpha = 1f;
+            manager.HandleInvalidDrop(this);
+            return;
+        }
+
         MoveWithPointer(eventData.position, eventData.pressEventCamera);
 
         if (manager != null)
@@ -126,6 +136,12 @@ public class PassiveDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler
 
         if (manager != null)
         {
+            if (!manager.CanInteract())
+            {
+                manager.HandleInvalidDrop(this);
+                return;
+            }
+
             if (!manager.WasDropConsumedThisFrame)
                 manager.NotifyEndDrag(this, eventData.position, eventData.pressEventCamera);
         }

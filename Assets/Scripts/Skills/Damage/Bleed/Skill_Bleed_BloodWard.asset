@@ -1,0 +1,111 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a042d137857b6b447b1a911238dc40d8, type: 3}
+  m_Name: Skill_Bleed_BloodWard
+  m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
+  icon: {fileID: 0}
+  displayName: 'Blood Ward'
+  description: 'Gain Guard equal to total Bleed stacks across all enemies.'
+  spec:
+    rarity: 0
+    specState: 0
+    buildRole: 8
+    implementationCoverage: 0
+    normalizedText: 'Gain Guard equal to total Bleed stacks across all enemies.'
+    designIntent: 'Convert Bleed pressure into defense.'
+  behaviorFamily: 4
+  fireBehaviorId: 0
+  iceBehaviorId: 0
+  lightningBehaviorId: 0
+  bleedBehaviorId: 2
+  physicalBehaviorId: 0
+  kind: 1
+  coreAction: 0
+  target: 0
+  group: 0
+  element: 4
+  range: 1
+  hitAllEnemies: 0
+  hitAllAllies: 0
+  slotsRequired: 1
+  hasCondition: 0
+  condition:
+    scope: 0
+    kind: 0
+    parityRule: 0
+    thresholdCompare: 0
+    thresholdValue: 6
+    matchRule: 0
+    straightRule: 0
+  whenConditionIsMet:
+    overrideSlotsRequired: 0
+    slotsRequired: 1
+    overrideIdentity: 0
+    kind: 0
+    target: 1
+    group: 0
+    element: 4
+    range: 1
+    hitAllEnemies: 0
+    hitAllAllies: 0
+    overrideCost: 0
+    focusCost: 0
+    focusGainOnCast: 0
+    overrideDamage: 0
+    dieMultiplier: 1
+    flatDamage: 0
+    overrideSunderBonus: 0
+    sunderBonusIfTargetHasGuard: 1
+    sunderGuardDamageMultiplier: 2
+    overrideGuard: 0
+    guardDieMultiplier: 1
+    guardFlat: 0
+    overrideSpecialCombat: 0
+    bypassGuard: 0
+    clearsGuard: 0
+    canUseMarkMultiplier: 1
+    overrideBurnSpender: 0
+    consumesBurn: 0
+    burnDamagePerStack: 2
+    overrideApplyStatus: 0
+    applyBurn: 0
+    burnAddStacks: 2
+    burnRefreshTurns: 3
+    applyMark: 0
+    applyBleed: 0
+    bleedTurns: 3
+    applyFreeze: 0
+    freezeChance: 0.4
+    overrideVfx: 0
+    projectilePrefab: {fileID: 0}
+  focusCost: 2
+  focusGainOnCast: 0
+  dieMultiplier: 0
+  flatDamage: 0
+  sunderBonusIfTargetHasGuard: 1
+  sunderGuardDamageMultiplier: 2
+  guardDieMultiplier: 0
+  guardFlat: 0
+  bypassGuard: 0
+  clearsGuard: 0
+  canUseMarkMultiplier: 0
+  consumesBurn: 0
+  burnDamagePerStack: 2
+  applyBurn: 0
+  burnAddStacks: 2
+  burnRefreshTurns: 3
+  applyMark: 0
+  applyBleed: 0
+  bleedTurns: 3
+  applyFreeze: 0
+  freezeChance: 0.4
+  projectilePrefab: {fileID: 0}

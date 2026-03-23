@@ -9,6 +9,7 @@ public static class TurnManagerViewUtility
             var d = GetDrop(drops, i);
             if (d == null || d.iconPreview == null) continue;
 
+            d.SetPreviewDetached(false);
             d.ClearPreview();
             d.iconPreview.rectTransform.position = ((RectTransform)d.transform).position;
         }
@@ -17,11 +18,14 @@ public static class TurnManagerViewUtility
         {
             if (!board.IsAnchorSlot(a)) continue;
 
-            var d = GetDrop(drops, a);
+            var asset = board.GetCellSkillAsset(a);
+            int span = board.GetAnchorSpan(a);
+
+            var d = span == 3 ? GetDropByHomeSlotIndex(drops, 2) : GetDrop(drops, a);
             if (d == null || d.iconPreview == null) continue;
 
-            var asset = board.GetCellSkillAsset(a);
             d.SetPreview(asset);
+            d.SetPreviewDetached(span == 3);
             d.iconPreview.rectTransform.position = GetGroupCenterWorldPos(drops, board, a);
         }
     }
@@ -79,18 +83,53 @@ public static class TurnManagerViewUtility
 
     private static ActionSlotDrop GetDrop(ActionSlotDrop[] drops, int i) => (i >= 0 && i < 3) ? drops[i] : null;
 
+    private static ActionSlotDrop GetDropByHomeSlotIndex(ActionSlotDrop[] drops, int homeSlotIndex1Based)
+    {
+        if (drops == null)
+            return null;
+
+        for (int i = 0; i < drops.Length; i++)
+        {
+            ActionSlotDrop drop = drops[i];
+            if (drop != null && drop.HomeSlotIndex == homeSlotIndex1Based)
+                return drop;
+        }
+
+        return null;
+    }
+
     private static Vector3 GetGroupCenterWorldPos(ActionSlotDrop[] drops, SkillPlanBoard board, int anchor0)
     {
         int sp = board.GetAnchorSpan(anchor0);
-        if (sp <= 1) return GetDrop(drops, anchor0).transform.position;
+        ActionSlotDrop anchorDrop = GetDrop(drops, anchor0);
+        if (sp <= 1)
+            return anchorDrop != null ? anchorDrop.transform.position : Vector3.zero;
 
         if (sp == 2)
         {
-            Vector3 pA = GetDrop(drops, anchor0).transform.position;
-            Vector3 pB = GetDrop(drops, anchor0 + 1).transform.position;
+            ActionSlotDrop dropA = GetDrop(drops, anchor0);
+            ActionSlotDrop dropB = GetDrop(drops, anchor0 + 1);
+            if (dropA == null && dropB == null)
+                return anchorDrop != null ? anchorDrop.transform.position : Vector3.zero;
+            if (dropA == null)
+                return dropB.transform.position;
+            if (dropB == null)
+                return dropA.transform.position;
+
+            Vector3 pA = dropA.transform.position;
+            Vector3 pB = dropB.transform.position;
             return (pA + pB) * 0.5f;
         }
 
-        return GetDrop(drops, 1).transform.position;
+        ActionSlotDrop homeLeftDrop = GetDropByHomeSlotIndex(drops, 1);
+        ActionSlotDrop homeRightDrop = GetDropByHomeSlotIndex(drops, 3);
+        if (homeLeftDrop == null && homeRightDrop == null)
+            return anchorDrop != null ? anchorDrop.transform.position : Vector3.zero;
+        if (homeLeftDrop == null)
+            return homeRightDrop.GetHomeWorldPosition();
+        if (homeRightDrop == null)
+            return homeLeftDrop.GetHomeWorldPosition();
+
+        return (homeLeftDrop.GetHomeWorldPosition() + homeRightDrop.GetHomeWorldPosition()) * 0.5f;
     }
 }

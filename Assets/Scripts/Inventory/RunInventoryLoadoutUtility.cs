@@ -117,57 +117,138 @@ internal static class RunInventoryLoadoutUtility
             destination[i] = source != null && i < source.Length ? source[i] : default;
     }
 
-    public static void FillPassivesWithLegacyFallback(
-        SkillPassiveSO[] equippedPassives,
-        RunInventoryManager.SlotBinding[] ownedSlots,
-        List<SkillPassiveSO> buffer)
+    public static SkillPassiveSO GetPassiveAt(RunInventoryManager.PassiveSlotBinding[] passiveSlots, int index)
     {
-        if (buffer == null)
+        if (passiveSlots == null || index < 0 || index >= passiveSlots.Length)
+            return null;
+        return passiveSlots[index]?.passiveAsset;
+    }
+
+    public static void FillPassiveAssets(RunInventoryManager.PassiveSlotBinding[] passiveSlots, List<SkillPassiveSO> buffer)
+    {
+        if (passiveSlots == null || buffer == null)
             return;
 
         buffer.Clear();
-
-        bool anyEquipped = false;
-        if (equippedPassives != null)
+        for (int i = 0; i < passiveSlots.Length; i++)
         {
-            for (int i = 0; i < equippedPassives.Length; i++)
-            {
-                SkillPassiveSO passive = equippedPassives[i];
-                if (passive == null)
-                    continue;
-
-                anyEquipped = true;
-                buffer.Add(passive);
-            }
-        }
-
-        if (anyEquipped || ownedSlots == null)
-            return;
-
-        for (int i = 0; i < ownedSlots.Length; i++)
-        {
-            if (ownedSlots[i].skillAsset is SkillPassiveSO passive && passive != null)
+            SkillPassiveSO passive = passiveSlots[i]?.passiveAsset;
+            if (passive != null)
                 buffer.Add(passive);
         }
     }
 
-    public static bool HasAnyPassive(SkillPassiveSO[] equippedPassives, RunInventoryManager.SlotBinding[] ownedSlots)
+    public static int FindFirstEmptyPassiveSlot(RunInventoryManager.PassiveSlotBinding[] passiveSlots)
     {
-        if (equippedPassives != null)
+        if (passiveSlots == null)
+            return -1;
+
+        for (int i = 0; i < passiveSlots.Length; i++)
         {
-            for (int i = 0; i < equippedPassives.Length; i++)
-            {
-                if (equippedPassives[i] != null)
-                    return true;
-            }
+            if (passiveSlots[i] == null || passiveSlots[i].passiveAsset == null)
+                return i;
         }
 
-        if (ownedSlots == null)
+        return -1;
+    }
+
+    public static bool TryAddPassiveToFirstEmptySlot(RunInventoryManager.PassiveSlotBinding[] passiveSlots, SkillPassiveSO passive, out int addedIndex)
+    {
+        addedIndex = -1;
+        if (passiveSlots == null || passive == null || ContainsPassiveReference(passiveSlots, passive))
             return false;
 
-        for (int i = 0; i < ownedSlots.Length; i++)
+        addedIndex = FindFirstEmptyPassiveSlot(passiveSlots);
+        if (addedIndex < 0)
+            return false;
+
+        if (passiveSlots[addedIndex] == null)
+            passiveSlots[addedIndex] = new RunInventoryManager.PassiveSlotBinding();
+
+        passiveSlots[addedIndex].passiveAsset = passive;
+        return true;
+    }
+
+    public static bool SetPassiveAt(RunInventoryManager.PassiveSlotBinding[] passiveSlots, int index, SkillPassiveSO passive)
+    {
+        if (passiveSlots == null || index < 0 || index >= passiveSlots.Length)
+            return false;
+
+        if (passiveSlots[index] == null)
+            passiveSlots[index] = new RunInventoryManager.PassiveSlotBinding();
+
+        passiveSlots[index].passiveAsset = passive;
+        return true;
+    }
+
+    public static bool SwapPassiveSlots(RunInventoryManager.PassiveSlotBinding[] passiveSlots, int a, int b)
+    {
+        if (passiveSlots == null || a < 0 || a >= passiveSlots.Length || b < 0 || b >= passiveSlots.Length || a == b)
+            return false;
+
+        if (passiveSlots[a] == null) passiveSlots[a] = new RunInventoryManager.PassiveSlotBinding();
+        if (passiveSlots[b] == null) passiveSlots[b] = new RunInventoryManager.PassiveSlotBinding();
+
+        SkillPassiveSO tmp = passiveSlots[a].passiveAsset;
+        passiveSlots[a].passiveAsset = passiveSlots[b].passiveAsset;
+        passiveSlots[b].passiveAsset = tmp;
+        return true;
+    }
+
+    public static bool RemovePassiveReference(RunInventoryManager.PassiveSlotBinding[] passiveSlots, SkillPassiveSO passive, out int removedIndex)
+    {
+        removedIndex = -1;
+        if (passiveSlots == null || passive == null)
+            return false;
+
+        for (int i = 0; i < passiveSlots.Length; i++)
         {
-            if (ownedSlots[i].skillAsset is SkillPassiveSO)
+            if (passiveSlots[i]?.passiveAsset != passive)
+                continue;
+
+            passiveSlots[i].passiveAsset = null;
+            removedIndex = i;
+            return true;
+        }
+
+        return false;
+    }
+
+    public static void CopyPassiveLayout(RunInventoryManager.PassiveSlotBinding[] passiveSlots, SkillPassiveSO[] source)
+    {
+        if (passiveSlots == null)
+            return;
+
+        for (int i = 0; i < passiveSlots.Length; i++)
+        {
+            if (passiveSlots[i] == null)
+                passiveSlots[i] = new RunInventoryManager.PassiveSlotBinding();
+            passiveSlots[i].passiveAsset = source != null && i < source.Length ? source[i] : null;
+        }
+    }
+
+    public static bool ContainsPassiveReference(RunInventoryManager.PassiveSlotBinding[] passiveSlots, SkillPassiveSO passive)
+    {
+        if (passiveSlots == null || passive == null)
+            return false;
+
+        for (int i = 0; i < passiveSlots.Length; i++)
+        {
+            if (passiveSlots[i]?.passiveAsset == passive)
+                return true;
+        }
+
+        return false;
+    }
+
+    public static bool HasAnyPassive(RunInventoryManager.PassiveSlotBinding[] passiveSlots)
+    {
+        if (passiveSlots == null)
+            return false;
+
+        for (int i = 0; i < passiveSlots.Length; i++)
+        {
+            if (passiveSlots[i]?.passiveAsset != null)
                 return true;
         }
 

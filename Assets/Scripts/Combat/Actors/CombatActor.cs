@@ -137,6 +137,10 @@ public class CombatActor : MonoBehaviour
         guardPool = 0;
 
         if (status) status.ClearAll();
+        PassiveSystem passiveSystem = GetComponent<PassiveSystem>();
+        if (passiveSystem != null) passiveSystem.OnCombatStarted();
+        SkillCombatState skillCombatState = GetComponent<SkillCombatState>();
+        if (skillCombatState != null) skillCombatState.ResetForBattle();
     }
 
     public bool IsDead => hp <= 0;

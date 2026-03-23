@@ -12,12 +12,12 @@ internal static class SkillPlanRuntimeUtility
         }
     }
 
-    public static SkillRuntime EvaluateRuntimeForSkillAsset(ScriptableObject skill, DiceSlotRig diceRig, int anchor0, int baseSpan, int baseStart0)
+    public static SkillRuntime EvaluateRuntimeForSkillAsset(ScriptableObject skill, CombatActor owner, DiceSlotRig diceRig, int anchor0, int baseSpan, int baseStart0)
     {
         switch (skill)
         {
             case SkillDamageSO dmg:
-                return SkillRuntimeEvaluator.Evaluate(dmg, diceRig, anchor0, baseSpan, baseStart0);
+                return SkillRuntimeEvaluator.Evaluate(dmg, owner, diceRig, anchor0, baseSpan, baseStart0);
 
             case SkillBuffDebuffSO buff:
                 return BuildRuntimeFromBuffDebuffSkill(buff);

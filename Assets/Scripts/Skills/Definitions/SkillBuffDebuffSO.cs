@@ -273,6 +273,16 @@ public class SkillBuffDebuffSO : ScriptableObject
     [TextArea(2, 4)]
     public string description;
 
+    [TabGroup("Tabs", "Spec")]
+    [BoxGroup("Tabs/Spec/Metadata")]
+    [InlineProperty]
+    public SkillSpecMetadata spec = new SkillSpecMetadata();
+
+    [TabGroup("Tabs", "Spec")]
+    [BoxGroup("Tabs/Spec/Metadata")]
+    [LabelText("Behavior Id")]
+    public BuffBehaviorId behaviorId = BuffBehaviorId.None;
+
     // ---------------- Tabs ----------------
     [TabGroup("Tabs", "Core")]
     [BoxGroup("Tabs/Core/Identity")]

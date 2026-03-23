@@ -7,21 +7,24 @@ using UnityEngine;
 /// </summary>
 public static class SkillRuntimeEvaluator
 {
-    public static SkillRuntime Evaluate(SkillDamageSO skill, DiceSlotRig diceRig, int span, int start0)
+    public static SkillRuntime Evaluate(SkillDamageSO skill, CombatActor owner, DiceSlotRig diceRig, int span, int start0)
     {
-        return Evaluate(skill, diceRig, anchor0: start0, span: span, start0: start0);
+        return Evaluate(skill, owner, diceRig, anchor0: start0, span: span, start0: start0);
     }
 
     /// <summary>
     /// Evaluate a SkillDamageSO into a SkillRuntime for this turn.
     /// Condition + overrides apply ONLY for SkillDamageSO.
     /// </summary>
-    public static SkillRuntime Evaluate(SkillDamageSO skill, DiceSlotRig diceRig, int anchor0, int span, int start0)
+    public static SkillRuntime Evaluate(SkillDamageSO skill, CombatActor owner, DiceSlotRig diceRig, int anchor0, int span, int start0)
     {
         if (skill == null) return null;
 
         var rt = SkillRuntime.FromDamage(skill);
         if (rt == null) return null;
+        rt.localBaseValues = GatherDiceForScope(SkillConditionScope.SlotBound, diceRig, start0, span);
+        rt.localResolvedValues = GatherResolvedDiceForScope(diceRig, owner, start0, span);
+        GatherCritFailFlags(diceRig, owner, start0, span, out rt.localCritAny, out rt.localFailAny);
 
         bool met = false;
 
@@ -75,6 +78,40 @@ public static class SkillRuntimeEvaluator
             list.Add(diceRig.GetDieValue(i));
         }
         return list;
+    }
+
+    private static List<int> GatherResolvedDiceForScope(DiceSlotRig diceRig, CombatActor owner, int start0, int span)
+    {
+        var list = new List<int>(3);
+
+        if (diceRig == null)
+            return list;
+
+        for (int i = start0; i < start0 + span; i++)
+        {
+            if (i < 0 || i > 2) continue;
+            if (!diceRig.IsSlotActive(i)) continue;
+            list.Add(diceRig.GetResolvedDieValue(i, owner));
+        }
+
+        return list;
+    }
+
+    private static void GatherCritFailFlags(DiceSlotRig diceRig, CombatActor owner, int start0, int span, out bool critAny, out bool failAny)
+    {
+        critAny = false;
+        failAny = false;
+
+        if (diceRig == null)
+            return;
+
+        for (int i = start0; i < start0 + span; i++)
+        {
+            if (i < 0 || i > 2) continue;
+            if (!diceRig.IsSlotActive(i)) continue;
+            critAny |= diceRig.IsCrit(i);
+            failAny |= diceRig.IsFail(i);
+        }
     }
 
     private static void ApplyDamageOverrides(ref SkillRuntime rt, SkillDamageConditionalOverrides ov)

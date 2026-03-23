@@ -41,6 +41,8 @@ public class DiceEquipUIManager : MonoBehaviour
     [Header("Behavior")]
     [Tooltip("If true, any active TurnManager in the scene will lock dice dragging.")]
     public bool lockWhenCombatManagerExists = true;
+    [Tooltip("If true, dragging a die inside a planned 2-slot skill only allows local swap, while dragging the centered skill icon can move the whole 2-die group.")]
+    public bool enableGroupedSkillDiceReorder = true;
 
     [Header("Adaptive Layout")]
     [Tooltip("Auto-present like Balatro jokers: 1 center, 2 split, 3 spread.")]
@@ -163,8 +165,9 @@ public class DiceEquipUIManager : MonoBehaviour
         _draggingDice = dice;
         _dragSourceIndex = GetEquippedIndex(dice);
         _previewInsertIndex = _dragSourceIndex;
-        _draggingCombatSlot = GetCombatSlotAt(_dragSourceIndex);
-        RefreshCombatSlotPreview(true);
+        _draggingCombatSlot = IsDirectGroupDiceDrag(dice) ? null : GetCombatSlotAt(_dragSourceIndex);
+        if (_draggingCombatSlot != null)
+            RefreshCombatSlotPreview(true);
     }
 
     public void NotifyDrag(DiceDraggableUI dice, Vector2 screenPosition, Camera eventCamera)
@@ -172,7 +175,20 @@ public class DiceEquipUIManager : MonoBehaviour
         if (dice == null || dice != _draggingDice) return;
         if (_dragSourceIndex < 0) return;
 
-        int nextInsertIndex = GetInsertIndexFromScreenPosition(screenPosition, eventCamera);
+        if (IsDirectGroupDiceDrag(dice))
+        {
+            int groupedInsertIndex = GetDragInsertIndex(screenPosition, eventCamera);
+            if (groupedInsertIndex != _previewInsertIndex)
+            {
+                _previewInsertIndex = groupedInsertIndex;
+                RefreshAllSlots();
+            }
+
+            SyncWorldSlotRootsToUI(false);
+            return;
+        }
+
+        int nextInsertIndex = GetDragInsertIndex(screenPosition, eventCamera);
         if (nextInsertIndex != _previewInsertIndex)
         {
             _previewInsertIndex = nextInsertIndex;
@@ -201,7 +217,13 @@ public class DiceEquipUIManager : MonoBehaviour
             return;
         }
 
-        FinalizeDraggedDice(GetInsertIndexFromScreenPosition(screenPosition, eventCamera));
+        if (IsDirectGroupDiceDrag(dice))
+        {
+            FinalizeDirectGroupedDiceDrag(_previewInsertIndex >= 0 ? _previewInsertIndex : GetClosestEquipSlotIndexFromScreenPosition(screenPosition, eventCamera));
+            return;
+        }
+
+        FinalizeDraggedDice(GetDragInsertIndex(screenPosition, eventCamera));
     }
 
     public void HandleDropToEquipSlot(DiceDraggableUI dice, int slotIndex)
@@ -210,6 +232,29 @@ public class DiceEquipUIManager : MonoBehaviour
         if (!CanInteract() || dice == null) return;
 
         slotIndex = Mathf.Clamp(slotIndex, 0, 2);
+
+        if (dice == _draggingDice && TryGetDirectDragAllowedRange(dice, out int minSlot, out int maxSlot))
+        {
+            if (slotIndex < minSlot || slotIndex > maxSlot)
+            {
+                HandleInvalidDrop(dice);
+                return;
+            }
+
+            FinalizeDirectGroupedDiceDrag(slotIndex);
+            return;
+        }
+
+        if (dice == _draggingDice && TryAdjustExternalGroupDropTarget(slotIndex, out int adjustedSlotIndex))
+        {
+            if (adjustedSlotIndex < 0)
+            {
+                HandleInvalidDrop(dice);
+                return;
+            }
+
+            slotIndex = adjustedSlotIndex;
+        }
 
         if (dice == _draggingDice && _dragSourceIndex >= 0)
         {
@@ -267,6 +312,60 @@ public class DiceEquipUIManager : MonoBehaviour
         SyncWorldSlotRootsToUI(false);
     }
 
+    public bool TryMovePlannedTwoSlotGroup(int anchorLane1Based, Vector2 screenPosition, Camera eventCamera)
+    {
+        if (!enableGroupedSkillDiceReorder || !CanInteract())
+            return false;
+
+        RefreshTurnManagerRef();
+        if (turnManager == null)
+            return false;
+
+        if (!turnManager.TryGetPlannedGroupAtLane(anchorLane1Based, out int anchor0, out int start0, out int span))
+            return false;
+        if (span != 2)
+            return false;
+        if (anchor0 != start0)
+            return false;
+
+        int targetStart0 = GetClosestTwoSlotStartFromScreenPosition(screenPosition, eventCamera);
+        if (targetStart0 == start0)
+            return true;
+
+        int[] permutation = BuildTwoSlotGroupPermutation(start0, targetStart0);
+        if (permutation == null)
+            return false;
+
+        DiceDraggableUI[] oldEquipped = (DiceDraggableUI[])equipped.Clone();
+        RectTransform[] oldCombatAnchors = linkedCombatSlotAnchors != null ? (RectTransform[])linkedCombatSlotAnchors.Clone() : null;
+
+        equipped = DiceEquipStateUtility.ApplyPermutation(equipped, permutation);
+        if (linkedCombatSlotAnchors != null && linkedCombatSlotAnchors.Length == permutation.Length)
+            linkedCombatSlotAnchors = DiceEquipStateUtility.ApplyPermutation(linkedCombatSlotAnchors, permutation);
+
+        RebindCombatSlotLaneIndices();
+        SyncOutputs();
+
+        bool committed = turnManager.CommitDiceLaneReorder(permutation);
+        if (!committed)
+        {
+            equipped = oldEquipped;
+            if (oldCombatAnchors != null)
+                linkedCombatSlotAnchors = oldCombatAnchors;
+            RebindCombatSlotLaneIndices();
+            SyncOutputs();
+            ApplyAdaptiveLayout();
+            RefreshAllSlots();
+            SyncWorldSlotRootsToUI(false);
+            return false;
+        }
+
+        ApplyAdaptiveLayout();
+        RefreshAllSlots();
+        SyncWorldSlotRootsToUI(false);
+        return true;
+    }
+
     private void FinalizeDraggedDice(int insertIndex)
     {
         int count = CountEquipped();
@@ -300,6 +399,42 @@ public class DiceEquipUIManager : MonoBehaviour
             RebindCombatSlotLaneIndices();
             SyncOutputs();
         }
+
+        ClearDragState();
+        ApplyAdaptiveLayout();
+        RefreshAllSlots();
+        SyncWorldSlotRootsToUI(false);
+    }
+
+    private void FinalizeDirectGroupedDiceDrag(int targetSlotIndex)
+    {
+        if (_draggingDice == null || _dragSourceIndex < 0)
+        {
+            ClearDragState();
+            return;
+        }
+
+        targetSlotIndex = Mathf.Clamp(targetSlotIndex, 0, 2);
+
+        if (!TryGetDirectDragAllowedRange(_draggingDice, out int minSlot, out int maxSlot))
+        {
+            HandleInvalidDrop(_draggingDice);
+            return;
+        }
+
+        if (targetSlotIndex < minSlot || targetSlotIndex > maxSlot)
+        {
+            HandleInvalidDrop(_draggingDice);
+            return;
+        }
+
+        if (targetSlotIndex != _dragSourceIndex)
+            equipped = DiceEquipStateUtility.SwapItems(equipped, _dragSourceIndex, targetSlotIndex);
+
+        SyncOutputs();
+        RefreshTurnManagerRef();
+        if (turnManager != null)
+            turnManager.RefreshPlanningAfterDiceValueReorder();
 
         ClearDragState();
         ApplyAdaptiveLayout();
@@ -432,6 +567,239 @@ public class DiceEquipUIManager : MonoBehaviour
             rowY,
             screenPosition,
             eventCamera);
+
+    private int GetDragInsertIndex(Vector2 screenPosition, Camera eventCamera)
+    {
+        int insertIndex = GetInsertIndexFromScreenPosition(screenPosition, eventCamera);
+        if (!enableGroupedSkillDiceReorder)
+            return insertIndex;
+
+        if (!TryGetDirectDragAllowedRange(_draggingDice, out int minInsert, out int maxInsert))
+            return AdjustInsertIndexForExternalGroupBlock(insertIndex, screenPosition, eventCamera);
+
+        return Mathf.Clamp(insertIndex, minInsert, maxInsert);
+    }
+
+    private int GetClosestEquipSlotIndexFromScreenPosition(Vector2 screenPosition, Camera eventCamera)
+    {
+        Vector3 pointerWorld;
+        RectTransformUtility.ScreenPointToWorldPointInRectangle(transform as RectTransform, screenPosition, eventCamera, out pointerWorld);
+
+        int bestIndex = 0;
+        float bestDistance = float.MaxValue;
+        for (int i = 0; i < equipSlotAnchors.Length; i++)
+        {
+            RectTransform anchor = equipSlotAnchors[i];
+            if (anchor == null)
+                continue;
+
+            float distance = Mathf.Abs(pointerWorld.x - anchor.position.x);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                bestIndex = i;
+            }
+        }
+
+        return bestIndex;
+    }
+
+    private bool TryGetDirectDragAllowedRange(DiceDraggableUI dice, out int minInsert, out int maxInsert)
+    {
+        minInsert = -1;
+        maxInsert = -1;
+
+        if (dice == null)
+            return false;
+
+        int draggedIndex = dice == _draggingDice ? _dragSourceIndex : GetEquippedIndex(dice);
+        if (draggedIndex < 0)
+            return false;
+
+        RefreshTurnManagerRef();
+        if (turnManager == null)
+            return false;
+
+        if (!turnManager.TryGetPlannedGroupAtLane(draggedIndex + 1, out _, out int start0, out int span))
+            return false;
+        if (span != 2)
+            return false;
+
+        minInsert = start0;
+        maxInsert = span == 2 ? start0 + 1 : start0 + span - 1;
+        return true;
+    }
+
+    private bool IsDirectGroupDiceDrag(DiceDraggableUI dice)
+        => enableGroupedSkillDiceReorder && TryGetDirectDragAllowedRange(dice, out _, out _);
+
+    private int AdjustInsertIndexForExternalGroupBlock(int proposedInsertIndex, Vector2 screenPosition, Camera eventCamera)
+    {
+        if (_draggingDice == null)
+            return proposedInsertIndex;
+
+        int draggedIndex = _dragSourceIndex;
+        if (draggedIndex < 0)
+            return proposedInsertIndex;
+
+        if (!TryFindTwoSlotGroup(out int groupStart, out int groupEnd))
+            return proposedInsertIndex;
+
+        if (draggedIndex >= groupStart && draggedIndex <= groupEnd)
+            return proposedInsertIndex;
+
+        float pointerX = GetPointerWorldX(screenPosition, eventCamera);
+        float leftEdgeX = GetAnchorWorldX(groupStart);
+        float rightEdgeX = GetAnchorWorldX(groupEnd);
+
+        if (draggedIndex > groupEnd)
+        {
+            if (pointerX < leftEdgeX)
+                return groupStart;
+
+            return Mathf.Clamp(draggedIndex, 0, 2);
+        }
+
+        if (draggedIndex < groupStart)
+        {
+            if (pointerX > rightEdgeX)
+                return groupEnd;
+
+            return Mathf.Clamp(draggedIndex, 0, 2);
+        }
+
+        return proposedInsertIndex;
+    }
+
+    private bool TryFindTwoSlotGroup(out int groupStart, out int groupEnd)
+    {
+        groupStart = -1;
+        groupEnd = -1;
+
+        RefreshTurnManagerRef();
+        if (turnManager == null)
+            return false;
+
+        for (int lane1 = 1; lane1 <= 3; lane1++)
+        {
+            if (!turnManager.TryGetPlannedGroupAtLane(lane1, out _, out int start0, out int span))
+                continue;
+            if (span != 2)
+                continue;
+
+            groupStart = start0;
+            groupEnd = start0 + 1;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryAdjustExternalGroupDropTarget(int proposedSlotIndex, out int adjustedSlotIndex)
+    {
+        adjustedSlotIndex = proposedSlotIndex;
+
+        if (_dragSourceIndex < 0)
+            return false;
+
+        if (!TryFindTwoSlotGroup(out int groupStart, out int groupEnd))
+            return false;
+
+        if (_dragSourceIndex >= groupStart && _dragSourceIndex <= groupEnd)
+            return false;
+
+        if (_dragSourceIndex > groupEnd)
+        {
+            if (proposedSlotIndex == groupEnd)
+            {
+                adjustedSlotIndex = -1;
+                return true;
+            }
+
+            if (proposedSlotIndex == groupStart)
+            {
+                adjustedSlotIndex = groupStart;
+                return true;
+            }
+        }
+
+        if (_dragSourceIndex < groupStart)
+        {
+            if (proposedSlotIndex == groupStart)
+            {
+                adjustedSlotIndex = -1;
+                return true;
+            }
+
+            if (proposedSlotIndex == groupEnd)
+            {
+                adjustedSlotIndex = groupEnd;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private float GetPointerWorldX(Vector2 screenPosition, Camera eventCamera)
+    {
+        Vector3 pointerWorld;
+        RectTransformUtility.ScreenPointToWorldPointInRectangle(transform as RectTransform, screenPosition, eventCamera, out pointerWorld);
+        return pointerWorld.x;
+    }
+
+    private float GetAnchorWorldX(int slotIndex)
+    {
+        if (equipSlotAnchors == null || slotIndex < 0 || slotIndex >= equipSlotAnchors.Length || equipSlotAnchors[slotIndex] == null)
+            return transform.position.x;
+        return equipSlotAnchors[slotIndex].position.x;
+    }
+
+    private int GetClosestTwoSlotStartFromScreenPosition(Vector2 screenPosition, Camera eventCamera)
+    {
+        Vector3 pointerWorld;
+        RectTransformUtility.ScreenPointToWorldPointInRectangle(transform as RectTransform, screenPosition, eventCamera, out pointerWorld);
+
+        Vector3 start0Center = GetTwoSlotCenterWorldPos(0);
+        Vector3 start1Center = GetTwoSlotCenterWorldPos(1);
+
+        float distToStart0 = Mathf.Abs(pointerWorld.x - start0Center.x);
+        float distToStart1 = Mathf.Abs(pointerWorld.x - start1Center.x);
+        return distToStart0 <= distToStart1 ? 0 : 1;
+    }
+
+    private Vector3 GetTwoSlotCenterWorldPos(int start0)
+    {
+        start0 = Mathf.Clamp(start0, 0, 1);
+        RectTransform left = equipSlotAnchors != null && start0 < equipSlotAnchors.Length ? equipSlotAnchors[start0] : null;
+        RectTransform right = equipSlotAnchors != null && start0 + 1 < equipSlotAnchors.Length ? equipSlotAnchors[start0 + 1] : null;
+
+        if (left == null && right == null)
+            return transform.position;
+        if (left == null)
+            return right.position;
+        if (right == null)
+            return left.position;
+
+        return (left.position + right.position) * 0.5f;
+    }
+
+    private static int[] BuildTwoSlotGroupPermutation(int currentStart0, int targetStart0)
+    {
+        currentStart0 = Mathf.Clamp(currentStart0, 0, 1);
+        targetStart0 = Mathf.Clamp(targetStart0, 0, 1);
+
+        if (currentStart0 == targetStart0)
+            return new[] { 0, 1, 2 };
+
+        if (currentStart0 == 0 && targetStart0 == 1)
+            return new[] { 2, 0, 1 };
+
+        if (currentStart0 == 1 && targetStart0 == 0)
+            return new[] { 1, 2, 0 };
+
+        return null;
+    }
 
     private void ApplyAdaptiveLayout(bool instant = false)
     {

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e4b4cbdc1fc78d4fb4b5a9145440d66, type: 3}
+  m_Name: Passive_SpikedArmor
+  m_EditorClassIdentifier: Assembly-CSharp::SkillPassiveSO
+  icon: {fileID: 0}
+  displayName: 'Spiked Armor'
+  description: 'When enemies hit your Guard, they take Physical damage equal to the amount of Guard broken.'
+  spec:
+    rarity: 2
+    specState: 0
+    buildRole: 3
+    implementationCoverage: 0
+    normalizedText: 'When enemies hit your Guard, they take Physical damage equal to the amount of Guard broken.'
+    designIntent: 'Defensive retaliation passive.'
+  effects: []

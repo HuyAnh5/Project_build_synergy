@@ -15,6 +15,7 @@ internal static class PassiveEquipWorldSyncUtility
         bool mirrorLinkedPassiveRootsWithLiveUI,
         Transform[] linkedPassiveRoots,
         PassiveDraggableUI[] linkedPassiveOwners,
+        RectTransform[] equipSlotAnchors,
         bool instant,
         Camera uiCamera,
         Camera worldCameraToUse)
@@ -29,6 +30,10 @@ internal static class PassiveEquipWorldSyncUtility
             Transform linkedRoot = linkedPassiveRoots[i];
             PassiveDraggableUI owner = linkedPassiveOwners[i];
             if (linkedRoot == null || owner == null || !owner.gameObject.activeInHierarchy)
+                continue;
+            if (IsEquipSlotAnchor(linkedRoot, equipSlotAnchors))
+                continue;
+            if (IsSelfReferentialLinkedRoot(linkedRoot, owner.transform))
                 continue;
 
             if (!TryGetPassiveUICenterWorldPosition(owner, uiCamera, worldCameraToUse, linkedRoot.position, out Vector3 targetWorld))
@@ -57,6 +62,34 @@ internal static class PassiveEquipWorldSyncUtility
             return uiCamera;
 
         return Camera.main;
+    }
+
+    private static bool IsEquipSlotAnchor(Transform linkedRoot, RectTransform[] equipSlotAnchors)
+    {
+        if (linkedRoot == null || equipSlotAnchors == null)
+            return false;
+
+        for (int i = 0; i < equipSlotAnchors.Length; i++)
+        {
+            if (equipSlotAnchors[i] == null)
+                continue;
+            if (linkedRoot == equipSlotAnchors[i])
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool IsSelfReferentialLinkedRoot(Transform linkedRoot, Transform ownerTransform)
+    {
+        if (linkedRoot == null || ownerTransform == null)
+            return false;
+
+        if (linkedRoot == ownerTransform)
+            return true;
+
+        // If the linked root is an ancestor of the UI item, moving it would drag the anchor/container itself.
+        return ownerTransform.IsChildOf(linkedRoot);
     }
 
     private static bool TryGetPassiveUICenterWorldPosition(

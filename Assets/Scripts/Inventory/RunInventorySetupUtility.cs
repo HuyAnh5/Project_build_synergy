@@ -7,7 +7,7 @@ public static class RunInventorySetupUtility
         ref RunInventoryManager.SlotBinding[] ownedSlots,
         ref RunInventoryManager.RelicSlot[] relicSlots,
         ref DiceSpinnerGeneric[] equippedDice,
-        ref SkillPassiveSO[] equippedPassives)
+        ref RunInventoryManager.PassiveSlotBinding[] passiveSlots)
     {
         if (fixedSlots == null || fixedSlots.Length != RunInventoryManager.FIXED_SKILL_COUNT)
             fixedSlots = new RunInventoryManager.SlotBinding[RunInventoryManager.FIXED_SKILL_COUNT];
@@ -27,8 +27,11 @@ public static class RunInventorySetupUtility
         if (equippedDice == null || equippedDice.Length != RunInventoryManager.EQUIPPED_DICE_COUNT)
             equippedDice = new DiceSpinnerGeneric[RunInventoryManager.EQUIPPED_DICE_COUNT];
 
-        if (equippedPassives == null || equippedPassives.Length != RunInventoryManager.PASSIVE_SLOT_COUNT)
-            equippedPassives = new SkillPassiveSO[RunInventoryManager.PASSIVE_SLOT_COUNT];
+        if (passiveSlots == null || passiveSlots.Length != RunInventoryManager.PASSIVE_SLOT_COUNT)
+            passiveSlots = new RunInventoryManager.PassiveSlotBinding[RunInventoryManager.PASSIVE_SLOT_COUNT];
+
+        for (int i = 0; i < RunInventoryManager.PASSIVE_SLOT_COUNT; i++)
+            if (passiveSlots[i] == null) passiveSlots[i] = new RunInventoryManager.PassiveSlotBinding();
     }
 
     public static void BootstrapEquippedDiceFromRigIfNeeded(DiceSlotRig diceRig, DiceSpinnerGeneric[] equippedDice)

@@ -56,6 +56,42 @@ internal static class DiceEquipStateUtility
         return compact;
     }
 
+    public static T[] ApplyPermutation<T>(T[] currentOrder, int[] permutation)
+        where T : class
+    {
+        if (currentOrder == null || permutation == null || currentOrder.Length != permutation.Length)
+            return currentOrder;
+
+        T[] reordered = new T[currentOrder.Length];
+        for (int newIndex = 0; newIndex < permutation.Length; newIndex++)
+        {
+            int oldIndex = permutation[newIndex];
+            if (oldIndex < 0 || oldIndex >= currentOrder.Length)
+                return currentOrder;
+
+            reordered[newIndex] = currentOrder[oldIndex];
+        }
+
+        return reordered;
+    }
+
+    public static T[] SwapItems<T>(T[] currentOrder, int a, int b)
+        where T : class
+    {
+        if (currentOrder == null || currentOrder.Length == 0)
+            return currentOrder;
+        if (a < 0 || a >= currentOrder.Length || b < 0 || b >= currentOrder.Length)
+            return currentOrder;
+        if (a == b)
+            return (T[])currentOrder.Clone();
+
+        T[] swapped = (T[])currentOrder.Clone();
+        T temp = swapped[a];
+        swapped[a] = swapped[b];
+        swapped[b] = temp;
+        return swapped;
+    }
+
     public static int[] BuildPermutation<T>(T[] oldOrder, T draggedItem, int insertIndex)
         where T : class
     {

@@ -19,7 +19,8 @@ public class RunInventoryManager : MonoBehaviour
     [SerializeField] private DiceSpinnerGeneric[] equippedDice = new DiceSpinnerGeneric[EQUIPPED_DICE_COUNT];
 
     [Title("Build State - Passive")]
-    [SerializeField] private SkillPassiveSO[] equippedPassives = new SkillPassiveSO[PASSIVE_SLOT_COUNT];
+    [InfoBox("Passive now uses its own dedicated 3-slot binding. Passive is no longer stored in owned skill slots.", InfoMessageType.Info)]
+    [SerializeField] private PassiveSlotBinding[] passiveSlots = new PassiveSlotBinding[PASSIVE_SLOT_COUNT];
 
     [Title("Skill + UI Bindings")]
     [InfoBox("Each slot contains BOTH:\n- UI Icon (usually fixed)\n- Skill Asset (changes often)\n\n" +
@@ -164,44 +165,50 @@ public class RunInventoryManager : MonoBehaviour
     // =========================================================
 
     public SkillPassiveSO GetEquippedPassive(int index)
-        => RunInventoryLoadoutUtility.GetAt(equippedPassives, index);
+        => RunInventoryLoadoutUtility.GetPassiveAt(passiveSlots, index);
 
     public void FillEquippedPassives(List<SkillPassiveSO> buffer)
-        => RunInventoryLoadoutUtility.Fill(equippedPassives, buffer);
+        => RunInventoryLoadoutUtility.FillPassiveAssets(passiveSlots, buffer);
 
     public int FindFirstEmptyEquippedPassiveSlot()
-        => RunInventoryLoadoutUtility.FindFirstEmpty(equippedPassives);
+        => RunInventoryLoadoutUtility.FindFirstEmptyPassiveSlot(passiveSlots);
 
     public bool IsPassiveLoadoutFull() => FindFirstEmptyEquippedPassiveSlot() < 0;
 
     public bool TryAddPassiveToFirstEmptySlot(SkillPassiveSO passive)
     {
-        if (!RunInventoryLoadoutUtility.TryAddToFirstEmpty(equippedPassives, passive, out _)) return false;
+        if (!RunInventoryLoadoutUtility.TryAddPassiveToFirstEmptySlot(passiveSlots, passive, out int addedIndex)) return false;
+        RunInventoryBindingUtility.PushPassiveSlotToIcon(passiveSlots, addedIndex);
         InventoryChanged?.Invoke();
         return true;
     }
 
     public void SetEquippedPassive(int index, SkillPassiveSO passive)
     {
-        if (!RunInventoryLoadoutUtility.SetAt(equippedPassives, index, passive)) return;
+        if (!RunInventoryLoadoutUtility.SetPassiveAt(passiveSlots, index, passive)) return;
+        RunInventoryBindingUtility.PushPassiveSlotToIcon(passiveSlots, index);
         InventoryChanged?.Invoke();
     }
 
     public void SwapEquippedPassives(int a, int b)
     {
-        if (!RunInventoryLoadoutUtility.Swap(equippedPassives, a, b)) return;
+        if (!RunInventoryLoadoutUtility.SwapPassiveSlots(passiveSlots, a, b)) return;
+        RunInventoryBindingUtility.PushPassiveSlotToIcon(passiveSlots, a);
+        RunInventoryBindingUtility.PushPassiveSlotToIcon(passiveSlots, b);
         InventoryChanged?.Invoke();
     }
 
     public void ClearEquippedPassive(int index)
     {
-        if (!RunInventoryLoadoutUtility.SetAt<SkillPassiveSO>(equippedPassives, index, null)) return;
+        if (!RunInventoryLoadoutUtility.SetPassiveAt(passiveSlots, index, null)) return;
+        RunInventoryBindingUtility.PushPassiveSlotToIcon(passiveSlots, index);
         InventoryChanged?.Invoke();
     }
 
     public bool RemoveEquippedPassive(SkillPassiveSO passive)
     {
-        if (!RunInventoryLoadoutUtility.RemoveReference(equippedPassives, passive)) return false;
+        if (!RunInventoryLoadoutUtility.RemovePassiveReference(passiveSlots, passive, out int removedIndex)) return false;
+        RunInventoryBindingUtility.PushPassiveSlotToIcon(passiveSlots, removedIndex);
         InventoryChanged?.Invoke();
         return true;
     }
@@ -209,18 +216,19 @@ public class RunInventoryManager : MonoBehaviour
     public void SetPassiveLayout(SkillPassiveSO[] equipped)
     {
         EnsureSizes();
-        RunInventoryLoadoutUtility.CopyLayout(equippedPassives, equipped);
+        RunInventoryLoadoutUtility.CopyPassiveLayout(passiveSlots, equipped);
+        RunInventoryBindingUtility.PushAllPassiveSlotsToIcons(passiveSlots);
         InventoryChanged?.Invoke();
     }
 
     public void FillPassives(List<SkillPassiveSO> buffer)
-        => RunInventoryLoadoutUtility.FillPassivesWithLegacyFallback(equippedPassives, ownedSlots, buffer);
+        => RunInventoryLoadoutUtility.FillPassiveAssets(passiveSlots, buffer);
 
     public bool HasAnyPassive()
-        => RunInventoryLoadoutUtility.HasAnyPassive(equippedPassives, ownedSlots);
+        => RunInventoryLoadoutUtility.HasAnyPassive(passiveSlots);
 
     public bool ContainsEquippedPassive(SkillPassiveSO passive)
-        => RunInventoryLoadoutUtility.ContainsReference(equippedPassives, passive);
+        => RunInventoryLoadoutUtility.ContainsPassiveReference(passiveSlots, passive);
 
     // =========================================================
     // ======================== GOLD ===========================
@@ -302,11 +310,23 @@ public class RunInventoryManager : MonoBehaviour
         public ScriptableObject skillAsset;
     }
 
+    [Serializable]
+    public class PassiveSlotBinding
+    {
+        [LabelText("UI Icon")]
+        [Tooltip("Optional passive UI binding for this passive slot.")]
+        public PassiveDraggableUI uiIcon;
+
+        [LabelText("Passive")]
+        [Tooltip("The passive asset stored in this dedicated passive slot.")]
+        public SkillPassiveSO passiveAsset;
+    }
+
     [Button(ButtonSizes.Medium)]
     private void ApplyBindingsToIcons()
     {
         EnsureSizes();
-        RunInventoryBindingUtility.ApplyBindingsToIcons(this, fixedSlots, ownedSlots);
+        RunInventoryBindingUtility.ApplyBindingsToIcons(this, fixedSlots, ownedSlots, passiveSlots);
 
         InventoryChanged?.Invoke();
         Debug.Log("[RunInventoryManager] Applied slot bindings to UI icons.");
@@ -346,6 +366,6 @@ public class RunInventoryManager : MonoBehaviour
             ref ownedSlots,
             ref relicSlots,
             ref equippedDice,
-            ref equippedPassives);
+            ref passiveSlots);
     }
 }

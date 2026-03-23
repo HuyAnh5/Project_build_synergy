@@ -263,6 +263,9 @@ public class DiceSlotRig : MonoBehaviour
 
         int critFailAdded = ComputeCritFailAddedValue(info, skillElement);
         int passiveAdded = ComputeAllDiceDelta(owner);
+        PassiveSystem ps = owner != null ? owner.GetComponent<PassiveSystem>() : null;
+        if (ps != null)
+            passiveAdded += ps.GetAddedValueForDie(this, slot0);
         int totalAdded = critFailAdded + passiveAdded;
         int resolved = info.rolledValue + totalAdded;
         if (resolved < 1) resolved = 1;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -74,6 +75,12 @@ public class SkillRuntime
     // Debug / UI
     public bool conditionMet;
 
+    // Snapshot of base dice values for the skill's local group this turn.
+    public List<int> localBaseValues;
+    public List<int> localResolvedValues;
+    public bool localCritAny;
+    public bool localFailAny;
+
     public static SkillRuntime FromDamage(SkillDamageSO s)
     {
         if (s == null) return null;
@@ -134,7 +141,11 @@ public class SkillRuntime
 
             projectilePrefab = s.projectilePrefab,
 
-            conditionMet = false
+            conditionMet = false,
+            localBaseValues = null,
+            localResolvedValues = null,
+            localCritAny = false,
+            localFailAny = false
         };
 
         // safety

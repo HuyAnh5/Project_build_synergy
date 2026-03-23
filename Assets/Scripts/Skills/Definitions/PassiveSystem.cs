@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -15,19 +15,12 @@ public class PassiveSystem : MonoBehaviour
     [SerializeField] private RunInventoryManager runInventory;
 
     private readonly List<SkillPassiveSO> _syncBuffer = new List<SkillPassiveSO>(16);
+    private readonly Dictionary<DiceSpinnerGeneric, int[]> _baseFaceValues = new Dictionary<DiceSpinnerGeneric, int[]>();
+    private readonly Dictionary<DiceSpinnerGeneric, int[]> _permanentFaceBonuses = new Dictionary<DiceSpinnerGeneric, int[]>();
+    private readonly Dictionary<DiceSpinnerGeneric, int> _combatAllFaceBonuses = new Dictionary<DiceSpinnerGeneric, int>();
 
-    // Aggregates (minimal set for Batch 4)
     private int _focusBonusTurnStart;
-    private float _guardGainPct = 0f;
-    private int _guardFlatAtTurnEnd = 0;
-
-    private float _damageAllPct;
-    private readonly Dictionary<ElementType, float> _damageByElementPct = new Dictionary<ElementType, float>();
-    private readonly List<PassiveEffectEntry> _conditionalDamage = new List<PassiveEffectEntry>();
-
-    private float _burnConsumeMultiplier = 1f;
-    private float _lightningVsMarkMultiplierAdd = 0f;
-    private int _freezeBreakFocusBonusAdd = 0;
+    private bool _diceForgingTriggeredThisCombat;
 
     private void Awake()
     {
@@ -38,8 +31,6 @@ public class PassiveSystem : MonoBehaviour
 
     private void Start()
     {
-        // In some setups the player prefab spawns before RunInventoryManager.
-        // Retry a few times so passives come online automatically.
         if (autoSyncFromRunInventory && runInventory == null)
             StartCoroutine(RetryBindInventoryRoutine());
     }
@@ -64,7 +55,8 @@ public class PassiveSystem : MonoBehaviour
         for (int i = 0; i < attempts && runInventory == null; i++)
         {
             TryBindInventory();
-            if (runInventory != null) break;
+            if (runInventory != null)
+                break;
             yield return new WaitForSeconds(wait);
         }
 
@@ -78,7 +70,8 @@ public class PassiveSystem : MonoBehaviour
 #if UNITY_EDITOR
     private void OnValidate()
     {
-        if (!Application.isPlaying) Rebuild();
+        if (!Application.isPlaying)
+            Rebuild();
     }
 #endif
 
@@ -86,43 +79,33 @@ public class PassiveSystem : MonoBehaviour
     {
         _focusBonusTurnStart = 0;
 
-        _damageAllPct = 0f;
-        _damageByElementPct.Clear();
-        _conditionalDamage.Clear();
-        _guardGainPct = 0f;
-        _guardFlatAtTurnEnd = 0;
-
-        _burnConsumeMultiplier = 1f;
-        _lightningVsMarkMultiplierAdd = 0f;
-        _freezeBreakFocusBonusAdd = 0;
-
-        if (equipped == null) equipped = new List<SkillPassiveSO>();
+        if (equipped == null)
+            equipped = new List<SkillPassiveSO>();
 
         for (int i = 0; i < equipped.Count; i++)
         {
-            var p = equipped[i];
-            if (p == null || p.effects == null) continue;
+            SkillPassiveSO passive = equipped[i];
+            if (passive == null || passive.effects == null)
+                continue;
 
-            for (int k = 0; k < p.effects.Count; k++)
+            for (int k = 0; k < passive.effects.Count; k++)
             {
-                var e = p.effects[k];
-                if (e == null) continue;
-                Accumulate(e);
+                PassiveEffectEntry effect = passive.effects[k];
+                if (effect == null)
+                    continue;
+                Accumulate(effect);
             }
         }
     }
 
-    // ==================== AUTO SYNC ====================
     private void TryBindInventory()
     {
-        if (!autoSyncFromRunInventory) return;
+        if (!autoSyncFromRunInventory)
+            return;
 
         if (runInventory == null)
         {
-            // Prefab-safe: find at runtime.
-            // 1) same GO or parents (common if inventory is on player root)
             runInventory = GetComponentInParent<RunInventoryManager>(true);
-            // 2) global singleton-style in scene
             if (runInventory == null)
             {
 #if UNITY_2023_1_OR_NEWER
@@ -135,7 +118,6 @@ public class PassiveSystem : MonoBehaviour
 
         if (runInventory != null)
         {
-            // prevent double-subscribe
             runInventory.InventoryChanged -= OnInventoryChanged;
             runInventory.InventoryChanged += OnInventoryChanged;
         }
@@ -155,121 +137,241 @@ public class PassiveSystem : MonoBehaviour
 
     private void SyncFromInventoryIfPossible()
     {
-        if (!autoSyncFromRunInventory) return;
-        if (runInventory == null) return;
+        if (!autoSyncFromRunInventory || runInventory == null)
+            return;
 
         runInventory.FillPassives(_syncBuffer);
 
-        if (equipped == null) equipped = new List<SkillPassiveSO>();
+        if (equipped == null)
+            equipped = new List<SkillPassiveSO>();
         equipped.Clear();
         for (int i = 0; i < _syncBuffer.Count; i++)
             equipped.Add(_syncBuffer[i]);
     }
 
-    public bool Equip(SkillPassiveSO p)
+    public bool Equip(SkillPassiveSO passive)
     {
-        if (p == null) return false;
-        if (equipped.Contains(p)) return false;
-        equipped.Add(p);
+        if (passive == null || equipped.Contains(passive))
+            return false;
+
+        equipped.Add(passive);
         Rebuild();
         return true;
     }
 
-    public bool IsEquipped(SkillPassiveSO p)
+    public bool IsEquipped(SkillPassiveSO passive)
     {
-        return p != null && equipped.Contains(p);
+        return passive != null && equipped.Contains(passive);
     }
 
-    public bool Unequip(SkillPassiveSO p)
+    public bool Unequip(SkillPassiveSO passive)
     {
-        if (p == null) return false;
-        if (!equipped.Remove(p)) return false;
+        if (passive == null || !equipped.Remove(passive))
+            return false;
+
         Rebuild();
         return true;
     }
 
-    private void Accumulate(PassiveEffectEntry e)
+    private void Accumulate(PassiveEffectEntry effect)
     {
-        switch (e.id)
+        switch (effect.id)
         {
             case PassiveEffectId.FocusBonusOnTurnStart:
-                _focusBonusTurnStart += e.valueI;
-                break;
-
-            case PassiveEffectId.DamagePercentAll:
-                _damageAllPct += e.valueF;
-                break;
-
-            case PassiveEffectId.DamagePercentByElement:
-                _damageByElementPct.TryGetValue(e.element, out var cur);
-                _damageByElementPct[e.element] = cur + e.valueF;
-                break;
-
-            case PassiveEffectId.ConditionalDamagePercent:
-                _conditionalDamage.Add(e);
-                break;
-
-            case PassiveEffectId.BurnConsumeDamageMultiplier:
-                _burnConsumeMultiplier *= Mathf.Max(0f, e.valueF);
-                break;
-
-            case PassiveEffectId.LightningVsMarkMultiplierAdd:
-                _lightningVsMarkMultiplierAdd += e.valueF;
-                break;
-
-            case PassiveEffectId.FreezeBreakFocusBonusAdd:
-                _freezeBreakFocusBonusAdd += e.valueI;
-                break;
-            case PassiveEffectId.GuardGainPercent:
-                _guardGainPct += e.valueF;
-                break;
-
-            case PassiveEffectId.GuardFlatAtTurnEnd:
-                _guardFlatAtTurnEnd += e.valueI;
+                _focusBonusTurnStart += effect.valueI;
                 break;
         }
     }
 
     public int GetFocusBonusOnTurnStart() => _focusBonusTurnStart;
-    public float GetBurnConsumeMultiplier() => _burnConsumeMultiplier;
-    public float GetLightningVsMarkMultiplierAdd() => _lightningVsMarkMultiplierAdd;
-    public int GetFreezeBreakFocusBonusAdd() => _freezeBreakFocusBonusAdd;
-    public float GetGuardGainPercent() => _guardGainPct;
-    public int GetGuardFlatAtTurnEnd() => _guardFlatAtTurnEnd;
 
-    public float GetOutgoingDamageMultiplier(SkillRuntime rt, CombatActor target)
+    public void OnCombatStarted()
     {
-        if (rt == null) return 1f;
-
-        float pct = _damageAllPct;
-
-        if (_damageByElementPct.TryGetValue(rt.element, out var ePct))
-            pct += ePct;
-
-        for (int i = 0; i < _conditionalDamage.Count; i++)
-        {
-            var c = _conditionalDamage[i];
-            if (c == null) continue;
-            if (MatchesConditional(c, rt, target))
-                pct += c.valueF;
-        }
-
-        return 1f + pct;
+        _diceForgingTriggeredThisCombat = false;
+        _combatAllFaceBonuses.Clear();
+        CaptureKnownDiceFaces();
+        ReapplyAllTrackedFaceBonuses();
     }
 
-    private bool MatchesConditional(PassiveEffectEntry e, SkillRuntime rt, CombatActor target)
+    public void OnDiceRolled(CombatActor owner, DiceSlotRig diceRig)
     {
-        // attack type
-        if (e.attackType == PassiveAttackType.Melee && rt.range != RangeType.Melee) return false;
-        if (e.attackType == PassiveAttackType.Ranged && rt.range != RangeType.Ranged) return false;
+        if (owner == null || diceRig == null)
+            return;
 
-        // target row
-        if (target != null)
+        bool hasFailForward = HasBehavior(PassiveBehaviorId.FailForward);
+        bool hasCritEscalation = HasBehavior(PassiveBehaviorId.CritEscalation);
+
+        for (int i = 0; i < 3; i++)
         {
-            if (e.targetRow == PassiveTargetRow.Front && target.row != CombatActor.RowTag.Front) return false;
-            if (e.targetRow == PassiveTargetRow.Back && target.row != CombatActor.RowTag.Back) return false;
+            if (!diceRig.IsSlotActive(i))
+                continue;
+
+            DiceSpinnerGeneric die = diceRig.slots != null && i < diceRig.slots.Length && diceRig.slots[i] != null
+                ? diceRig.slots[i].dice
+                : null;
+            if (die == null)
+                continue;
+
+            if (hasFailForward && diceRig.IsFail(i))
+                owner.AddGuard(3);
+
+            if (hasCritEscalation && diceRig.IsCrit(i))
+                AddCombatAllFacesBonus(die, 1);
+        }
+    }
+
+    public int GetAddedValueForDie(DiceSlotRig diceRig, int slot0)
+    {
+        if (diceRig == null || !diceRig.IsSlotActive(slot0))
+            return 0;
+
+        int add = 0;
+        if (HasBehavior(PassiveBehaviorId.EvenResonance))
+        {
+            int baseValue = diceRig.GetBaseValue(slot0);
+            if (baseValue > 0 && (baseValue % 2) == 0)
+                add += 3;
         }
 
-        return true;
+        return add;
     }
+
+    public int GetBonusStatusStacksApplied(StatusKind statusKind)
+    {
+        if (!HasBehavior(PassiveBehaviorId.ElementalCatalyst))
+            return 0;
+
+        return statusKind == StatusKind.Burn || statusKind == StatusKind.Bleed ? 1 : 0;
+    }
+
+    public bool ShouldRetainGuardAtEndOfTurn()
+        => HasBehavior(PassiveBehaviorId.IronStance);
+
+    public void TryHandleBasicStrikeUse(DiceSlotRig diceRig, int start0)
+    {
+        if (!HasBehavior(PassiveBehaviorId.DiceForging) || _diceForgingTriggeredThisCombat || diceRig == null || start0 < 0)
+            return;
+
+        DiceSpinnerGeneric die = diceRig.slots != null && start0 < diceRig.slots.Length && diceRig.slots[start0] != null
+            ? diceRig.slots[start0].dice
+            : null;
+        if (die == null || die.faces == null || die.LastFaceIndex < 0)
+            return;
+
+        AddPermanentFaceBonus(die, die.LastFaceIndex, 1);
+        _diceForgingTriggeredThisCombat = true;
+    }
+
+    private bool HasBehavior(PassiveBehaviorId behaviorId)
+    {
+        if (equipped == null || behaviorId == PassiveBehaviorId.None)
+            return false;
+
+        for (int i = 0; i < equipped.Count; i++)
+        {
+            SkillPassiveSO passive = equipped[i];
+            if (passive == null)
+                continue;
+            if (passive.behaviorId == behaviorId)
+                return true;
+        }
+
+        return false;
+    }
+
+    private void CaptureKnownDiceFaces()
+    {
+        DiceSlotRig diceRig = runInventory != null ? runInventory.DiceRig : null;
+        if (diceRig == null)
+            diceRig = FindObjectOfType<DiceSlotRig>(true);
+        if (diceRig == null || diceRig.slots == null)
+            return;
+
+        for (int i = 0; i < diceRig.slots.Length; i++)
+        {
+            DiceSpinnerGeneric die = diceRig.slots != null && i < diceRig.slots.Length && diceRig.slots[i] != null
+                ? diceRig.slots[i].dice
+                : null;
+            if (die == null || die.faces == null)
+                continue;
+
+            EnsureDieTracked(die);
+        }
+    }
+
+    private void EnsureDieTracked(DiceSpinnerGeneric die)
+    {
+        if (die == null || die.faces == null)
+            return;
+
+        if (!_baseFaceValues.ContainsKey(die))
+        {
+            int[] baseValues = new int[die.faces.Length];
+            for (int i = 0; i < die.faces.Length; i++)
+                baseValues[i] = die.faces[i].value;
+            _baseFaceValues[die] = baseValues;
+        }
+
+        if (!_permanentFaceBonuses.ContainsKey(die))
+            _permanentFaceBonuses[die] = new int[die.faces.Length];
+
+        if (!_combatAllFaceBonuses.ContainsKey(die))
+            _combatAllFaceBonuses[die] = 0;
+    }
+
+    private void AddPermanentFaceBonus(DiceSpinnerGeneric die, int faceIndex, int amount)
+    {
+        if (die == null || die.faces == null || amount == 0)
+            return;
+
+        EnsureDieTracked(die);
+        int[] permanentBonuses = _permanentFaceBonuses[die];
+        if (faceIndex < 0 || faceIndex >= permanentBonuses.Length)
+            return;
+
+        permanentBonuses[faceIndex] += amount;
+        ReapplyTrackedFaceBonuses(die);
+    }
+
+    private void AddCombatAllFacesBonus(DiceSpinnerGeneric die, int amount)
+    {
+        if (die == null || die.faces == null || amount == 0)
+            return;
+
+        EnsureDieTracked(die);
+        _combatAllFaceBonuses[die] += amount;
+        ReapplyTrackedFaceBonuses(die);
+    }
+
+    private void ReapplyAllTrackedFaceBonuses()
+    {
+        foreach (var pair in _baseFaceValues)
+            ReapplyTrackedFaceBonuses(pair.Key);
+    }
+
+    private void ReapplyTrackedFaceBonuses(DiceSpinnerGeneric die)
+    {
+        if (die == null || die.faces == null || !_baseFaceValues.TryGetValue(die, out int[] baseValues))
+            return;
+
+        int[] permanentBonuses = _permanentFaceBonuses.TryGetValue(die, out int[] bonuses) ? bonuses : null;
+        int combatAdd = _combatAllFaceBonuses.TryGetValue(die, out int add) ? add : 0;
+
+        for (int i = 0; i < die.faces.Length && i < baseValues.Length; i++)
+        {
+            DiceFace face = die.faces[i];
+            int permanentAdd = permanentBonuses != null && i < permanentBonuses.Length ? permanentBonuses[i] : 0;
+            face.value = Mathf.Max(1, baseValues[i] + permanentAdd + combatAdd);
+            die.faces[i] = face;
+        }
+
+        die.RefreshDisplayedState();
+    }
+
+    public float GetBurnConsumeMultiplier() => 1f;
+    public float GetLightningVsMarkMultiplierAdd() => 0f;
+    public int GetFreezeBreakFocusBonusAdd() => 0;
+    public float GetGuardGainPercent() => 0f;
+    public int GetGuardFlatAtTurnEnd() => 0;
+    public float GetOutgoingDamageMultiplier(SkillRuntime rt, CombatActor target) => 1f;
 }

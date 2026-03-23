@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6e4b4cbdc1fc78d4fb4b5a9145440d66, type: 3}
+  m_Name: Passive_CritEscalation
+  m_EditorClassIdentifier: Assembly-CSharp::SkillPassiveSO
+  icon: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  displayName: Crit Escalation
+  description: Whenever a die rolls Crit, only that die gains +1 Base on all its
+    faces until the end of combat.
+  spec:
+    rarity: 3
+    specState: 1
+    buildRole: 6
+    implementationCoverage: 0
+    normalizedText: Whenever a die rolls Crit, only that die gains +1 Base on all
+      its faces until the end of combat.
+    designIntent: Controlled combat snowball that keeps die identity separate.
+  behaviorId: 5
+  effects: []

@@ -23,6 +23,10 @@ public class StatusController : MonoBehaviour
     // Stagger: mở sau khi Guard bị phá, hit direct kế tiếp mới ăn x1.2
     public bool staggered;
 
+    // Named content hooks already committed in spec.
+    public int emberWeaponTurns;
+    public int cinderbrandTurns;
+
     // -------------------- NEW: Buff/Debuff/Ailment layer (non-breaking) --------------------
 
     private readonly List<StatusPendingBuffDebuff> _pending = new List<StatusPendingBuffDebuff>(8);
@@ -58,6 +62,9 @@ public class StatusController : MonoBehaviour
     public void ApplyBuffDebuffSkill(SkillBuffDebuffSO skill, CombatActor applier, int rolledValue, int maxFaceValue)
     {
         if (skill == null) return;
+
+        if (StatusNamedSkillUtility.TryApplyNamedSkillNow(this, skill, rolledValue))
+            return;
 
         int delay = Mathf.Max(0, skill.applyDelayTurns);
 

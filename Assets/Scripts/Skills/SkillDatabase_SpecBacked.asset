@@ -1,0 +1,56 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 668d10c3208069a47bf736fe7211172b, type: 3}
+  m_Name: SkillDatabase_SpecBacked
+  m_EditorClassIdentifier: Assembly-CSharp::SkillDatabaseSO
+  damageSkills:
+  - {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
+  - {fileID: 11400000, guid: 1e0c87585e894499b2c95a73ee399459, type: 2}
+  - {fileID: 11400000, guid: 074cffc1dba04bc7a0d2f827115d7fe3, type: 2}
+  - {fileID: 11400000, guid: 78d8e22aaa9143a399959a8ac50c3c9c, type: 2}
+  - {fileID: 11400000, guid: 97b75cdb0a9b42fe92a4c87ee8134f66, type: 2}
+  - {fileID: 11400000, guid: 7b8653fb42cc45f8b92648e34012be46, type: 2}
+  - {fileID: 11400000, guid: 4a8b2657a55b4b3296aa678127246590, type: 2}
+  - {fileID: 11400000, guid: 0a46088824314cc89243f03c47312e94, type: 2}
+  - {fileID: 11400000, guid: dd8a7af4c0d3462bbed18e7712ad8990, type: 2}
+  - {fileID: 11400000, guid: f563897ef38a4e099096bd88ff431861, type: 2}
+  - {fileID: 11400000, guid: 6201df6fa5db4498bdd5158dc14ccf72, type: 2}
+  - {fileID: 11400000, guid: 4c5dcd6ced814b1cbf3b1f4cb9245f08, type: 2}
+  - {fileID: 11400000, guid: 1536d6a89f7747e69f13c80ca82d9551, type: 2}
+  - {fileID: 11400000, guid: d3f5331e8b4d442fa2b243c7d71fc446, type: 2}
+  - {fileID: 11400000, guid: 1f1edc4a92a94f099b0bd4fffccc2a07, type: 2}
+  - {fileID: 11400000, guid: b9e9388231a64b32a7fe9c6b74ff96d6, type: 2}
+  - {fileID: 11400000, guid: 843dec42c43d45a3ac5561044366d0ee, type: 2}
+  - {fileID: 11400000, guid: 1d79e243f4444fac97889e5196235e41, type: 2}
+  - {fileID: 11400000, guid: ccc53550473744cf8871143480eaaea8, type: 2}
+  - {fileID: 11400000, guid: c5ab58d36f804480835f4a7545c6af22, type: 2}
+  - {fileID: 11400000, guid: 54cce51cf2d14753a75fbac28cb044b1, type: 2}
+  - {fileID: 11400000, guid: 23c2a4758ca24830ade7dfaaca17b18c, type: 2}
+  - {fileID: 11400000, guid: ad8514b93e374fbaa83a6aca3121b02b, type: 2}
+  buffDebuffSkills:
+  - {fileID: 11400000, guid: c58a812946cb403e98dcd3e35f6e1d48, type: 2}
+  - {fileID: 11400000, guid: 79472d6314914df28358ffd8e8b8633a, type: 2}
+  - {fileID: 11400000, guid: 5ccc410763d74ec393e79c5d6d59f429, type: 2}
+  - {fileID: 11400000, guid: e2f768d535d6438e9ff306a4a74e109c, type: 2}
+  - {fileID: 11400000, guid: 56e6fa090e104968aeea3559a52fe52f, type: 2}
+  passiveSkills:
+  - {fileID: 11400000, guid: b2a3f555720d4cc2a562c519e12583ec, type: 2}
+  - {fileID: 11400000, guid: e4b5ec99a10147eeb3ef4f09fabf49c9, type: 2}
+  - {fileID: 11400000, guid: c0d26a57d83a4d91802f359f89261d4e, type: 2}
+  - {fileID: 11400000, guid: 3e2ec824bd754ae888ae7b1ae32857bd, type: 2}
+  - {fileID: 11400000, guid: 8564f3201bbd4f7695fa3b0f06d12efa, type: 2}
+  - {fileID: 11400000, guid: 5030e9068ebd4773974661416659aa01, type: 2}
+  - {fileID: 11400000, guid: 54540dfada0c4a339a0a0228c124bb0e, type: 2}
+  - {fileID: 11400000, guid: 859923da947646cd86d9d3fcaaf1bdd4, type: 2}
+  - {fileID: 11400000, guid: 31a06e3241f64c66a383890546213302, type: 2}
+  - {fileID: 11400000, guid: 1831f99f1f81416ba5446cbbdaead784, type: 2}
+  - {fileID: 11400000, guid: dffc468dbd8e4c158584dcc29672ae2f, type: 2}

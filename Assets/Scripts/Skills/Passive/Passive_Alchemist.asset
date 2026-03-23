@@ -10,16 +10,19 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6e4b4cbdc1fc78d4fb4b5a9145440d66, type: 3}
-  m_Name: SkillPassive_
+  m_Name: Passive_Alchemist
   m_EditorClassIdentifier: Assembly-CSharp::SkillPassiveSO
   icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
-  displayName: SkillPassive_
-  description: 
+  displayName: Alchemist
+  description: At the start of each combat, gain 1 random Consumable.
+  spec:
+    rarity: 2
+    specState: 0
+    buildRole: 3
+    implementationCoverage: 0
+    normalizedText: At the start of each combat, gain 1 random Consumable.
+    designIntent: Baseline utility passive.
+  behaviorId: 0
   effects:
-  - id: 4
-    valueF: 0.2
-    valueI: 10
-    element: 4
-    attackType: 0
-    targetRow: 0
-    _guardNote: 1
+  - id: 0
+    valueI: 1

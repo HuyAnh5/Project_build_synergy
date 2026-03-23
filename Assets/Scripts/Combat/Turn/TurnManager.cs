@@ -195,6 +195,35 @@ public class TurnManager : MonoBehaviour
         return true;
     }
 
+    public bool TryGetPlannedGroupAtLane(int lane1Based, out int anchor0, out int start0, out int span)
+    {
+        anchor0 = -1;
+        start0 = -1;
+        span = 0;
+
+        int lane0 = lane1Based - 1;
+        if (lane0 < 0 || lane0 > 2)
+            return false;
+
+        anchor0 = _board.GetCellAnchor(lane0);
+        if (anchor0 < 0 || !_board.IsAnchorSlot(anchor0))
+        {
+            anchor0 = -1;
+            return false;
+        }
+
+        start0 = _board.GetStartForAnchor(anchor0);
+        span = _board.GetAnchorSpan(anchor0);
+        return span > 0;
+    }
+
+    public void RefreshPlanningAfterDiceValueReorder()
+    {
+        _board.RecalculateRuntimesAndRebalance(player, diceRig);
+        RefreshAllPreviews();
+        UpdateAllIconsDim();
+    }
+
     // ---------------------------
     // Continue / Target flow (giữ như batch 3 của bạn)
     // ---------------------------
@@ -312,25 +341,13 @@ public class TurnManager : MonoBehaviour
                 Debug.Log($"[TM] Branch=Runtime (Attack/Guard/Legacy) -> rt.kind={rt.kind}", this);
 
             yield return executor.ExecuteSkill(rt, player, clicked, resolvedSum, skipCost: true, aoeTargets: aoeTargets);
-        }
 
-        if (rt.kind == SkillKind.Guard)
-        {
-            for (int i = _cursor + 1; i < 3; i++)
+            if (IsBasicStrikeRuntime(rt))
             {
-                if (_board.IsAnchorSlot(i))
-                    _board.ClearGroupAtAnchor(i, player);
+                PassiveSystem ps = player != null ? player.GetComponent<PassiveSystem>() : null;
+                if (ps != null)
+                    ps.TryHandleBasicStrikeUse(diceRig, start0);
             }
-
-            RefreshAllPreviews();
-            UpdateAllIconsDim();
-
-            if (logPhase) Debug.Log("[TM] Guard ends player turn -> EnemyTurn", this);
-
-            EndPlayerTurn_TickStatusesAndPassives();
-            yield return EnemyTurnRoutine();
-            BeginNewPlayerTurn();
-            yield break;
         }
 
         _cursor++;
@@ -352,6 +369,9 @@ public class TurnManager : MonoBehaviour
     private IEnumerator EnemyTurnRoutine()
     {
         SetPhase(Phase.EnemyTurn);
+        SkillCombatState playerSkillState = player != null ? player.GetComponent<SkillCombatState>() : null;
+        if (player != null && playerSkillState != null)
+            playerSkillState.BeginEnemyTurn(player.hp);
 
         // ✅ Intent fade out when enemy turn starts (STS feel)
         TurnManagerViewUtility.FadeEnemyIntents(TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, enemy), 0.25f);
@@ -511,7 +531,14 @@ public class TurnManager : MonoBehaviour
                 break;
         }
 
-        if (player != null) player.guardPool = 0;
+        if (player != null)
+        {
+            PassiveSystem ps = player.GetComponent<PassiveSystem>();
+            if (ps == null || !ps.ShouldRetainGuardAtEndOfTurn())
+                player.guardPool = 0;
+            if (playerSkillState != null)
+                playerSkillState.EndEnemyTurn(player.hp);
+        }
         TurnManagerCombatUtility.ClearAllStagger();
 
         yield return null;
@@ -522,6 +549,9 @@ public class TurnManager : MonoBehaviour
     private void BeginNewPlayerTurn()
     {
         SetPhase(Phase.Planning);
+        SkillCombatState playerSkillState = player != null ? player.GetComponent<SkillCombatState>() : null;
+        if (playerSkillState != null)
+            playerSkillState.BeginPlayerTurn();
         TurnManagerLifecycleUtility.BeginPlayerTurnStatusesAndFocus(player, logPhase, this);
 
         _board.Reset();
@@ -573,6 +603,10 @@ public class TurnManager : MonoBehaviour
 
     private void OnDiceRolled()
     {
+        PassiveSystem ps = player != null ? player.GetComponent<PassiveSystem>() : null;
+        if (ps != null)
+            ps.OnDiceRolled(player, diceRig);
+
         _board.RecalculateRuntimesAndRebalance(player, diceRig);
         RefreshAllPreviews();
         RefreshPlanningInteractivity();
@@ -708,4 +742,12 @@ public class TurnManager : MonoBehaviour
 
     private void EnsureAllEnemyIntentsNow()
         => TurnManagerViewUtility.EnsureEnemyIntentsNow(TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, enemy), player);
+
+    private static bool IsBasicStrikeRuntime(SkillRuntime rt)
+    {
+        if (rt == null)
+            return false;
+        return rt.coreAction == CoreAction.BasicStrike;
+    }
+
 }

@@ -17,6 +17,8 @@ internal static class StatusStateUtility
         owner.chilledTurns = 0;
         owner.frozen = false;
         owner.staggered = false;
+        owner.emberWeaponTurns = 0;
+        owner.cinderbrandTurns = 0;
 
         pending.Clear();
         active.Clear();
@@ -47,6 +49,11 @@ internal static class StatusStateUtility
         }
 
         owner.TickAilmentDuration();
+
+        if (owner.emberWeaponTurns > 0)
+            owner.emberWeaponTurns = Mathf.Max(0, owner.emberWeaponTurns - 1);
+        if (owner.cinderbrandTurns > 0)
+            owner.cinderbrandTurns = Mathf.Max(0, owner.cinderbrandTurns - 1);
 
         if (owner.bleedStacks > 0)
             owner.bleedStacks = Mathf.Max(0, owner.bleedStacks - 1);
