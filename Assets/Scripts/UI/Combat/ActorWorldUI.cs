@@ -82,7 +82,7 @@ public class ActorWorldUI : MonoBehaviour
         // Format:
         // Freeze
         // Mark
-        // Burn: Burn:{stack}({turn}T)
+        // Burn: Burn:{stack}
         // Bleed: Bleed:{stack}
         // Chilled: Chilled:{turn}T
         // Sleep:2T (Ailment)
@@ -101,9 +101,9 @@ public class ActorWorldUI : MonoBehaviour
         if (st.marked) AddLine("Mark");
         if (st.staggered) AddLine("Stagger");
 
-        // ✅ Burn: stack + turn
-        if (st.burnStacks > 0 || st.burnTurns > 0)
-            AddLine($"Burn:{st.burnStacks}({st.burnTurns}T)");
+        // ✅ Burn: total stack only
+        if (st.burnStacks > 0)
+            AddLine($"Burn:{st.burnStacks}");
 
         // ✅ Bleed: stack
         if (st.bleedStacks > 0)

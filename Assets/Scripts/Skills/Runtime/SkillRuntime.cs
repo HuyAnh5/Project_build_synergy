@@ -38,13 +38,14 @@ public class SkillRuntime
     // Attack
     public float dieMultiplier;
     public int flatDamage;
+    public BaseEffectValueMode baseDamageValueMode;
 
     // Sunder bonus
     public bool sunderBonusIfTargetHasGuard;
     public float sunderGuardDamageMultiplier;
 
     // Guard
-    public float guardDieMultiplier;
+    public BaseEffectValueMode guardValueMode;
     public int guardFlat;
 
     // Special combat
@@ -55,11 +56,25 @@ public class SkillRuntime
     // Burn spender
     public bool consumesBurn;
     public int burnDamagePerStack;
+    public bool fireUseXFormula;
+    public bool fireApplyBurnFromResolvedValue;
+    public bool fireGrantBonusBurnOnOddBase;
+    public int fireOddBaseBonusBurn;
+    public bool fireApplyBurnFromLowestBase;
+    public bool fireGainGuardFromHighestBase;
+    public bool fireReapplyBurnPerExactBase;
+    public int fireExactBaseForReapply;
+    public int fireBurnPerExactMatch;
+    public bool fireRequireBurnBeforeHitForReapply;
+    public bool fireApplyConsumeBonusDebuff;
+    public int fireConsumeBonusPerBurn;
+    public int fireConsumeBonusDebuffTurns;
 
     // Apply status (can be used by any skill if enabled)
     public bool applyBurn;
     public int burnAddStacks;
     public int burnRefreshTurns;
+    public BaseEffectValueMode baseBurnValueMode;
 
     public bool applyMark;
 
@@ -75,9 +90,24 @@ public class SkillRuntime
     // Debug / UI
     public bool conditionMet;
 
+    // Conditional outcome
+    public bool conditionalOutcomeEnabled;
+    public ConditionalOutcomeType conditionalOutcomeType;
+    public ConditionalOutcomeValueMode conditionalOutcomeValueMode;
+    public int conditionalOutcomeFlatValue;
+    public int conditionalOutcomeBurnTurns;
+
+    // Split-role
+    public bool splitRoleEnabled;
+    public SplitRoleBranchOutcome splitRoleLowestOutcome;
+    public SplitRoleBranchOutcome splitRoleHighestOutcome;
+    public int splitRoleBurnTurns;
+
     // Snapshot of base dice values for the skill's local group this turn.
     public List<int> localBaseValues;
     public List<int> localResolvedValues;
+    public List<bool> localCritFlags;
+    public List<bool> localFailFlags;
     public bool localCritAny;
     public bool localFailAny;
 
@@ -113,11 +143,12 @@ public class SkillRuntime
 
             dieMultiplier = s.dieMultiplier,
             flatDamage = s.flatDamage,
+            baseDamageValueMode = s.baseDamageValueMode,
 
             sunderBonusIfTargetHasGuard = s.sunderBonusIfTargetHasGuard,
             sunderGuardDamageMultiplier = s.sunderGuardDamageMultiplier,
 
-            guardDieMultiplier = s.guardDieMultiplier,
+            guardValueMode = s.guardValueMode,
             guardFlat = s.guardFlat,
 
             bypassGuard = s.bypassGuard,
@@ -126,10 +157,24 @@ public class SkillRuntime
 
             consumesBurn = s.consumesBurn,
             burnDamagePerStack = s.burnDamagePerStack,
+            fireUseXFormula = s.fireModules != null && s.fireModules.useXFormula,
+            fireApplyBurnFromResolvedValue = s.fireModules != null && s.fireModules.applyBurnFromResolvedValue,
+            fireGrantBonusBurnOnOddBase = s.fireModules != null && s.fireModules.grantBonusBurnOnOddBase,
+            fireOddBaseBonusBurn = s.fireModules != null ? s.fireModules.oddBaseBonusBurn : 0,
+            fireApplyBurnFromLowestBase = s.fireModules != null && s.fireModules.applyBurnFromLowestBase,
+            fireGainGuardFromHighestBase = s.fireModules != null && s.fireModules.gainGuardFromHighestBase,
+            fireReapplyBurnPerExactBase = s.fireModules != null && s.fireModules.reapplyBurnPerExactBase,
+            fireExactBaseForReapply = s.fireModules != null ? s.fireModules.exactBaseForReapply : 0,
+            fireBurnPerExactMatch = s.fireModules != null ? s.fireModules.burnPerExactMatch : 0,
+            fireRequireBurnBeforeHitForReapply = s.fireModules == null || s.fireModules.requireBurnBeforeHitForReapply,
+            fireApplyConsumeBonusDebuff = s.fireModules != null && s.fireModules.applyConsumeBonusDebuff,
+            fireConsumeBonusPerBurn = s.fireModules != null ? s.fireModules.consumeBonusPerBurn : 0,
+            fireConsumeBonusDebuffTurns = s.fireModules != null ? s.fireModules.consumeBonusDebuffTurns : 0,
 
             applyBurn = s.applyBurn,
             burnAddStacks = s.burnAddStacks,
             burnRefreshTurns = s.burnRefreshTurns,
+            baseBurnValueMode = s.baseBurnValueMode,
 
             applyMark = s.applyMark,
 
@@ -142,8 +187,19 @@ public class SkillRuntime
             projectilePrefab = s.projectilePrefab,
 
             conditionMet = false,
+            conditionalOutcomeEnabled = s.conditionalOutcome != null && s.conditionalOutcome.enabled,
+            conditionalOutcomeType = s.conditionalOutcome != null ? s.conditionalOutcome.type : ConditionalOutcomeType.None,
+            conditionalOutcomeValueMode = s.conditionalOutcome != null ? s.conditionalOutcome.valueMode : ConditionalOutcomeValueMode.Flat,
+            conditionalOutcomeFlatValue = s.conditionalOutcome != null ? s.conditionalOutcome.flatValue : 0,
+            conditionalOutcomeBurnTurns = s.conditionalOutcome != null ? s.conditionalOutcome.burnTurns : 3,
+            splitRoleEnabled = s.splitRole != null && s.splitRole.enabled,
+            splitRoleLowestOutcome = s.splitRole != null ? s.splitRole.lowestOutcome : SplitRoleBranchOutcome.None,
+            splitRoleHighestOutcome = s.splitRole != null ? s.splitRole.highestOutcome : SplitRoleBranchOutcome.None,
+            splitRoleBurnTurns = s.splitRole != null ? s.splitRole.burnTurns : 3,
             localBaseValues = null,
             localResolvedValues = null,
+            localCritFlags = null,
+            localFailFlags = null,
             localCritAny = false,
             localFailAny = false
         };
@@ -171,7 +227,9 @@ public class SkillRuntime
     public int CalculateGuard(int dieValue)
     {
         if (kind != SkillKind.Guard) return 0;
-        int g = Mathf.FloorToInt(dieValue * guardDieMultiplier) + guardFlat;
+        int g = guardValueMode == BaseEffectValueMode.X
+            ? dieValue
+            : guardFlat;
         return Mathf.Max(0, g);
     }
 }

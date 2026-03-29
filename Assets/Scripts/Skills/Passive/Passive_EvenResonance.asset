@@ -13,14 +13,15 @@ MonoBehaviour:
   m_Name: Passive_EvenResonance
   m_EditorClassIdentifier: Assembly-CSharp::SkillPassiveSO
   icon: {fileID: 0}
-  displayName: 'Even Resonance'
-  description: 'Each die with an even Base Value gains +3 Added Value for that action.'
+  displayName: Even Resonance
+  description: Each die with an even Base Value gains +3 Added Value for that action.
   spec:
     rarity: 2
     specState: 0
     buildRole: 5
     implementationCoverage: 0
-    normalizedText: 'Each die with an even Base Value gains +3 Added Value for that action.'
-    designIntent: 'Clear parity payoff passive.'
+    normalizedText: Each die with an even Base Value gains +3 Added Value for that
+      action.
+    designIntent: Clear parity payoff passive.
   behaviorId: 1
   effects: []

@@ -54,6 +54,14 @@ Mọi condition của skill phải ưu tiên đọc từ **Base Value**, trừ k
 Là giá trị cộng thêm vào output của action.  
 Added Value **không đổi bản chất của Base Value**.
 
+Mặc định hiện tại:
+- skill gây damage chuẩn dùng công thức `damage gốc + Added Value`
+- skill dùng `X` thì mặc định `X = Base Value + Added Value`
+- skill hoặc passive về sau có thể cấp thêm Added Value theo điều kiện, và `Added Value` nên được xem là **ngôn ngữ thưởng chung** cho mọi output số học của skill
+- nghĩa là không chỉ damage, mà cả `Burn`, `Bleed`, `Guard`, payoff từ `combat history`, payoff từ `board state` cũng mặc định cộng `Added Value` trừ khi text skill ghi rõ ngược lại
+- nếu skill chiếm nhiều slot, `Added Value` mặc định là **tổng Added Value của toàn bộ dice trong local group**
+- ngoại lệ rất quan trọng: nếu skill là **split-role / multi-branch**, mỗi branch output phải đọc `Added Value` của **đúng die source** mà branch đó chọn, không được lấy `Total Added Value của cả action` đổ vào mọi branch
+
 Ví dụ:
 - Base Value = 4, Added Value = +3  
 → skill vẫn phải coi die này là **4**, không phải 7.
@@ -65,10 +73,449 @@ Ví dụ:
 
 Crit / Fail luôn được xác định theo **die riêng lẻ**, không theo các die khác đang equip.
 
+Crit tạo Added Value theo rule của action:
+- thường = `+20% Base Value`
+- Physical = `+50% Base Value`
+
+Fail không làm thay đổi Base Value và không trừ vào Added Value.
+Fail chỉ làm giảm **base output của skill** xuống còn 50%, luôn floor.
+`base output` ở đây không chỉ là damage; nó có thể là Guard, Burn, Bleed hoặc output số học khác nếu skill đó định nghĩa phần đó là output gốc chịu Fail.
+
+Rule nhiều slot:
+- Nếu local group có **ít nhất 1 Fail**, action đó chỉ ăn fail penalty **1 lần**
+- `2 Fail` hoặc `3 Fail` trong cùng action không chém tiếp lần 2 hay lần 3
+
+Rule nguồn Added Value:
+- Dice có thể cung cấp Added Value từ **Crit** hoặc từ **enchant / customization / consumable effect** đã nằm trên mặt dice
+- Skill / passive / relic / combat modifier có thể cấp Added Value nếu text ghi rõ
+- Fail không phải nguồn Added Value âm
+
+### 3.3A Skill Damage Formula Sheet
+
+Sheet công thức chuẩn để author skill:
+
+- `Base Value` = mặt thật của die, dùng để check condition.
+- `Added Value` = phần cộng vào output cuối, không đổi bản chất của die.
+- `Crit`:
+  - non-Physical -> `Added Value += floor(Base Value x 0.2)`
+  - Physical -> `Added Value += floor(Base Value x 0.5)`
+- `Fail` -> làm `base output = floor(base output / 2)`, không trừ `Added Value`.
+- Nếu skill nhiều slot có nhiều hơn 1 die Fail, fail penalty vẫn chỉ áp **1 lần cho cả action**.
+- `Skill damage chuẩn` -> `Final Damage = damage gốc + Total Added Value`
+- `Skill X` -> `X = Base Value + Added Value`
+- `Skill fixed output khác` -> `Final Output = output gốc + Total Added Value`
+- `Split-role skill` -> `Final Output của mỗi branch = output gốc của branch + Added Value của đúng die source của branch`
+- `Skill 1 slot` -> `Total Added Value = Added Value của 1 die`
+- `Skill 2 slot` -> `Total Added Value = Added Value die 1 + Added Value die 2`
+- `Skill 3 slot` -> `Total Added Value = Added Value die 1 + Added Value die 2 + Added Value die 3`
+- `Damage từ combat history counter` cũng tiếp tục cộng `Added Value` nếu text không nói ngược lại
+- Toàn game dùng `floor`
+- Nếu `base output > 0` nhưng sau Fail / floor tụt xuống dưới `1`, final output vẫn phải tối thiểu là `1`
+- Nếu `base output = 0`, final output tiếp tục là `0`
+
 ### 3.4 Local Group
 
 Là cụm dice mà một skill đang chiếm.  
 Ví dụ skill 2 slot chỉ đọc 2 die trong cụm của nó, không đọc toàn bộ 3 die trên board.
+
+### 3.4A Condition là hệ quy chiếu, không phải payoff cố định
+
+`Condition` không nên được hiểu là payoff cố định kiểu:
+
+- `chẵn = luôn bonus Burn`
+- `lẻ = luôn bonus damage`
+- `highest = luôn Guard`
+- `lowest = luôn Burn`
+
+Thay vào đó, condition là **hệ quy chiếu để chọn / đọc / phân vai cho dice**.
+
+Tức là:
+
+- `chẵn / lẻ`
+- `Crit / Fail`
+- `Exact value`
+- `highest / lowest`
+- `die đầu / die cuối`
+
+chỉ là cách xác định:
+
+- die nào đang được đọc
+- output nào được gán cho die nào
+- branch nào đang mở
+- reward nào đang được bật
+
+Payoff phía sau có thể là:
+
+- damage
+- Burn
+- Bleed
+- Guard
+- Mark
+- Focus
+- Added Value
+- hoặc effect module khác
+
+Ở tầng authoring / inspector, `Tab Condition` nên được hiểu là nơi khai báo:
+
+- `Reference` nào đang được đọc
+- `Comparison` nào đang được dùng
+- nhiều clause kết hợp theo `All / Any`
+
+ví dụ condition có thể đọc:
+
+- `Any Base Value`
+- `Highest Base Value In Group`
+- `Lowest Base Value In Group`
+- `Total Base Value In Group`
+- `Total Resolved Value In Group`
+- `Any Die Crit`
+- `Any Die Fail`
+- `Current Focus`
+- `Occupied Slots`
+
+Condition cũ kiểu `Parity / Threshold / Match / Straight` như một block riêng không còn là hướng authoring chính nữa.
+
+### 3.4B Highest / Lowest là bộ chọn die, không phải output cố định
+
+`highest` và `lowest` trong local group phải được hiểu là:
+
+- `highest base value in local group`
+- `lowest base value in local group`
+
+Đây là **bộ chọn die**, không phải payoff cố định.
+
+Ví dụ hợp lệ:
+
+- `highest -> Burn`, `lowest -> Guard`
+- `highest -> Guard`, `lowest -> Burn`
+- `highest -> Mark spread`, `lowest -> self Focus`
+
+Không được hardcode tư duy:
+
+- `highest` luôn là Guard
+- `lowest` luôn là Burn
+
+### 3.4C Single-output và Split-role
+
+#### Single-output skill
+
+Skill tạo ra một output chính duy nhất cho cả action.
+
+Ví dụ:
+
+- `Deal 7 damage`
+- `Apply 5 Burn`
+- `Gain Guard = X`
+- `Damage = số enemy đã từng bị Freeze trong combat này`
+
+Kiểu này mặc định dùng:
+
+- `Total Added Value của cả action`
+
+#### Split-role / Multi-branch skill
+
+Skill tách local group thành nhiều branch output khác nhau.
+
+Ví dụ:
+
+- `highest -> Guard`, `lowest -> Burn`
+- `die đầu -> apply Mark`, `die cuối -> deal damage`
+- `die chẵn -> Burn`, `die lẻ -> Bleed`
+
+Kiểu này **không được** dùng `Total Added Value của cả action` cho mọi branch.
+Thay vào đó:
+
+- mỗi branch chỉ được đọc `Base Value` của die nó chọn
+- mỗi branch chỉ được đọc `Added Value` của die nó chọn
+- mỗi branch chỉ được đọc `Crit / Fail` của die nó chọn
+
+Ví dụ:
+
+- roll `10 crit` và `2 normal`
+- skill là `highest -> Guard`, `lowest -> Burn`
+
+thì:
+
+- `Guard` dùng die `10` và ăn `Added Value` của die `10`
+- `Burn` dùng die `2` và **không** được ăn `Added Value` từ die `10`
+
+Tương tự:
+
+- roll `10 crit` và `20 fail`
+- skill là `lowest -> Burn`, `highest -> Guard`
+
+thì:
+
+- `Burn` lấy từ die `10 crit` -> `12 Burn`
+- `Guard` lấy từ die `20 fail` -> `10 Guard`
+
+không được trộn add/fail của hai die vào cùng một output.
+
+### 3.4D Condition Standard cho 80-85% skill
+
+Mục tiêu của condition system **không phải** là diễn tả mọi skill trong game.
+Mục tiêu đúng là:
+
+- cover được khoảng `80%-85%` skill bằng authoring chuẩn,
+- chỉ những skill thật sự đặc biệt mới cần custom code,
+- tránh việc mỗi skill lại phải code lại toàn bộ effect từ đầu.
+
+#### Condition là gì trong game này
+
+`Condition` là **hệ quy chiếu để đọc / chọn / phân vai cho dice, target, resource, board state**.
+
+`Condition` **không phải payoff cố định**.
+
+Điều này có nghĩa:
+
+- `chẵn` không đồng nghĩa với `bonus Burn`,
+- `lẻ` không đồng nghĩa với `bonus damage`,
+- `highest` không đồng nghĩa cố định với `Guard`,
+- `lowest` không đồng nghĩa cố định với `Burn`.
+
+`Condition` chỉ trả lời:
+
+- đang đọc trục nào,
+- đang chọn die nào,
+- đang nhìn target/state nào,
+- khi nào skill được mở payoff phụ.
+
+Còn payoff thực sự phải nằm ở `Effect / Outcome`.
+
+#### Công thức authoring chuẩn cho đa số skill
+
+Một skill thông thường nên được ghép từ 4 lớp:
+
+1. `Core`
+- element
+- tag
+- slot cost
+- focus cost
+- target rule
+- base output như `flat damage`, `flat guard`, `flat status`, hoặc `X`
+
+2. `Optional Condition`
+- có thể không có
+- nếu có thì thường chỉ nên có `1 condition chính`
+
+3. `Effect / Outcome`
+- deal damage
+- apply Burn / Freeze / Mark / Bleed
+- gain Guard / Focus
+- consume status
+- grant Added Value
+- split outcome theo die được chọn
+
+4. `Custom Hook`
+- chỉ dùng khi skill thực sự vượt khỏi khung chuẩn
+
+#### Condition system nên làm được những gì
+
+Condition chuẩn nên cover tốt 5 nhóm sau:
+
+1. `Dice Parity`
+- any base odd
+- any base even
+- highest base is odd/even
+- lowest base is odd/even
+
+2. `Crit / Fail`
+- any die crit
+- any die fail
+- selected die crit
+- selected die fail
+
+3. `Exact Value`
+- any base value = N
+- highest base = N
+- lowest base = N
+- all bases in group = N
+
+4. `Resource / Action-space`
+- current focus >= N
+- occupied slots = N
+- remaining slots = N
+- current action is 1/2/3-slot
+
+5. `Simple State / Board checks`
+- target has Burn / Freeze / Chilled / Mark / Bleed
+- enemies with status >= N
+- combat history count >= N
+
+Nếu condition system cover chắc 5 nhóm này, phần lớn skill thường sẽ không cần code riêng.
+
+#### Condition system không nên ôm những gì
+
+Không nên cố nhét vào condition system các case như:
+
+- alternate mode qua từng lần dùng nếu skill có state machine riêng
+- branch sequencing quá đặc thù
+- rule rewrite làm đổi hẳn cách resolve của game
+- effect có animation / propagation / timing cực riêng
+- multi-step engine cần state lưu riêng cho skill
+
+Các case này nên đi vào:
+
+- `Effect / Outcome layer`
+- hoặc `custom hook`
+
+#### Quy tắc thực dụng khi author skill
+
+Nếu một skill có thể mô tả bằng:
+
+- `đọc 1-2 reference`
+- `so sánh 1 điều kiện`
+- `bật 1-2 outcome chuẩn`
+
+thì **không được code riêng**.
+
+Chỉ cho phép custom code khi skill cần ít nhất một trong các thứ sau:
+
+- state riêng của chính skill qua nhiều lần dùng
+- timing đặc biệt không khớp flow chuẩn
+- rule rewrite lên die/action/board
+- split-role quá đặc thù không map nổi vào branch chuẩn
+- propagation / retrigger / copy logic đặc biệt
+
+#### Rule authoring rất quan trọng
+
+- `Condition` mặc định phải đọc từ `Base Value`.
+- `Added Value` là lớp thưởng của output, không phải input mặc định của condition.
+- `Single-output skill` được phép dùng `Total Added Value` của action.
+- `Split-role skill` phải resolve theo `per-die Base/Added/Crit/Fail` của đúng die được chọn cho từng branch.
+- Một skill thường chỉ nên có `1 condition chính`.
+- Rare rất đặc biệt mới nên có `2 condition đáng kể`.
+
+### 3.4E Bộ condition preset nên có trên Inspector
+
+Để author dễ hình dung, Inspector không nên bắt đầu bằng raw clause.
+Bề mặt authoring nên bắt đầu bằng `preset theo hệ`.
+
+Ví dụ preset đủ dùng:
+
+#### Fire
+- Any Base Odd
+- Any Base Even
+- Exact All Bases = N
+- Highest Base = N
+- Lowest Base = N
+- Occupied Slots = N
+- Remaining Slots = N
+- Target Has Burn
+
+#### Ice
+- Any Base Odd
+- Any Base Even
+- Exact All Bases = N
+- Highest Base = N
+- Lowest Base = N
+- Occupied Slots = N
+- Target Is Frozen
+- Target Is Chilled
+
+#### Lightning
+- Any Base Odd
+- Any Base Even
+- Any Die Crit
+- Any Die Fail
+- Highest Base = N
+- Lowest Base = N
+- Target Has Mark
+- Marked Enemies >= N
+
+#### Physical
+- Any Base Odd
+- Any Base Even
+- Any Die Crit
+- Any Die Fail
+- Highest Base = N
+- Lowest Base = N
+- Current Focus >= N
+- Occupied Slots = N
+- Remaining Slots = N
+
+#### Bleed
+- Any Base Odd
+- Any Base Even
+- Any Die Crit
+- Any Die Fail
+- Highest Base = N
+- Lowest Base = N
+- Target Has Bleed
+- Total Bleed On Board >= N
+
+### 3.4F Hiện tại author được gì bằng Inspector
+
+Với khung hiện tại, `SkillDamageSO` đã author được các loại rất thường gặp sau mà không cần code riêng:
+
+- `Base Effect`
+  - `Deal Flat Damage`
+  - `Deal X Damage`
+  - `Apply Flat Burn`
+  - `Apply X Burn`
+- `Condition`
+  - `Dice Parity`
+  - `Crit / Fail`
+  - `Exact Value`
+  - `Resource`
+  - `Slot Space`
+  - `Target State`
+  - `Board State`
+- `If Condition Met`
+  - `Deal Damage`
+  - `Apply Burn`
+  - `Gain Guard`
+  - `Gain Added Value`
+- `Split Role`
+  - `Lowest selected -> Burn / Guard`
+  - `Highest selected -> Burn / Guard`
+
+Nói ngắn:
+
+- `Ignite+` đã map được bằng inspector
+- `Fire Slash` đã map được bằng inspector
+- `Hellfire` đã map được phần exact-value bằng inspector, phần consume/reapply vẫn dùng effect đã có
+- `Cauterize` đã map được bằng inspector qua `Split Role`
+
+### 3.4G Những gì vẫn chưa author hoàn toàn bằng Inspector
+
+Ngoài case `slot = x / chiếm toàn bộ số slot còn trống`, hiện tại còn các nhóm sau vẫn chưa được coi là hoàn toàn solved bằng inspector:
+
+1. `Adaptive Slot Occupancy`
+- skill đang chiếm `3/2/1` slot theo số slot còn trống
+- đây vẫn là mechanic riêng, chưa có builder chuẩn
+
+2. `Split-role output ngoài Burn / Guard`
+- hiện `Split Role` mới cover:
+  - `Burn`
+  - `Guard`
+- chưa cover trực tiếp:
+  - `Added Value`
+  - `Mark`
+  - `Freeze`
+  - `Bleed`
+
+3. `Một skill cần nhiều condition độc lập rồi mỗi condition mở một outcome khác nhau`
+- hiện khung chuẩn tốt nhất khi:
+  - có `1 condition chính`
+  - và `1 conditional outcome chính`
+
+4. `Rule rewrite / state machine`
+- alternate mode theo lần dùng
+- copy/move base theo logic nhiều bước
+- retrigger / propagation nhiều tầng
+- custom timing riêng
+
+5. `Target-state condition ở planning preview sâu`
+- model condition đã có chỗ cho `Target Has Burn/Mark/...`
+- nhưng nếu muốn preview/planning bám sát target động ở mọi ngữ cảnh, còn cần nối sâu hơn vào target-selection flow
+- Any Base Even
+- Any Die Crit
+- Any Die Fail
+- Highest Base = N
+- Lowest Base = N
+
+Raw clause editor chỉ nên là `advanced mode`, không phải mặt authoring chính.
 
 ### 3.5 Runtime Packet
 
@@ -137,6 +584,10 @@ Một skill chỉ nên đọc dữ liệu từ các nguồn hợp lệ sau:
 - số định mệnh / combat seed rule riêng
 - turn index nếu một skill đặc biệt thật sự cần đọc
 - encounter-specific law nếu boss law ghi rõ
+- combat history counters, ví dụ:
+  - `đã có bao nhiêu kẻ địch từng bị Freeze trong combat này`
+  - `skill này đã được dùng bao nhiêu lần trong combat này`
+  - `đã có bao nhiêu lần Crit với chính skill này trong run`
 
 > Guardrail: skill thường **không nên** đọc quá nhiều nguồn cùng lúc.  
 > Một skill dễ đọc thường chỉ cần 1 nguồn chính + 1 nguồn phụ.
@@ -207,74 +658,66 @@ Ví dụ:
 
 Mỗi skill thường chỉ nên có **1 condition chính**. Rare rất đặc biệt mới nên có 2 condition đáng kể.
 
-### 6.1 Identity Conditions (đọc bản chất của die)
+### 6.1 Parity
+
+- `Even`
+- `Odd`
+- Cách đọc:
+- `1 slot` = die này chẵn/lẻ
+- `nhiều slot` = cả cụm đều chẵn/lẻ
+
+### 6.2 Crit / Fail
 
 - `Crit`
 - `Fail`
-- `Base Value is Even`
-- `Base Value is Odd`
-- `Base Value = N`
-- `Base Value <= N`
-- `Base Value >= N`
-- `Base Value is highest face of that die`
-- `Base Value is lowest face of that die`
+- Cách đọc:
+- `1 slot` = die này crit/fail
+- `nhiều slot` = cả cụm đều crit/fail
 
-### 6.2 Local Group Conditions
+### 6.3 Exact value
 
-- `Highest in Local Group`
-- `Lowest in Local Group`
-- `All Dice in Group = N`
-- `Any Die in Group = N`
-- `Sum of Group >= N`
-- `Exactly 2 dice in group are even`
-- `highest - lowest >= N`
+- `Die Equals X`
+- `Group Contains Pattern`
+- `Random Exact Number Owned`
+- `Random Exact Number Random`
+- `Die Equals X` cho nhập số cụ thể
+- `Group Contains Pattern` cho nhập pattern kiểu `1-2-3-5`
+- `Random Exact Number Owned` chỉ random trong pool face value mà dice player đang sở hữu
+- `Random Exact Number Random` random độc lập, không cần quan tâm player có số đó hay không
 
-### 6.3 Positional Conditions
+### 6.4 Local group / slot relation
 
-- `Left Slot`
-- `Middle Slot`
-- `Right Slot`
-- `Left die > Right die`
-- `Right die is even`
-- `center die determines payoff`
+- `Self-position`
+- `Neighbor relation`
+- `Split-role`
+- `Self-position` chỉ có `Left / Right`
+- `Neighbor relation` chỉ có `Left / Right`
+- `Split-role` chỉ có `Highest / Lowest`
 
-### 6.4 Target Status Conditions
+### 6.5 Target status
 
 - `Target has Burn`
 - `Target has Mark`
 - `Target has Freeze`
 - `Target has Chilled`
 - `Target has Bleed`
-- `Target has Guard`
-- `Target is Staggered`
-- `Target has any status`
+- `Target has Stagger`
+- `Status History (TODO)` hiện chỉ là note mở rộng sau, chưa có runtime logic
 
-### 6.5 Player State Conditions
+### 6.6 Resource
 
+- `Current Focus >= N`
 - `Player Guard >= N`
-- `Player Focus >= N`
-- `This is the first Basic Attack this combat`
-- `Player lost HP last turn`
-- `Player has no Guard`
+- `Target Guard >= N`
 
-### 6.6 Board Conditions
+### 6.7 Board / encounter
 
-- `Combat has 3 or more enemies`
-- `At least 2 enemies have Mark`
-- `All enemies have Mark`
-- `Total Bleed on board >= N`
-- `At least 1 enemy is Chilled`
+- `Alive Enemies Count >= N`
+- `Enemies With Status Count >= N`
 
-### 6.7 Meta / Encounter Conditions
-
-- `Base Value = Fate Number`
-- `Boss law active`
-- `This is turn 1`
-
-> Guardrail:  
-> - Common nên ưu tiên dùng **Identity Condition** hoặc **Target Status Condition**.  
-> - Uncommon có thể thêm **Local Group** hoặc **Player State**.  
-> - Rare mới nên dùng các condition phức tạp hơn như **Board Condition**, **Positional**, hoặc condition kép có chủ đích.
+> Guardrail:
+> - Skill condition phải bị cắt gọn theo 7 trục trên.
+> - Không mở lại `slot space`, `middle slot`, `count crit/fail`, hay exact theo vị trí nếu chưa có build thật sự cần.
 
 ---
 
@@ -285,19 +728,33 @@ Skill mới nên được ghép từ 1–3 module dưới đây.
 ### 7.1 Damage Modules
 
 - `Deal Damage = X`
-- `Deal Fixed Damage = N`
+- `Deal Standard Damage = N (+ Added Value unless stated otherwise)`
 - `Deal AoE Damage = X to all`
 - `Deal Splash Damage`
 - `Deal Bonus Damage if condition met`
 - `Deal Overkill Carryover`
+- `Deal Damage from Combat History Counter + Added Value`
+
+Rule viết text:
+
+- Nếu skill là damage chuẩn, wording chuẩn nên hiểu là `deal N damage + Added Value`.
+- Nếu skill là skill `X`, wording chuẩn nên hiểu là `X = Base Value + Added Value`.
+- Nếu skill nhiều slot, `Added Value` mặc định là tổng Added Value của toàn bộ dice trong local group.
 
 ### 7.2 Guard Modules
 
 - `Gain Guard = X`
+- `Gain Fixed Guard + Added Value`
 - `Gain Guard from Highest/Lowest in Group`
 - `Gain Guard from Player Resource`
 - `Retain Guard`
 - `Convert Status into Guard`
+
+Rule chuẩn hóa rất quan trọng:
+
+- `Guard` không nên đi một logic riêng tách khỏi `Damage` nếu bản chất chỉ khác loại output.
+- Nếu skill là `fixed Guard output`, wording chuẩn nên hiểu là `gain N Guard + Added Value` trừ khi text ghi rõ ngược lại.
+- Nói ngắn gọn: **`fixed output + Added Value` là rule chung cho cả Attack lẫn Guard**.
 
 ### 7.3 Status Apply Modules
 
@@ -329,6 +786,7 @@ Skill mới nên được ghép từ 1–3 module dưới đây.
 - `Buff a system rule for N turns`
 - `Reduce Focus Cost under condition`
 - `Add temporary Added Value`
+- `Add permanent Added Value to a specific skill for this run`
 - `Grant Focus now or each turn`
 
 ### 7.7 Debuff Modules
@@ -515,6 +973,13 @@ Phải ghi rõ:
 ### 12.2 Đừng dùng Added Value cho condition nếu không thật sự muốn
 
 Nếu text chỉ nói `dice = 7`, hệ thống phải hiểu là **Base Value = 7**.
+
+Nếu muốn skill đọc output cuối, phải ghi rất rõ kiểu:
+- `X = Base Value + Added Value`
+- `deal N damage + Added Value`
+
+Nếu skill nhiều slot, nên ghi rõ hoặc ngầm hiểu theo grammar chuẩn:
+- `Added Value` = tổng Added Value của toàn bộ dice trong local group
 
 ### 12.3 Rare không đồng nghĩa với “nhiều chữ”
 

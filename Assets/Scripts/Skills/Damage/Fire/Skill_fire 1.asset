@@ -40,12 +40,8 @@ MonoBehaviour:
   hasCondition: 0
   condition:
     scope: 0
-    kind: 0
-    parityRule: 0
-    thresholdCompare: 0
-    thresholdValue: 6
-    matchRule: 0
-    straightRule: 0
+    logic: 0
+    clauses: []
   whenConditionIsMet:
     overrideSlotsRequired: 0
     slotsRequired: 1

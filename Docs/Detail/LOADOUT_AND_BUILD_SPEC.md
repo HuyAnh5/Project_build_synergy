@@ -141,8 +141,12 @@ Mục tiêu là để pivot là một phần thú vị của run, nhưng không 
 ### 5.1 Basic Attack
 
 * **0 Focus**
-* gây **4 damage cố định**
+* gây **4 damage gốc**
 * cho **+1 Focus**
+
+Basic Attack vẫn nhận `Added Value` khi resolve damage.
+Vì nó không phải `Physical`, crit của Basic Attack dùng hệ số crit thường `+20% Base Value` để tạo Added Value.
+Fail chỉ cắt nửa damage gốc của Basic Attack xuống `2`, không làm đổi Base Value và không trừ Added Value.
 
 Basic Attack không chỉ là fallback.
 Nó còn là điểm gắn với:

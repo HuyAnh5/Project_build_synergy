@@ -3,9 +3,17 @@ using System.Collections.Generic;
 using UnityEngine;
 public class StatusController : MonoBehaviour
 {
-    // Burn: stacks + duration
+    [Serializable]
+    public class BurnBatchState
+    {
+        public int stacks;
+        public int turnsRemaining;
+    }
+
+    // Burn: total visible stacks + longest remaining batch duration for debug/back-compat
     public int burnStacks;
     public int burnTurns;
+    [SerializeField] private List<BurnBatchState> _burnBatches = new List<BurnBatchState>(4);
 
     // Mark: tồn tại tới hit kế tiếp
     public bool marked;
@@ -25,7 +33,10 @@ public class StatusController : MonoBehaviour
 
     // Named content hooks already committed in spec.
     public int emberWeaponTurns;
+    public int emberWeaponBonusDamage = 1;
+    public bool emberWeaponBurnEqualsDamage = true;
     public int cinderbrandTurns;
+    public int cinderbrandBonusPerBurn = 1;
 
     // -------------------- NEW: Buff/Debuff/Ailment layer (non-breaking) --------------------
 
@@ -177,6 +188,9 @@ public class StatusController : MonoBehaviour
     public void ApplyBurn(int addStacks, int refreshTurns)
         => StatusStateUtility.ApplyBurn(this, addStacks, refreshTurns);
 
+    public int ConsumeAllBurn()
+        => StatusStateUtility.ConsumeAllBurn(this);
+
     public void ApplyMark() => marked = true;
 
     public void ApplyBleed(int stacks)
@@ -247,6 +261,12 @@ public class StatusController : MonoBehaviour
 
     internal bool GetChilledJustApplied() => _chilledJustAppliedThisTurn;
     internal void SetChilledJustApplied(bool value) => _chilledJustAppliedThisTurn = value;
+    internal List<BurnBatchState> GetBurnBatches() => _burnBatches;
+    internal void SyncBurnDisplay(int stacks, int maxTurns)
+    {
+        burnStacks = Mathf.Max(0, stacks);
+        burnTurns = Mathf.Max(0, maxTurns);
+    }
 
     public void SetAilmentState(AilmentType type, int turns)
     {

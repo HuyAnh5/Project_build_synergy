@@ -342,6 +342,237 @@ Không làm 20 skill = 20 build rời nhau. Làm theo kiểu skill/passive tươ
 
 ---
 
+## 15.1 Condition Standard — khung để author 80%-85% skill
+
+Mục tiêu của `Condition` **không phải** là diễn tả mọi skill trong game.
+Mục tiêu đúng là:
+
+- cover được khoảng `80%-85%` skill bằng authoring chuẩn,
+- chỉ những skill thật sự đặc biệt mới cần custom code,
+- tránh việc mỗi skill lại phải code lại toàn bộ effect từ đầu.
+
+### Condition là gì trong game này
+
+`Condition` là **hệ quy chiếu để đọc / chọn / phân vai cho dice, target, resource, board state**.
+
+`Condition` **không phải payoff cố định**.
+
+Điều này có nghĩa:
+
+- `chẵn` không đồng nghĩa với `bonus Burn`,
+- `lẻ` không đồng nghĩa với `bonus damage`,
+- `highest` không đồng nghĩa cố định với `Guard`,
+- `lowest` không đồng nghĩa cố định với `Burn`.
+
+`Condition` chỉ trả lời:
+
+- đang đọc trục nào,
+- đang chọn die nào,
+- đang nhìn target/state nào,
+- khi nào skill được mở payoff phụ.
+
+Còn payoff thực sự phải nằm ở `Effect / Outcome`.
+
+### Công thức authoring chuẩn cho đa số skill
+
+Một skill thông thường nên được ghép từ 4 lớp:
+
+1. `Core`
+   - element
+   - tag
+   - slot cost
+   - focus cost
+   - target rule
+   - base output như `flat damage`, `flat guard`, `flat status`, hoặc `X`
+
+2. `Optional Condition`
+   - có thể không có
+   - nếu có thì thường chỉ nên có `1 condition chính`
+
+3. `Effect / Outcome`
+   - deal damage
+   - apply Burn / Freeze / Mark / Bleed
+   - gain Guard / Focus
+   - consume status
+   - grant Added Value
+   - split outcome theo die được chọn
+
+4. `Custom Hook`
+   - chỉ dùng khi skill thực sự vượt khỏi khung chuẩn
+
+### 7 trục condition chuẩn cho skill
+
+Skill condition nên bị khóa gọn theo 7 trục sau:
+
+#### 1. Parity
+
+- `Even`
+- `Odd`
+- Tự hiểu:
+- `1 slot` = die này chẵn/lẻ
+- `nhiều slot` = cả cụm đều chẵn/lẻ
+
+#### 2. Crit / Fail
+
+- `Crit`
+- `Fail`
+- Tự hiểu:
+- `1 slot` = die này crit/fail
+- `nhiều slot` = cả cụm đều crit/fail
+
+#### 3. Exact value
+
+- `Die Equals X`
+- `Group Contains Pattern`
+- `Random Exact Number Owned`
+- `Random Exact Number Random`
+
+#### 4. Local group / slot relation
+
+- `Self-position`
+- `Neighbor relation`
+- `Split-role`
+- `Self-position` chỉ dùng `Left / Right`
+- `Neighbor relation` chỉ dùng `Left / Right`
+- `Split-role` chỉ dùng `Highest / Lowest`
+
+#### 5. Effect / Target State
+
+- `Target Has Burn`
+- `Target Has Mark`
+- `Target Has Freeze`
+- `Target Has Chilled`
+- `Target Has Bleed`
+- `Target Has Stagger`
+- `Status History (TODO)` chưa có runtime logic, chỉ note để mở rộng sau
+
+#### 6. Resource axis
+
+- `Current Focus`
+- `Player Guard`
+- `Target Guard`
+
+#### 7. Board / encounter axis
+
+- `Alive Enemies Count`
+- `Enemies With Status Count`
+
+### Condition không nên ôm những gì
+
+Không nên cố nhét vào condition system các case như:
+
+- skill có state machine riêng qua nhiều lần dùng,
+- skill alternate mode qua từng lần dùng,
+- propagation / retrigger / copy logic quá đặc thù,
+- rule rewrite làm đổi hẳn cách resolve của game,
+- timing đặc biệt không khớp flow chuẩn,
+- effect nhiều bước cần lưu state riêng cho chính skill.
+
+Các case đó nên đi vào:
+
+- `Effect / Outcome layer`,
+- hoặc `Custom Hook`.
+
+### Quy tắc quyết định có cần code riêng hay không
+
+Nếu một skill có thể mô tả bằng:
+
+- `1-2 reference`,
+- `1 condition chính`,
+- `1-2 outcome chuẩn`,
+
+thì **không được code riêng**.
+
+Chỉ cho phép custom code khi skill cần ít nhất một trong các thứ sau:
+
+- state riêng của chính skill qua nhiều lần dùng,
+- timing đặc biệt không khớp flow chuẩn,
+- rule rewrite lên die/action/board,
+- split-role quá đặc thù không map nổi vào branch chuẩn,
+- propagation / retrigger / copy logic đặc biệt.
+
+### Rule authoring rất quan trọng
+
+- `Condition` mặc định phải đọc từ `Base Value`.
+- `Added Value` là lớp thưởng của output, không phải input mặc định của condition.
+- `Single-output skill` được phép dùng `Total Added Value` của action.
+- `Split-role skill` phải resolve theo `per-die Base/Added/Crit/Fail` của đúng die được chọn cho từng branch.
+- Một skill thường chỉ nên có `1 condition chính`.
+- Rare rất đặc biệt mới nên có `2 condition đáng kể`.
+
+### Bộ preset nên có trên Inspector
+
+Inspector không nên bắt đầu bằng raw clause kỹ thuật.
+Nó nên bắt đầu bằng `preset theo hệ`, sau đó mới cho advanced override nếu thật sự cần.
+
+Ví dụ preset đủ dùng:
+
+#### Fire
+
+- Any Base Odd
+- Any Base Even
+- Exact All Bases = N
+- Highest Base = N
+- Lowest Base = N
+- Occupied Slots = N
+- Remaining Slots = N
+- Target Has Burn
+
+#### Ice
+
+- Any Base Odd
+- Any Base Even
+- Exact All Bases = N
+- Highest Base = N
+- Lowest Base = N
+- Occupied Slots = N
+- Target Is Frozen
+- Target Is Chilled
+
+#### Lightning
+
+- Any Base Odd
+- Any Base Even
+- Any Die Crit
+- Any Die Fail
+- Highest Base = N
+- Lowest Base = N
+- Target Has Mark
+- Marked Enemies >= N
+
+#### Physical
+
+- Any Base Odd
+- Any Base Even
+- Any Die Crit
+- Any Die Fail
+- Highest Base = N
+- Lowest Base = N
+- Current Focus >= N
+- Occupied Slots = N
+- Remaining Slots = N
+
+#### Bleed
+
+- Any Base Odd
+- Any Base Even
+- Any Die Crit
+- Any Die Fail
+- Highest Base = N
+- Lowest Base = N
+- Target Has Bleed
+- Total Bleed On Board >= N
+
+### Câu chốt
+
+Muốn một skill nằm trong `80%-85% skill chuẩn`, nó phải đọc được bằng:
+
+`Core + 1 condition chính + 1-2 effect chuẩn`
+
+Nếu vượt khỏi khung đó, mới cho phép thêm custom code.
+
+---
+
 ## 16. Skills — Đã Chốt
 
 ### Ember Weapon [Status / Buff] — 1 slot, 2 Focus, Uncommon

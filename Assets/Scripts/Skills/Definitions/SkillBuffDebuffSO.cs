@@ -281,6 +281,7 @@ public class SkillBuffDebuffSO : ScriptableObject
     [TabGroup("Tabs", "Spec")]
     [BoxGroup("Tabs/Spec/Metadata")]
     [LabelText("Behavior Id")]
+    [HideInInspector]
     public BuffBehaviorId behaviorId = BuffBehaviorId.None;
 
     // ---------------- Tabs ----------------
@@ -395,6 +396,11 @@ public class SkillBuffDebuffSO : ScriptableObject
     [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = true)]
     [HideLabel]
     public List<BuffDebuffEffectEntry> effects = new();
+
+    [TabGroup("Tabs", "Effects")]
+    [BoxGroup("Tabs/Effects/Fire Modules")]
+    [HideLabel]
+    public FireBuffModuleData fireModules = new FireBuffModuleData();
 
     // ---------------- Ailment tab ----------------
     [TabGroup("Tabs", "Ailment")]

@@ -15,6 +15,19 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: 44a054df1702e39458b7072b08d0f212, type: 3}
   displayName: Skill_fire
   description: 
+  spec:
+    rarity: 0
+    specState: 0
+    buildRole: 1
+    implementationCoverage: 0
+    normalizedText: 
+    designIntent: 
+  behaviorFamily: 0
+  fireBehaviorId: 0
+  iceBehaviorId: 0
+  lightningBehaviorId: 0
+  bleedBehaviorId: 0
+  physicalBehaviorId: 0
   kind: 0
   coreAction: 0
   target: 3
@@ -24,15 +37,36 @@ MonoBehaviour:
   hitAllEnemies: 1
   hitAllAllies: 0
   slotsRequired: 1
-  hasCondition: 0
+  hasCondition: 1
+  conditionEditorMode: 0
+  useSystemConditionPreset: 1
+  standardConditionFamily: 5
+  diceParityConditionPreset: 0
+  critFailConditionPreset: 0
+  exactConditionMode: 0
+  exactValueX: 7
+  exactValuePattern: 1-2-3
+  resourceConditionPreset: 0
+  localGroupRelationMode: 0
+  localGroupRelationSide: 0
+  localGroupConditionPreset: 0
+  targetStateConditionPreset: 0
+  boardStateConditionPreset: 0
+  fireConditionPreset: 0
+  iceConditionPreset: 0
+  lightningConditionPreset: 0
+  physicalConditionPreset: 0
+  bleedConditionPreset: 0
+  conditionPresetValue: 7
+  showAdvancedCondition: 0
+  exactConditionMigrated: 1
   condition:
     scope: 0
-    kind: 0
-    parityRule: 0
-    thresholdCompare: 0
-    thresholdValue: 6
-    matchRule: 0
-    straightRule: 0
+    logic: 0
+    clauses:
+    - reference: 40
+      comparison: 6
+      value: 0
   whenConditionIsMet:
     overrideSlotsRequired: 0
     slotsRequired: 1
@@ -54,7 +88,8 @@ MonoBehaviour:
     sunderBonusIfTargetHasGuard: 1
     sunderGuardDamageMultiplier: 2
     overrideGuard: 0
-    guardDieMultiplier: 1
+    guardValueMode: 1
+    legacyGuardDieMultiplier: 1
     guardFlat: 0
     overrideSpecialCombat: 0
     bypassGuard: 0
@@ -74,20 +109,49 @@ MonoBehaviour:
     freezeChance: 0.4
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
+  conditionalOutcome:
+    enabled: 0
+    type: 0
+    valueMode: 0
+    flatValue: 2
+    burnTurns: 3
+    _xHint: 1
+  splitRole:
+    enabled: 0
+    lowestOutcome: 0
+    highestOutcome: 0
+    burnTurns: 3
   focusCost: 1
   focusGainOnCast: 0
+  baseDamageValueMode: 0
   dieMultiplier: 0
   flatDamage: 1
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
-  guardDieMultiplier: 1
+  guardValueMode: 1
+  legacyGuardDieMultiplier: 1
   guardFlat: 0
   bypassGuard: 0
   clearsGuard: 0
   canUseMarkMultiplier: 1
   consumesBurn: 1
   burnDamagePerStack: 2
+  fireModules:
+    useXFormula: 0
+    applyBurnFromResolvedValue: 0
+    grantBonusBurnOnOddBase: 0
+    oddBaseBonusBurn: 2
+    applyBurnFromLowestBase: 0
+    gainGuardFromHighestBase: 0
+    reapplyBurnPerExactBase: 0
+    exactBaseForReapply: 7
+    burnPerExactMatch: 7
+    requireBurnBeforeHitForReapply: 1
+    applyConsumeBonusDebuff: 0
+    consumeBonusPerBurn: 1
+    consumeBonusDebuffTurns: 2
   applyBurn: 0
+  baseBurnValueMode: 0
   burnAddStacks: 2
   burnRefreshTurns: 3
   applyMark: 0

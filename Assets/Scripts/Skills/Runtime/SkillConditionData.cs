@@ -1,7 +1,132 @@
 using System;
 using System.Collections.Generic;
-using UnityEngine;
 using Sirenix.OdinInspector;
+using UnityEngine;
+
+public enum SkillConditionScope
+{
+    SlotBound,
+    Global,
+}
+
+public enum SkillConditionLogic
+{
+    All,
+    Any,
+}
+
+public enum SkillConditionReference
+{
+    AnyBaseValue,
+    FirstBaseValueInGroup,
+    MiddleBaseValueInGroup,
+    LastBaseValueInGroup,
+    HighestBaseValueInGroup,
+    LowestBaseValueInGroup,
+    TotalBaseValueInGroup,
+    TotalResolvedValueInGroup,
+    AllBaseValuesOdd,
+    AllBaseValuesEven,
+    MixedParityInGroup,
+    AnyDieCrit,
+    AnyDieFail,
+    FirstDieCrit,
+    MiddleDieCrit,
+    LastDieCrit,
+    FirstDieFail,
+    MiddleDieFail,
+    LastDieFail,
+    AllDiceCrit,
+    AllDiceFail,
+    CurrentFocus,
+    CurrentGuard,
+    TargetGuard,
+    OccupiedSlots,
+    RemainingSlots,
+    HasFirstDieInGroup,
+    HasMiddleDieInGroup,
+    HasLastDieInGroup,
+    HighestBaseIsInFirstSlot,
+    HighestBaseIsInLastSlot,
+    LowestBaseIsInFirstSlot,
+    LowestBaseIsInLastSlot,
+    EnemiesWithBurnCount,
+    MarkedEnemiesCount,
+    TotalBleedOnBoard,
+    AliveEnemiesCount,
+    EnemiesWithStatusCount,
+    IsLeftmostAction,
+    IsRightmostAction,
+    TargetHasBurn,
+    TargetHasFreeze,
+    TargetHasChilled,
+    TargetHasMark,
+    TargetHasBleed,
+    TargetHasStagger,
+}
+
+public enum SkillConditionComparison
+{
+    IsOdd,
+    IsEven,
+    Equals,
+    NotEquals,
+    GreaterOrEqual,
+    LessOrEqual,
+    IsTrue,
+    IsFalse,
+}
+
+[Serializable, InlineProperty]
+public class SkillConditionClause
+{
+    [HorizontalGroup("Row", Width = 200)]
+    [LabelText("Reference")]
+    public SkillConditionReference reference = SkillConditionReference.AnyBaseValue;
+
+    [HorizontalGroup("Row", Width = 150)]
+    [LabelText("Compare")]
+    public SkillConditionComparison comparison = SkillConditionComparison.IsOdd;
+
+    [HorizontalGroup("Row")]
+    [ShowIf(nameof(NeedsValue))]
+    [LabelText("Value")]
+    public int value = 0;
+
+    public bool NeedsValue =>
+        comparison == SkillConditionComparison.Equals ||
+        comparison == SkillConditionComparison.NotEquals ||
+        comparison == SkillConditionComparison.GreaterOrEqual ||
+        comparison == SkillConditionComparison.LessOrEqual;
+}
+
+[Serializable]
+public class SkillConditionContext
+{
+    public SkillConditionScope scope = SkillConditionScope.SlotBound;
+    public IReadOnlyList<int> localBaseValues;
+    public IReadOnlyList<int> localResolvedValues;
+    public IReadOnlyList<bool> localCritFlags;
+    public IReadOnlyList<bool> localFailFlags;
+    public int currentFocus;
+    public int currentGuard;
+    public int targetGuard;
+    public int occupiedSlots;
+    public int remainingSlots;
+    public int enemiesWithBurnCount;
+    public int markedEnemiesCount;
+    public int totalBleedOnBoard;
+    public int aliveEnemiesCount;
+    public int enemiesWithStatusCount;
+    public bool isLeftmostAction;
+    public bool isRightmostAction;
+    public bool targetHasBurn;
+    public bool targetHasFreeze;
+    public bool targetHasChilled;
+    public bool targetHasMark;
+    public bool targetHasBleed;
+    public bool targetHasStagger;
+}
 
 [Serializable]
 public class SkillConditionData
@@ -10,191 +135,370 @@ public class SkillConditionData
     public SkillConditionScope scope = SkillConditionScope.SlotBound;
 
     [EnumToggleButtons]
-    public SkillConditionKind kind = SkillConditionKind.Parity;
+    public SkillConditionLogic logic = SkillConditionLogic.All;
 
-    // --- Parity ---
-    [ShowIf("@kind == SkillConditionKind.Parity")]
-    [EnumToggleButtons]
-    public SkillParityRule parityRule = SkillParityRule.AnyOdd;
+    [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = true)]
+    public List<SkillConditionClause> clauses = new List<SkillConditionClause>();
 
-    // --- Threshold (uses SUM of considered dice) ---
-    [ShowIf("@kind == SkillConditionKind.Threshold")]
-    [EnumToggleButtons]
-    public ThresholdCompare thresholdCompare = ThresholdCompare.GreaterOrEqual;
+    public bool HasAnyClause => clauses != null && clauses.Count > 0;
 
-    [ShowIf("@kind == SkillConditionKind.Threshold")]
-    [Min(0)]
-    public int thresholdValue = 6;
-
-    // --- Match ---
-    [ShowIf("@kind == SkillConditionKind.Match")]
-    [EnumToggleButtons]
-    public DiceMatchRule matchRule = DiceMatchRule.AnyPair;
-
-    // --- Straight ---
-    [ShowIf("@kind == SkillConditionKind.Straight")]
-    [EnumToggleButtons]
-    public StraightRule straightRule = StraightRule.AnyConsecutive;
-
-    /// <summary>
-    /// Evaluate against a list of dice values.
-    /// </summary>
-    public bool Evaluate(IReadOnlyList<int> diceValues)
+    public bool Evaluate(SkillConditionContext context)
     {
-        if (diceValues == null || diceValues.Count == 0)
+        if (context == null || clauses == null || clauses.Count == 0)
             return false;
 
-        switch (kind)
+        bool anyMatched = false;
+        for (int i = 0; i < clauses.Count; i++)
         {
-            case SkillConditionKind.Parity:
-                return EvaluateParity(diceValues, parityRule);
+            SkillConditionClause clause = clauses[i];
+            if (clause == null)
+                continue;
 
-            case SkillConditionKind.Threshold:
-                return EvaluateThreshold(diceValues, thresholdCompare, thresholdValue);
+            bool matched = EvaluateClause(clause, context);
+            if (logic == SkillConditionLogic.All && !matched)
+                return false;
+            if (logic == SkillConditionLogic.Any && matched)
+                return true;
 
-            case SkillConditionKind.Match:
-                return EvaluateMatch(diceValues, matchRule);
+            anyMatched |= matched;
+        }
 
-            case SkillConditionKind.Straight:
-                return EvaluateStraight(diceValues, straightRule);
+        return logic == SkillConditionLogic.All ? anyMatched : false;
+    }
+
+    private static bool EvaluateClause(SkillConditionClause clause, SkillConditionContext context)
+    {
+        switch (clause.reference)
+        {
+            case SkillConditionReference.AnyBaseValue:
+                return EvaluateAnyBaseValue(clause, context.localBaseValues);
+
+            case SkillConditionReference.FirstBaseValueInGroup:
+                return EvaluateIndexedValue(clause, context.localBaseValues, 0);
+
+            case SkillConditionReference.MiddleBaseValueInGroup:
+                return EvaluateIndexedValue(clause, context.localBaseValues, 1);
+
+            case SkillConditionReference.LastBaseValueInGroup:
+                return EvaluateIndexedValue(clause, context.localBaseValues, GetLastIndex(context.localBaseValues));
+
+            case SkillConditionReference.HighestBaseValueInGroup:
+                return EvaluateInt(clause, GetHighest(context.localBaseValues));
+
+            case SkillConditionReference.LowestBaseValueInGroup:
+                return EvaluateInt(clause, GetLowest(context.localBaseValues));
+
+            case SkillConditionReference.TotalBaseValueInGroup:
+                return EvaluateInt(clause, Sum(context.localBaseValues));
+
+            case SkillConditionReference.TotalResolvedValueInGroup:
+                return EvaluateInt(clause, Sum(context.localResolvedValues));
+
+            case SkillConditionReference.AllBaseValuesOdd:
+                return EvaluateBool(clause, AreAllValuesOdd(context.localBaseValues));
+
+            case SkillConditionReference.AllBaseValuesEven:
+                return EvaluateBool(clause, AreAllValuesEven(context.localBaseValues));
+
+            case SkillConditionReference.MixedParityInGroup:
+                return EvaluateBool(clause, HasMixedParity(context.localBaseValues));
+
+            case SkillConditionReference.AnyDieCrit:
+                return EvaluateBool(clause, AnyTrue(context.localCritFlags));
+
+            case SkillConditionReference.AnyDieFail:
+                return EvaluateBool(clause, AnyTrue(context.localFailFlags));
+
+            case SkillConditionReference.FirstDieCrit:
+                return EvaluateIndexedBool(clause, context.localCritFlags, 0);
+
+            case SkillConditionReference.MiddleDieCrit:
+                return EvaluateIndexedBool(clause, context.localCritFlags, 1);
+
+            case SkillConditionReference.LastDieCrit:
+                return EvaluateIndexedBool(clause, context.localCritFlags, GetLastIndex(context.localCritFlags));
+
+            case SkillConditionReference.FirstDieFail:
+                return EvaluateIndexedBool(clause, context.localFailFlags, 0);
+
+            case SkillConditionReference.MiddleDieFail:
+                return EvaluateIndexedBool(clause, context.localFailFlags, 1);
+
+            case SkillConditionReference.LastDieFail:
+                return EvaluateIndexedBool(clause, context.localFailFlags, GetLastIndex(context.localFailFlags));
+
+            case SkillConditionReference.AllDiceCrit:
+                return EvaluateBool(clause, AllTrue(context.localCritFlags));
+
+            case SkillConditionReference.AllDiceFail:
+                return EvaluateBool(clause, AllTrue(context.localFailFlags));
+
+            case SkillConditionReference.CurrentFocus:
+                return EvaluateInt(clause, Mathf.Max(0, context.currentFocus));
+
+            case SkillConditionReference.CurrentGuard:
+                return EvaluateInt(clause, Mathf.Max(0, context.currentGuard));
+
+            case SkillConditionReference.TargetGuard:
+                return EvaluateInt(clause, Mathf.Max(0, context.targetGuard));
+
+            case SkillConditionReference.OccupiedSlots:
+                return EvaluateInt(clause, Mathf.Max(0, context.occupiedSlots));
+
+            case SkillConditionReference.RemainingSlots:
+                return EvaluateInt(clause, Mathf.Max(0, context.remainingSlots));
+
+            case SkillConditionReference.HasFirstDieInGroup:
+                return EvaluateBool(clause, HasIndex(context.localBaseValues, 0));
+
+            case SkillConditionReference.HasMiddleDieInGroup:
+                return EvaluateBool(clause, HasIndex(context.localBaseValues, 1));
+
+            case SkillConditionReference.HasLastDieInGroup:
+                return EvaluateBool(clause, GetLastIndex(context.localBaseValues) >= 0);
+
+            case SkillConditionReference.HighestBaseIsInFirstSlot:
+                return EvaluateBool(clause, IsHighestAtIndex(context.localBaseValues, 0));
+
+            case SkillConditionReference.HighestBaseIsInLastSlot:
+                return EvaluateBool(clause, IsHighestAtIndex(context.localBaseValues, GetLastIndex(context.localBaseValues)));
+
+            case SkillConditionReference.LowestBaseIsInFirstSlot:
+                return EvaluateBool(clause, IsLowestAtIndex(context.localBaseValues, 0));
+
+            case SkillConditionReference.LowestBaseIsInLastSlot:
+                return EvaluateBool(clause, IsLowestAtIndex(context.localBaseValues, GetLastIndex(context.localBaseValues)));
+
+            case SkillConditionReference.EnemiesWithBurnCount:
+                return EvaluateInt(clause, Mathf.Max(0, context.enemiesWithBurnCount));
+
+            case SkillConditionReference.MarkedEnemiesCount:
+                return EvaluateInt(clause, Mathf.Max(0, context.markedEnemiesCount));
+
+            case SkillConditionReference.TotalBleedOnBoard:
+                return EvaluateInt(clause, Mathf.Max(0, context.totalBleedOnBoard));
+
+            case SkillConditionReference.AliveEnemiesCount:
+                return EvaluateInt(clause, Mathf.Max(0, context.aliveEnemiesCount));
+
+            case SkillConditionReference.EnemiesWithStatusCount:
+                return EvaluateInt(clause, Mathf.Max(0, context.enemiesWithStatusCount));
+
+            case SkillConditionReference.IsLeftmostAction:
+                return EvaluateBool(clause, context.isLeftmostAction);
+
+            case SkillConditionReference.IsRightmostAction:
+                return EvaluateBool(clause, context.isRightmostAction);
+
+            case SkillConditionReference.TargetHasBurn:
+                return EvaluateBool(clause, context.targetHasBurn);
+
+            case SkillConditionReference.TargetHasFreeze:
+                return EvaluateBool(clause, context.targetHasFreeze);
+
+            case SkillConditionReference.TargetHasChilled:
+                return EvaluateBool(clause, context.targetHasChilled);
+
+            case SkillConditionReference.TargetHasMark:
+                return EvaluateBool(clause, context.targetHasMark);
+
+            case SkillConditionReference.TargetHasBleed:
+                return EvaluateBool(clause, context.targetHasBleed);
+
+            case SkillConditionReference.TargetHasStagger:
+                return EvaluateBool(clause, context.targetHasStagger);
 
             default:
                 return false;
         }
     }
 
-    private static bool EvaluateParity(IReadOnlyList<int> dice, SkillParityRule rule)
+    private static bool EvaluateAnyBaseValue(SkillConditionClause clause, IReadOnlyList<int> values)
     {
-        bool anyOdd = false, anyEven = false;
-        bool allOdd = true, allEven = true;
+        if (values == null || values.Count == 0)
+            return false;
 
-        for (int i = 0; i < dice.Count; i++)
+        for (int i = 0; i < values.Count; i++)
         {
-            int v = dice[i];
-            bool odd = (v % 2) != 0;
-            anyOdd |= odd;
-            anyEven |= !odd;
-            allOdd &= odd;
-            allEven &= !odd;
-        }
-
-        return rule switch
-        {
-            SkillParityRule.AnyOdd => anyOdd,
-            SkillParityRule.AnyEven => anyEven,
-            SkillParityRule.AllOdd => allOdd,
-            SkillParityRule.AllEven => allEven,
-            _ => false,
-        };
-    }
-
-    private static bool EvaluateThreshold(IReadOnlyList<int> dice, ThresholdCompare cmp, int threshold)
-    {
-        int sum = 0;
-        for (int i = 0; i < dice.Count; i++) sum += dice[i];
-
-        return cmp switch
-        {
-            ThresholdCompare.GreaterOrEqual => sum >= threshold,
-            ThresholdCompare.LessOrEqual => sum <= threshold,
-            _ => false,
-        };
-    }
-
-    private static bool EvaluateMatch(IReadOnlyList<int> dice, DiceMatchRule rule)
-    {
-        if (dice.Count < 2) return false;
-
-        // Frequency table (max dice faces unknown, so use Dictionary)
-        var freq = new Dictionary<int, int>();
-        for (int i = 0; i < dice.Count; i++)
-        {
-            int v = dice[i];
-            if (!freq.TryGetValue(v, out int c)) c = 0;
-            freq[v] = c + 1;
-        }
-
-        bool anyPair = false;
-        bool allSame = (freq.Count == 1);
-
-        foreach (var kv in freq)
-        {
-            if (kv.Value >= 2) anyPair = true;
-        }
-
-        return rule switch
-        {
-            DiceMatchRule.AnyPair => anyPair,
-            DiceMatchRule.ThreeOfAKind => (dice.Count >= 3 && allSame),
-            _ => false,
-        };
-    }
-
-    private static bool EvaluateStraight(IReadOnlyList<int> dice, StraightRule rule)
-    {
-        if (dice.Count < 2) return false;
-
-        // Make a sorted copy
-        int[] a = new int[dice.Count];
-        for (int i = 0; i < dice.Count; i++) a[i] = dice[i];
-        Array.Sort(a);
-
-        bool consecutive = true;
-        for (int i = 1; i < a.Length; i++)
-        {
-            if (a[i] != a[i - 1] + 1) { consecutive = false; break; }
-        }
-
-        if (rule == StraightRule.AnyConsecutive)
-            return consecutive;
-
-        if (a.Length == 3)
-        {
-            if (rule == StraightRule.Exact123) return (a[0] == 1 && a[1] == 2 && a[2] == 3);
-            if (rule == StraightRule.Exact456) return (a[0] == 4 && a[1] == 5 && a[2] == 6);
+            if (EvaluateInt(clause, values[i]))
+                return true;
         }
 
         return false;
     }
-}
 
-public enum SkillConditionScope
-{
-    SlotBound,
-    Global,
-}
+    private static bool EvaluateInt(SkillConditionClause clause, int actual)
+    {
+        switch (clause.comparison)
+        {
+            case SkillConditionComparison.IsOdd: return (actual % 2) != 0;
+            case SkillConditionComparison.IsEven: return (actual % 2) == 0;
+            case SkillConditionComparison.Equals: return actual == clause.value;
+            case SkillConditionComparison.NotEquals: return actual != clause.value;
+            case SkillConditionComparison.GreaterOrEqual: return actual >= clause.value;
+            case SkillConditionComparison.LessOrEqual: return actual <= clause.value;
+            default: return false;
+        }
+    }
 
-public enum SkillConditionKind
-{
-    Parity,
-    Threshold,
-    Match,
-    Straight,
-}
+    private static bool EvaluateBool(SkillConditionClause clause, bool actual)
+    {
+        switch (clause.comparison)
+        {
+            case SkillConditionComparison.IsTrue: return actual;
+            case SkillConditionComparison.IsFalse: return !actual;
+            default: return false;
+        }
+    }
 
-public enum SkillParityRule
-{
-    AnyOdd,
-    AnyEven,
-    AllOdd,
-    AllEven,
-}
+    private static int GetHighest(IReadOnlyList<int> values)
+    {
+        if (values == null || values.Count == 0)
+            return 0;
 
-public enum ThresholdCompare
-{
-    GreaterOrEqual,
-    LessOrEqual,
-}
+        int best = values[0];
+        for (int i = 1; i < values.Count; i++)
+            best = Mathf.Max(best, values[i]);
+        return best;
+    }
 
-public enum DiceMatchRule
-{
-    AnyPair,
-    ThreeOfAKind,
-}
+    private static int GetLowest(IReadOnlyList<int> values)
+    {
+        if (values == null || values.Count == 0)
+            return 0;
 
-public enum StraightRule
-{
-    AnyConsecutive,
-    Exact123,
-    Exact456,
+        int best = values[0];
+        for (int i = 1; i < values.Count; i++)
+            best = Mathf.Min(best, values[i]);
+        return best;
+    }
+
+    private static int Sum(IReadOnlyList<int> values)
+    {
+        if (values == null || values.Count == 0)
+            return 0;
+
+        int sum = 0;
+        for (int i = 0; i < values.Count; i++)
+            sum += values[i];
+        return sum;
+    }
+
+    private static bool AnyTrue(IReadOnlyList<bool> flags)
+    {
+        if (flags == null || flags.Count == 0)
+            return false;
+
+        for (int i = 0; i < flags.Count; i++)
+        {
+            if (flags[i])
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool AllTrue(IReadOnlyList<bool> flags)
+    {
+        if (flags == null || flags.Count == 0)
+            return false;
+
+        for (int i = 0; i < flags.Count; i++)
+        {
+            if (!flags[i])
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool AreAllValuesOdd(IReadOnlyList<int> values)
+    {
+        if (values == null || values.Count == 0)
+            return false;
+
+        for (int i = 0; i < values.Count; i++)
+        {
+            if ((values[i] % 2) == 0)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool AreAllValuesEven(IReadOnlyList<int> values)
+    {
+        if (values == null || values.Count == 0)
+            return false;
+
+        for (int i = 0; i < values.Count; i++)
+        {
+            if ((values[i] % 2) != 0)
+                return false;
+        }
+
+        return true;
+    }
+
+    private static bool EvaluateIndexedValue(SkillConditionClause clause, IReadOnlyList<int> values, int index)
+    {
+        if (!HasIndex(values, index))
+            return false;
+
+        return EvaluateInt(clause, values[index]);
+    }
+
+    private static bool EvaluateIndexedBool(SkillConditionClause clause, IReadOnlyList<bool> values, int index)
+    {
+        if (!HasIndex(values, index))
+            return false;
+
+        return EvaluateBool(clause, values[index]);
+    }
+
+    private static bool HasMixedParity(IReadOnlyList<int> values)
+    {
+        if (values == null || values.Count < 2)
+            return false;
+
+        bool sawOdd = false;
+        bool sawEven = false;
+        for (int i = 0; i < values.Count; i++)
+        {
+            if ((values[i] % 2) == 0) sawEven = true;
+            else sawOdd = true;
+
+            if (sawOdd && sawEven)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasIndex<T>(IReadOnlyList<T> values, int index)
+    {
+        return values != null && index >= 0 && index < values.Count;
+    }
+
+    private static int GetLastIndex<T>(IReadOnlyList<T> values)
+    {
+        return values != null && values.Count > 0 ? values.Count - 1 : -1;
+    }
+
+    private static bool IsHighestAtIndex(IReadOnlyList<int> values, int index)
+    {
+        if (!HasIndex(values, index))
+            return false;
+
+        return values[index] == GetHighest(values);
+    }
+
+    private static bool IsLowestAtIndex(IReadOnlyList<int> values, int index)
+    {
+        if (!HasIndex(values, index))
+            return false;
+
+        return values[index] == GetLowest(values);
+    }
+
 }

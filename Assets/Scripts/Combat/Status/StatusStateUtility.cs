@@ -10,15 +10,18 @@ internal static class StatusStateUtility
         List<StatusPendingAilment> pendingAilments,
         bool debugLog)
     {
-        owner.burnStacks = 0;
-        owner.burnTurns = 0;
+        owner.SyncBurnDisplay(0, 0);
+        owner.GetBurnBatches().Clear();
         owner.marked = false;
         owner.bleedStacks = 0;
         owner.chilledTurns = 0;
         owner.frozen = false;
         owner.staggered = false;
         owner.emberWeaponTurns = 0;
+        owner.emberWeaponBonusDamage = 1;
+        owner.emberWeaponBurnEqualsDamage = true;
         owner.cinderbrandTurns = 0;
+        owner.cinderbrandBonusPerBurn = 1;
 
         pending.Clear();
         active.Clear();
@@ -70,8 +73,35 @@ internal static class StatusStateUtility
 
     public static void ApplyBurn(StatusController owner, int addStacks, int refreshTurns)
     {
-        owner.burnStacks += Mathf.Max(0, addStacks);
-        owner.burnTurns = Mathf.Max(owner.burnTurns, refreshTurns);
+        if (owner == null)
+            return;
+
+        int stacksToAdd = Mathf.Max(0, addStacks);
+        if (stacksToAdd <= 0)
+            return;
+
+        int turns = Mathf.Max(0, refreshTurns);
+        if (turns <= 0)
+            return;
+
+        owner.GetBurnBatches().Add(new StatusController.BurnBatchState
+        {
+            stacks = stacksToAdd,
+            turnsRemaining = turns
+        });
+
+        SyncBurnAggregates(owner);
+    }
+
+    public static int ConsumeAllBurn(StatusController owner)
+    {
+        if (owner == null)
+            return 0;
+
+        int total = Mathf.Max(0, owner.burnStacks);
+        owner.GetBurnBatches().Clear();
+        owner.SyncBurnDisplay(0, 0);
+        return total;
     }
 
     public static void ApplyBleed(StatusController owner, int stacks)
@@ -96,10 +126,22 @@ internal static class StatusStateUtility
         if (owner.bleedStacks > 0)
             dot += owner.bleedStacks;
 
-        if (owner.burnTurns > 0)
-            owner.burnTurns -= 1;
-        if (owner.burnTurns <= 0)
-            owner.burnStacks = 0;
+        List<StatusController.BurnBatchState> burnBatches = owner.GetBurnBatches();
+        for (int i = burnBatches.Count - 1; i >= 0; i--)
+        {
+            StatusController.BurnBatchState batch = burnBatches[i];
+            if (batch == null)
+            {
+                burnBatches.RemoveAt(i);
+                continue;
+            }
+
+            batch.turnsRemaining -= 1;
+            if (batch.turnsRemaining <= 0 || batch.stacks <= 0)
+                burnBatches.RemoveAt(i);
+        }
+
+        SyncBurnAggregates(owner);
 
         return dot;
     }
@@ -216,5 +258,31 @@ internal static class StatusStateUtility
                 pendingAilments.RemoveAt(i);
             }
         }
+    }
+
+    private static void SyncBurnAggregates(StatusController owner)
+    {
+        if (owner == null)
+            return;
+
+        List<StatusController.BurnBatchState> burnBatches = owner.GetBurnBatches();
+        int totalStacks = 0;
+        int maxTurns = 0;
+
+        for (int i = burnBatches.Count - 1; i >= 0; i--)
+        {
+            StatusController.BurnBatchState batch = burnBatches[i];
+            if (batch == null || batch.stacks <= 0 || batch.turnsRemaining <= 0)
+            {
+                burnBatches.RemoveAt(i);
+                continue;
+            }
+
+            totalStacks += batch.stacks;
+            if (batch.turnsRemaining > maxTurns)
+                maxTurns = batch.turnsRemaining;
+        }
+
+        owner.SyncBurnDisplay(totalStacks, maxTurns);
     }
 }

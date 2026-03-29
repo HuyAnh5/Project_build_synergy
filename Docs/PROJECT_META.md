@@ -498,7 +498,26 @@ Huong tiep theo nen la:
 - de phan lon skill/passive thuong co the author bang data
 - chi de so it mechanic hiem / exotic dung custom code hook
 
-### 12.6 Verify status
+Thu tu uu tien gan nhat cho prototype:
+
+1. lam `consumable / relic pool` khung chay duoc
+2. playtest them mot vong combat + build loop sau khi co consumable
+3. roi moi lam `tooltip / preview formatter` de tranh sua lai nhieu lan khi grammar va progression con dang doi
+
+### 12.6 Technical debt hien tai
+
+Nhung no ky thuat con lai sau dot chuan hoa skill/guard:
+
+- chua co pass verify day du chuoi `inspector -> preview -> execution` cho cac edge case co `Fail`, `minimum 1`, `fixed output + Added Value`, `split-role`, va cac branch element dac thu
+- mot so skill van resolve qua special runtime path thay vi grammar generic hoan toan, tieu bieu la cac branch Fire nhu `Hellfire`, `Cauterize` va fire module lien quan
+- con asset / field legacy de giu compatibility du lieu cu; Guard multiplier da bi day ve legacy mode nhung chua xoa cung khoi serialization
+
+Noi ngan gon:
+
+- prototype co the di tiep
+- nhung chua phai trang thai polish / clean final
+
+### 12.7 Verify status
 
 - chua co CLI build verify on dinh vi may hien tai khong co .NET SDK / MSBuild tren PATH
 - can test trong Unity sau moi dot thay doi runtime lon

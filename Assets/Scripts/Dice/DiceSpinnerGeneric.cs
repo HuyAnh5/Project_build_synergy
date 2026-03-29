@@ -145,9 +145,7 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
         if (LastRollIsFail)
         {
-            if (!showAddedValueInRollState) return failText;
-            int added = GetFailDisplayAddedValueMagnitude(LastRolledValue);
-            return $"{failText}: -{added}";
+            return failText;
         }
 
         return normalText;

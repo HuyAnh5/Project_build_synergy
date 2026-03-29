@@ -1,6 +1,7 @@
 // SkillDamageConditionalOverrides.cs
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 using Sirenix.OdinInspector;
 
 [Serializable]
@@ -40,7 +41,7 @@ public class SkillDamageConditionalOverrides
     public DamageGroup group = DamageGroup.Strike;
 
     [BoxGroup("Identity")]
-    [ShowIf("@overrideIdentity && kind == SkillKind.Attack")]
+    [ShowIf("@overrideIdentity && (kind == SkillKind.Attack || kind == SkillKind.Guard)")]
     [EnumToggleButtons]
     public ElementTag element = ElementTag.Physical;
 
@@ -113,11 +114,19 @@ public class SkillDamageConditionalOverrides
 
     [BoxGroup("Guard")]
     [ShowIf(nameof(overrideGuard))]
-    [Range(0f, 2f)]
-    public float guardDieMultiplier = 1f;
+    [EnumToggleButtons]
+    [LabelText("Guard Mode")]
+    public BaseEffectValueMode guardValueMode = BaseEffectValueMode.X;
 
     [BoxGroup("Guard")]
     [ShowIf(nameof(overrideGuard))]
+    [HideInInspector]
+    [FormerlySerializedAs("guardDieMultiplier")]
+    public float legacyGuardDieMultiplier = 1f;
+
+    [BoxGroup("Guard")]
+    [ShowIf("@overrideGuard && guardValueMode == BaseEffectValueMode.Flat")]
+    [LabelText("Guard Flat")]
     public int guardFlat = 0;
 
     // ------------------- Special Combat -------------------

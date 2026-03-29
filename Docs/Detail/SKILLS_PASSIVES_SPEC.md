@@ -93,14 +93,20 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 
 #### A. Damage Modules
 
-* Gây damage theo giá trị dice
-* Gây damage cố định
+* Gây damage theo `X = Base Value + Added Value`
+* Gây damage chuẩn với damage gốc rồi cộng Added Value
 * Gây damage AoE
 * Gây bonus damage theo condition
+
+Rule chung từ current direction:
+
+* Nếu skill dùng **fixed output**, output cuối mặc định luôn là `fixed output + Added Value`
+* Rule này không chỉ áp cho `Attack`; `Guard`, status output và history payoff số học cũng đi cùng logic nếu text không nói ngược lại
 
 #### B. Guard Modules
 
 * Nhận Guard theo giá trị dice
+* Nhận Guard cố định rồi cộng Added Value
 * Nhận Guard theo trạng thái hiện có
 * Giữ / chuyển hóa / khuếch đại Guard payoff
 
@@ -143,6 +149,127 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * Rare không nên chỉ là “damage to hơn”. Rare phải mở engine, sequencing hoặc build identity mới.
 * Nếu một skill mới không map nổi vào grammar trên, phải kiểm tra lại:
   đó là module mới thật, hay chỉ là biến thể của module cũ.
+
+### 2.9 Những trục chính của skill condition
+
+Từ current spec này trở đi, skill condition phải đọc game theo 7 trục xương sống sau:
+
+* `Crit / Fail`
+* `Parity (chẵn/lẻ)`
+* `Exact value`
+* `Local group / slot relation`
+* `Effect / Target State`
+* `Resource axis (Focus / Guard)`
+* `Board / encounter axis`
+
+Ý nghĩa thực dụng:
+
+* game **không thiếu trục**, mà đang hơi dư trục,
+* skill/passive mới nên bám rõ `1-2 trục chính`,
+* không thêm condition mới chỉ để làm text đẹp,
+* và không quay lại tư duy “mọi skill chỉ scale thẳng theo số roll”.
+
+Một rule content rất quan trọng:
+
+* `condition` không phải payoff cố định
+* nó là **hệ quy chiếu để chọn die / mở branch / gán vai trò output**
+* nên `chẵn`, `lẻ`, `Crit`, `Fail`, `highest`, `lowest`, `exact` đều không được gắn cứng với một loại payoff duy nhất
+
+#### 2.9A Chi tiết từng trục được phép đọc
+
+Đây là file `detail`, nên từ đây không chỉ ghi tên trục mà phải ghi rõ **biến nào của game được phép trở thành condition / payoff / support hook**.
+
+##### A. `Crit / Fail`
+
+Skill condition chỉ giữ:
+
+* `Crit`
+* `Fail`
+
+Cách đọc:
+
+* `1 slot` = die này crit/fail
+* `nhiều slot` = cả cụm đều crit/fail
+
+##### B. `Parity (chẵn/lẻ)`
+
+Skill condition chỉ giữ:
+
+* `Even`
+* `Odd`
+
+Cách đọc:
+
+* `1 slot` = die này chẵn/lẻ
+* `nhiều slot` = cả cụm đều chẵn/lẻ
+
+##### C. `Exact value`
+
+Skill condition chỉ giữ:
+
+* `Die Equals X`
+* `Group Contains Pattern`
+* `Random Exact Number Owned`
+* `Random Exact Number Random`
+
+Lưu ý:
+
+* `Die Equals X` cho phép nhập tay số cụ thể
+* `Group Contains Pattern` cho phép nhập dãy như `1-2-3-5`
+* `Random Exact Number Owned` chỉ random trong pool số mà dice player thật sự sở hữu
+* `Random Exact Number Random` random độc lập, không cần player sở hữu số đó
+
+##### D. `Local group / slot relation`
+
+Skill condition chỉ giữ:
+
+* `Self-position`
+* `Neighbor relation`
+* `Split-role`
+
+Chi tiết:
+
+* `Self-position` chỉ dùng `Left / Right`
+* `Neighbor relation` chỉ dùng `Left / Right`
+* `Split-role` chỉ dùng `Highest / Lowest`
+
+Ý nghĩa:
+
+* `Self-position` = skill này tự được lợi nếu đang nằm trái/phải
+* `Neighbor relation` = skill này tác động sang skill bên trái/phải
+* `Split-role` = dùng `Highest / Lowest` để chia branch rõ ràng như `Cauterize`
+
+##### E. `Effect / Target State`
+
+Skill hoặc passive có thể đọc:
+
+* target có `Burn` hay không
+* target đang có bao nhiêu `Burn`
+* target có `Mark` hay không
+* target đang `Freeze` hay `Chilled`
+* target có bao nhiêu `Bleed`
+* target có `Stagger` hay không
+* số enemy trên board đang có cùng một trạng thái
+
+Lưu ý:
+
+* Burn hiện là `batch-based`, nhưng UI có thể chỉ hiện tổng stack
+* `Status History (TODO)` hiện mới là note để mở rộng sau, chưa có runtime logic condition
+
+##### F. `Resource axis (Focus / Guard)`
+
+Skill condition chỉ giữ:
+
+* `Current Focus`
+* `Player Guard`
+* `Target Guard`
+
+##### G. `Board / encounter axis`
+
+Skill hoặc passive có thể đọc:
+
+* số lượng enemy hiện còn sống
+* số lượng enemy đang có status
 
 ---
 
@@ -209,13 +336,13 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Element:** Physical
 * **Tag:** `Attack`
 * **Slots / Focus:** **1 slot, 2 Focus**
-* **Rarity:** pending
+* **Rarity:** **Uncommon**
 * **Delivery Pattern:** Single Target
-* **Condition chính:** Base Value chẵn
-* **Effect Modules:** Damage + Guaranteed Crit
-* **Text hiện tại:** Gây X damage. Nếu Base Value chẵn, đòn này luôn Crit.
-* **Vai trò:** entry-point đơn giản cho parity + crit engine.
-* **Role trong build:** Support / Entry Piece
+* **Condition chính:** Đòn này Crit
+* **Effect Modules:** X Damage + Self Added Value payoff
+* **Text hiện tại:** Gây X damage. Nếu đòn này Crit, nhận `+2 Added Value` cho chính đòn đó.
+* **Vai trò:** X-skill signature của Physical; giữ liên kết với trục Crit nhưng không còn ép parity làm cửa vào mặc định.
+* **Role trong build:** Core Signature / Support Piece
 
 #### 5) Brutal Smash
 
@@ -226,7 +353,7 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Delivery Pattern:** Single Target
 * **Condition chính:** Target đã có Mark trước khi trúng
 * **Effect Modules:** Fixed Damage + Focus Refund
-* **Text hiện tại:** Gây 12 damage cố định. Nếu mục tiêu đã có Mark trước khi trúng, hồi ngay 1 Focus.
+* **Text hiện tại:** Gây 12 damage gốc. Nếu mục tiêu đã có Mark trước khi trúng, hồi ngay 1 Focus.
 * **Vai trò:** direct payoff rõ, kết nối Physical với Mark economy.
 * **Role trong build:** Support Piece
 
@@ -239,7 +366,7 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Delivery Pattern:** Single Target
 * **Condition chính:** Giá trị cao nhất trong 2 dice của cụm
 * **Effect Modules:** Damage + Highest-in-group payoff
-* **Text hiện tại:** Gây damage = X + Base Value cao nhất trong 2 dice đang dùng.
+* **Text hiện tại:** Gây damage chuẩn. Cộng thêm `Base Value` cao nhất trong 2 dice đang dùng.
 * **Vai trò:** local group highest-value payoff.
 * **Role trong build:** Support / Payoff Piece
 
@@ -252,7 +379,7 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Delivery Pattern:** Single Target
 * **Condition chính:** Mục tiêu chết bởi đòn này
 * **Effect Modules:** Damage + Carry-over payoff
-* **Text hiện tại:** Gây tổng X damage. Nếu mục tiêu chết bởi đòn này, overkill damage cộng vào Added Value cho đòn `Attack` hoặc `Sunder` đầu tiên của lượt kế.
+* **Text hiện tại:** Gây damage chuẩn rất cao. Nếu mục tiêu chết bởi đòn này, overkill damage cộng vào Added Value cho đòn `Attack` hoặc `Sunder` đầu tiên của lượt kế.
 * **Vai trò:** finisher / carry-over payoff.
 * **Role trong build:** Core / Finisher Piece
 
@@ -265,7 +392,7 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Delivery Pattern:** Single Target
 * **Condition chính:** Không có
 * **Effect Modules:** Damage + Ignore Guard + Clear Guard
-* **Text hiện tại:** Gây X damage. Bỏ qua hoàn toàn Guard và xóa toàn bộ Guard của mục tiêu.
+* **Text hiện tại:** Gây damage chuẩn. Bỏ qua hoàn toàn Guard và xóa toàn bộ Guard của mục tiêu.
 * **Vai trò:** anti-Guard trực diện.
 * **Guardrail:** Sunder không có hidden bonus ngoài text.
 * **Role trong build:** Utility / Tech Piece
@@ -296,19 +423,38 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Vai trò:** exact-value jackpot / low-roll payoff
 * **Role trong build:** Core Payoff hoặc Tech Finisher
 
+#### 11) Adaptive Slot Attack (tên pending)
+
+* **Element:** pending
+* **Tag:** `Attack`
+* **Slots / Focus:** `Adaptive slot`, Focus pending
+* **Rarity:** pending
+* **Delivery Pattern:** Single Target
+* **Condition chính:** Đọc `số slot còn trống` tại thời điểm assign
+* **Effect Modules:** Fixed Damage + Total Added Value + Slot-count multiplier
+* **Text hiện tại:** Nếu còn `3 slot` thì skill chiếm `3`; nếu còn `2 slot` thì skill chiếm `2`; nếu còn `1 slot` thì skill chiếm `1`. Gây `4 damage gốc`, cộng `Total Added Value` của toàn bộ dice trong local group, rồi nhân với đúng `số slot thực tế đã chiếm`.
+* **Ví dụ:** còn `3 slot`, skill kéo vào `3 die` thì damage = `(4 + Total Added Value của 3 die) x 3`.
+* **Vai trò:** proof-of-concept rất rõ cho việc `slot occupancy / slot availability` là biến gameplay thật chứ không chỉ là presentation.
+* **Role trong build:** Core Signature / Action-space Payoff
+
+**Trạng thái authoring hiện tại:**
+
+* Đây vẫn là case lớn chưa có builder chuẩn hoàn chỉnh trong inspector.
+* Ngoài mechanic này ra, phần lớn skill thường đã bắt đầu map được vào schema mới.
+
 ### 3.3 Pool skill chưa chốt — Fire
 
-#### 10) Ignite
+#### 10) Ignite+
 
 * **Element:** Fire
 * **Tag:** `Status (Debuff)`
 * **Slots / Focus:** **1 slot, 2 Focus**
-* **Rarity:** pending
+* **Rarity:** **Uncommon**
 * **Delivery Pattern:** Single Target
 * **Condition chính:** Base Value lẻ
-* **Effect Modules:** Apply Burn
-* **Text hiện tại:** Áp X Burn. Nếu Base Value lẻ, áp thêm 2 Burn.
-* **Vai trò:** setup Burn đơn giản, parity hook.
+* **Effect Modules:** Apply Burn + Consume-vulnerability debuff
+* **Text hiện tại:** Áp X Burn lên mục tiêu. Nếu Base Value lẻ, mục tiêu nhận debuff: Burn bị consume trên nó gây thêm `+1 damage` trong `2 turn`.
+* **Vai trò:** X-skill signature của Fire; vừa setup Burn vừa mở một payoff phụ cho spender.
 * **Role trong build:** Core Setup / Bridge Piece
 
 #### 11) Cauterize
@@ -333,11 +479,76 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Delivery Pattern:** Single Target
 * **Condition chính:** Consume Burn
 * **Effect Modules:** Damage + Burn spender
-* **Text hiện tại:** Gây X damage. Consume toàn bộ Burn → `+2 damage mỗi stack Burn`.
+* **Text hiện tại:** Gây damage chuẩn. Consume toàn bộ Burn → `+2 damage mỗi stack Burn`.
 * **Vai trò:** Burn spender baseline, rõ và dễ hiểu.
 * **Role trong build:** Support / Payoff Piece
 
 > `Ember Weapon`, `Hellfire` và `Cinderbrand` đã được liệt kê ở phần skill chốt phía trên.
+
+### 3.3A Fire skill đã setup theo inspector mới
+
+Những skill Fire đã được setup lại theo schema inspector hiện tại:
+
+* `Ignite+`
+  * `Base Effect`: `Apply X Burn`
+  * `Condition`: `Dice Parity -> Any Base Odd`
+  * `If Condition Met`: `Apply Burn +2`
+
+* `Fire Slash`
+  * `Base Effect`: `Deal X Damage`
+  * `Base Effect phụ`: `Consume Burn +2 damage / stack`
+  * Không cần condition
+
+* `Hellfire`
+  * `Base Effect`: Burn spender
+  * `Condition`: `Exact Value -> All Bases = 7`
+  * phần reapply exact-value vẫn đang dùng effect/runtime đã có
+
+* `Cauterize`
+  * `Split Role`
+  * `Lowest selected -> Burn`
+  * `Highest selected -> Guard`
+
+### 3.3B Inspector schema hiện đã cover gì
+
+Schema hiện tại đã bắt đầu cover các khối sau:
+
+* `Base Effect`
+  * `Deal Flat Damage`
+  * `Deal X Damage`
+  * `Apply Flat Burn`
+  * `Apply X Burn`
+
+* `If Condition Met`
+  * `Deal Damage`
+  * `Apply Burn`
+  * `Gain Guard`
+  * `Gain Added Value`
+
+* `Split Role`
+  * `Lowest selected -> Burn / Guard`
+  * `Highest selected -> Burn / Guard`
+
+Điều này có nghĩa:
+
+* mọi hệ đều có thể dùng `Gain Guard`
+* mọi hệ đều có thể dùng `Gain Added Value`
+
+### 3.3C Những case vẫn chưa cover hoàn toàn bằng inspector
+
+Ngoài `Adaptive Slot Attack / slot = x`, hiện tại còn các nhóm sau chưa được coi là solved hoàn toàn:
+
+* `Split Role` với output ngoài `Burn / Guard`
+  * ví dụ `Added Value`, `Mark`, `Freeze`, `Bleed`
+
+* `Nhiều condition độc lập trên cùng 1 skill`, mỗi condition mở một outcome khác nhau
+
+* `Rule rewrite / state machine`
+  * alternate mode theo lần dùng
+  * retrigger / propagation nhiều tầng
+  * timing đặc biệt
+
+* `Target-state condition` nếu muốn planning/preview bám cực sát theo target động trong mọi ngữ cảnh
 
 ### 3.4 Pool skill chưa chốt — Ice
 
@@ -354,18 +565,18 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Vai trò:** CC entry-point thẳng, tôn trọng immunity rule.
 * **Role trong build:** Core Setup Piece
 
-#### 14) Shatter
+#### 14) Shatter Guard
 
 * **Element:** Ice
 * **Tag:** `Attack`
 * **Slots / Focus:** **1 slot, 2 Focus**
-* **Rarity:** pending
+* **Rarity:** **Uncommon**
 * **Delivery Pattern:** Single Target
-* **Condition chính:** Target đang Chilled
-* **Effect Modules:** Damage + Guard-based payoff
-* **Text hiện tại:** Gây X damage. Nếu mục tiêu đang Chilled → cộng thêm 50% Guard hiện có của player, tối đa +20.
-* **Vai trò:** chuyển control thành payoff.
-* **Role trong build:** Core Payoff Piece
+* **Condition chính:** Không có
+* **Effect Modules:** X Damage + Mirror Guard gain
+* **Text hiện tại:** Gây damage = `Base Value + Added Value`. Nhận Guard bằng đúng lượng damage đã gây.
+* **Vai trò:** X-skill signature của Ice; biến cùng một roll thành vừa payoff vừa phòng thủ.
+* **Role trong build:** Core Signature / Bridge Piece
 
 #### 15) Frost Shield
 
@@ -376,7 +587,7 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Delivery Pattern:** Self
 * **Condition chính:** Không có
 * **Effect Modules:** Guard Gain
-* **Text hiện tại:** Nhận X Guard.
+* **Text hiện tại:** Nhận Guard chuẩn.
 * **Vai trò:** anchor phòng thủ của Ice branch.
 * **Role trong build:** Bridge / Anchor Piece
 
@@ -449,6 +660,19 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Vai trò:** setup Mark + sequencing / value transfer.
 * **Role trong build:** Core Setup / Utility Piece
 
+#### 20A) Marked Bolt
+
+* **Element:** Lightning
+* **Tag:** `Attack`
+* **Slots / Focus:** **1 slot, 2 Focus**
+* **Rarity:** **Uncommon**
+* **Delivery Pattern:** Single Target
+* **Condition chính:** Mục tiêu đã có Mark
+* **Effect Modules:** X Damage + Mark spread
+* **Text hiện tại:** Gây X damage lên mục tiêu. Nếu mục tiêu có Mark, áp Mark lên tất cả kẻ địch còn lại.
+* **Vai trò:** X-skill signature của Lightning; dùng Mark làm bridge từ single-target sang board control.
+* **Role trong build:** Core Signature / Bridge Piece
+
 #### 21) Spark Barrage
 
 * **Element:** Lightning
@@ -458,7 +682,7 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Delivery Pattern:** Chain Hit
 * **Condition chính:** Base Value chẵn
 * **Effect Modules:** Damage + Bounce
-* **Text hiện tại:** Gây X damage. Nếu Base Value chẵn → hit này nảy sang 1 mục tiêu khác.
+* **Text hiện tại:** Gây damage chuẩn. Nếu Base Value chẵn → hit này nảy sang 1 mục tiêu khác.
 * **Vai trò:** parity-driven chain hit.
 * **Role trong build:** Support / Bridge Piece
 
@@ -471,7 +695,7 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Delivery Pattern:** Single Target
 * **Condition chính:** Số Mark đang có trên toàn sân
 * **Effect Modules:** Damage + Board-count payoff
-* **Text hiện tại:** Gây X damage cộng thêm **4 damage cho mỗi Mark đang có trên toàn sân**.
+* **Text hiện tại:** Gây 2 damage chuẩn cộng thêm **5 damage cho mỗi Mark đang có trên toàn sân**.
 * **Vai trò:** board-count payoff rõ ràng.
 * **Role trong build:** Support / Payoff Piece
 
@@ -482,9 +706,9 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Slots / Focus:** **3 slot, 4 Focus**
 * **Rarity:** pending
 * **Delivery Pattern:** AoE
-* **Condition chính:** Giá trị cao nhất trong cụm + số kẻ địch đang có Mark
+* **Condition chính:** không có
 * **Effect Modules:** AoE Damage + Mark payoff
-* **Text hiện tại:** X = dice cao nhất trong cụm. Gây X damage lên tất cả. Cộng thêm 4 damage cho mỗi kẻ địch đang có Mark.
+* **Text hiện tại:** Gây 5 damage AOE.
 * **Vai trò:** AoE payoff đỉnh của Lightning board control.
 * **Role trong build:** Core Finisher Piece
 
@@ -495,13 +719,13 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 * **Element:** Bleed
 * **Tag:** `Attack/Status (Debuff)`
 * **Slots / Focus:** **1 slot, 3 Focus**
-* **Rarity:** pending
+* **Rarity:** **Uncommon**
 * **Delivery Pattern:** Single Target
 * **Condition chính:** Crit
 * **Effect Modules:** Apply Bleed
 * **Text hiện tại:** Áp X Bleed. Nếu Crit → áp thêm X Bleed nữa.
-* **Vai trò:** Crit-based Bleed injector.
-* **Role trong build:** Core Setup Piece
+* **Vai trò:** X-skill signature của Bleed; crit vào đúng die sẽ mở bùng nổ stack rất rõ.
+* **Role trong build:** Core Signature / Setup Piece
 
 #### 25) Blood Ward
 
@@ -544,6 +768,57 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 
 ---
 
+## 3.7 Brainstorm skill candidates - history / custom-state
+
+> Nhóm này là **brainstorm pool**, chưa phải implementation target gần.
+> Điểm chung của cả 3 skill là đều cần đọc `history`, `self memory` hoặc `custom-state` của chính skill trong combat.
+> Vì vậy hiện tại nên xem đây là nhóm skill đặc biệt, chưa thuộc lớp `1 condition chuẩn + 1-2 effect module` thông thường.
+
+#### 28) Momentum Strike
+
+* **Element:** pending
+* **Tag:** `Attack`
+* **Slots / Focus:** pending
+* **Rarity:** pending
+* **Delivery Pattern:** Single Target
+* **Condition chính:** Số lần chính skill này đã được dùng trong combat hiện tại
+* **Effect Modules:** Self usage scaling + Damage
+* **Text hiện tại:** Bắt đầu combat với 0 damage nền rất thấp. Mỗi lần chính skill này được dùng, damage nền của nó tăng cố định cho những lần dùng sau trong cùng combat. Fantasy ví dụ: lần 1 gây `1 damage`, lần 2 gây `4 damage`, lần 3 gây `7 damage`.
+* **Vai trò:** payoff tăng trưởng thuần theo số lần commit dùng chính skill đó (hết combat reset về 0).
+* **Role trong build:** Core Scaling Piece
+* **Trạng thái:** Brainstorm - custom-state candidate
+
+#### 29) Frozen Ledger
+
+* **Element:** Ice
+* **Tag:** `Attack`
+* **Slots / Focus:** pending
+* **Rarity:** pending
+* **Delivery Pattern:** Single Target
+* **Condition chính:** Kết hợp `enemy đang Freeze` và `enemy đã từng bị Freeze trong combat này`
+* **Effect Modules:** Board-state payoff + Status-history payoff
+* **Text hiện tại:** Bắt đầu với `0 damage`. Skill này nhận thêm damage theo mỗi instance Freeze hợp lệ. Fantasy ví dụ: mỗi enemy đang Freeze hoặc mỗi enemy đã từng bị Freeze trong combat đóng góp `+4 damage`; về sau nếu combat đã có tổng cộng 6 instance hợp lệ thì skill có thể lên `24 damage`.
+* **Vai trò:** biến Ice từ control thuần thành nhánh có payoff theo dấu vết Freeze đã tạo ra trong suốt combat (hết combat reset về 0).
+* **Role trong build:** Bridge / History Payoff Piece
+* **Trạng thái:** Brainstorm - status-history candidate
+* **Note:** cần chốt rõ sau này skill đếm theo `số enemy unique từng bị Freeze`, `số instance Freeze từng xảy ra`, hay `đang Freeze + ever Frozen` như hai bucket riêng.
+
+#### 30) Addvalue Hoard
+
+* **Element:** pending
+* **Tag:** `Attack`
+* **Slots / Focus:** pending
+* **Rarity:** pending
+* **Delivery Pattern:** Single Target
+* **Condition chính:** `Total Added Value` của action hiện tại
+* **Effect Modules:** Added Value payoff + Self memory scaling
+* **Text hiện tại:** Bắt đầu combat với `0 damage nền`. Mỗi lần dùng, skill gây damage = `damage nền đang tích` + `Total Added Value` của action hiện tại. Sau khi resolve, phần Added Value vừa dùng sẽ được cộng vĩnh viễn vào damage nền của chính skill cho các lượt sau trong cùng combat. Ví dụ: turn đầu nhận `+2 Added Value` thì gây `2 damage` và từ đó skill có nền `2`; turn sau nhận `+9 Added Value` thì gây `11 damage` và damage nền mới của skill trở thành `11`.
+* **Vai trò:** biến Added Value từ lớp thưởng tức thời thành tài nguyên tích lũy dài hơi cho riêng một skill.
+* **Role trong build:** Core Scaling / Engine Payoff
+* **Trạng thái:** Brainstorm - custom-state candidate
+
+---
+
 ## 4. 11 passive hiện tại
 
 | Passive                          | Rarity       | Text hiện tại                                                                                                          | Vai trò thiết kế                                                                                                            | Trạng thái          |
@@ -559,6 +834,41 @@ Một skill mới nên được mô tả theo cùng một form chuẩn:
 | **Fail Forward**                 | Common       | Mỗi khi roll ra mặt thấp nhất / Fail → nhận ngay 3 Guard.                                                              | Bù đắp roll xấu, soften variance                                                                                            | Pending             |
 | **Alchemist**                    | UnCommon     | Bắt đầu mỗi combat, nhận 1 Consumable ngẫu nhiên.                                                                      | Utility baseline                                                                                                            | Pending             |
 | **Lingering Mark**               | Uncommon     | Mark trên mục tiêu giờ cần **2 hit hợp lệ** để bị xóa thay vì 1.                                                       | Mark payoff extension                                                                                                       | Pending             |
+
+### 5.0 Rule resolve damage của content layer
+
+Từ current spec này trở đi:
+
+* Phần lớn skill gây damage không còn đọc `X`; chúng có **damage gốc/chuẩn** và khi resolve sẽ cộng thêm **Added Value** áp dụng cho action đó.
+* Nhóm skill signature dùng `X` vẫn giữ nguyên; mặc định **`X = Base Value + Added Value`**.
+* `Basic Attack` cũng đi theo rule trên: có `4 damage gốc`, rồi cộng Added Value nếu có.
+* `Fail` chỉ cắt nửa **base output của skill**, luôn floor; không làm giảm Added Value và không thay đổi Base Value.
+* `base output` ở đây không chỉ là damage; nếu một skill tạo Guard/Burn/Bleed/output lịch sử và phần đó được xem là output gốc của chính skill, Fail cũng đọc trên phần đó.
+* Về sau có thể tồn tại skill hoặc passive cho thêm Added Value nếu đạt điều kiện, kể cả theo từng skill riêng lẻ hoặc tăng tiến trong combat/run.
+* Nếu skill chiếm 2 hoặc 3 slot, Added Value mặc định là **tổng Added Value của toàn bộ dice trong local group** của skill đó.
+* Dice có thể mang / sinh Added Value từ **Crit** hoặc từ **enchant / consumable / dice customization** đã nằm trên mặt dice; ngoài ra Added Value cũng có thể do skill/passive/relic/modifier cấp.
+* Nếu skill là `split-role / multi-branch`, mỗi output phải dùng `Added Value` của đúng die source của branch đó, không được lấy crit/add/fail của die này để cộng sang output do die khác tạo ra.
+
+### 5.0A Skill Damage Formula Sheet
+
+* `Base Value` = mặt thật của die, dùng để check condition.
+* `Added Value` = phần cộng vào output cuối, không đổi bản chất của die.
+* `Crit`:
+  * non-Physical -> `Added Value += floor(Base Value x 0.2)`
+  * Physical -> `Added Value += floor(Base Value x 0.5)`
+* `Fail` -> làm `base output = floor(base output / 2)`, không trừ `Added Value`.
+* `Skill damage chuẩn` -> `Final Damage = damage gốc + Total Added Value`
+* `Skill X` -> `X = Base Value + Added Value`
+* `Skill fixed Guard / status / history output` -> `Final Output = output gốc + Total Added Value`
+* `Split-role skill` -> mỗi output branch resolve bằng `Base/Added/Crit/Fail` của đúng die source của branch
+* `Skill 1 slot` -> `Total Added Value = Added Value của 1 die`
+* `Skill 2 slot` -> `Total Added Value = Added Value die 1 + Added Value die 2`
+* `Skill 3 slot` -> `Total Added Value = Added Value die 1 + Added Value die 2 + Added Value die 3`
+* `Damage từ combat history counter` cũng tiếp tục cộng `Added Value` nếu text không nói ngược lại
+* Toàn game dùng `floor`
+* Nếu `base output > 0` nhưng sau Fail / floor nhỏ hơn `1`, final output vẫn phải tối thiểu là `1`
+* Nếu `base output = 0`, final output tiếp tục là `0`
+* Damage dương mà sau tính toán `< 1` thì thành `1` tối thiểu
 ---
 
 ## 5. Anti-synergy và note rất quan trọng
@@ -673,31 +983,41 @@ Dice Forging -> tăng base mặt trọng yếu -> passive đọc parity/exact va
 
 ## 7. Guardrail khi thêm skill/passive mới
 
-### 7.1 Skill mới nên bám ít nhất một trục sau
+### 7.1 Skill mới nên bám rõ trục nào trong 8 trục chính
 
-#### Trục dice
+* `Crit / Fail`
+* `Parity (chẵn/lẻ)`
+* `Exact value`
+* `Local group / slot relation`
+* `Effect / Target State`
+* `Resource axis (Focus / Guard)`
+* `Rule-bending axis (retrigger, copy/move base, add value)`
+* `Board / encounter axis`
 
-* Crit / Fail
-* Chẵn / Lẻ
-* Cao / Thấp
-* Exact value
-* Highest / Lowest trong nhóm
-* **Vị trí slot trong cụm**
+Khi thêm skill mới, đừng bắt đầu bằng câu hỏi `skill này gây bao nhiêu damage?`.
+Hãy bắt đầu bằng:
 
-#### Trục trạng thái trên target
+* nó đọc trục nào,
+* nó đổi quyết định gì,
+* nó payoff cái gì,
+* và nó thuộc vai trò gì trong build.
 
-* Burn stacks
-* Mark
-* Freeze / Chilled
-* Bleed stacks
-* Stagger
+Vì đây là file `detail`, nếu một skill đọc một trục nào đó thì text spec nên chỉ ra càng cụ thể càng tốt là nó đang đọc biến nào:
 
-#### Trục tài nguyên player
+* `Focus hiện tại` hay `Focus còn lại sau cost`
+* `Guard của player` hay `Guard của target`
+* `slot còn trống` hay `slot đã chiếm`
+* `die đầu / die cuối trong local group`
+* `tổng Added Value của action`
+* `số enemy đã từng bị áp trạng thái trong combat này`
 
-* Focus hiện tại
-* Guard hiện tại
-* lane đã dùng / còn trống
-* số dice đang equip hoặc đang gắn vào một cụm
+Không nên chỉ ghi kiểu:
+
+* “đọc trục tài nguyên”
+* “đọc vị trí slot”
+* “đọc board state”
+
+Nếu không nói rõ biến đang đọc, skill sẽ dễ đúng trên giấy nhưng mơ hồ khi implement và khó đọc khi balance.
 
 ### 7.2 Rare không được chỉ là “số to hơn”
 

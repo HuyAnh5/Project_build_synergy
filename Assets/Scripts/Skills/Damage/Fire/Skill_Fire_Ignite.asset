@@ -13,16 +13,18 @@ MonoBehaviour:
   m_Name: Skill_Fire_Ignite
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
-  displayName: 'Ignite'
-  description: 'Apply X Burn. If Base Value is odd, apply 2 extra Burn.'
+  displayName: Ignite+
+  description: Apply X Burn. If any base value used by this skill is odd, gain bonus
+    Burn and apply the consume-vulnerability rider.
   spec:
     rarity: 0
     specState: 0
     buildRole: 4
-    implementationCoverage: 1
-    normalizedText: 'Apply X Burn. If Base Value is odd, apply 2 extra Burn.'
-    designIntent: 'Simple Burn setup with parity hook.'
-  behaviorFamily: 1
+    implementationCoverage: 2
+    normalizedText: Apply X Burn. Odd base opens a stronger Burn payoff branch.
+    designIntent: Fire X-skill setup piece that reads parity as a reference frame,
+      not as a fixed payoff type.
+  behaviorFamily: 0
   fireBehaviorId: 1
   iceBehaviorId: 0
   lightningBehaviorId: 0
@@ -37,15 +39,36 @@ MonoBehaviour:
   hitAllEnemies: 0
   hitAllAllies: 0
   slotsRequired: 1
-  hasCondition: 0
+  hasCondition: 1
+  conditionEditorMode: 0
+  useSystemConditionPreset: 1
+  standardConditionFamily: 0
+  diceParityConditionPreset: 1
+  critFailConditionPreset: 0
+  exactConditionMode: 0
+  exactValueX: 7
+  exactValuePattern: 1-2-3
+  resourceConditionPreset: 0
+  localGroupRelationMode: 0
+  localGroupRelationSide: 0
+  localGroupConditionPreset: 0
+  targetStateConditionPreset: 0
+  boardStateConditionPreset: 0
+  fireConditionPreset: 1
+  iceConditionPreset: 0
+  lightningConditionPreset: 0
+  physicalConditionPreset: 0
+  bleedConditionPreset: 0
+  conditionPresetValue: 7
+  showAdvancedCondition: 0
+  exactConditionMigrated: 1
   condition:
     scope: 0
-    kind: 0
-    parityRule: 0
-    thresholdCompare: 0
-    thresholdValue: 6
-    matchRule: 0
-    straightRule: 0
+    logic: 0
+    clauses:
+    - reference: 9
+      comparison: 6
+      value: 0
   whenConditionIsMet:
     overrideSlotsRequired: 0
     slotsRequired: 1
@@ -87,8 +110,21 @@ MonoBehaviour:
     freezeChance: 0.4
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
+  conditionalOutcome:
+    enabled: 1
+    type: 2
+    valueMode: 0
+    flatValue: 2
+    burnTurns: 3
+    _xHint: 1
+  splitRole:
+    enabled: 0
+    lowestOutcome: 0
+    highestOutcome: 0
+    burnTurns: 3
   focusCost: 2
   focusGainOnCast: 0
+  baseDamageValueMode: 0
   dieMultiplier: 0
   flatDamage: 0
   sunderBonusIfTargetHasGuard: 1
@@ -100,7 +136,22 @@ MonoBehaviour:
   canUseMarkMultiplier: 0
   consumesBurn: 0
   burnDamagePerStack: 2
+  fireModules:
+    useXFormula: 1
+    applyBurnFromResolvedValue: 1
+    grantBonusBurnOnOddBase: 1
+    oddBaseBonusBurn: 2
+    applyBurnFromLowestBase: 0
+    gainGuardFromHighestBase: 0
+    reapplyBurnPerExactBase: 0
+    exactBaseForReapply: 7
+    burnPerExactMatch: 7
+    requireBurnBeforeHitForReapply: 1
+    applyConsumeBonusDebuff: 1
+    consumeBonusPerBurn: 1
+    consumeBonusDebuffTurns: 2
   applyBurn: 1
+  baseBurnValueMode: 1
   burnAddStacks: 2
   burnRefreshTurns: 3
   applyMark: 0

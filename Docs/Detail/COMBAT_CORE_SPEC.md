@@ -196,8 +196,16 @@ Basic actions luôn có sẵn và **không chiếm 6 skill slot chính**.
 #### Basic Attack
 
 - **0 Focus**
-- **4 damage cố định**
+- **4 damage gốc**
 - cho **+1 Focus**
+
+Rule resolve:
+
+- Basic Attack vẫn nhận **Added Value** như các action gây damage khác.
+- Vì Basic Attack không mang tag `Physical`, Crit của nó dùng hệ số **Crit thường = +20% Base Value** để tạo Added Value.
+- Ví dụ: d20 crit ở mặt 20 -> `floor(20 x 0.2) = +4 Added Value` -> Basic Attack gây `4 + 4 = 8 damage`.
+- Ví dụ: d8 crit ở mặt 8 -> `floor(8 x 0.2) = +1 Added Value` -> Basic Attack gây `4 + 1 = 5 damage`.
+- Nếu die là Fail, Basic Attack chỉ còn `floor(4 / 2) = 2 damage`; Fail không đọc Added Value và không đổi Base Value.
 
 #### Basic Guard
 
@@ -237,6 +245,31 @@ Current locked rules:
 - **Added Value** = phần cộng thêm vào output cuối
 - **Mọi condition phải đọc từ Base Value**
 - Added Value **không đổi bản chất** của die
+- Với phần lớn skill gây damage chuẩn, damage cuối được hiểu là: **damage gốc của skill + tổng Added Value áp dụng cho action đó**
+- Với skill dùng `X`, mặc định hiện tại: **`X = Base Value + Added Value`**, trừ khi text skill ghi rõ công thức khác
+- `Added Value` từ current direction không chỉ là bonus damage; nó là **lớp thưởng chung của toàn hệ thống**
+- Nghĩa là nếu skill tạo ra một **output số học** như damage, Burn, Bleed, Guard hoặc payoff từ combat history / board state, output cuối mặc định đều tiếp tục cộng `Total Added Value` trừ khi text skill ghi rõ ngược lại
+- Rule chuẩn hóa từ current direction: nếu skill có **fixed output**, output cuối mặc định luôn là `fixed output + Added Value`, bất kể đó là `Attack`, `Guard` hay output số học khác
+- Nếu text skill ghi `lowest base` / `highest base`, phần chọn giá trị vẫn đọc từ **Base Value**
+- Nếu đó là **single-output skill**, output cuối vẫn cộng `Total Added Value`
+- Nếu đó là **split-role / multi-branch skill**, mỗi output branch chỉ được dùng `Added Value` của **đúng die source** mà branch đó chọn
+
+Rule cộng dồn theo số slot:
+
+- Skill **1 slot** cộng Added Value của **1 die** đang gắn cho skill đó.
+- Skill **2 slot** cộng **tổng Added Value của cả 2 die** trong local group của skill đó.
+- Skill **3 slot** cộng **tổng Added Value của cả 3 die** trong local group của skill đó.
+- Ví dụ: skill 2 slot có `5 damage gốc`, gắn vào `d10 crit` và `d20 crit`, không phải `Physical` -> damage cuối là `5 + floor(10 x 0.2) + floor(20 x 0.2) = 5 + 2 + 4 = 11`.
+- Nếu chính skill 2 slot đó là `Physical` -> damage cuối là `5 + floor(10 x 0.5) + floor(20 x 0.5) = 5 + 5 + 10 = 20`.
+- Skill 3 slot cũng theo đúng rule cộng dồn này với cả 3 die trong nhóm.
+
+Nguồn sinh Added Value hiện tại:
+
+- Dice có thể mang / sinh Added Value từ:
+  - **Crit** của chính die đó trong action hiện tại
+  - **enchant / consumable / dice customization** đã gắn sẵn lên mặt dice theo spec progression
+- Ngoài dice, Added Value cũng có thể đến từ **skill / passive / relic / modifier condition** ghi rõ trong text.
+- Fail không tự sinh Added Value âm và không xóa Added Value đã có.
 
 Các condition phải đọc theo Base Value gồm:
 
@@ -269,13 +302,26 @@ Current locked rules:
 - **Crit** = roll đúng giá trị mặt cao nhất của die
 - **Fail** = roll đúng giá trị mặt thấp nhất của die
 - Crit / Fail **không đổi Base Value**
-- Crit / Fail chỉ sinh **Added Value / bonus output**
+- Crit sinh **Added Value / bonus output**
+- Fail không làm đổi Base Value hay trừ Added Value
+- Fail chỉ cắt nửa **base output của chính skill đó**, luôn floor
+- `base output` ở đây không chỉ là damage; nếu skill tạo Guard/Burn/Bleed/output lịch sử và phần đó được định nghĩa là output gốc của skill, Fail cũng phải đọc trên phần đó
 
 Hệ số đang dùng ở mức current spec:
 
 - **Crit thường = +20% Base**
 - **Crit Physical = +50% Base**
-- **Fail = -50% Base**
+- **Fail = 50% damage gốc của skill**
+
+Rule áp dụng với skill nhiều slot:
+
+- Mỗi die trong local group tự check Crit / Fail theo chính die đó.
+- Nếu nhiều die cùng Crit, Added Value từ các die đó **cộng dồn** vào cùng action.
+- Nếu action là `Physical`, mỗi die Crit đóng góp Added Value theo hệ số `+50% Base` của chính nó.
+- Nếu action không phải `Physical`, mỗi die Crit đóng góp Added Value theo hệ số `+20% Base` của chính nó.
+- Nếu local group có **ít nhất 1 Fail**, action đó chỉ ăn **1 lần** fail penalty: `damage gốc / 2`.
+- `2 Fail` hoặc `3 Fail` trong cùng một action **không stack thêm** fail penalty.
+- Fail không làm mất Added Value do die Crit khác hoặc do passive/skill đã cấp cho action đó.
 
 ### 5.5 Trường hợp nhiều mặt cùng max / min
 
@@ -293,7 +339,9 @@ Rule này đặc biệt quan trọng khi dice bị custom rất mạnh và khôn
 Current locked rules:
 
 - Toàn game dùng **floor**
-- Damage sau tính toán nếu `< 1` thì vẫn là **minimum 1**
+- Nếu một output có **giá trị gốc dương** nhưng sau Fail / floor / penalty mà rơi xuống dưới `1`, output cuối vẫn là **minimum 1**
+- Rule này áp dụng cho mọi **output số học dương** của action, không chỉ direct damage
+- Nếu output gốc thực sự là `0`, kết quả vẫn giữ `0`, không tự nhảy lên `1`
 - Ngoại lệ: nếu Guard chặn hết thì có thể không mất HP
 
 ### 5.7 Pipeline dice math
@@ -301,7 +349,7 @@ Current locked rules:
 Pipeline nguồn thiết kế hiện tại:
 
 ```text
-baseValue -> critFailAddedValue -> passiveAddedValue -> totalAddedValue -> resolvedValue
+baseValue -> critAddedValue -> passiveSkillConditionalAddedValue -> totalAddedValue -> finalActionOutput
 ```
 
 `DiceSlotRig` là source of truth chính cho dice math trong code, nhưng ở cấp design điều quan trọng là:
@@ -322,8 +370,45 @@ về lâu dài phải đọc từ **cùng một nguồn số**, không được 
 - có skill đọc **giá trị cao nhất/thấp nhất trong local group**, 
 - có skill dùng X như một ô biến phụ thuộc die đang gắn vào slot.
 
+Rule hiện tại cần khóa rõ:
+
+- Với skill `X damage`, mặc định `X = Base Value + Added Value`.
+- Với skill damage chuẩn không dùng `X`, mặc định output là `damage gốc + Added Value`.
+- Về sau có thể tồn tại skill hoặc passive cho thêm Added Value nếu đạt điều kiện; các bonus này vẫn chỉ cộng vào output cuối, không đổi bản chất Base Value của die.
+- Nếu skill chiếm 2 hoặc 3 slot, `Added Value` ở đây mặc định là **tổng Added Value của toàn bộ dice trong local group**, cộng với mọi bonus Added Value khác mà action đó đang nhận.
+- Một số skill có thể đọc từ **combat history** thay vì Base Value, ví dụ: `damage gốc = số kẻ địch đã từng bị Freeze trong combat này`; khi resolve, output cuối của chúng vẫn tiếp tục cộng Added Value nếu action đó đang có.
+
 Exact value là trục identity quan trọng của game, không phải gimmick.  
 Các engine như `Hellfire` phải tiếp tục được xem là đại diện cho hướng exact-value build.
+
+### 5.8A Combat Formula Sheet
+
+Sheet công thức chuẩn hiện tại:
+
+- `Base Value` = mặt thật của die, dùng để check mọi condition.
+- `Added Value` = phần cộng vào output cuối, không đổi bản chất của die.
+- `Crit`:
+  - non-Physical -> `Added Value += floor(Base Value x 0.2)`
+  - Physical -> `Added Value += floor(Base Value x 0.5)`
+- `Fail` -> chỉ làm `base output = floor(base output / 2)`, không trừ `Added Value`.
+- Nếu skill nhiều slot có nhiều hơn 1 die Fail, fail penalty vẫn chỉ áp **1 lần cho cả action**.
+- `Skill damage chuẩn` -> `Final Damage = damage gốc + Total Added Value`
+- `Skill X` -> `X = Base Value + Added Value`
+- `Fixed status / guard / history output` -> `Final Output = output gốc + Total Added Value`
+- `Split-role skill` -> `Final Output của mỗi branch = output gốc của branch + Added Value của đúng die source của branch`
+- `Skill 1 slot` -> `Total Added Value = Added Value của 1 die`
+- `Skill 2 slot` -> `Total Added Value = Added Value die 1 + Added Value die 2`
+- `Skill 3 slot` -> `Total Added Value = Added Value die 1 + Added Value die 2 + Added Value die 3`
+- `Dice sources of Added Value` -> `Crit`, `enchant`, `consumable`, `dice customization`
+- `Non-dice sources of Added Value` -> `skill`, `passive`, `relic`, `modifier` ghi rõ
+- `Burn apply` -> mỗi lần apply tạo `1 Burn batch`, mỗi batch sống `3 turn`
+- `Visible Burn` -> tổng mọi batch Burn còn sống
+- `Burn expire` -> batch nào hết hạn thì chỉ batch đó biến mất
+- `Burn consume` -> consume toàn bộ Burn còn sống tại thời điểm đó
+- `Burn consume baseline` -> `+2 damage x Burn consumed`, trừ khi skill override
+- Toàn game dùng `floor`
+- Nếu `base output > 0` nhưng sau Fail / floor nhỏ hơn `1`, final output vẫn phải tối thiểu là `1`
+- Nếu `base output = 0`, final output tiếp tục là `0`
 
 ### 5.9 Dice customization
 

@@ -160,7 +160,15 @@ Player phải nhìn ra:
 
 - mục tiêu nào đang có Burn,
 - Burn đang là tài nguyên để consume,
-- có đáng dồn thêm stack trước khi detonate hay không.
+- có đáng dồn thêm stack trước khi detonate hay không,
+- Burn là tài nguyên có nhịp ngắn hạn; nếu để quá lâu thì phần Burn cũ sẽ rụng dần.
+
+Rule hiển thị Burn đã chốt:
+
+- UI chỉ hiển thị **tổng Burn stack hiện tại** trên mục tiêu.
+- UI **không cần** hiển thị turn count / tuổi thọ của từng batch Burn cho player.
+- Backend vẫn phải track Burn theo từng batch apply riêng để expire đúng rule.
+- Mục tiêu UX là để player cảm nhận Fire là build phải **add Burn sớm, nổ sớm**, không phải tích vô hạn rồi để đó mãi.
 
 ### 6.2 Mark
 

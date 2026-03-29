@@ -53,24 +53,72 @@ internal static class SkillBehaviorRuntimeUtility
 
     public static int GetHighestBaseValue(SkillRuntime rt)
     {
-        if (rt == null || rt.localBaseValues == null || rt.localBaseValues.Count <= 0)
+        int index = GetHighestBaseValueIndex(rt);
+        if (index < 0)
             return 0;
 
-        int best = rt.localBaseValues[0];
-        for (int i = 1; i < rt.localBaseValues.Count; i++)
-            best = Mathf.Max(best, rt.localBaseValues[i]);
-        return best;
+        return rt.localBaseValues[index];
     }
 
     public static int GetLowestBaseValue(SkillRuntime rt)
     {
-        if (rt == null || rt.localBaseValues == null || rt.localBaseValues.Count <= 0)
+        int index = GetLowestBaseValueIndex(rt);
+        if (index < 0)
             return 0;
 
-        int best = rt.localBaseValues[0];
+        return rt.localBaseValues[index];
+    }
+
+    public static int GetHighestBaseValueIndex(SkillRuntime rt)
+    {
+        if (rt == null || rt.localBaseValues == null || rt.localBaseValues.Count <= 0)
+            return -1;
+
+        int bestIndex = 0;
+        int bestValue = rt.localBaseValues[0];
         for (int i = 1; i < rt.localBaseValues.Count; i++)
-            best = Mathf.Min(best, rt.localBaseValues[i]);
-        return best;
+        {
+            if (rt.localBaseValues[i] > bestValue)
+            {
+                bestValue = rt.localBaseValues[i];
+                bestIndex = i;
+            }
+        }
+
+        return bestIndex;
+    }
+
+    public static int GetLowestBaseValueIndex(SkillRuntime rt)
+    {
+        if (rt == null || rt.localBaseValues == null || rt.localBaseValues.Count <= 0)
+            return -1;
+
+        int bestIndex = 0;
+        int bestValue = rt.localBaseValues[0];
+        for (int i = 1; i < rt.localBaseValues.Count; i++)
+        {
+            if (rt.localBaseValues[i] < bestValue)
+            {
+                bestValue = rt.localBaseValues[i];
+                bestIndex = i;
+            }
+        }
+
+        return bestIndex;
+    }
+
+    public static int GetPerDieResolvedOutput(SkillRuntime rt, int localIndex)
+    {
+        if (rt == null || rt.localResolvedValues == null || localIndex < 0 || localIndex >= rt.localResolvedValues.Count)
+            return 0;
+
+        int resolvedValue = Mathf.Max(0, rt.localResolvedValues[localIndex]);
+        int baseValue = (rt.localBaseValues != null && localIndex < rt.localBaseValues.Count)
+            ? Mathf.Max(0, rt.localBaseValues[localIndex])
+            : resolvedValue;
+        bool isFail = rt.localFailFlags != null && localIndex < rt.localFailFlags.Count && rt.localFailFlags[localIndex];
+
+        return SkillOutputValueUtility.ResolvePerDieOutput(baseValue, resolvedValue, isFail);
     }
 
     public static int GetHighestResolvedValue(SkillRuntime rt)

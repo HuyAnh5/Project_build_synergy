@@ -637,3 +637,118 @@ Nhưng với trạng thái hiện tại, file này đã đủ mạnh để làm 
 - dice progression direction,
 - enchant rules,
 - và flow resolve giữa skill với enchant.
+---
+
+## 15. Dice Edit Sandbox Status - SampleScene
+
+Phan nay ghi lai state thuc te da dung de test `dice edit` trong `SampleScene`.
+Day la sandbox runtime tach rieng khoi `GameScene`, muc tieu la verify interaction chon mat dice truoc khi noi vao consumable flow.
+
+### 15.1 Muc tieu da lam
+
+- Co `runtime sandbox` rieng cho `SampleScene`
+- Co panel runtime de test `Use / Clear / Flip`
+- Player co the:
+  - giu chuot va xoay dice tu do
+  - click vao mot mat cu the tren mesh 3D
+  - mat duoc click se duoc map ve `logical face`
+  - highlight dung mat da chon
+
+### 15.2 Script sandbox hien tai
+
+Toan bo logic sandbox dang nam trong:
+
+- `Assets/Scripts/DiceEditSandbox/DiceEditRuntimeBootstrap.cs`
+- `Assets/Scripts/DiceEditSandbox/DiceEditSandboxController.cs`
+- `Assets/Scripts/DiceEditSandbox/DiceEditInteractable.cs`
+- `Assets/Scripts/DiceEditSandbox/DiceFaceSelectionMap.cs`
+- `Assets/Scripts/DiceEditSandbox/DiceFaceHighlightRenderer.cs`
+
+Y nghia:
+
+- `DiceEditRuntimeBootstrap`: tu boot sandbox khi mo `SampleScene`
+- `DiceEditSandboxController`: panel runtime va state `selected / committed`
+- `DiceEditInteractable`: free inspect rotation + click select
+- `DiceFaceSelectionMap`: map `triangleIndex -> face group -> logical face`
+- `DiceFaceHighlightRenderer`: render highlight mesh cho dung mat duoc chon
+
+### 15.3 Setup scene dang dung
+
+Voi mot dice trong `SampleScene`, setup dang dung la:
+
+- `Pivot_D8`
+  - `DiceSpinnerGeneric`
+  - `DiceEditInteractable`
+  - `DiceFaceSelectionMap`
+  - `DiceFaceHighlightRenderer`
+
+- `Dice_d8` (object con cua pivot)
+  - `MeshFilter`
+  - `MeshRenderer`
+  - `MeshCollider`
+
+Rule quan trong:
+
+- `Pivot_*` la object xoay chinh
+- object con mesh la noi nhan raycast triangle
+- highlight phai bam vao transform cua mesh con, khong bam vao pivot
+
+### 15.4 Rule chon mat dang dung
+
+Huong dang dung hien tai la:
+
+- player xoay dice tu do bang chuot
+- khi click, he thong raycast vao `MeshCollider`
+- doc `RaycastHit.triangleIndex`
+- tu `triangleIndex` map sang `face group`
+- tu `face group` map sang `logical face index`
+- highlight dung mat tam giac / polygon da chon
+
+Day la huong `click polygon that` chu khong phai:
+
+- chon theo `front-facing face`
+- khong phai chon theo `face index browse`
+- khong phai chon qua overlay 2D
+
+### 15.5 Dieu kien ky thuat bat buoc
+
+Muon chon mat theo triangle thi mesh asset phai:
+
+- `Read/Write Enabled = ON`
+
+Neu khong, code khong doc duoc:
+
+- `mesh.vertices`
+- `mesh.triangles`
+
+va se khong build duoc `face groups`.
+
+Voi `d8` dang test, phai bat tren asset mesh nguon, khong phai object trong scene.
+
+### 15.6 Dieu da xac nhan
+
+- Raycast vao mesh con da hit dung collider
+- Runtime da co the phan biet object xoay (`Pivot_D8`) va object mesh (`Dice_d8`)
+- Sandbox da khong con phu thuoc vao `GameScene`
+- Highlight da duoc tach thanh mesh rieng cho mat da chon
+
+### 15.7 Dieu chua khoa
+
+Nhung diem sau chua final:
+
+- free inspect rotation hien tai chua phai feel cuoi cung
+- orientation presentation cua tung face chua duoc author rieng
+- mapping face cua `d8` da chay theo mesh click, nhung chua verify du cho cac dice khac
+- chua noi vao flow consumable that
+- `Use` hien tai moi la commit trong sandbox, chua mutate dice progression state
+
+### 15.8 Direction tiep theo sau sandbox nay
+
+Sau khi sandbox chon mat on dinh, huong tiep theo nen la:
+
+1. khoa interaction grammar cho `inspect -> select face -> Use / Confirm`
+2. noi `selected logical face` vao Zodiac consumable dau tien
+3. phan biet ro:
+   - tactical combat dice edit
+   - permanent shop / loadout dice edit
+4. chi sau do moi refine presentation / animation feel

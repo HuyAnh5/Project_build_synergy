@@ -14,17 +14,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
   displayName: Hellfire
-  description: Requires Burn already on target. Consume all Burn and deal 3 damage
-    per Burn stack. If every die in this group rolled exactly 7, apply 7 Burn again.
+  description: Requires Burn already on target to Consume . If every die in this
+    group rolled exactly 7, apply 7 Burn again.
   spec:
     rarity: 3
     specState: 2
     buildRole: 0
-    implementationCoverage: 1
-    normalizedText: Consume all Burn and deal 3 damage per Burn stack. If every die
-      in the group rolled exactly 7, apply 7 Burn again.
+    implementationCoverage: 2
+    normalizedText: Consume all Burn and deal 3 damage per Burn stack. If the target
+      had Burn before hit and every die in the group rolled exactly 7, apply 7 Burn
+      again per matching die.
     designIntent: Exact-value Fire win condition and payoff engine.
-  behaviorFamily: 1
+  behaviorFamily: 0
   fireBehaviorId: 2
   iceBehaviorId: 0
   lightningBehaviorId: 0
@@ -40,14 +41,32 @@ MonoBehaviour:
   hitAllAllies: 0
   slotsRequired: 3
   hasCondition: 0
+  conditionEditorMode: 0
+  useSystemConditionPreset: 1
+  standardConditionFamily: 5
+  diceParityConditionPreset: 1
+  critFailConditionPreset: 0
+  exactConditionMode: 1
+  exactValueX: 7
+  exactValuePattern: 1-2-3-5
+  resourceConditionPreset: 1
+  localGroupRelationMode: 2
+  localGroupRelationSide: 0
+  localGroupConditionPreset: 0
+  targetStateConditionPreset: 6
+  boardStateConditionPreset: 0
+  fireConditionPreset: 3
+  iceConditionPreset: 0
+  lightningConditionPreset: 0
+  physicalConditionPreset: 0
+  bleedConditionPreset: 0
+  conditionPresetValue: 7
+  showAdvancedCondition: 0
+  exactConditionMigrated: 1
   condition:
     scope: 0
-    kind: 0
-    parityRule: 0
-    thresholdCompare: 0
-    thresholdValue: 6
-    matchRule: 0
-    straightRule: 0
+    logic: 0
+    clauses: []
   whenConditionIsMet:
     overrideSlotsRequired: 0
     slotsRequired: 1
@@ -89,8 +108,21 @@ MonoBehaviour:
     freezeChance: 0.4
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
+  conditionalOutcome:
+    enabled: 0
+    type: 1
+    valueMode: 0
+    flatValue: 2
+    burnTurns: 3
+    _xHint: 1
+  splitRole:
+    enabled: 0
+    lowestOutcome: 0
+    highestOutcome: 0
+    burnTurns: 3
   focusCost: 2
   focusGainOnCast: 0
+  baseDamageValueMode: 0
   dieMultiplier: 0
   flatDamage: 0
   sunderBonusIfTargetHasGuard: 1
@@ -101,8 +133,23 @@ MonoBehaviour:
   clearsGuard: 0
   canUseMarkMultiplier: 1
   consumesBurn: 1
-  burnDamagePerStack: 3
+  burnDamagePerStack: 2
+  fireModules:
+    useXFormula: 0
+    applyBurnFromResolvedValue: 0
+    grantBonusBurnOnOddBase: 0
+    oddBaseBonusBurn: 2
+    applyBurnFromLowestBase: 0
+    gainGuardFromHighestBase: 0
+    reapplyBurnPerExactBase: 1
+    exactBaseForReapply: 7
+    burnPerExactMatch: 7
+    requireBurnBeforeHitForReapply: 1
+    applyConsumeBonusDebuff: 0
+    consumeBonusPerBurn: 1
+    consumeBonusDebuffTurns: 2
   applyBurn: 0
+  baseBurnValueMode: 0
   burnAddStacks: 7
   burnRefreshTurns: 3
   applyMark: 0

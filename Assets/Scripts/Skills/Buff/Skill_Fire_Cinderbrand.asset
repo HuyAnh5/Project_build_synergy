@@ -14,25 +14,33 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillBuffDebuffSO
   icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
   displayName: Cinderbrand
-  description: For the next 3 turns, Basic Attack deals +1 damage and applies Burn
-    equal to total damage dealt.
+  description: For 2 turns, Burn consumed on this target deals +1 extra damage per
+    stack.
   spec:
     rarity: 2
     specState: 2
     buildRole: 1
-    implementationCoverage: 0
-    normalizedText: For the next 3 turns, Basic Attack deals +1 damage and applies
-      Burn equal to total damage dealt.
-    designIntent: Turns Basic Attack into a Burn engine and opens the Fire loop.
+    implementationCoverage: 2
+    normalizedText: Burn consumed on this target deals +1 extra damage per stack for
+      a short window.
+    designIntent: Fire payoff amplifier that rewards spending Burn inside a timing window.
   behaviorId: 2
-  identity: 0
-  target: 0
+  identity: 1
+  target: 1
   applyDelayTurns: 0
   slotsRequired: 1
   focusCost: 2
   focusGainOnCast: 0
   _focusDelayedDelayWarning: 0
   effects: []
+  fireModules:
+    grantEmberWeapon: 0
+    emberWeaponTurns: 3
+    basicAttackBonusDamage: 1
+    basicAttackAppliesBurnEqualDamage: 1
+    applyConsumeBonusDebuff: 1
+    consumeBonusPerBurn: 1
+    consumeBonusDebuffTurns: 2
   applyAilment: 0
   ailment:
     ailment: 0

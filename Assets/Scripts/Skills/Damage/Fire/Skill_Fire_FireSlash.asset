@@ -13,15 +13,21 @@ MonoBehaviour:
   m_Name: Skill_Fire_FireSlash
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
-  displayName: 'Fire Slash'
-  description: 'Deal X damage. Consume all Burn to add +2 damage per Burn stack.'
+  displayName: Fire Slash
+  description: Deal 3 damage.
   spec:
     rarity: 0
     specState: 0
     buildRole: 5
     implementationCoverage: 2
-    normalizedText: 'Deal X damage. Consume all Burn and add +2 damage per Burn stack.'
-    designIntent: 'Baseline Burn spender and payoff piece.'
+    normalizedText: Deal X damage. Consume all Burn for +2 damage per stack.
+    designIntent: Baseline Burn spender and payoff piece.
+  behaviorFamily: 0
+  fireBehaviorId: 0
+  iceBehaviorId: 0
+  lightningBehaviorId: 0
+  bleedBehaviorId: 0
+  physicalBehaviorId: 0
   kind: 0
   coreAction: 0
   target: 1
@@ -32,14 +38,32 @@ MonoBehaviour:
   hitAllAllies: 0
   slotsRequired: 1
   hasCondition: 0
+  conditionEditorMode: 0
+  useSystemConditionPreset: 1
+  standardConditionFamily: 0
+  diceParityConditionPreset: 0
+  critFailConditionPreset: 0
+  exactConditionMode: 0
+  exactValueX: 7
+  exactValuePattern: 1-2-3
+  resourceConditionPreset: 0
+  localGroupRelationMode: 0
+  localGroupRelationSide: 0
+  localGroupConditionPreset: 0
+  targetStateConditionPreset: 0
+  boardStateConditionPreset: 0
+  fireConditionPreset: 0
+  iceConditionPreset: 0
+  lightningConditionPreset: 0
+  physicalConditionPreset: 0
+  bleedConditionPreset: 0
+  conditionPresetValue: 7
+  showAdvancedCondition: 0
+  exactConditionMigrated: 1
   condition:
     scope: 0
-    kind: 0
-    parityRule: 0
-    thresholdCompare: 0
-    thresholdValue: 6
-    matchRule: 0
-    straightRule: 0
+    logic: 0
+    clauses: []
   whenConditionIsMet:
     overrideSlotsRequired: 0
     slotsRequired: 1
@@ -61,6 +85,7 @@ MonoBehaviour:
     sunderBonusIfTargetHasGuard: 1
     sunderGuardDamageMultiplier: 2
     overrideGuard: 0
+    guardValueMode: 1
     guardDieMultiplier: 1
     guardFlat: 0
     overrideSpecialCombat: 0
@@ -81,12 +106,26 @@ MonoBehaviour:
     freezeChance: 0.4
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
+  conditionalOutcome:
+    enabled: 0
+    type: 0
+    valueMode: 0
+    flatValue: 2
+    burnTurns: 3
+    _xHint: 1
+  splitRole:
+    enabled: 0
+    lowestOutcome: 0
+    highestOutcome: 0
+    burnTurns: 3
   focusCost: 2
   focusGainOnCast: 0
-  dieMultiplier: 1
-  flatDamage: 0
+  baseDamageValueMode: 0
+  dieMultiplier: 0
+  flatDamage: 3
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
+  guardValueMode: 1
   guardDieMultiplier: 1
   guardFlat: 0
   bypassGuard: 0
@@ -94,7 +133,22 @@ MonoBehaviour:
   canUseMarkMultiplier: 1
   consumesBurn: 1
   burnDamagePerStack: 2
+  fireModules:
+    useXFormula: 0
+    applyBurnFromResolvedValue: 0
+    grantBonusBurnOnOddBase: 0
+    oddBaseBonusBurn: 2
+    applyBurnFromLowestBase: 0
+    gainGuardFromHighestBase: 0
+    reapplyBurnPerExactBase: 0
+    exactBaseForReapply: 7
+    burnPerExactMatch: 7
+    requireBurnBeforeHitForReapply: 1
+    applyConsumeBonusDebuff: 0
+    consumeBonusPerBurn: 1
+    consumeBonusDebuffTurns: 2
   applyBurn: 0
+  baseBurnValueMode: 0
   burnAddStacks: 2
   burnRefreshTurns: 3
   applyMark: 0

@@ -75,8 +75,7 @@ internal static class SkillAttackResolutionUtility
 
         if (rt.element == ElementType.Fire && rt.consumesBurn && target.status != null && target.status.burnStacks > 0)
         {
-            target.status.burnStacks = 0;
-            target.status.burnTurns = 0;
+            target.status.ConsumeAllBurn();
         }
 
         if (Debug.isDebugBuild)
@@ -148,11 +147,25 @@ internal static class SkillAttackResolutionUtility
         if (rt.applyBurn)
         {
             int burnStacks = rt.burnAddStacks;
-            if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.Ignite))
+            if (rt.baseBurnValueMode == BaseEffectValueMode.X || (rt.element == ElementType.Fire && rt.fireApplyBurnFromResolvedValue))
             {
-                burnStacks = Mathf.Max(0, dieValue);
+                burnStacks = SkillOutputValueUtility.ResolveXValue(dieValue, rt);
+                if (rt.fireGrantBonusBurnOnOddBase &&
+                    SkillBehaviorRuntimeUtility.TryGetSingleBaseValue(rt, out int fireBaseValue) &&
+                    (fireBaseValue % 2) != 0)
+                {
+                    burnStacks += Mathf.Max(0, rt.fireOddBaseBonusBurn);
+                }
+            }
+            else if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.Ignite))
+            {
+                burnStacks = SkillOutputValueUtility.ResolveXValue(dieValue, rt);
                 if (SkillBehaviorRuntimeUtility.TryGetSingleBaseValue(rt, out int baseValue) && (baseValue % 2) != 0)
                     burnStacks += 2;
+            }
+            else
+            {
+                burnStacks = SkillOutputValueUtility.AddActionAddedValue(burnStacks, rt);
             }
 
             burnStacks += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
@@ -161,13 +174,30 @@ internal static class SkillAttackResolutionUtility
 
         if (IsBasicStrike(rt) && caster != null && caster.status != null && caster.status.emberWeaponTurns > 0)
         {
-            int emberBurn = Mathf.Max(0, finalDamage);
-            emberBurn += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
-            if (emberBurn > 0)
-                target.status.ApplyBurn(emberBurn, 3);
+            if (caster.status.emberWeaponBurnEqualsDamage)
+            {
+                int emberBurn = Mathf.Max(0, finalDamage);
+                emberBurn += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
+                if (emberBurn > 0)
+                    target.status.ApplyBurn(emberBurn, 3);
+            }
         }
 
-        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.Hellfire) && targetHadBurnBeforeHit)
+        if (rt.element == ElementType.Fire && rt.fireReapplyBurnPerExactBase)
+        {
+            bool canReapply = !rt.fireRequireBurnBeforeHitForReapply || targetHadBurnBeforeHit;
+            if (canReapply)
+            {
+                int matchCount = SkillBehaviorRuntimeUtility.CountBaseValuesEqual(rt, rt.fireExactBaseForReapply);
+                if (matchCount > 0)
+                {
+                    int reapplyBurn = (Mathf.Max(0, rt.fireBurnPerExactMatch) * matchCount) +
+                                      (ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0);
+                    target.status.ApplyBurn(reapplyBurn, Mathf.Max(rt.burnRefreshTurns, 3));
+                }
+            }
+        }
+        else if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.Hellfire) && targetHadBurnBeforeHit)
         {
             int sevensRolled = SkillBehaviorRuntimeUtility.CountBaseValuesEqual(rt, 7);
             if (sevensRolled > 0)
@@ -180,10 +210,26 @@ internal static class SkillAttackResolutionUtility
         if (rt.applyMark) target.status.ApplyMark();
         if (rt.applyBleed)
         {
-            int bleedStacks = rt.bleedTurns + (ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Bleed) : 0);
+            int bleedStacks = SkillOutputValueUtility.AddActionAddedValue(rt.bleedTurns, rt);
+            bleedStacks += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Bleed) : 0;
             target.status.ApplyBleed(bleedStacks);
         }
         if (rt.applyFreeze) target.status.TryApplyFreeze(rt.freezeChance);
+
+        if (rt.conditionMet && rt.conditionalOutcomeEnabled && rt.conditionalOutcomeType == ConditionalOutcomeType.ApplyBurn)
+        {
+            int conditionalBurn = GetConditionalBurnStacks(rt, dieValue);
+            conditionalBurn += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
+            if (conditionalBurn > 0)
+                target.status.ApplyBurn(conditionalBurn, Mathf.Max(1, rt.conditionalOutcomeBurnTurns));
+        }
+
+        if (rt.conditionMet && rt.conditionalOutcomeEnabled && rt.conditionalOutcomeType == ConditionalOutcomeType.GainGuard && caster != null)
+        {
+            int conditionalGuard = GetConditionalGuardValue(rt, dieValue);
+            if (conditionalGuard > 0)
+                caster.AddGuard(conditionalGuard);
+        }
     }
 
     private static void ApplyBehaviorAfterHit(
@@ -225,15 +271,23 @@ internal static class SkillAttackResolutionUtility
         {
             if (target != null && target.status != null)
             {
-                int burn = SkillBehaviorRuntimeUtility.GetLowestBaseValue(rt);
+                int burnIndex = SkillBehaviorRuntimeUtility.GetLowestBaseValueIndex(rt);
+                int burn = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, burnIndex);
                 burn += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
                 if (burn > 0)
                     target.status.ApplyBurn(burn, 3);
             }
 
-            int guard = SkillBehaviorRuntimeUtility.GetHighestBaseValue(rt);
+            int guardIndex = SkillBehaviorRuntimeUtility.GetHighestBaseValueIndex(rt);
+            int guard = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, guardIndex);
             if (guard > 0)
                 caster.AddGuard(guard);
+            return;
+        }
+
+        if (rt.splitRoleEnabled)
+        {
+            ApplySplitRole(rt, caster, target, ps);
             return;
         }
 
@@ -248,6 +302,37 @@ internal static class SkillAttackResolutionUtility
             return;
         }
 
+        if (rt.element == ElementType.Fire && rt.fireApplyBurnFromLowestBase)
+        {
+            if (target != null && target.status != null)
+            {
+                int burnIndex = SkillBehaviorRuntimeUtility.GetLowestBaseValueIndex(rt);
+                int burn = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, burnIndex);
+                burn += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
+                if (burn > 0)
+                    target.status.ApplyBurn(burn, 3);
+            }
+
+            if (rt.fireGainGuardFromHighestBase)
+            {
+                int guardIndex = SkillBehaviorRuntimeUtility.GetHighestBaseValueIndex(rt);
+                int guard = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, guardIndex);
+                if (guard > 0)
+                    caster.AddGuard(guard);
+            }
+            return;
+        }
+
+        if (rt.element == ElementType.Fire && rt.fireApplyConsumeBonusDebuff)
+        {
+            if (target != null && target.status != null)
+            {
+                target.status.cinderbrandTurns = Mathf.Max(target.status.cinderbrandTurns, Mathf.Max(1, rt.fireConsumeBonusDebuffTurns));
+                target.status.cinderbrandBonusPerBurn = Mathf.Max(target.status.cinderbrandBonusPerBurn, Mathf.Max(0, rt.fireConsumeBonusPerBurn));
+            }
+            return;
+        }
+
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.WintersBite))
         {
             if (target != null && target.status != null && target.status.chilledTurns > 0)
@@ -258,6 +343,7 @@ internal static class SkillAttackResolutionUtility
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.ColdSnap))
         {
             int guard = SkillBehaviorRuntimeUtility.GetHighestBaseValue(rt);
+            guard = SkillOutputValueUtility.AddActionAddedValue(guard, rt);
             if (guard > 0)
                 caster.AddGuard(guard);
             return;
@@ -281,9 +367,9 @@ internal static class SkillAttackResolutionUtility
         {
             if (target != null && target.status != null)
             {
-                int bleed = Mathf.Max(0, dieValue);
+                int bleed = SkillOutputValueUtility.ResolveXValue(dieValue, rt);
                 if (rt.localCritAny)
-                    bleed += Mathf.Max(0, dieValue);
+                    bleed += SkillOutputValueUtility.ResolveXValue(dieValue, rt);
                 bleed += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Bleed) : 0;
                 if (bleed > 0)
                     target.status.ApplyBleed(bleed);
@@ -296,7 +382,7 @@ internal static class SkillAttackResolutionUtility
             SkillCombatState state = caster.GetComponent<SkillCombatState>();
             if (target != null && target.status != null && state != null)
             {
-                int bleed = Mathf.Max(0, state.LastEnemyTurnHpLost);
+                int bleed = SkillOutputValueUtility.AddActionAddedValue(Mathf.Max(0, state.LastEnemyTurnHpLost), rt);
                 bleed += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Bleed) : 0;
                 if (bleed > 0)
                     target.status.ApplyBleed(bleed);
@@ -345,5 +431,76 @@ internal static class SkillAttackResolutionUtility
         if (rt == null)
             return false;
         return rt.coreAction == CoreAction.BasicStrike;
+    }
+
+    private static int GetConditionalBurnStacks(SkillRuntime rt, int dieValue)
+    {
+        if (rt == null || !rt.conditionalOutcomeEnabled || rt.conditionalOutcomeType != ConditionalOutcomeType.ApplyBurn)
+            return 0;
+
+        switch (rt.conditionalOutcomeValueMode)
+        {
+            case ConditionalOutcomeValueMode.X:
+                return SkillOutputValueUtility.ResolveXValue(dieValue, rt);
+
+            case ConditionalOutcomeValueMode.Flat:
+            default:
+                return SkillOutputValueUtility.AddActionAddedValue(rt.conditionalOutcomeFlatValue, rt);
+        }
+    }
+
+    private static int GetConditionalGuardValue(SkillRuntime rt, int dieValue)
+    {
+        if (rt == null || !rt.conditionalOutcomeEnabled || rt.conditionalOutcomeType != ConditionalOutcomeType.GainGuard)
+            return 0;
+
+        switch (rt.conditionalOutcomeValueMode)
+        {
+            case ConditionalOutcomeValueMode.X:
+                return SkillOutputValueUtility.ResolveXValue(dieValue, rt);
+
+            case ConditionalOutcomeValueMode.Flat:
+            default:
+                return SkillOutputValueUtility.AddActionAddedValue(rt.conditionalOutcomeFlatValue, rt);
+        }
+    }
+
+    private static void ApplySplitRole(SkillRuntime rt, CombatActor caster, CombatActor target, PassiveSystem ps)
+    {
+        if (rt == null || caster == null)
+            return;
+
+        int lowestIndex = SkillBehaviorRuntimeUtility.GetLowestBaseValueIndex(rt);
+        int highestIndex = SkillBehaviorRuntimeUtility.GetHighestBaseValueIndex(rt);
+
+        ApplySplitRoleBranch(rt, caster, target, ps, lowestIndex, rt.splitRoleLowestOutcome);
+        if (highestIndex != lowestIndex || rt.splitRoleHighestOutcome != rt.splitRoleLowestOutcome)
+            ApplySplitRoleBranch(rt, caster, target, ps, highestIndex, rt.splitRoleHighestOutcome);
+    }
+
+    private static void ApplySplitRoleBranch(SkillRuntime rt, CombatActor caster, CombatActor target, PassiveSystem ps, int dieIndex, SplitRoleBranchOutcome outcome)
+    {
+        if (rt == null || dieIndex < 0 || outcome == SplitRoleBranchOutcome.None)
+            return;
+
+        int value = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, dieIndex);
+        if (value <= 0)
+            return;
+
+        switch (outcome)
+        {
+            case SplitRoleBranchOutcome.Burn:
+                if (target != null && target.status != null)
+                {
+                    int burn = value + (ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0);
+                    if (burn > 0)
+                        target.status.ApplyBurn(burn, Mathf.Max(1, rt.splitRoleBurnTurns));
+                }
+                break;
+
+            case SplitRoleBranchOutcome.Guard:
+                caster.AddGuard(value);
+                break;
+        }
     }
 }

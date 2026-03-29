@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 [DisallowMultipleComponent]
 public class SkillCombatState : MonoBehaviour
@@ -8,6 +9,7 @@ public class SkillCombatState : MonoBehaviour
     [SerializeField] private int lastEnemyTurnHpLost;
 
     private int _enemyTurnStartHp = -1;
+    private readonly Dictionary<int, int> _exactConditionValues = new Dictionary<int, int>();
 
     public int ExecutionCarryActive => Mathf.Max(0, executionCarryActive);
     public int LastEnemyTurnHpLost => Mathf.Max(0, lastEnemyTurnHpLost);
@@ -18,6 +20,7 @@ public class SkillCombatState : MonoBehaviour
         executionCarryActive = 0;
         lastEnemyTurnHpLost = 0;
         _enemyTurnStartHp = -1;
+        _exactConditionValues.Clear();
     }
 
     public void BeginPlayerTurn()
@@ -54,6 +57,25 @@ public class SkillCombatState : MonoBehaviour
 
         lastEnemyTurnHpLost = Mathf.Max(0, _enemyTurnStartHp - Mathf.Max(0, currentHp));
         _enemyTurnStartHp = -1;
+    }
+
+    public int GetOrCreateExactConditionValue(int skillKey, List<int> ownedCandidates, int minInclusive, int maxInclusive, int fallbackValue)
+    {
+        if (_exactConditionValues.TryGetValue(skillKey, out int existing))
+            return existing;
+
+        int value = fallbackValue;
+        if (ownedCandidates != null && ownedCandidates.Count > 0)
+        {
+            value = ownedCandidates[Random.Range(0, ownedCandidates.Count)];
+        }
+        else if (maxInclusive >= minInclusive)
+        {
+            value = Random.Range(minInclusive, maxInclusive + 1);
+        }
+
+        _exactConditionValues[skillKey] = value;
+        return value;
     }
 
 }

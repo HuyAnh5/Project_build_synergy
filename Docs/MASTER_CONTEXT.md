@@ -154,7 +154,7 @@ Basic actions luôn có sẵn, không nằm trong 6 skill slot chính:
 
 - **Basic Attack**
   - 0 Focus
-  - 4 damage cố định
+  - 4 damage gốc
   - cho **+1 Focus**
 
 - **Basic Guard**
@@ -194,6 +194,10 @@ Rule đã chốt:
 - **Added Value** = phần cộng thêm vào output cuối
 - **Mọi condition phải đọc từ Base Value**
 - Added Value **không đổi bản chất** của die
+- Với skill damage chuẩn, output cuối mặc định là **damage gốc + Added Value**
+- Với skill `X`, mặc định **`X = Base Value + Added Value`**
+- Nếu skill chiếm 2 hoặc 3 slot, Added Value mặc định là **tổng Added Value của toàn bộ dice trong nhóm skill đó**
+- Dice có thể mang / sinh Added Value từ **Crit** hoặc từ **enchant / consumable / dice customization** đã gắn trên mặt; các nguồn ngoài dice có thể đến từ skill/passive/relic ghi rõ
 
 Các condition phải đọc theo Base Value gồm:
 
@@ -226,13 +230,22 @@ Rule đã chốt:
 - **Crit** = roll đúng giá trị mặt cao nhất của die
 - **Fail** = roll đúng giá trị mặt thấp nhất của die
 - Crit / Fail **không đổi Base Value**
-- Crit / Fail chỉ sinh Added Value / bonus output
+- Crit sinh Added Value / bonus output
+- Fail chỉ cắt nửa **damage gốc của skill**, không trừ Added Value và không đổi Base Value
 
 Các hệ số đã chốt hiện tại:
 
 - **Crit thường = +20% Base**
 - **Crit Physical = +50% Base**
-- **Fail = -50% Base**
+- **Fail = 50% damage gốc của skill**
+
+Ví dụ cộng dồn theo nhiều dice:
+
+- Skill 2 slot có `5 damage gốc`, gắn vào `d10 crit` và `d20 crit`, không phải Physical -> `5 + floor(10 x 0.2) + floor(20 x 0.2) = 11`.
+- Nếu skill đó là Physical -> `5 + floor(10 x 0.5) + floor(20 x 0.5) = 20`.
+- Skill 3 slot cũng cộng theo đúng logic đó với cả 3 die trong nhóm.
+- Nếu skill 2 hoặc 3 slot có `ít nhất 1 Fail`, action đó chỉ bị `cắt 50% damage gốc` đúng **1 lần**.
+- `2 Fail` hoặc `3 Fail` trong cùng action không stack fail penalty thêm.
 
 ### 6.5 Trường hợp nhiều mặt cùng max / min
 
@@ -258,12 +271,35 @@ Rule đã chốt:
 Pipeline mong muốn và đang được dùng như source design:
 
 ```text
-baseValue -> critFailAddedValue -> passiveAddedValue -> totalAddedValue -> resolvedValue
+baseValue -> critAddedValue -> passiveSkillConditionalAddedValue -> totalAddedValue -> finalActionOutput
 ```
 
 `DiceSlotRig` là **source of truth chính** cho dice math.
 
 Mọi preview / execute / tooltip runtime về lâu dài phải bám cùng một nguồn số, không được mỗi nơi tự tính một kiểu.
+
+### 6.7A Combat Formula Sheet
+
+- `Base Value` = mặt thật của die, dùng để check mọi condition.
+- `Added Value` = phần cộng vào output cuối, không đổi bản chất của die.
+- `Crit`:
+  - non-Physical -> `Added Value += floor(Base Value x 0.2)`
+  - Physical -> `Added Value += floor(Base Value x 0.5)`
+- `Fail` -> chỉ làm `damage gốc = floor(damage gốc / 2)`, không trừ `Added Value`.
+- `Skill damage chuẩn` -> `Final Damage = damage gốc + Total Added Value`
+- `Skill X` -> `X = Base Value + Added Value`
+- `Skill 1 slot` -> `Total Added Value = Added Value của 1 die`
+- `Skill 2 slot` -> `Total Added Value = Added Value die 1 + Added Value die 2`
+- `Skill 3 slot` -> `Total Added Value = Added Value die 1 + Added Value die 2 + Added Value die 3`
+- `Dice sources of Added Value` -> `Crit`, `enchant`, `consumable`, `dice customization`
+- `Non-dice sources of Added Value` -> `skill`, `passive`, `relic`, `modifier` ghi rõ
+- `Burn apply` -> mỗi lần apply tạo `1 Burn batch`, mỗi batch sống `3 turn`
+- `Visible Burn` -> tổng mọi batch Burn còn sống
+- `Burn expire` -> batch nào hết hạn thì chỉ batch đó biến mất
+- `Burn consume` -> consume toàn bộ Burn còn sống tại thời điểm đó
+- `Burn consume baseline` -> `+2 damage x Burn consumed`, trừ khi skill override
+- Toàn game dùng `floor`
+- Damage dương mà sau tính toán `< 1` thì thành `1` tối thiểu
 
 ### 6.8 Dice customization
 
@@ -406,13 +442,23 @@ Burn là **resource để consume**.
 Rule đã chốt:
 
 - Burn có stack
+- Mỗi lần apply Burn tạo ra **một batch Burn riêng** tồn tại **3 turn**
+- Tổng Burn hiển thị = tổng mọi batch Burn còn sống
+- Khi một batch hết hạn, chỉ batch đó biến mất; batch apply sau vẫn được giữ lại
 - Consume mặc định = **`+2 damage mỗi stack Burn bị xóa`**
 - Chỉ skill đặc biệt mới được override con số baseline này
+
+Ví dụ:
+
+- Turn 1 áp `7 Burn`
+- Turn 3 áp thêm `9 Burn` -> mục tiêu hiện `16 Burn`
+- Sang turn sau, batch `7 Burn` cũ hết hạn -> mục tiêu còn `9 Burn`
 
 Ý nghĩa thiết kế:
 
 - Fire là hệ thiên về setup tài nguyên rồi nổ burst
 - Burn là nguyên liệu cho các Fire payoff, không phải poison clone
+- Fire phải giữ nhịp add Burn rồi detonate sớm, không nên giữ Burn quá lâu
 
 ### 9.3 Ice / Freeze / Chilled
 
@@ -746,8 +792,8 @@ Mọi skill / passive mới nên bám một hoặc nhiều trục trên thay vì
 - Trong **3 turn tiếp theo**, Basic Attack gây thêm **+1 damage** và áp **Burn = tổng damage gây ra**
 
 Ví dụ:
-- Basic Attack base là 4 damage
-- Có Ember Weapon -> thành 5 damage
+- Basic Attack base là 4 damage gốc
+- Có Ember Weapon -> thành 5 damage gốc trước Added Value
 - áp 5 Burn mỗi hit
 - nếu đi kèm passive tăng stack như `Elemental Catalyst`, lượng Burn applied có thể tăng thêm theo rule passive
 
@@ -775,7 +821,7 @@ Ví dụ:
 
 #### Brutal Smash [Attack]
 - **1 slot, 1 Focus**
-- Gây 12 damage cố định
+- Gây 12 damage gốc
 - Nếu mục tiêu đã có Mark trước khi trúng, hồi ngay 1 Focus
 
 #### Heavy Cleave [Attack]

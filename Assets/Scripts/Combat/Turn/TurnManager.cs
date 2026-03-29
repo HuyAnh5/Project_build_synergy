@@ -393,7 +393,7 @@ public class TurnManager : MonoBehaviour
             {
                 int dot = e.status.OnTurnStarted(consumeFreezeToSkipTurn: true, out skipTurn);
                 if (logPhase) Debug.Log(
-                    $"[TM] EnemyTurnStart {e.name}: dot={dot} skip={skipTurn} bleed={e.status.bleedStacks} burnStacks={e.status.burnStacks} burnTurns={e.status.burnTurns} frozen={e.status.frozen}",
+                    $"[TM] EnemyTurnStart {e.name}: dot={dot} skip={skipTurn} bleed={e.status.bleedStacks} burnStacks={e.status.burnStacks} burnBatches={e.status.GetBurnBatches().Count} frozen={e.status.frozen}",
                     this
                 );
 

@@ -6,7 +6,7 @@ using Sirenix.OdinInspector;
 public class DiceSlotRig : MonoBehaviour
 {
     public const float GenericCritPercent = 0.20f;
-    public const float GenericFailPercent = -0.50f;
+    public const float GenericFailPercent = 0.00f;
     public const float PhysicalCritPercent = 0.50f;
 
     [Serializable]
@@ -416,7 +416,7 @@ public class DiceSlotRig : MonoBehaviour
     private int ComputeCritFailAddedValue(RollInfo info, ElementType skillElement)
     {
         if (info.rolledValue <= 0) return 0;
-        if (info.isFail) return FloorScaled(info.rolledValue, GenericFailPercent);
+        if (info.isFail) return 0;
         if (!info.isCrit) return 0;
 
         float critPercent = (skillElement == ElementType.Physical) ? PhysicalCritPercent : GenericCritPercent;
@@ -452,8 +452,7 @@ public class DiceSlotRig : MonoBehaviour
             bool isFail = d.IsFailValue(rolled);
 
             int genericAdded = 0;
-            if (isFail) genericAdded = FloorScaled(rolled, GenericFailPercent);
-            else if (isCrit) genericAdded = FloorScaled(rolled, GenericCritPercent);
+            if (isCrit) genericAdded = FloorScaled(rolled, GenericCritPercent);
 
             int genericResolved = rolled + genericAdded;
             if (genericResolved < 1) genericResolved = 1;

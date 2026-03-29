@@ -63,7 +63,7 @@ Phần này mô tả **đường đi logic chung của element / status engine**
 → Apply Burn hoặc đọc Burn stack đang có  
 → Nếu skill là spender: consume Burn theo rule của skill  
 → Chuyển Burn stack thành bonus damage / payoff  
-→ Update target state sau consume
+→ Update target state sau consume / expire theo từng batch Burn
 
 **Ice / Freeze / Chilled**  
 → Kiểm tra target đang Freeze / Chilled hay không  
@@ -153,8 +153,17 @@ Burn là **resource để consume**.
 ### 6.2 Rule đã chốt cho Burn
 
 - Burn có stack.
+- Mỗi lần apply Burn tạo ra **một batch Burn riêng** tồn tại **3 turn**.
+- Tổng Burn hiển thị trên mục tiêu = **tổng mọi batch Burn còn sống**.
+- Khi một batch Burn hết hạn, **chỉ batch đó biến mất**; các batch Burn apply sau vẫn còn.
 - Consume baseline = **`+2 damage mỗi stack Burn bị xóa`**.
 - Chỉ skill đặc biệt mới được override con số baseline này.
+
+Ví dụ đúng rule:
+
+- Turn 1: áp `7 Burn` -> mục tiêu hiện `7 Burn`
+- Turn 3: áp thêm `9 Burn` -> mục tiêu hiện `16 Burn`
+- Sang turn sau, batch `7 Burn` cũ hết hạn -> mục tiêu còn `9 Burn`, không mất sạch toàn bộ Burn
 
 ### 6.3 Identity gameplay
 
@@ -163,6 +172,7 @@ Burn tồn tại để tạo ra quyết định kiểu:
 - nên bồi thêm stack hay kích nổ ngay,
 - nên chia Burn lên nhiều mục tiêu hay dồn một mục tiêu,
 - nên dùng lane đầu để tích Burn hay lane cuối để detonate,
+- phải add Burn sớm và kích nổ sớm, nếu không batch Burn cũ sẽ rụng dần,
 - nên ưu tiên exact-value / custom dice build để mở loop sâu hơn hay không.
 
 ### 6.4 Quan hệ với direct-hit
@@ -180,9 +190,11 @@ Nếu Fire chỉ còn là hệ gây DoT thụ động, nó sẽ mất bản sắ
 
 ### 6.6 Edge cases
 
+- UI chỉ cần hiển thị **tổng Burn stack**, không cần lộ tuổi thọ từng batch Burn ra cho player.
 - Burn tiêu qua skill direct-hit được tính vào direct-hit đó.
 - Burn consume không tự biến thành một effect riêng tách rời nếu text skill không nói vậy.
 - Các passive tăng stack Burn phải cộng vào logic apply, không được âm thầm đổi baseline consume nếu text không ghi.
+- Khi consume Burn, skill consume toàn bộ Burn **đang còn sống tại thời điểm đó**.
 
 ---
 

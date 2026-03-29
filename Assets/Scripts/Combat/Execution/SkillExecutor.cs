@@ -165,6 +165,8 @@ public class SkillExecutor : MonoBehaviour
         if (rt.kind == SkillKind.Guard)
         {
             int baseGuard = rt.CalculateGuard(dieValue);
+            if (rt.guardValueMode == BaseEffectValueMode.Flat && rt.guardFlat > 0)
+                baseGuard = SkillOutputValueUtility.AddActionAddedValue(rt.guardFlat, rt);
             baseGuard = ApplyCustomGuardBehavior(rt, caster, baseGuard);
 
             // apply GuardGainPercent passive
@@ -401,10 +403,14 @@ public class SkillExecutor : MonoBehaviour
             return baseGuard;
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.BloodWard))
-            return Mathf.Max(0, SkillBehaviorRuntimeUtility.CountBleedOnEnemyTeam(caster));
+            return SkillOutputValueUtility.AddActionAddedValue(
+                Mathf.Max(0, SkillBehaviorRuntimeUtility.CountBleedOnEnemyTeam(caster)),
+                rt);
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.ColdSnap))
-            return Mathf.Max(0, SkillBehaviorRuntimeUtility.GetHighestBaseValue(rt));
+            return SkillOutputValueUtility.AddActionAddedValue(
+                Mathf.Max(0, SkillBehaviorRuntimeUtility.GetHighestBaseValue(rt)),
+                rt);
 
         return baseGuard;
     }

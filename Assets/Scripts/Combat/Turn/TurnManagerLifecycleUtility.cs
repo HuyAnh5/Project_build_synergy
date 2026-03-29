@@ -52,7 +52,7 @@ internal static class TurnManagerLifecycleUtility
         var ps = player.GetComponent<PassiveSystem>();
         if (ps != null)
         {
-            int bonus = ps.GetFocusBonusOnTurnStart();
+            int bonus = ps.GetFocusBonusOnTurnStart(player);
             if (bonus != 0)
             {
                 player.GainFocus(bonus);

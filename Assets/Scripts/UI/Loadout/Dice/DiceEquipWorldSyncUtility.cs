@@ -33,8 +33,7 @@ internal static class DiceEquipWorldSyncUtility
             bool isFail = d.IsFailValue(rolled);
 
             int genericAdded = 0;
-            if (isFail) genericAdded = Mathf.FloorToInt(rolled * DiceSlotRig.GenericFailPercent);
-            else if (isCrit) genericAdded = Mathf.FloorToInt(rolled * DiceSlotRig.GenericCritPercent);
+            if (isCrit) genericAdded = Mathf.FloorToInt(rolled * DiceSlotRig.GenericCritPercent);
 
             int genericResolved = rolled + genericAdded;
             if (genericResolved < 1)

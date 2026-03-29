@@ -21,6 +21,7 @@ public static class AttackPreviewCalculator
             return preview;
 
         preview.baseDamage = rt.CalculateDamage(preview.effectiveDieValue);
+        ApplyBaseEffectPreview(rt, ref preview);
 
         float statusOutMul = 1f;
         if (caster != null && caster.status != null)
@@ -42,11 +43,40 @@ public static class AttackPreviewCalculator
 
         if (IsBasicStrike(rt) && caster != null && caster.status != null && caster.status.emberWeaponTurns > 0)
         {
-            preview.bonusDamage += 1;
-            dmg += 1;
+            int emberBonus = Mathf.Max(0, caster.status.emberWeaponBonusDamage);
+            preview.bonusDamage += emberBonus;
+            dmg += emberBonus;
         }
 
         ApplyBehaviorPreviewBonuses(rt, caster, target, ref preview, ref dmg);
+
+        if (rt.conditionMet && rt.conditionalOutcomeEnabled)
+        {
+            int conditionalDamage = GetConditionalDamageBonus(rt, preview.effectiveDieValue);
+            if (conditionalDamage > 0)
+            {
+                preview.bonusDamage += conditionalDamage;
+                dmg += conditionalDamage;
+            }
+        }
+
+        if (ShouldApplyFailPenaltyOnce(rt) && preview.baseDamage > 0)
+        {
+            int reducedBaseDamage = Mathf.FloorToInt(preview.baseDamage * 0.5f);
+            dmg -= preview.baseDamage;
+            preview.baseDamage = Mathf.Max(0, reducedBaseDamage);
+            dmg += preview.baseDamage;
+        }
+
+        if (ShouldApplyStandardAddedValue(rt))
+        {
+            int actionAddedValue = SkillOutputValueUtility.GetTotalActionAddedValue(rt);
+            if (actionAddedValue > 0)
+            {
+                preview.bonusDamage += actionAddedValue;
+                dmg += actionAddedValue;
+            }
+        }
 
         if (!Mathf.Approximately(statusOutMul, 1f))
             dmg = Mathf.FloorToInt(dmg * statusOutMul);
@@ -66,7 +96,7 @@ public static class AttackPreviewCalculator
             if (burnStacks > 0)
             {
                 float burnMul = (ps != null) ? ps.GetBurnConsumeMultiplier() : 1f;
-                int damagePerStack = GetBurnConsumeDamagePerStack(rt);
+                int damagePerStack = GetBurnConsumeDamagePerStack(rt, target);
                 int add = Mathf.FloorToInt(burnStacks * damagePerStack * Mathf.Max(0f, burnMul));
                 preview.bonusDamage += add;
                 dmg += add;
@@ -98,6 +128,9 @@ public static class AttackPreviewCalculator
 
     private static void ApplyBehaviorPreviewBonuses(SkillRuntime rt, CombatActor caster, CombatActor target, ref SkillExecutor.AttackPreview preview, ref int dmg)
     {
+        if (ApplyBaseEffectBehaviorPreview(rt, ref preview, ref dmg))
+            return;
+
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.PrecisionStrike))
         {
             if (SkillBehaviorRuntimeUtility.TryGetSingleBaseValue(rt, out int baseValue) &&
@@ -182,6 +215,31 @@ public static class AttackPreviewCalculator
         }
     }
 
+    private static void ApplyBaseEffectPreview(SkillRuntime rt, ref SkillExecutor.AttackPreview preview)
+    {
+        if (rt == null || rt.kind != SkillKind.Attack)
+            return;
+
+        if (rt.baseDamageValueMode == BaseEffectValueMode.X || rt.fireUseXFormula)
+        {
+            preview.baseDamage = Mathf.Max(0, preview.effectiveDieValue);
+        }
+    }
+
+    private static bool ApplyBaseEffectBehaviorPreview(SkillRuntime rt, ref SkillExecutor.AttackPreview preview, ref int dmg)
+    {
+        if (rt == null || rt.kind != SkillKind.Attack)
+            return false;
+
+        if (rt.baseDamageValueMode == BaseEffectValueMode.X || rt.fireUseXFormula)
+        {
+            preview.baseDamage = Mathf.Max(0, preview.effectiveDieValue);
+            dmg = preview.baseDamage + preview.bonusDamage;
+        }
+
+        return rt.baseDamageValueMode == BaseEffectValueMode.X || rt.fireUseXFormula;
+    }
+
     public static bool CanUseMarkPayoff(SkillRuntime rt, CombatActor target)
     {
         return rt != null &&
@@ -203,10 +261,14 @@ public static class AttackPreviewCalculator
                rt.group != DamageGroup.Effect;
     }
 
-    public static int GetBurnConsumeDamagePerStack(SkillRuntime rt)
+    public static int GetBurnConsumeDamagePerStack(SkillRuntime rt, CombatActor target = null)
     {
         if (rt == null) return DefaultBurnConsumeDamagePerStack;
-        return Mathf.Max(DefaultBurnConsumeDamagePerStack, rt.burnDamagePerStack);
+
+        int perStack = Mathf.Max(DefaultBurnConsumeDamagePerStack, rt.burnDamagePerStack);
+        if (target != null && target.status != null && target.status.cinderbrandTurns > 0)
+            perStack += Mathf.Max(0, target.status.cinderbrandBonusPerBurn);
+        return perStack;
     }
 
     private static bool IsBasicStrike(SkillRuntime rt)
@@ -215,4 +277,40 @@ public static class AttackPreviewCalculator
             return false;
         return rt.coreAction == CoreAction.BasicStrike;
     }
+
+    private static bool ShouldApplyStandardAddedValue(SkillRuntime rt)
+    {
+        if (rt == null || rt.kind != SkillKind.Attack)
+            return false;
+
+        if (IsBasicStrike(rt))
+            return true;
+
+        return Mathf.Approximately(rt.dieMultiplier, 0f) && rt.flatDamage > 0;
+    }
+
+    // Fail is an action-level penalty.
+    // Even if a 2-slot/3-slot action contains multiple failing dice,
+    // the action only halves its base damage once.
+    private static bool ShouldApplyFailPenaltyOnce(SkillRuntime rt)
+    {
+        return rt != null && rt.localFailAny;
+    }
+
+    private static int GetConditionalDamageBonus(SkillRuntime rt, int effectiveDieValue)
+    {
+        if (rt == null || !rt.conditionalOutcomeEnabled || rt.conditionalOutcomeType != ConditionalOutcomeType.DealDamage)
+            return 0;
+
+        switch (rt.conditionalOutcomeValueMode)
+        {
+            case ConditionalOutcomeValueMode.X:
+                return SkillOutputValueUtility.ResolveXValue(effectiveDieValue, rt);
+
+            case ConditionalOutcomeValueMode.Flat:
+            default:
+                return SkillOutputValueUtility.AddActionAddedValue(rt.conditionalOutcomeFlatValue, rt);
+        }
+    }
+
 }

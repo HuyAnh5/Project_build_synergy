@@ -920,7 +920,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3474297bf3ebc44ab634176454dc39f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PassiveDraggableUI
-  passive: {fileID: 11400000, guid: e4b5ec99a10147eeb3ef4f09fabf49c9, type: 2}
+  passive: {fileID: 0}
   iconImage: {fileID: 289364823}
   nameText: {fileID: 0}
   manager: {fileID: 0}
@@ -3330,7 +3330,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3474297bf3ebc44ab634176454dc39f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PassiveDraggableUI
-  passive: {fileID: 11400000, guid: b2a3f555720d4cc2a562c519e12583ec, type: 2}
+  passive: {fileID: 0}
   iconImage: {fileID: 1027935526}
   nameText: {fileID: 0}
   manager: {fileID: 0}
@@ -3549,12 +3549,12 @@ MonoBehaviour:
   - {fileID: 1181993424}
   - {fileID: 1638378651}
   passiveSlots:
-  - uiIcon: {fileID: 1027935524}
-    passiveAsset: {fileID: 11400000, guid: b2a3f555720d4cc2a562c519e12583ec, type: 2}
-  - uiIcon: {fileID: 289364821}
-    passiveAsset: {fileID: 11400000, guid: e4b5ec99a10147eeb3ef4f09fabf49c9, type: 2}
-  - uiIcon: {fileID: 1603224992}
-    passiveAsset: {fileID: 11400000, guid: c0d26a57d83a4d91802f359f89261d4e, type: 2}
+  - uiIcon: {fileID: 0}
+    passiveAsset: {fileID: 0}
+  - uiIcon: {fileID: 0}
+    passiveAsset: {fileID: 0}
+  - uiIcon: {fileID: 0}
+    passiveAsset: {fileID: 0}
   fixedSlots:
   - uiIcon: {fileID: 1810816295}
     skillAsset: {fileID: 11400000, guid: 5dc328d855292cc4c8da94e48d2e6923, type: 2}
@@ -4949,7 +4949,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3474297bf3ebc44ab634176454dc39f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PassiveDraggableUI
-  passive: {fileID: 11400000, guid: c0d26a57d83a4d91802f359f89261d4e, type: 2}
+  passive: {fileID: 0}
   iconImage: {fileID: 1603224994}
   nameText: {fileID: 0}
   manager: {fileID: 0}
@@ -4974,20 +4974,20 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1603224990}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 10913, guid: 0000000000000000f000000000000000, type: 0}
+  m_Sprite: {fileID: 0}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
