@@ -1,33 +1,63 @@
-# Bỏ qua file siêu rác về mặt số lượng (Cực kỳ quan trọng để giảm tải)
-*.meta
+# =========================
+# Unity generated folders
+# =========================
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+UserSettings/
+MemoryCaptures/
+Recordings/
 
-# Bỏ qua các file dữ liệu Unity (AI không cần đọc kiến trúc giao diện/scene)
-*.prefab
-*.unity
-*.asset
-*.mat
-*.anim
-*.controller
-*.overrideController
-*.physicMaterial
-*.physicsMaterial2D
-*.mixer
-*.spriteatlas
+# =========================
+# Visual Studio / Rider / VS Code
+# =========================
+.vs/
+.vscode/
+.idea/
+ExportedObj/
+.consulo/
 
-# Bỏ qua các file Media (Đồ họa, Âm thanh, 3D Model, Font)
-*.png
-*.jpg
-*.jpeg
-*.tga
-*.psd
-*.exr
-*.gif
-*.wav
-*.mp3
-*.ogg
-*.fbx
-*.obj
-*.blend
-*.dae
-*.ttf
-*.otf
+# Auto-generated solution / project files
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+
+# JetBrains Rider
+*.sln.iml
+
+# =========================
+# OS / editor junk
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Local AI / tool folders
+# =========================
+.claude/
+.grapuco/
+
+# Nếu đây là file local cá nhân thì ignore
+CLAUDE.md
+AGENTS.md
+
+# =========================
+# Optional caches
+# =========================
+.gradle/
+.cache/
