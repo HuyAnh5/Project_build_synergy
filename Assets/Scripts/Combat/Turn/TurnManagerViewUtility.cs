@@ -30,7 +30,7 @@ public static class TurnManagerViewUtility
         }
     }
 
-    public static void UpdateAllIconsDim(SkillPlanBoard board)
+    public static void UpdateAllIconsDim(SkillPlanBoard board, TurnManager turn)
     {
         var all = Object.FindObjectsOfType<DraggableSkillIcon>(true);
         foreach (var ic in all)
@@ -40,6 +40,21 @@ public static class TurnManagerViewUtility
             var asset = ic.GetSkillAsset();
             bool inUse = (asset != null) && board.IsSkillEquipped(asset);
             ic.SetInUse(inUse);
+            bool castable = asset == null || asset is SkillPassiveSO || turn == null || turn.CanPrototypeCastSkillNow(asset);
+            ic.SetCastable(castable);
+        }
+    }
+
+    public static void UpdateAllDiceDim(TurnManager turn)
+    {
+        var all = Object.FindObjectsOfType<DiceDraggableUI>(true);
+        foreach (var ui in all)
+        {
+            if (ui == null) continue;
+            float alpha = 1f;
+            if (turn != null && ui.dice != null && turn.IsDieSpentThisTurn(ui.dice))
+                alpha = 0.5f;
+            ui.SetRestingAlpha(alpha);
         }
     }
 

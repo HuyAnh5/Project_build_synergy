@@ -3,6 +3,8 @@ using UnityEngine;
 
 internal static class SkillAttackResolutionUtility
 {
+    private const int LightningMarkShockDamage = 3;
+
     public static int ApplyAttackToTargets(
         SkillRuntime rt,
         CombatActor caster,
@@ -70,7 +72,7 @@ internal static class SkillAttackResolutionUtility
             float shockMul = 1f;
             if (ps != null)
                 shockMul += Mathf.Max(0f, ps.GetLightningVsMarkMultiplierAdd());
-            lightningShockDamage = Mathf.FloorToInt(4 * shockMul);
+            lightningShockDamage = Mathf.FloorToInt(LightningMarkShockDamage * shockMul);
         }
 
         if (rt.element == ElementType.Fire && rt.consumesBurn && target.status != null && target.status.burnStacks > 0)
@@ -174,7 +176,11 @@ internal static class SkillAttackResolutionUtility
 
         if (IsBasicStrike(rt) && caster != null && caster.status != null && caster.status.emberWeaponTurns > 0)
         {
-            if (caster.status.emberWeaponBurnEqualsDamage)
+            bool canApplyEmberBurn = caster.status.emberWeaponBurnEqualsDamage;
+            if (canApplyEmberBurn && caster.status.emberWeaponBurnOnCritOnly)
+                canApplyEmberBurn = rt.localCritAny;
+
+            if (canApplyEmberBurn)
             {
                 int emberBurn = Mathf.Max(0, finalDamage);
                 emberBurn += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;

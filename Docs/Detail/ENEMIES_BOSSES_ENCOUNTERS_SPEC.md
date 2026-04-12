@@ -74,7 +74,7 @@ Enemy phải có **intent rõ ràng** theo tinh thần Slay the Spire:
 
 ### 3.2 Enemy không dùng cùng economy với player
 
-Current direction từ project context:
+Hướng hiện tại từ project context:
 
 - enemy **không dùng focus / dice** như player,
 - enemy được xây theo move set, pattern, weight và condition.
@@ -93,7 +93,7 @@ Current finalized direction trong project context:
 
 ### 3.4 Role archetypes hiện tại
 
-Current direction có 4 role chính:
+Hướng hiện tại có 4 role chính:
 
 - **Bruiser**
 - **Controller**
@@ -119,7 +119,7 @@ Các move type đã được định hình trong project context gồm:
 
 ### 4.1 Guardrails cho áp lực damage
 
-Current direction:
+Hướng hiện tại:
 
 - burst cap khoảng **70–80% max HP mỗi enemy turn** ở mức tổng áp lực, tránh cảm giác chết oan không đọc được,
 - tránh pattern kiểu triple Heavy hoặc triple Guard Punish,

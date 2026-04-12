@@ -105,6 +105,7 @@ public class SkillConditionContext
 {
     public SkillConditionScope scope = SkillConditionScope.SlotBound;
     public IReadOnlyList<int> localBaseValues;
+    public IReadOnlyList<bool> localNumericFlags;
     public IReadOnlyList<int> localResolvedValues;
     public IReadOnlyList<bool> localCritFlags;
     public IReadOnlyList<bool> localFailFlags;
@@ -171,37 +172,37 @@ public class SkillConditionData
         switch (clause.reference)
         {
             case SkillConditionReference.AnyBaseValue:
-                return EvaluateAnyBaseValue(clause, context.localBaseValues);
+                return EvaluateAnyBaseValue(clause, context.localBaseValues, context.localNumericFlags);
 
             case SkillConditionReference.FirstBaseValueInGroup:
-                return EvaluateIndexedValue(clause, context.localBaseValues, 0);
+                return EvaluateIndexedValue(clause, context.localBaseValues, context.localNumericFlags, 0);
 
             case SkillConditionReference.MiddleBaseValueInGroup:
-                return EvaluateIndexedValue(clause, context.localBaseValues, 1);
+                return EvaluateIndexedValue(clause, context.localBaseValues, context.localNumericFlags, 1);
 
             case SkillConditionReference.LastBaseValueInGroup:
-                return EvaluateIndexedValue(clause, context.localBaseValues, GetLastIndex(context.localBaseValues));
+                return EvaluateIndexedValue(clause, context.localBaseValues, context.localNumericFlags, GetLastIndex(context.localBaseValues));
 
             case SkillConditionReference.HighestBaseValueInGroup:
-                return EvaluateInt(clause, GetHighest(context.localBaseValues));
+                return EvaluateInt(clause, GetHighest(context.localBaseValues, context.localNumericFlags));
 
             case SkillConditionReference.LowestBaseValueInGroup:
-                return EvaluateInt(clause, GetLowest(context.localBaseValues));
+                return EvaluateInt(clause, GetLowest(context.localBaseValues, context.localNumericFlags));
 
             case SkillConditionReference.TotalBaseValueInGroup:
-                return EvaluateInt(clause, Sum(context.localBaseValues));
+                return EvaluateInt(clause, Sum(context.localBaseValues, context.localNumericFlags));
 
             case SkillConditionReference.TotalResolvedValueInGroup:
                 return EvaluateInt(clause, Sum(context.localResolvedValues));
 
             case SkillConditionReference.AllBaseValuesOdd:
-                return EvaluateBool(clause, AreAllValuesOdd(context.localBaseValues));
+                return EvaluateBool(clause, AreAllValuesOdd(context.localBaseValues, context.localNumericFlags));
 
             case SkillConditionReference.AllBaseValuesEven:
-                return EvaluateBool(clause, AreAllValuesEven(context.localBaseValues));
+                return EvaluateBool(clause, AreAllValuesEven(context.localBaseValues, context.localNumericFlags));
 
             case SkillConditionReference.MixedParityInGroup:
-                return EvaluateBool(clause, HasMixedParity(context.localBaseValues));
+                return EvaluateBool(clause, HasMixedParity(context.localBaseValues, context.localNumericFlags));
 
             case SkillConditionReference.AnyDieCrit:
                 return EvaluateBool(clause, AnyTrue(context.localCritFlags));
@@ -258,16 +259,16 @@ public class SkillConditionData
                 return EvaluateBool(clause, GetLastIndex(context.localBaseValues) >= 0);
 
             case SkillConditionReference.HighestBaseIsInFirstSlot:
-                return EvaluateBool(clause, IsHighestAtIndex(context.localBaseValues, 0));
+                return EvaluateBool(clause, IsHighestAtIndex(context.localBaseValues, context.localNumericFlags, 0));
 
             case SkillConditionReference.HighestBaseIsInLastSlot:
-                return EvaluateBool(clause, IsHighestAtIndex(context.localBaseValues, GetLastIndex(context.localBaseValues)));
+                return EvaluateBool(clause, IsHighestAtIndex(context.localBaseValues, context.localNumericFlags, GetLastIndex(context.localBaseValues)));
 
             case SkillConditionReference.LowestBaseIsInFirstSlot:
-                return EvaluateBool(clause, IsLowestAtIndex(context.localBaseValues, 0));
+                return EvaluateBool(clause, IsLowestAtIndex(context.localBaseValues, context.localNumericFlags, 0));
 
             case SkillConditionReference.LowestBaseIsInLastSlot:
-                return EvaluateBool(clause, IsLowestAtIndex(context.localBaseValues, GetLastIndex(context.localBaseValues)));
+                return EvaluateBool(clause, IsLowestAtIndex(context.localBaseValues, context.localNumericFlags, GetLastIndex(context.localBaseValues)));
 
             case SkillConditionReference.EnemiesWithBurnCount:
                 return EvaluateInt(clause, Mathf.Max(0, context.enemiesWithBurnCount));
@@ -313,13 +314,15 @@ public class SkillConditionData
         }
     }
 
-    private static bool EvaluateAnyBaseValue(SkillConditionClause clause, IReadOnlyList<int> values)
+    private static bool EvaluateAnyBaseValue(SkillConditionClause clause, IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags)
     {
         if (values == null || values.Count == 0)
             return false;
 
         for (int i = 0; i < values.Count; i++)
         {
+            if (!IsNumeric(numericFlags, i))
+                continue;
             if (EvaluateInt(clause, values[i]))
                 return true;
         }
@@ -351,26 +354,61 @@ public class SkillConditionData
         }
     }
 
-    private static int GetHighest(IReadOnlyList<int> values)
+    private static int GetHighest(IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags)
     {
         if (values == null || values.Count == 0)
             return 0;
 
-        int best = values[0];
-        for (int i = 1; i < values.Count; i++)
-            best = Mathf.Max(best, values[i]);
-        return best;
+        bool found = false;
+        int best = 0;
+        for (int i = 0; i < values.Count; i++)
+        {
+            if (!IsNumeric(numericFlags, i))
+                continue;
+            if (!found || values[i] > best)
+            {
+                best = values[i];
+                found = true;
+            }
+        }
+
+        return found ? best : 0;
     }
 
-    private static int GetLowest(IReadOnlyList<int> values)
+    private static int GetLowest(IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags)
     {
         if (values == null || values.Count == 0)
             return 0;
 
-        int best = values[0];
-        for (int i = 1; i < values.Count; i++)
-            best = Mathf.Min(best, values[i]);
-        return best;
+        bool found = false;
+        int best = 0;
+        for (int i = 0; i < values.Count; i++)
+        {
+            if (!IsNumeric(numericFlags, i))
+                continue;
+            if (!found || values[i] < best)
+            {
+                best = values[i];
+                found = true;
+            }
+        }
+
+        return found ? best : 0;
+    }
+
+    private static int Sum(IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags)
+    {
+        if (values == null || values.Count == 0)
+            return 0;
+
+        int sum = 0;
+        for (int i = 0; i < values.Count; i++)
+        {
+            if (!IsNumeric(numericFlags, i))
+                continue;
+            sum += values[i];
+        }
+        return sum;
     }
 
     private static int Sum(IReadOnlyList<int> values)
@@ -412,13 +450,15 @@ public class SkillConditionData
         return true;
     }
 
-    private static bool AreAllValuesOdd(IReadOnlyList<int> values)
+    private static bool AreAllValuesOdd(IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags)
     {
         if (values == null || values.Count == 0)
             return false;
 
         for (int i = 0; i < values.Count; i++)
         {
+            if (!IsNumeric(numericFlags, i))
+                return false;
             if ((values[i] % 2) == 0)
                 return false;
         }
@@ -426,13 +466,15 @@ public class SkillConditionData
         return true;
     }
 
-    private static bool AreAllValuesEven(IReadOnlyList<int> values)
+    private static bool AreAllValuesEven(IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags)
     {
         if (values == null || values.Count == 0)
             return false;
 
         for (int i = 0; i < values.Count; i++)
         {
+            if (!IsNumeric(numericFlags, i))
+                return false;
             if ((values[i] % 2) != 0)
                 return false;
         }
@@ -440,9 +482,11 @@ public class SkillConditionData
         return true;
     }
 
-    private static bool EvaluateIndexedValue(SkillConditionClause clause, IReadOnlyList<int> values, int index)
+    private static bool EvaluateIndexedValue(SkillConditionClause clause, IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags, int index)
     {
         if (!HasIndex(values, index))
+            return false;
+        if (!IsNumeric(numericFlags, index))
             return false;
 
         return EvaluateInt(clause, values[index]);
@@ -456,7 +500,7 @@ public class SkillConditionData
         return EvaluateBool(clause, values[index]);
     }
 
-    private static bool HasMixedParity(IReadOnlyList<int> values)
+    private static bool HasMixedParity(IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags)
     {
         if (values == null || values.Count < 2)
             return false;
@@ -465,6 +509,8 @@ public class SkillConditionData
         bool sawEven = false;
         for (int i = 0; i < values.Count; i++)
         {
+            if (!IsNumeric(numericFlags, i))
+                continue;
             if ((values[i] % 2) == 0) sawEven = true;
             else sawOdd = true;
 
@@ -485,20 +531,29 @@ public class SkillConditionData
         return values != null && values.Count > 0 ? values.Count - 1 : -1;
     }
 
-    private static bool IsHighestAtIndex(IReadOnlyList<int> values, int index)
+    private static bool IsHighestAtIndex(IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags, int index)
     {
         if (!HasIndex(values, index))
             return false;
+        if (!IsNumeric(numericFlags, index))
+            return false;
 
-        return values[index] == GetHighest(values);
+        return values[index] == GetHighest(values, numericFlags);
     }
 
-    private static bool IsLowestAtIndex(IReadOnlyList<int> values, int index)
+    private static bool IsLowestAtIndex(IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags, int index)
     {
         if (!HasIndex(values, index))
             return false;
+        if (!IsNumeric(numericFlags, index))
+            return false;
 
-        return values[index] == GetLowest(values);
+        return values[index] == GetLowest(values, numericFlags);
+    }
+
+    private static bool IsNumeric(IReadOnlyList<bool> numericFlags, int index)
+    {
+        return numericFlags == null || (index >= 0 && index < numericFlags.Count && numericFlags[index]);
     }
 
 }

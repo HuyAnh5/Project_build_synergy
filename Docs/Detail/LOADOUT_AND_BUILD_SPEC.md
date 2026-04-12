@@ -32,7 +32,7 @@ Phần này mô tả đường đi logic của build: player nhận content mớ
 ### 2.2 Flow loadout trước combat
 
 `Chuẩn bị vào combat`
-→ hệ thống đọc đúng **6 skill slot**, **3 passive slot**, **1–3 dice đang equip**, cùng với **Basic Attack / Basic Guard**
+→ hệ thống đọc đúng **6 skill slot**, **1 passive slot**, **1–3 dice đang equip**, cùng với **Basic Attack / Basic Guard**
 → build hiện tại được xem là input chính cho combat
 → combat bắt đầu với đúng loadout đã được chốt ở ngoài combat
 
@@ -61,7 +61,7 @@ Phần này mô tả đường đi logic của build: player nhận content mớ
 Player hiện có:
 
 * **6 skill slot**
-* **3 passive slot**
+* **1 passive slot**
 * **1 đến 3 dice slot**
 * **Basic Attack** và **Basic Guard** luôn tồn tại, không nằm trong 6 slot chính
 
@@ -368,7 +368,7 @@ Những phần đó thuộc các spec khác.
 
 Những phần sau nên được coi là direction đã khóa đủ mạnh ở cấp loadout:
 
-* **6 skill slot / 3 passive slot / 1–3 dice slot**,
+* **6 skill slot / 1 passive slot / 1–3 dice slot**,
 * **Basic Attack** và **Basic Guard** luôn tồn tại,
 * không có inventory dự trữ,
 * full slot thì phải thay món cũ hoặc bỏ qua,
@@ -378,3 +378,16 @@ Những phần sau nên được coi là direction đã khóa đủ mạnh ở c
 * pivot giữa run được phép mạnh theo tinh thần Balatro, nhưng luôn có trade-off,
 * intentional anti-synergy là hợp lệ,
 * basic actions phải tiếp tục là một phần hệ thống thật.
+
+---
+
+## Runtime Update Note (2026-04)
+
+- Passive loadout runtime hien tai da khoa o `1 passive slot`.
+- Skill loadout van la `6 skill slot`.
+- Combat/runtime grammar hien tai dang dung:
+  - player roll dice dau luot
+  - reorder neu can
+  - keo skill icon tu skill slot vao target de cast truc tiep
+  - bam End Turn khi khong dung them skill
+- Huong doi nay duoc note day du hon trong [COMBAT_CHANGES_2026.md](/C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Docs/Detail/COMBAT_CHANGES_2026.md).

@@ -35,6 +35,7 @@ public class StatusController : MonoBehaviour
     public int emberWeaponTurns;
     public int emberWeaponBonusDamage = 1;
     public bool emberWeaponBurnEqualsDamage = true;
+    public bool emberWeaponBurnOnCritOnly;
     public int cinderbrandTurns;
     public int cinderbrandBonusPerBurn = 1;
 

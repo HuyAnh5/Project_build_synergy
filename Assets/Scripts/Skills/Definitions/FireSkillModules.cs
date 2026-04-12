@@ -94,6 +94,12 @@ public class FireBuffModuleData
     [LabelText("Basic Attack Burn = Damage")]
     public bool basicAttackAppliesBurnEqualDamage = true;
 
+    [BoxGroup("Fire Buff")]
+    [ShowIf(nameof(grantEmberWeapon))]
+    [ToggleLeft]
+    [LabelText("Only Apply Burn On Crit")]
+    public bool basicAttackBurnOnCritOnly = false;
+
     [BoxGroup("Fire Buff"), ToggleLeft]
     [LabelText("Apply Consume Bonus Debuff")]
     public bool applyConsumeBonusDebuff = false;

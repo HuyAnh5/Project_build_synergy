@@ -747,8 +747,8 @@ public class SkillDamageSO : ScriptableObject
             target = SkillTargetRule.Self;
 
         // Derived AoE flags (no combo targeting)
-        hitAllEnemies = (target == SkillTargetRule.AllEnemies || target == SkillTargetRule.AllUnits);
-        hitAllAllies = (target == SkillTargetRule.AllAllies || target == SkillTargetRule.AllUnits);
+        hitAllEnemies = (target == SkillTargetRule.RowEnemies || target == SkillTargetRule.AllEnemies);
+        hitAllAllies = (target == SkillTargetRule.RowAllies || target == SkillTargetRule.AllAllies);
 
         // Safety: Guard shouldn't be AoE right now
         if (kind == SkillKind.Guard)

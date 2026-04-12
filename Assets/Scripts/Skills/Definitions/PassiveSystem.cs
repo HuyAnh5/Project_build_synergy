@@ -18,6 +18,8 @@ public class PassiveSystem : MonoBehaviour
     private readonly Dictionary<DiceSpinnerGeneric, int[]> _baseFaceValues = new Dictionary<DiceSpinnerGeneric, int[]>();
     private readonly Dictionary<DiceSpinnerGeneric, int[]> _permanentFaceBonuses = new Dictionary<DiceSpinnerGeneric, int[]>();
     private readonly Dictionary<DiceSpinnerGeneric, int> _combatAllFaceBonuses = new Dictionary<DiceSpinnerGeneric, int>();
+    private BattlePartyManager2D _cachedParty;
+    private DiceSlotRig _cachedDiceRig;
 
     private int _focusBonusTurnStart;
     private bool _diceForgingTriggeredThisCombat;
@@ -127,6 +129,24 @@ public class PassiveSystem : MonoBehaviour
         }
     }
 
+    private BattlePartyManager2D GetParty()
+    {
+        if (_cachedParty == null)
+            _cachedParty = Object.FindObjectOfType<BattlePartyManager2D>(true);
+        return _cachedParty;
+    }
+
+    private DiceSlotRig GetDiceRig()
+    {
+        if (runInventory != null && runInventory.DiceRig != null)
+            return runInventory.DiceRig;
+
+        if (_cachedDiceRig == null)
+            _cachedDiceRig = FindObjectOfType<DiceSlotRig>(true);
+
+        return _cachedDiceRig;
+    }
+
     private void UnbindInventory()
     {
         if (runInventory != null)
@@ -215,9 +235,11 @@ public class PassiveSystem : MonoBehaviour
         return total;
     }
 
-    private static SkillConditionContext BuildPassiveConditionContext(CombatActor owner, DiceSlotRig diceRig, CombatActor target)
+    private SkillConditionContext BuildPassiveConditionContext(CombatActor owner, DiceSlotRig diceRig, CombatActor target)
     {
         var localBaseValues = new List<int>(3);
+        var localResolvedValues = new List<int>(3);
+        var localNumericFlags = new List<bool>(3);
         var localCritFlags = new List<bool>(3);
         var localFailFlags = new List<bool>(3);
 
@@ -229,12 +251,14 @@ public class PassiveSystem : MonoBehaviour
                     continue;
 
                 localBaseValues.Add(diceRig.GetBaseValue(i));
+                localResolvedValues.Add(diceRig.GetResolvedDieValue(i, owner));
+                localNumericFlags.Add(diceRig.IsNumericFaceForConditions(i));
                 localCritFlags.Add(diceRig.IsCrit(i));
                 localFailFlags.Add(diceRig.IsFail(i));
             }
         }
 
-        BattlePartyManager2D party = Object.FindObjectOfType<BattlePartyManager2D>(true);
+        BattlePartyManager2D party = GetParty();
         int enemiesWithBurnCount = 0;
         int markedEnemiesCount = 0;
         int totalBleedOnBoard = 0;
@@ -261,7 +285,8 @@ public class PassiveSystem : MonoBehaviour
         {
             scope = SkillConditionScope.Global,
             localBaseValues = localBaseValues,
-            localResolvedValues = localBaseValues,
+            localNumericFlags = localNumericFlags,
+            localResolvedValues = localResolvedValues,
             localCritFlags = localCritFlags,
             localFailFlags = localFailFlags,
             currentFocus = owner != null ? owner.focus : 0,
@@ -325,7 +350,7 @@ public class PassiveSystem : MonoBehaviour
         if (HasBehavior(PassiveBehaviorId.EvenResonance))
         {
             int baseValue = diceRig.GetBaseValue(slot0);
-            if (baseValue > 0 && (baseValue % 2) == 0)
+            if (diceRig.IsNumericFaceForConditions(slot0) && baseValue > 0 && (baseValue % 2) == 0)
                 add += 3;
         }
 
@@ -377,9 +402,7 @@ public class PassiveSystem : MonoBehaviour
 
     private void CaptureKnownDiceFaces()
     {
-        DiceSlotRig diceRig = runInventory != null ? runInventory.DiceRig : null;
-        if (diceRig == null)
-            diceRig = FindObjectOfType<DiceSlotRig>(true);
+        DiceSlotRig diceRig = GetDiceRig();
         if (diceRig == null || diceRig.slots == null)
             return;
 

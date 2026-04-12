@@ -16,9 +16,9 @@ Combat của game phải tạo ra cảm giác:
 - player phải chọn giữa setup, payoff, defense, economy,
 - độ sâu đến từ quyết định và tương tác hệ thống, không đến từ tính nhẩm quá nhiều lớp modifier.
 
-Combat loop cốt lõi phải luôn giữ được tinh thần:
+Combat loop runtime hiện tại phải luôn giữ được tinh thần:
 
-**Roll → Plan → Lock → Execute → Enemy Turn**
+**Roll Dice → Reorder nếu cần → Drag skill vào target để cast ngay → End Turn → Enemy Turn**
 
 ---
 
@@ -69,30 +69,18 @@ Phần này không thay thế rule chi tiết ở các section sau; nó là bả
 **Roll**  
 → Roll tất cả active dice  
 → Với từng die: xác định rolled face, Base Value, Added Value liên quan, Crit / Normal / Fail  
-→ Preserve toàn bộ die-local context cho planning và execution  
-→ Chuyển sang `Planning`
+→ Preserve toàn bộ die-local context cho runtime consume và execution  
+→ Chuyển sang `PlayerPhase`
 
-**Planning**  
-→ Player gắn skill vào slot / nhóm slot  
-→ Hệ thống kiểm tra: đủ slot, đủ contiguous span, đủ Focus, skill placement hợp lệ, condition / passive modifier hiện hành  
-→ Nếu invalid: reject assignment hoặc giữ player ở Planning  
-→ Nếu valid: đưa action vào planned queue  
-→ Khi player lock plan: nếu không có action hợp lệ thì block; nếu có thì chuyển sang `Targeting`
-
-**Targeting**  
-→ Yêu cầu target cho từng action cần target  
-→ Kiểm tra target rule, lane legality, range legality, self / ally / enemy legality  
-→ Invalid target bị từ chối và giữ nguyên phase  
-→ Khi mọi action đã có target hợp lệ: chuyển sang `Execution`
-
-**Execution**  
-→ Convert queue từ planning-facing positions sang runtime order  
-→ Áp dụng lane mapping / reorder rule  
-→ Khóa **reorder** và **skill assignment** của turn hiện tại  
-→ Trong khi Execute đang diễn ra, player vẫn có thể dùng consumable hợp lệ để **edit dice state**  
-→ Mọi thay đổi lên dice phải cập nhật lại die-local context / crit / fail / highest-lowest / exact-value access cho các phần **chưa resolve**  
-→ Resolve từng action theo thứ tự cuối cùng: read die-local context → build runtime packet → damage / Guard → consume / payoff → apply status / secondary effect → clear action  
-→ Sau action cuối cùng: chuyển sang `PlayerTurnEnd`
+**PlayerPhase**  
+→ Player có thể reorder dice nếu muốn  
+→ Player kéo skill icon vào target hợp lệ để cast ngay  
+→ Hệ thống kiểm tra: đủ span, đủ contiguous consume window, đủ Focus, target hợp lệ, condition / passive modifier hiện hành  
+→ Nếu invalid: reject cast và giữ player ở `PlayerPhase`  
+→ Nếu valid: consume các dice đầu tiên còn lại theo thứ tự hiện tại  
+→ Resolve skill ngay sau khi cast hợp lệ  
+→ Cập nhật state spent / die-local context cho các cast tiếp theo trong cùng lượt  
+→ Khi player không muốn cast thêm: bấm `End Turn` → chuyển sang `PlayerTurnEnd`
 
 **PlayerTurnEnd**  
 → Resolve end-of-player-turn effects  
@@ -112,11 +100,11 @@ Phần này không thay thế rule chi tiết ở các section sau; nó là bả
 `Start Turn`  
 → Gain / refresh tài nguyên đầu lượt  
 → `Roll` active dice  
-→ `Planning`: player đọc roll, chọn skill, chọn slot, cân giữa setup / payoff / defense / economy  
-→ `Validation`: hệ thống check slot, Focus, condition, conflict với plan hiện tại  
-→ `Lock Plan`  
-→ `Targeting`  
-→ `Execution` theo runtime order  
+→ `PlayerPhase`: player đọc roll, reorder nếu cần, cân giữa setup / payoff / defense / economy  
+→ `Drag skill vào target` để cast ngay  
+→ `Validation`: hệ thống check span, Focus, target rule, conflict với state spent hiện tại  
+→ `Consume dice` theo thứ tự hiện tại  
+→ `Resolve` ngay sau khi cast hợp lệ  
 → `End Turn`
 
 ### 3.3 Flow của một die
@@ -157,7 +145,7 @@ Phần này không thay thế rule chi tiết ở các section sau; nó là bả
 Trong combat, player hiện có:
 
 - **6 skill slot**,
-- **3 passive slot**,
+- **1 passive slot**,
 - **1 đến 3 dice**,
 - **Basic Attack**,
 - **Basic Guard**.
@@ -747,3 +735,19 @@ Nhưng những vùng sau phải được xem là **locked current spec**:
 - lane mapping `1/2/3` vs `A/B/C`,
 - reorder chỉ trong Planning,
 - tooltip static ngoài combat / resolved trong combat.
+
+---
+
+## Runtime Transition Note (2026-04)
+
+- File nay da duoc cap nhat theo runtime combat hien tai.
+- Flow runtime hien tai:
+  - `Roll Dice`
+  - `Reorder neu can`
+  - `Drag skill icon tu skill slot vao target enemy / self-cast de cast truc tiep`
+  - `Bam End Turn`
+  - `Enemy Turn`
+- Roll dice van giu nguyen.
+- Dice da dung hien tai van dang duoc bieu dien bang state spent / dim 50%, chua consume bien mat that.
+- Passive loadout runtime hien tai chi con `1 passive slot`.
+- Neu can huong thay doi tiep theo, xem [COMBAT_CHANGES_2026.md](/C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Docs/Detail/COMBAT_CHANGES_2026.md).

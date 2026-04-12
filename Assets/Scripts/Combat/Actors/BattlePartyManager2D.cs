@@ -35,8 +35,7 @@ public class BattlePartyManager2D : MonoBehaviour
 
     [Header("Layout (WORLD UNITS)")]
     public float depthOffset = 0.6f;
-    public float spacingFor2 = 1.2f;
-    public float spacingFor3 = 0.9f;
+    public float memberSpacing = 0.9f;
 
     [Header("Depth Visual (optional)")]
     public bool applyScaleByRow = true;
@@ -283,10 +282,6 @@ public class BattlePartyManager2D : MonoBehaviour
         int n = members.Count;
         if (n <= 0) return;
 
-        float spacing = 0f;
-        if (n == 2) spacing = spacingFor2;
-        else if (n >= 3) spacing = spacingFor3;
-
         float sign = (side == CombatActor.TeamSide.Ally) ? 1f : -1f;
 
         for (int i = 0; i < n; i++)
@@ -294,7 +289,7 @@ public class BattlePartyManager2D : MonoBehaviour
             var m = members[i];
             if (!m || m.IsDead) continue;
 
-            float spreadX = GetCenteredX(i, n, spacing);
+            float spreadX = GetCenteredX(i, n, memberSpacing);
             float depth = (m.row == CombatActor.RowTag.Front) ? depthOffset : -depthOffset;
 
             var target = new Vector3(anchorPos.x + spreadX + sign * depth, anchorPos.y, anchorPos.z);

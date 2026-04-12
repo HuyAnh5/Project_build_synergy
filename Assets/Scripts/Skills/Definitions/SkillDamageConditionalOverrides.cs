@@ -220,8 +220,8 @@ public class SkillDamageConditionalOverrides
 
     private void RecomputeDerived()
     {
-        hitAllEnemies = (target == SkillTargetRule.AllEnemies || target == SkillTargetRule.AllUnits);
-        hitAllAllies = (target == SkillTargetRule.AllAllies || target == SkillTargetRule.AllUnits);
+        hitAllEnemies = (target == SkillTargetRule.RowEnemies || target == SkillTargetRule.AllEnemies);
+        hitAllAllies = (target == SkillTargetRule.RowAllies || target == SkillTargetRule.AllAllies);
 
         if (kind == SkillKind.Guard)
         {

@@ -132,7 +132,7 @@ Giải thích đúng ý:
 Player có:
 
 - **6 skill slot**
-- **3 passive slot**
+- **1 passive slot**
 - **1 đến 3 dice**
 
 Đầu run player bắt đầu với **1 dice**.
@@ -169,7 +169,7 @@ Chúng tồn tại để người chơi luôn còn lựa chọn hợp lệ kể 
 Loadout system hiện tại theo định hướng:
 
 - **6 skill slot**: swap tự do ngoài combat, mua ở shop, bán ngoài combat.
-- **3 passive slot**: swap tự do ngoài combat.
+- **1 passive slot**: swap tự do ngoài combat.
 - **1-3 dice slot**: số dice equip = số action/turn.
 - **Basic Attack + Basic Guard** luôn tồn tại, không thể bỏ khỏi loadout.
 
@@ -1214,12 +1214,12 @@ Các cụm đã tách:
 
 Các vùng sau hiện được xem là khá ổn:
 
-- flow `planning -> await target -> executing -> enemy turn`
-- reorder dice trong planning
+- flow runtime moi `roll -> reorder neu can -> drag skill cast ngay -> End Turn -> enemy turn`
+- reorder dice trong player phase
 - execution order / damage order theo lane hiện tại
 - lane mapping giữa pair identity và lane hiện tại
 - consume rule nền tảng
-- phase lock khi vào execute
+- state spent / consume sau khi cast
 
 Nếu task không nhắm đúng bug ở các vùng này, ưu tiên **không đụng**.
 
@@ -1309,7 +1309,7 @@ Nếu chỉ nhớ vài điểm thì phải nhớ:
 
 1. Đây là game dice-driven tactical roguelike trên mobile.
 2. Dice là trung tâm; Base Value và Added Value là hai khái niệm khác nhau.
-3. Player có 6 skill slot, 3 passive slot, tối đa 3 dice.
+3. Player có 6 skill slot, 1 passive slot, tối đa 3 dice.
 4. `DiceSlotRig` là source of truth của dice math.
 5. `SkillPlanBoard` là source of truth của lane planning.
 6. Rule `1/2/3` vs `A/B/C` là cực quan trọng: logic phải đọc lane hiện tại.
@@ -1421,3 +1421,17 @@ Muc tieu dai hon:
 - phan lon content author duoc bang data
 - engine van nam trong code
 - preview / execute / tooltip cung doc chung tu mot grammar/runtime model
+
+---
+
+## Runtime Update Note (2026-04)
+
+- Build state runtime hien tai chi con `1 passive slot`.
+- Combat runtime hien tai dang dung grammar:
+  - `roll dice`
+  - `reorder neu can`
+  - `drag skill tu skill slot vao target de cast truc tiep`
+  - `bam End Turn`
+- Roll dice hien tai van giu nguyen.
+- Consume dice kieu bien mat that chua duoc dua vao runtime; hien tai van tam bieu dien bang dice spent / dim 50%.
+- Dinh huong design day du hon nam o [COMBAT_CHANGES_2026.md](/C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Docs/Detail/COMBAT_CHANGES_2026.md).

@@ -129,7 +129,7 @@ Reward phải luôn ép player đối diện với ít nhất một câu hỏi:
 
 ## 6. Shop trong run
 
-Current direction từ source hiện tại:
+Hướng hiện tại từ source hiện tại:
 
 - skill slot có thể swap ngoài combat,
 - passive slot có thể swap ngoài combat,
@@ -149,6 +149,284 @@ Shop phải phục vụ các nhu cầu khác nhau:
 
 Shop không nên deterministic quá mức.  
 Cảm giác “khó tìm đúng món mình cần” là một phần hợp lệ của roguelike run, miễn là player vẫn có đủ agency để xoay sở.
+
+## 6A. Map Structure Trong Act
+
+### 6A.1 Khung map hiện tại
+
+Mỗi act hiện đang đi theo hướng:
+
+- node graph đi từ `đáy lên đỉnh` như STS
+- player bắt đầu ở `đáy map`
+- `Boss` luôn nằm sẵn ở `đỉnh map`
+- player có thể đi lên nhanh để rush boss
+- hoặc quay lại đường cũ để tối ưu tài nguyên trong act đó
+
+Điểm khác với STS clone thuần:
+
+- không khóa di chuyển một chiều hoàn toàn
+- cho phép backtrack trong phần đường đã mở
+- act có cảm giác như một vùng nhỏ để crawl, nhưng vẫn đọc nhanh và không biến thành game khám phá
+
+Ý nghĩa thiết kế của hướng này:
+
+- giữ được cảm giác “đang đi xuyên qua một vùng / khu vực” thay vì chỉ bấm chọn route trên một sơ đồ trừu tượng,
+- nhưng vẫn không làm game trượt sang exploration-heavy,
+- và quan trọng nhất: map phải tiếp tục phục vụ `combat -> reward -> build shaping -> combat khó hơn`, chứ không được tranh vai với combat.
+
+Map không nên bị hiểu là:
+
+- một cây route khóa cứng hoàn toàn như STS,
+- cũng không phải chuỗi menu / shop / reward liên tiếp như Balatro,
+- và càng không phải bản đồ để người chơi điều tra bằng tay, soi từng điểm nhỏ, hay nhớ lore mơ hồ.
+
+Map đúng của game này là:
+
+- đọc nhanh,
+- cho player agency về đường đi,
+- cho phép chọn giữa `clear thêm để mạnh hơn` và `đi nhanh để chấp nhận rủi ro`,
+- nhưng luôn buộc player đánh đổi tài nguyên, thời gian, và độ an toàn của build.
+
+### 6A.2 Các loại node đang dùng
+
+| Node | Icon | Combat | Vai trò |
+|---|---|---:|---|
+| Combat | 💀 | ✅ | Encounter thường, nguồn reward cơ bản và có thể cho Boss Intel |
+| Elite | ☠️ | ✅ | Encounter khó hơn, reward cao hơn, có thể cho Boss Intel |
+| Event | 📜 | ❌ | Event ngắn kiểu STS, có thể cho reward / choice / secret / Boss Intel |
+| Shop | 🛒 | ❌ | Mua `skill / relic / consumable / dice`, và có thể mua `Boss Intel` đúng `1 lần` |
+| Rest | 🛏️ | ❌ | Hồi phục |
+| Hub / Forge | 🔨 | ❌ | Điểm xuất phát ở đáy act, nơi forge dice |
+| Boss | 👹 | ✅ | Final boss của act, luôn nằm ở đỉnh map |
+
+Rule hiển thị:
+
+- về sau các node nên được biểu diễn bằng icon rõ loại ngay trên map,
+- không nên dùng node tròn giống nhau rồi bắt player đoán bằng text phụ,
+- mục tiêu là nhìn vào map phải hiểu ngay đâu là:
+  - combat thường,
+  - elite,
+  - event,
+  - shop,
+  - rest,
+  - hub/forge,
+  - boss.
+
+Điều này bám sát triết lý `Readable Complexity`:
+
+- độ sâu nằm ở quyết định đường đi và quyết định build,
+- không nằm ở việc giải mã UI.
+
+### 6A.3 Hub / Forge và Shop là 2 thứ khác nhau
+
+`Hub / Forge`:
+
+- nằm ở đáy map
+- là nơi player xuất phát khi vào act
+- có thể quay lại nếu đường đã mở
+- là lò rèn dice
+- hiện dùng để forge `whole-die tag / màu` cho dice
+- mỗi lần forge tốn `gem` theo đúng loại màu / tag muốn gắn, ví dụ `Patina`
+
+`Hub / Forge` không phải là shop thu nhỏ.
+Nó là:
+
+- base camp của act,
+- điểm quay về để xử lý phần dice-level progression,
+- và là nơi thể hiện rõ rằng `whole-die color / tag` là một trục phát triển riêng với skill/relic.
+
+`Shop`:
+
+- là node riêng trên map, không nằm chung với `Hub / Forge`
+- thường xuất hiện khá sớm trong act, kiểu sau `1-2 node`
+- bán:
+  - `skill`
+  - `relic / consumable`
+  - `dice`
+- ngoài ra có thể bán `Boss Intel`, nhưng mỗi shop chỉ mua intel được `1 lần`
+
+`Shop` phục vụ nhu cầu commerce / pivot build:
+
+- vá chỗ hở của build,
+- mua công cụ mới,
+- đẩy nhanh một hướng build nếu shop ra đúng món,
+- hoặc mua `Boss Intel` khi player muốn tiết kiệm thời gian hunt clue.
+
+Việc tách `Hub / Forge` và `Shop` là quan trọng vì:
+
+- forge là progression của dice,
+- shop là nơi đổi tài nguyên lấy công cụ,
+- hai việc này khác nhau về cảm giác quyết định và không nên bị gộp thành cùng một node.
+
+### 6A.4 Rule di chuyển và backtrack
+
+- player chỉ backtrack trong `act hiện tại`
+- chỉ di chuyển tự do trên phần đường đã mở
+- node đã clear / đã đi qua sẽ chuyển thành `hình tròn rỗng`
+- đi qua node rỗng chỉ là di chuyển, không có combat hay event mới
+- map phải cho phép:
+  - đánh đường vòng để né `elite`
+  - quay lại tối ưu tài nguyên
+  - hoặc đi nhanh lên boss nếu player muốn
+
+Rule này tạo ra 2 kiểu tiếp cận hợp lệ:
+
+1. `clear-heavy`
+   - đánh nhiều node hơn,
+   - nhận thêm reward / build pieces / clue,
+   - nhưng tốn thời gian và có thể mất thêm HP / resource.
+
+2. `rush-heavy`
+   - đi đường ngắn hơn tới boss,
+   - chấp nhận build mỏng hơn hoặc ít thông tin hơn,
+   - đổi lại vào boss sớm hơn.
+
+Mục tiêu là:
+
+- `clear all` không được luôn luôn là đáp án tối ưu,
+- `rush boss` cũng không được mặc định là quyết định ngu,
+- mà phải tùy build, tùy tình trạng run, và tùy player đọc được act đó ra sao.
+
+### 6A.5 Boss Intel
+
+`Boss Intel` là hệ thông tin để reveal boss identity, không phải để mở khóa quyền đánh boss.
+
+Rule hiện tại:
+
+- `Boss` luôn hiện sẵn ở đỉnh map
+- player không cần `3/3 intel` để vào đánh boss
+- kể cả `0/3 intel`, nếu đi tới boss thì vẫn có thể vào đánh
+- `3/3 intel` chỉ để biết boss đó là ai
+- tiến độ intel phải được ghi nhận tự động và hiển thị rõ cho player
+- UI chỉ hiện player đang có bao nhiêu intel, không “chỉ boss ở node nào” vì boss vốn đã luôn ở đỉnh map
+
+Đây là điểm rất quan trọng:
+
+- boss luôn nằm sẵn trên map,
+- player luôn biết “đỉnh act là nơi boss ở”,
+- cái bị ẩn không phải là vị trí boss,
+- mà là **identity của boss đó**.
+
+Nói cách khác:
+
+- player biết nơi mình sẽ tới,
+- nhưng chưa chắc biết mình sắp phải đánh con gì,
+- và `Boss Intel` là cách biến chuyện đó thành một lớp chuẩn bị chiến thuật, chứ không phải puzzle điều tra.
+
+Nguồn intel hiện tại:
+
+- `Combat`
+- `Elite`
+- `Event`
+- `Shop` có thể bán `Boss Intel` đúng `1 lần`
+
+Không cho intel từ:
+
+- `Hub / Forge`
+- `Rest`
+
+Ý nghĩa thiết kế:
+
+- intel đến từ những thứ player vốn đã làm trong run loop bình thường,
+- chứ không ép player chuyển sang mode “đi tìm clue bằng tay”.
+
+Tức là:
+
+- đánh combat,
+- thắng elite,
+- vào event,
+- hoặc trả tiền ở shop,
+
+đều là các hành động tự nhiên trong run.
+Game tự ghi nhận và tự cập nhật tiến độ `Boss Intel`.
+
+### 6A.6 Meta progression của Boss Intel
+
+Rule hiện tại:
+
+- lần 1, 2, 3 gặp boss đó vẫn theo rule đầy đủ
+- từ lần 4 chạm trán boss đó trở đi, player chỉ cần `1/3 intel` là reveal boss identity
+
+Mục tiêu của rule này:
+
+- lần đầu vẫn giữ cảm giác hunt / discovery
+- về sau giảm thời gian lặp lại khi player đã quen boss đó
+
+Chi tiết rule hiện tại nên hiểu đúng là:
+
+- lần 1, 2, 3 chạm trán boss loại đó:
+  - vẫn theo rule đầy đủ, tức player cần tự kiếm intel như bình thường nếu muốn reveal identity,
+- từ lần 4 trở đi:
+  - chỉ cần `1/3 intel` là game tự reveal boss identity.
+
+Đây là meta progression theo hướng:
+
+- reward cho trí nhớ và kinh nghiệm lâu dài của player,
+- giảm friction lặp lại trên các boss đã quá quen,
+- nhưng không phá hoàn toàn cảm giác chuẩn bị ở những lần đầu tiên.
+
+### 6A.7 Escape / retreat rule trên map
+
+Player hiện có lựa chọn chạy khỏi combat, nhưng:
+
+- phải roll dice đạt điều kiện chạy
+- điều kiện chạy cụ thể chưa chốt
+
+Escape ở đây là một phần của tactical economy, không phải nút “thoát miễn phí”.
+
+Player có quyền chạy, nhưng:
+
+- phải trả giá bằng việc chưa thắng node,
+- và phải đạt điều kiện dice mới chạy được.
+
+Nếu `player chạy`:
+
+- không tính là thắng node
+- quay lại node đó thì vẫn phải đánh lại
+- enemy reset full HP, không giữ máu cũ
+
+Nếu `enemy tự chạy`:
+
+- vẫn tính là player thắng
+- player vẫn nhận reward
+- nếu node đó còn quay lại được thì encounter sau sẽ mạnh hơn
+- reward của encounter sau cũng cao hơn
+
+Trường hợp này phải được hiểu đúng:
+
+- không phải narrative kiểu “quái rút về căn cứ”,
+- mà là một trạng thái combat đặc biệt: enemy tự chạy khỏi player.
+
+Vì vậy hệ thống xem đây là:
+
+- một chiến thắng hợp lệ cho player ở lần đó,
+- nhưng vẫn để lại khả năng encounter quay lại ở mức khó hơn nếu map còn cho phép gặp lại.
+
+Nếu gặp `Boss`:
+
+- player vẫn có thể chạy
+- nhưng chưa thắng `final boss` của act thì chưa được sang act mới
+
+### 6A.8 Những gì chưa chốt ở map layer
+
+Các điểm sau vẫn đang mở và không nên coi là final:
+
+- điều kiện dice để chạy khỏi combat,
+- trade-off cụ thể giữa `clear-heavy` và `rush-heavy`,
+- tỷ lệ / tần suất spawn chính xác của từng loại node,
+- công thức reward scaling khi enemy tự chạy và encounter mạnh lên,
+- số lượng shop / rest / event tối ưu cho mỗi act,
+- act layout variation giữa các biome / vùng khác nhau.
+
+Nhưng những thứ đã đủ mạnh để coi là current direction gồm:
+
+- act là `node graph` từ đáy lên đỉnh,
+- có backtrack trong phần đường đã mở,
+- `Hub / Forge` ở đáy act,
+- `Shop` là node riêng,
+- boss luôn ở đỉnh map,
+- `Boss Intel` chỉ reveal identity, không mở khóa quyền đánh,
+- intel được ghi nhận tự động theo gameplay thường.
 
 ---
 

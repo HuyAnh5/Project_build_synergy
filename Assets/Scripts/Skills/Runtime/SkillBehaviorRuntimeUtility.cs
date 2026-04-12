@@ -31,6 +31,8 @@ internal static class SkillBehaviorRuntimeUtility
         baseValue = 0;
         if (rt == null || rt.localBaseValues == null || rt.localBaseValues.Count <= 0)
             return false;
+        if (!IsNumeric(rt, 0))
+            return false;
 
         baseValue = rt.localBaseValues[0];
         return true;
@@ -44,6 +46,8 @@ internal static class SkillBehaviorRuntimeUtility
         int count = 0;
         for (int i = 0; i < rt.localBaseValues.Count; i++)
         {
+            if (!IsNumeric(rt, i))
+                continue;
             if (rt.localBaseValues[i] == expectedValue)
                 count++;
         }
@@ -74,11 +78,14 @@ internal static class SkillBehaviorRuntimeUtility
         if (rt == null || rt.localBaseValues == null || rt.localBaseValues.Count <= 0)
             return -1;
 
-        int bestIndex = 0;
-        int bestValue = rt.localBaseValues[0];
-        for (int i = 1; i < rt.localBaseValues.Count; i++)
+        int bestIndex = -1;
+        int bestValue = 0;
+        for (int i = 0; i < rt.localBaseValues.Count; i++)
         {
-            if (rt.localBaseValues[i] > bestValue)
+            if (!IsNumeric(rt, i))
+                continue;
+
+            if (bestIndex < 0 || rt.localBaseValues[i] > bestValue)
             {
                 bestValue = rt.localBaseValues[i];
                 bestIndex = i;
@@ -93,11 +100,14 @@ internal static class SkillBehaviorRuntimeUtility
         if (rt == null || rt.localBaseValues == null || rt.localBaseValues.Count <= 0)
             return -1;
 
-        int bestIndex = 0;
-        int bestValue = rt.localBaseValues[0];
-        for (int i = 1; i < rt.localBaseValues.Count; i++)
+        int bestIndex = -1;
+        int bestValue = 0;
+        for (int i = 0; i < rt.localBaseValues.Count; i++)
         {
-            if (rt.localBaseValues[i] < bestValue)
+            if (!IsNumeric(rt, i))
+                continue;
+
+            if (bestIndex < 0 || rt.localBaseValues[i] < bestValue)
             {
                 bestValue = rt.localBaseValues[i];
                 bestIndex = i;
@@ -116,9 +126,11 @@ internal static class SkillBehaviorRuntimeUtility
         int baseValue = (rt.localBaseValues != null && localIndex < rt.localBaseValues.Count)
             ? Mathf.Max(0, rt.localBaseValues[localIndex])
             : resolvedValue;
-        bool isFail = rt.localFailFlags != null && localIndex < rt.localFailFlags.Count && rt.localFailFlags[localIndex];
+        bool appliesFailPenalty = rt.localFailPenaltyFlags != null &&
+                                  localIndex < rt.localFailPenaltyFlags.Count &&
+                                  rt.localFailPenaltyFlags[localIndex];
 
-        return SkillOutputValueUtility.ResolvePerDieOutput(baseValue, resolvedValue, isFail);
+        return SkillOutputValueUtility.ResolvePerDieOutput(baseValue, resolvedValue, appliesFailPenalty);
     }
 
     public static int GetHighestResolvedValue(SkillRuntime rt)
@@ -184,5 +196,12 @@ internal static class SkillBehaviorRuntimeUtility
         }
 
         return list;
+    }
+
+    private static bool IsNumeric(SkillRuntime rt, int localIndex)
+    {
+        return rt == null ||
+               rt.localNumericFlags == null ||
+               (localIndex >= 0 && localIndex < rt.localNumericFlags.Count && rt.localNumericFlags[localIndex]);
     }
 }

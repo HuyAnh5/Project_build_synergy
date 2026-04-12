@@ -2,12 +2,12 @@ using UnityEngine;
 
 public static class SkillOutputValueUtility
 {
-    public static int ResolvePerDieOutput(int baseValue, int resolvedValue, bool isFail)
+    public static int ResolvePerDieOutput(int baseValue, int resolvedValue, bool appliesFailPenalty)
     {
         int safeBase = Mathf.Max(0, baseValue);
         int safeResolved = Mathf.Max(0, resolvedValue);
         int addedValue = Mathf.Max(0, safeResolved - safeBase);
-        int adjustedBase = isFail ? Mathf.FloorToInt(safeBase * 0.5f) : safeBase;
+        int adjustedBase = appliesFailPenalty ? Mathf.FloorToInt(safeBase * 0.5f) : safeBase;
         int total = Mathf.Max(0, adjustedBase) + addedValue;
 
         if (safeBase > 0 && total < 1)
@@ -43,7 +43,7 @@ public static class SkillOutputValueUtility
     {
         int safeBase = Mathf.Max(0, baseAmount);
         int adjustedBase = safeBase;
-        if (rt != null && rt.localFailAny)
+        if (rt != null && rt.localFailPenaltyAny)
             adjustedBase = Mathf.FloorToInt(safeBase * 0.5f);
 
         int total = Mathf.Max(0, adjustedBase) + GetTotalActionAddedValue(rt);
@@ -69,7 +69,7 @@ public static class SkillOutputValueUtility
             baseOutput += Mathf.Max(0, rt.localBaseValues[i]);
 
         int adjustedBase = baseOutput;
-        if (rt.localFailAny)
+        if (rt.localFailPenaltyAny)
             adjustedBase = Mathf.FloorToInt(baseOutput * 0.5f);
 
         int total = Mathf.Max(0, adjustedBase) + GetTotalActionAddedValue(rt);

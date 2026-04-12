@@ -11,8 +11,12 @@ public class DiceSpinnerGeneric : MonoBehaviour
     public Transform pivot;
     public DiceFace[] faces;
 
+    [Header("Whole-Die Tag")]
+    public DiceWholeDieTag wholeDieTag = DiceWholeDieTag.None;
+
     [Header("TextMeshPro")]
     public TMP_Text valueText;
+    public TMP_Text enchantText;
     public string rollingText = "...";
     public bool showResultAtStart = false;
 
@@ -45,8 +49,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
     public int LastFaceIndex { get; private set; } = -1;
     public bool IsRolling { get; private set; }
 
-    public bool LastRollIsCrit => IsCritValue(LastRolledValue);
-    public bool LastRollIsFail => IsFailValue(LastRolledValue);
+    public bool LastRollIsCrit => IsCritValue(LastRolledValue) || DiceFaceEnchantUtility.CountsAsCritForConditions(GetCurrentFaceEnchant());
+    public bool LastRollIsFail => IsFailValue(LastRolledValue) || DiceFaceEnchantUtility.CountsAsFailForConditions(GetCurrentFaceEnchant());
 
     public System.Action<DiceSpinnerGeneric> onRollComplete;
 
@@ -95,6 +99,9 @@ public class DiceSpinnerGeneric : MonoBehaviour
                 valueText.text = LastRolledValue.ToString();
         }
 
+        if (enchantText != null)
+            enchantText.text = showResultAtStart ? GetCurrentFaceDebugLabel() : string.Empty;
+
         if (rollStateText != null && clearStateWhileRolling)
             rollStateText.text = string.Empty;
 
@@ -134,10 +141,103 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     public int GetBaseValue() => LastRolledValue;
 
+    public DiceWholeDieTag GetWholeDieTag()
+    {
+        return wholeDieTag;
+    }
+
+    public void SetWholeDieTag(DiceWholeDieTag tag)
+    {
+        wholeDieTag = tag;
+        RefreshDisplayedState();
+    }
+
+    public DiceFace GetFace(int faceIndex)
+    {
+        if (!ValidateFaces())
+            return default;
+
+        faceIndex = Mathf.Clamp(faceIndex, 0, faces.Length - 1);
+        return faces[faceIndex];
+    }
+
+    public DiceFace GetCurrentFace()
+    {
+        if (!ValidateFaces() || LastFaceIndex < 0 || LastFaceIndex >= faces.Length)
+            return default;
+
+        return faces[LastFaceIndex];
+    }
+
+    public DiceFaceEnchantKind GetFaceEnchant(int faceIndex)
+    {
+        if (!ValidateFaces())
+            return DiceFaceEnchantKind.None;
+
+        faceIndex = Mathf.Clamp(faceIndex, 0, faces.Length - 1);
+        return faces[faceIndex].enchant;
+    }
+
+    public DiceFaceEnchantKind GetCurrentFaceEnchant()
+    {
+        if (!ValidateFaces() || LastFaceIndex < 0 || LastFaceIndex >= faces.Length)
+            return DiceFaceEnchantKind.None;
+
+        return faces[LastFaceIndex].enchant;
+    }
+
+    public int GetFaceAddedValue(int faceIndex)
+    {
+        return DiceFaceEnchantUtility.GetFlatAddedValue(GetFaceEnchant(faceIndex));
+    }
+
+    public int GetCurrentFaceAddedValue()
+    {
+        return DiceFaceEnchantUtility.GetFlatAddedValue(GetCurrentFaceEnchant());
+    }
+
+    public bool SetFaceEnchant(int faceIndex, DiceFaceEnchantKind enchant)
+    {
+        if (!ValidateFaces() || faceIndex < 0 || faceIndex >= faces.Length)
+            return false;
+
+        DiceFace face = faces[faceIndex];
+        face.enchant = enchant;
+        faces[faceIndex] = face;
+
+        if (faceIndex == LastFaceIndex)
+            RefreshDisplayedState();
+
+        return true;
+    }
+
+    public bool SetFaceValue(int faceIndex, int value)
+    {
+        if (!ValidateFaces() || faceIndex < 0 || faceIndex >= faces.Length)
+            return false;
+
+        DiceFace face = faces[faceIndex];
+        face.value = Mathf.Max(1, value);
+        faces[faceIndex] = face;
+
+        if (faceIndex == LastFaceIndex)
+        {
+            LastRolledValue = face.value;
+            RefreshDisplayedState();
+        }
+
+        return true;
+    }
+
     public string GetRollStateLabel()
     {
+        DiceFaceEnchantKind currentEnchant = GetCurrentFaceEnchant();
+
         if (LastRollIsCrit)
         {
+            if (DiceFaceEnchantUtility.SuppressesCritBonus(currentEnchant))
+                return normalText;
+
             if (!showAddedValueInRollState) return critText;
             int added = GetCritDisplayAddedValue(LastRolledValue);
             return $"{critText}: +{added}";
@@ -145,6 +245,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
         if (LastRollIsFail)
         {
+            if (DiceFaceEnchantUtility.SuppressesFailPenalty(currentEnchant))
+                return normalText;
             return failText;
         }
 
@@ -208,8 +310,34 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     public void RefreshDisplayedState()
     {
-        if (rollStateText == null) return;
-        rollStateText.text = GetRollStateLabel();
+        if (rollStateText != null)
+            rollStateText.text = GetRollStateLabel();
+
+        if (valueText != null && LastFaceIndex >= 0 && LastFaceIndex < faces.Length && !IsRolling)
+            valueText.text = LastRolledValue.ToString();
+
+        if (enchantText != null)
+            enchantText.text = GetCurrentFaceDebugLabel();
+    }
+
+    public string GetFaceDebugLabel(int faceIndex)
+    {
+        if (!ValidateFaces() || faceIndex < 0 || faceIndex >= faces.Length)
+            return string.Empty;
+
+        DiceFace face = faces[faceIndex];
+        if (face.enchant == DiceFaceEnchantKind.None)
+            return face.value.ToString();
+
+        return $"{face.value} {GetEnchantShortLabel(face.enchant)}";
+    }
+
+    public string GetCurrentFaceDebugLabel()
+    {
+        if (!ValidateFaces() || LastFaceIndex < 0 || LastFaceIndex >= faces.Length)
+            return string.Empty;
+
+        return GetFaceDebugLabel(LastFaceIndex);
     }
 
     private bool ValidateFaces()
@@ -234,6 +362,29 @@ public class DiceSpinnerGeneric : MonoBehaviour
             a %= 360f;
             if (a < 0f) a += 360f;
             return a;
+        }
+    }
+
+    private static string GetEnchantShortLabel(DiceFaceEnchantKind enchant)
+    {
+        switch (enchant)
+        {
+            case DiceFaceEnchantKind.ValuePlusN:
+                return "Plus";
+            case DiceFaceEnchantKind.GuardBoost:
+                return "Guard";
+            case DiceFaceEnchantKind.Fire:
+                return "Fire";
+            case DiceFaceEnchantKind.Bleed:
+                return "Bleed";
+            case DiceFaceEnchantKind.Ice:
+                return "Ice";
+            case DiceFaceEnchantKind.Lightning:
+                return "Bolt";
+            case DiceFaceEnchantKind.GoldProc:
+                return "Gold";
+            default:
+                return DiceFaceEnchantUtility.GetDisplayName(enchant);
         }
     }
 }

@@ -106,10 +106,13 @@ public class SkillRuntime
     // Snapshot of base dice values for the skill's local group this turn.
     public List<int> localBaseValues;
     public List<int> localResolvedValues;
+    public List<bool> localNumericFlags;
     public List<bool> localCritFlags;
     public List<bool> localFailFlags;
+    public List<bool> localFailPenaltyFlags;
     public bool localCritAny;
     public bool localFailAny;
+    public bool localFailPenaltyAny;
 
     public static SkillRuntime FromDamage(SkillDamageSO s)
     {
@@ -125,7 +128,7 @@ public class SkillRuntime
 
             kind = s.kind,
             // Legacy target is kept for old code paths. Executor will prefer targetRuleV2 when useV2Targeting=true.
-            target = (s.target == SkillTargetRule.SingleEnemy || s.target == SkillTargetRule.AllEnemies || s.target == SkillTargetRule.AllUnits)
+            target = SkillTargetRuleUtility.IsEnemySideTarget(s.target)
                 ? TargetRule.Enemy
                 : TargetRule.Self,
 
@@ -133,8 +136,8 @@ public class SkillRuntime
             element = (ElementType)(int)s.element,
             range = s.range,
 
-            hitAllEnemies = (s.target == SkillTargetRule.AllEnemies || s.target == SkillTargetRule.AllUnits),
-            hitAllAllies = (s.target == SkillTargetRule.AllAllies || s.target == SkillTargetRule.AllUnits),
+            hitAllEnemies = (s.target == SkillTargetRule.RowEnemies || s.target == SkillTargetRule.AllEnemies),
+            hitAllAllies = (s.target == SkillTargetRule.RowAllies || s.target == SkillTargetRule.AllAllies),
 
             slotsRequired = Mathf.Clamp(s.slotsRequired, 1, 3),
 
@@ -198,10 +201,13 @@ public class SkillRuntime
             splitRoleBurnTurns = s.splitRole != null ? s.splitRole.burnTurns : 3,
             localBaseValues = null,
             localResolvedValues = null,
+            localNumericFlags = null,
             localCritFlags = null,
             localFailFlags = null,
+            localFailPenaltyFlags = null,
             localCritAny = false,
-            localFailAny = false
+            localFailAny = false,
+            localFailPenaltyAny = false
         };
 
         // safety

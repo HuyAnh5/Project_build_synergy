@@ -20,6 +20,7 @@ internal static class StatusStateUtility
         owner.emberWeaponTurns = 0;
         owner.emberWeaponBonusDamage = 1;
         owner.emberWeaponBurnEqualsDamage = true;
+        owner.emberWeaponBurnOnCritOnly = false;
         owner.cinderbrandTurns = 0;
         owner.cinderbrandBonusPerBurn = 1;
 

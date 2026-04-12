@@ -21,9 +21,10 @@ MonoBehaviour:
     specState: 2
     buildRole: 1
     implementationCoverage: 2
-    normalizedText: Burn consumed on this target deals +1 extra damage per stack for
-      a short window.
-    designIntent: Fire payoff amplifier that rewards spending Burn inside a timing window.
+    normalizedText: Burn consumed on this target deals +1 extra damage per stack
+      for a short window.
+    designIntent: Fire payoff amplifier that rewards spending Burn inside a timing
+      window.
   behaviorId: 2
   identity: 1
   target: 1
@@ -38,6 +39,7 @@ MonoBehaviour:
     emberWeaponTurns: 3
     basicAttackBonusDamage: 1
     basicAttackAppliesBurnEqualDamage: 1
+    basicAttackBurnOnCritOnly: 0
     applyConsumeBonusDebuff: 1
     consumeBonusPerBurn: 1
     consumeBonusDebuffTurns: 2

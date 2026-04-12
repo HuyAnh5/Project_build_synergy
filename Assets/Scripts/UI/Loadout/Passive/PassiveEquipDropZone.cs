@@ -4,7 +4,7 @@ using UnityEngine.EventSystems;
 public class PassiveEquipDropZone : MonoBehaviour, IDropHandler
 {
     public PassiveEquipUIManager manager;
-    [Range(0, 2)] public int slotIndex = 0;
+    [Range(0, 0)] public int slotIndex = 0;
 
     public void OnDrop(PointerEventData eventData)
     {

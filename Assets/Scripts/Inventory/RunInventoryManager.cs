@@ -10,7 +10,7 @@ public class RunInventoryManager : MonoBehaviour
     public const int OWNED_SKILL_COUNT = 6;
     public const int RELIC_SLOT_COUNT = 3;
     public const int EQUIPPED_DICE_COUNT = 3;
-    public const int PASSIVE_SLOT_COUNT = 3;
+    public const int PASSIVE_SLOT_COUNT = 1;
 
     [Title("Runtime Links (Optional)")]
     [SerializeField] private DiceSlotRig diceRig;
@@ -19,7 +19,7 @@ public class RunInventoryManager : MonoBehaviour
     [SerializeField] private DiceSpinnerGeneric[] equippedDice = new DiceSpinnerGeneric[EQUIPPED_DICE_COUNT];
 
     [Title("Build State - Passive")]
-    [InfoBox("Passive now uses its own dedicated 3-slot binding. Passive is no longer stored in owned skill slots.", InfoMessageType.Info)]
+    [InfoBox("Passive now uses its own dedicated single-slot binding. Passive is no longer stored in owned skill slots.", InfoMessageType.Info)]
     [SerializeField] private PassiveSlotBinding[] passiveSlots = new PassiveSlotBinding[PASSIVE_SLOT_COUNT];
 
     [Title("Skill + UI Bindings")]
@@ -57,6 +57,13 @@ public class RunInventoryManager : MonoBehaviour
 
         if (index < 0 || index >= OWNED_SKILL_COUNT) return null;
         return ownedSlots[index].skillAsset;
+    }
+
+    public string GetSkillDisplayName(SkillSource source, int index)
+    {
+        ScriptableObject asset = GetSkill(source, index);
+        bool isFixed = source == SkillSource.Fixed;
+        return ResolveSkillDisplayName(asset, isFixed, index);
     }
 
     public void SetSkill(SkillSource source, int index, ScriptableObject assetOrNull)
@@ -367,5 +374,39 @@ public class RunInventoryManager : MonoBehaviour
             ref relicSlots,
             ref equippedDice,
             ref passiveSlots);
+    }
+
+    private static string ResolveSkillDisplayName(ScriptableObject asset, bool isFixed, int index)
+    {
+        if (asset is SkillDamageSO damage)
+        {
+            if (damage.coreAction == CoreAction.BasicStrike)
+                return "Basic Attack";
+            if (damage.coreAction == CoreAction.BasicGuard)
+                return "Basic Guard";
+
+            if (!string.IsNullOrWhiteSpace(damage.displayName))
+                return damage.displayName;
+        }
+        else if (asset is SkillBuffDebuffSO buffDebuff)
+        {
+            if (!string.IsNullOrWhiteSpace(buffDebuff.displayName))
+                return buffDebuff.displayName;
+        }
+        else if (asset is SkillPassiveSO passive)
+        {
+            if (!string.IsNullOrWhiteSpace(passive.displayName))
+                return passive.displayName;
+        }
+
+        if (isFixed)
+        {
+            if (index == 0)
+                return "Basic Attack";
+            if (index == 1)
+                return "Basic Guard";
+        }
+
+        return string.Empty;
     }
 }

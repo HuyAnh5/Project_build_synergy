@@ -31,8 +31,12 @@ public class DiceSlotRig : MonoBehaviour
         public int rolledValue;
         public int minFaceAtRoll;
         public int maxFaceAtRoll;
+        public DiceFaceEnchantKind faceEnchant;
         public bool isCrit;
         public bool isFail;
+        public bool grantsCritBonus;
+        public bool appliesFailPenalty;
+        public bool isNumericFace;
 
         [LabelText("Generic Added")]
         public int genericAddedValue;
@@ -48,11 +52,13 @@ public class DiceSlotRig : MonoBehaviour
     {
         public int baseValue;
         public int critFailAddedValue;
+        public int faceEnchantAddedValue;
         public int passiveAddedValue;
         public int totalAddedValue;
         public int resolvedValue;
         public bool isCrit;
         public bool isFail;
+        public bool appliesFailPenalty;
     }
 
     [Serializable]
@@ -71,6 +77,16 @@ public class DiceSlotRig : MonoBehaviour
     [Title("Options")]
     [Tooltip("Disable DiceSpinnerGeneric self input so ONLY TurnManager controls rolling.")]
     public bool disableDiceSelfInput = true;
+
+    [Title("Debug/Test")]
+    [Tooltip("Enables debug keyboard roll controls on this rig: Space = roll all, A/S/D = reroll slot 1/2/3.")]
+    public bool enableDebugRollHotkeys = false;
+    [Tooltip("If enabled, A/S/D can reroll a slot even after the rig has already rolled once this turn.")]
+    public bool allowDebugRerollThisTurn = false;
+    public KeyCode debugRollAllKey = KeyCode.Space;
+    public KeyCode debugRollSlot1Key = KeyCode.A;
+    public KeyCode debugRollSlot2Key = KeyCode.S;
+    public KeyCode debugRollSlot3Key = KeyCode.D;
 
     [ShowInInspector, ReadOnly]
     public bool HasRolledThisTurn { get; private set; }
@@ -108,6 +124,33 @@ public class DiceSlotRig : MonoBehaviour
     {
         EnsureSlots();
         ApplyActiveStates();
+    }
+
+    private void Update()
+    {
+        if (!enableDebugRollHotkeys)
+            return;
+
+        if (Input.GetKeyDown(debugRollAllKey))
+        {
+            TryDebugRollAll();
+            return;
+        }
+
+        if (Input.GetKeyDown(debugRollSlot1Key))
+        {
+            TryDebugRollSlot(0);
+            return;
+        }
+
+        if (Input.GetKeyDown(debugRollSlot2Key))
+        {
+            TryDebugRollSlot(1);
+            return;
+        }
+
+        if (Input.GetKeyDown(debugRollSlot3Key))
+            TryDebugRollSlot(2);
     }
 
     public void BeginNewTurn()
@@ -149,6 +192,64 @@ public class DiceSlotRig : MonoBehaviour
         HasRolledThisTurn = true;
         CacheRollInfos();
         onAllDiceRolled?.Invoke();
+    }
+
+    public bool TryDebugRollSlot(int slot0)
+    {
+        EnsureSlots();
+
+        if (!enableDebugRollHotkeys)
+            return false;
+        if (slot0 < 0 || slot0 >= slots.Length)
+            return false;
+        if (!IsSlotActive(slot0))
+            return false;
+        if (HasRolledThisTurn && !allowDebugRerollThisTurn)
+            return false;
+
+        DiceSpinnerGeneric die = GetDice(slot0);
+        if (die == null)
+            return false;
+
+        die.RollRandomFace();
+        HasRolledThisTurn = true;
+        CacheRollInfos();
+        onAllDiceRolled?.Invoke();
+        return true;
+    }
+
+    public bool TryDebugRollAll()
+    {
+        EnsureSlots();
+
+        if (!enableDebugRollHotkeys)
+            return false;
+        if (HasRolledThisTurn && !allowDebugRerollThisTurn)
+            return false;
+
+        ApplyActiveStates();
+
+        bool rolledAny = false;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (!IsSlotActive(i))
+                continue;
+
+            DiceSpinnerGeneric die = GetDice(i);
+            if (die == null)
+                continue;
+
+            die.RollRandomFace();
+            rolledAny = true;
+        }
+
+        if (!rolledAny)
+            return false;
+
+        HasRolledThisTurn = true;
+        CacheRollInfos();
+        onAllDiceRolled?.Invoke();
+        return true;
     }
 
     public bool IsSlotActive(int slot0)
@@ -237,6 +338,8 @@ public class DiceSlotRig : MonoBehaviour
 
     public bool IsCrit(int slot0) => GetRollInfo(slot0).isCrit;
     public bool IsFail(int slot0) => GetRollInfo(slot0).isFail;
+    public bool AppliesFailPenalty(int slot0) => GetRollInfo(slot0).appliesFailPenalty;
+    public bool IsNumericFaceForConditions(int slot0) => GetRollInfo(slot0).isNumericFace;
 
     public int GetAddedValue(int slot0, CombatActor owner, ElementType skillElement = ElementType.Neutral)
     {
@@ -262,11 +365,12 @@ public class DiceSlotRig : MonoBehaviour
         if (!HasRolledThisTurn) return default;
 
         int critFailAdded = ComputeCritFailAddedValue(info, skillElement);
+        int faceEnchantAdded = ComputeFaceEnchantAddedValue(slot0);
         int passiveAdded = ComputeAllDiceDelta(owner);
         PassiveSystem ps = owner != null ? owner.GetComponent<PassiveSystem>() : null;
         if (ps != null)
             passiveAdded += ps.GetAddedValueForDie(this, slot0);
-        int totalAdded = critFailAdded + passiveAdded;
+        int totalAdded = critFailAdded + faceEnchantAdded + passiveAdded;
         int resolved = info.rolledValue + totalAdded;
         if (resolved < 1) resolved = 1;
 
@@ -274,11 +378,13 @@ public class DiceSlotRig : MonoBehaviour
         {
             baseValue = info.rolledValue,
             critFailAddedValue = critFailAdded,
+            faceEnchantAddedValue = faceEnchantAdded,
             passiveAddedValue = passiveAdded,
             totalAddedValue = totalAdded,
             resolvedValue = resolved,
             isCrit = info.isCrit,
-            isFail = info.isFail
+            isFail = info.isFail,
+            appliesFailPenalty = info.appliesFailPenalty
         };
     }
 
@@ -416,11 +522,20 @@ public class DiceSlotRig : MonoBehaviour
     private int ComputeCritFailAddedValue(RollInfo info, ElementType skillElement)
     {
         if (info.rolledValue <= 0) return 0;
-        if (info.isFail) return 0;
+        if (!info.grantsCritBonus) return 0;
         if (!info.isCrit) return 0;
 
         float critPercent = (skillElement == ElementType.Physical) ? PhysicalCritPercent : GenericCritPercent;
         return FloorScaled(info.rolledValue, critPercent);
+    }
+
+    private int ComputeFaceEnchantAddedValue(int slot0)
+    {
+        DiceSpinnerGeneric die = GetDice(slot0);
+        if (die == null)
+            return 0;
+
+        return die.GetCurrentFaceAddedValue();
     }
 
     private static int FloorScaled(int value, float factor)
@@ -448,11 +563,16 @@ public class DiceSlotRig : MonoBehaviour
 
             d.GetRollExtents(out int minFace, out int maxFace);
             int rolled = d.LastRolledValue;
-            bool isCrit = d.IsCritValue(rolled);
-            bool isFail = d.IsFailValue(rolled);
+            DiceFaceEnchantKind faceEnchant = d.GetCurrentFaceEnchant();
+            bool isCrit = d.IsCritValue(rolled) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant);
+            bool isFail = d.IsFailValue(rolled) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant);
+            bool grantsCritBonus = isCrit && !DiceFaceEnchantUtility.SuppressesCritBonus(faceEnchant);
+            bool appliesFailPenalty = isFail && !DiceFaceEnchantUtility.SuppressesFailPenalty(faceEnchant);
+            bool isNumericFace = DiceFaceEnchantUtility.IsNumericFace(faceEnchant);
 
             int genericAdded = 0;
-            if (isCrit) genericAdded = FloorScaled(rolled, GenericCritPercent);
+            if (grantsCritBonus) genericAdded = FloorScaled(rolled, GenericCritPercent);
+            genericAdded += DiceFaceEnchantUtility.GetFlatAddedValue(faceEnchant);
 
             int genericResolved = rolled + genericAdded;
             if (genericResolved < 1) genericResolved = 1;
@@ -462,8 +582,12 @@ public class DiceSlotRig : MonoBehaviour
                 rolledValue = rolled,
                 minFaceAtRoll = minFace,
                 maxFaceAtRoll = maxFace,
+                faceEnchant = faceEnchant,
                 isCrit = isCrit,
                 isFail = isFail,
+                grantsCritBonus = grantsCritBonus,
+                appliesFailPenalty = appliesFailPenalty,
+                isNumericFace = isNumericFace,
                 genericAddedValue = genericAdded,
                 genericResolvedValue = genericResolved
             };

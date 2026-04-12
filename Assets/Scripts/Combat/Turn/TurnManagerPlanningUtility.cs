@@ -10,6 +10,7 @@ internal static class TurnManagerPlanningUtility
         SkillPlanBoard board,
         int slotIndex1Based,
         ScriptableObject activeSkill,
+        Func<int, bool> isSlotAssignable0,
         Func<int, int, bool> areSlotsActiveInRange,
         Action refreshPreviews,
         Action updateIconsDim,
@@ -30,6 +31,12 @@ internal static class TurnManagerPlanningUtility
 
         if (!board.ResolvePlacementForDrop(drop0, span, out int start0, out int anchor0))
             return false;
+        if (isSlotAssignable0 != null)
+        {
+            for (int i = start0; i < start0 + span; i++)
+                if (!isSlotAssignable0(i))
+                    return false;
+        }
         if (areSlotsActiveInRange != null && !areSlotsActiveInRange(start0, span))
             return false;
         if (diceRig != null && !diceRig.CanFitAtDrop(start0, span))
@@ -60,6 +67,7 @@ internal static class TurnManagerPlanningUtility
         SkillPlanBoard board,
         ScriptableObject activeSkill,
         Func<int, bool> isSlotActive0,
+        Func<int, bool> isSlotAssignable0,
         Func<int, int, bool> areSlotsActiveInRange,
         Action refreshPreviews,
         Action updateIconsDim)
@@ -75,6 +83,12 @@ internal static class TurnManagerPlanningUtility
 
         if (!board.TryFindEmptyPlacement(span, isSlotActive0, out int start0, out int anchor0))
             return false;
+        if (isSlotAssignable0 != null)
+        {
+            for (int i = start0; i < start0 + span; i++)
+                if (!isSlotAssignable0(i))
+                    return false;
+        }
         if (areSlotsActiveInRange != null && !areSlotsActiveInRange(start0, span))
             return false;
         if (diceRig != null && !diceRig.CanFitAtDrop(start0, span))

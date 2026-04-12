@@ -1,0 +1,70 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\huyan\\Desktop\\GameProject\\Project_build_synergy\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{C9CE3DA4-0015-A94E-0BA9-8CCEBC70DB89}|Assembly-CSharp.csproj|c:\\users\\huyan\\desktop\\gameproject\\project_build_synergy\\assets\\scripts\\combat\\execution\\skillattackresolutionutility.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C9CE3DA4-0015-A94E-0BA9-8CCEBC70DB89}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\combat\\execution\\skillattackresolutionutility.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C9CE3DA4-0015-A94E-0BA9-8CCEBC70DB89}|Assembly-CSharp.csproj|c:\\users\\huyan\\desktop\\gameproject\\project_build_synergy\\assets\\scripts\\ui\\loadout\\dice\\diceequipuimanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C9CE3DA4-0015-A94E-0BA9-8CCEBC70DB89}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\ui\\loadout\\dice\\diceequipuimanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{C9CE3DA4-0015-A94E-0BA9-8CCEBC70DB89}|Assembly-CSharp.csproj|C:\\Users\\huyan\\Desktop\\GameProject\\Project_build_synergy\\assets\\scripts\\combat\\turn\\turnmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{C9CE3DA4-0015-A94E-0BA9-8CCEBC70DB89}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\combat\\turn\\turnmanager.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "SkillAttackResolutionUtility.cs",
+              "DocumentMoniker": "C:\\Users\\huyan\\Desktop\\GameProject\\Project_build_synergy\\Assets\\Scripts\\Combat\\Execution\\SkillAttackResolutionUtility.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Combat\\Execution\\SkillAttackResolutionUtility.cs",
+              "ToolTip": "C:\\Users\\huyan\\Desktop\\GameProject\\Project_build_synergy\\Assets\\Scripts\\Combat\\Execution\\SkillAttackResolutionUtility.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Combat\\Execution\\SkillAttackResolutionUtility.cs",
+              "ViewState": "AgIAABIBAAAAAAAAAAAWwDsBAAAvAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-27T05:12:40.299Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "DiceEquipUIManager.cs",
+              "DocumentMoniker": "C:\\Users\\huyan\\Desktop\\GameProject\\Project_build_synergy\\Assets\\Scripts\\UI\\Loadout\\Dice\\DiceEquipUIManager.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\UI\\Loadout\\Dice\\DiceEquipUIManager.cs",
+              "ToolTip": "C:\\Users\\huyan\\Desktop\\GameProject\\Project_build_synergy\\Assets\\Scripts\\UI\\Loadout\\Dice\\DiceEquipUIManager.cs",
+              "RelativeToolTip": "Assets\\Scripts\\UI\\Loadout\\Dice\\DiceEquipUIManager.cs",
+              "ViewState": "AgIAAN0BAAAAAAAAAAAUwAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-15T10:40:00.233Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "TurnManager.cs",
+              "DocumentMoniker": "C:\\Users\\huyan\\Desktop\\GameProject\\Project_build_synergy\\Assets\\Scripts\\Combat\\Turn\\TurnManager.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Combat\\Turn\\TurnManager.cs",
+              "ToolTip": "C:\\Users\\huyan\\Desktop\\GameProject\\Project_build_synergy\\Assets\\Scripts\\Combat\\Turn\\TurnManager.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Combat\\Turn\\TurnManager.cs",
+              "ViewState": "AgIAAJ8CAAAAAAAAAAAqwNMCAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-15T10:00:30.599Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

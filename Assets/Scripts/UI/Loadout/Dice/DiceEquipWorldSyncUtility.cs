@@ -29,11 +29,16 @@ internal static class DiceEquipWorldSyncUtility
 
             d.GetRollExtents(out int minFace, out int maxFace);
             int rolled = d.LastRolledValue;
-            bool isCrit = d.IsCritValue(rolled);
-            bool isFail = d.IsFailValue(rolled);
+            DiceFaceEnchantKind faceEnchant = d.GetCurrentFaceEnchant();
+            bool isCrit = d.IsCritValue(rolled) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant);
+            bool isFail = d.IsFailValue(rolled) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant);
+            bool grantsCritBonus = isCrit && !DiceFaceEnchantUtility.SuppressesCritBonus(faceEnchant);
+            bool appliesFailPenalty = isFail && !DiceFaceEnchantUtility.SuppressesFailPenalty(faceEnchant);
+            bool isNumericFace = DiceFaceEnchantUtility.IsNumericFace(faceEnchant);
 
             int genericAdded = 0;
-            if (isCrit) genericAdded = Mathf.FloorToInt(rolled * DiceSlotRig.GenericCritPercent);
+            if (grantsCritBonus) genericAdded = Mathf.FloorToInt(rolled * DiceSlotRig.GenericCritPercent);
+            genericAdded += DiceFaceEnchantUtility.GetFlatAddedValue(faceEnchant);
 
             int genericResolved = rolled + genericAdded;
             if (genericResolved < 1)
@@ -44,8 +49,12 @@ internal static class DiceEquipWorldSyncUtility
                 rolledValue = rolled,
                 minFaceAtRoll = minFace,
                 maxFaceAtRoll = maxFace,
+                faceEnchant = faceEnchant,
                 isCrit = isCrit,
                 isFail = isFail,
+                grantsCritBonus = grantsCritBonus,
+                appliesFailPenalty = appliesFailPenalty,
+                isNumericFace = isNumericFace,
                 genericAddedValue = genericAdded,
                 genericResolvedValue = genericResolved,
             };

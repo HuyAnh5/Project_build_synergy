@@ -29,12 +29,14 @@ internal static class SkillPlanRuntimeUtility
 
     private static TargetRule MapTargetRule(SkillTargetRule tr, out bool hitAllEnemies, out bool hitAllAllies)
     {
-        hitAllEnemies = tr == SkillTargetRule.AllEnemies || tr == SkillTargetRule.AllUnits;
-        hitAllAllies = tr == SkillTargetRule.AllAllies || tr == SkillTargetRule.AllUnits;
+        hitAllEnemies = tr == SkillTargetRule.RowEnemies || tr == SkillTargetRule.AllEnemies;
+        hitAllAllies = tr == SkillTargetRule.RowAllies || tr == SkillTargetRule.AllAllies;
 
         if (tr == SkillTargetRule.Self) return TargetRule.Self;
         if (tr == SkillTargetRule.SingleEnemy) return TargetRule.Enemy;
         if (tr == SkillTargetRule.SingleAlly) return TargetRule.Self;
+        if (tr == SkillTargetRule.RowEnemies) return TargetRule.Enemy;
+        if (tr == SkillTargetRule.RowAllies) return TargetRule.Self;
         if (tr == SkillTargetRule.AllEnemies) return TargetRule.Enemy;
         if (tr == SkillTargetRule.AllAllies) return TargetRule.Self;
 

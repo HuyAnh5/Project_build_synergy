@@ -62,7 +62,7 @@ Những phần đó đã có tài liệu riêng.
   - Source of truth cho: grammar thiết kế skill, condition/scope, effect modules, source model và template thêm skill mới.
 
 - `LOADOUT_AND_BUILD_SPEC.md`
-  - Source of truth cho: 6 skill slot, 3 passive slot, basic actions, equip/swap structure, build identity và nguyên tắc loadout.
+  - Source of truth cho: 6 skill slot, 1 passive slot, basic actions, equip/swap structure, build identity và nguyên tắc loadout.
 
 - `RELICS_AND_DICE_PROGRESSION_SPEC.md`
   - Source of truth cho: relic framework, dice customization, dice progression, unlock relation, progression role của relic/dice.
@@ -323,12 +323,12 @@ Các cụm đã tách:
 
 Các vùng sau hiện được xem là khá ổn:
 
-- flow `planning -> await target -> executing -> enemy turn`
-- reorder dice trong planning
+- flow runtime moi `roll -> reorder neu can -> drag skill cast ngay -> End Turn -> enemy turn`
+- reorder dice trong player phase
 - execution order / damage order theo lane hiện tại
 - lane mapping giữa pair identity và lane hiện tại
 - consume rule nền tảng
-- phase lock khi vào execute (theo nghĩa khóa reorder / skill assignment)
+- state spent / consume sau khi cast
 
 Nếu task không nhắm đúng bug ở các vùng này, ưu tiên **không đụng**.
 
@@ -521,3 +521,214 @@ Noi ngan gon:
 
 - chua co CLI build verify on dinh vi may hien tai khong co .NET SDK / MSBuild tren PATH
 - can test trong Unity sau moi dot thay doi runtime lon
+
+---
+
+## Runtime Update Note (2026-04)
+
+- Passive loadout runtime hien tai da giam tu `3 passive slot` xuong `1 passive slot`.
+- Combat runtime hien tai dang dung grammar dieu khien moi:
+  - `roll dice`
+  - `reorder neu can`
+  - `drag skill icon tu skill slot vao enemy de cast truc tiep`
+  - `bam End Turn de sang enemy turn`
+- Flow cu theo planning/continue khong con la cach dieu khien chinh can mo ta trong docs handoff nua.
+- Roll dice hien tai van giu nguyen.
+- Consume dice kieu "bien mat that" chua duoc dua vao runtime; tam thoi dice da dung van duoc bieu dien bang state mo `50%`.
+- Source of truth cho huong thay doi nay nam o [COMBAT_CHANGES_2026.md](/C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Docs/Detail/COMBAT_CHANGES_2026.md).
+
+## Runtime Update Note (2026-04-05)
+
+### Dice progression runtime state
+
+- `DiceFace` hien tai da co them field `enchant`.
+- `DiceSpinnerGeneric` hien tai da co them `wholeDieTag`.
+- `DiceSpinnerGeneric` hien tai co 2 lop doc state rieng:
+  - `face enchant` o cap mat dice
+  - `whole-die tag` o cap ca vien dice
+
+### File moi da them de giam rui ro vo file goc
+
+- `Assets/Scripts/Dice/DiceFaceEnchantKind.cs`
+- `Assets/Scripts/Dice/DiceFaceEnchantUtility.cs`
+- `Assets/Scripts/Dice/DiceWholeDieTag.cs`
+- `Assets/Scripts/Dice/DiceWholeDieTagUtility.cs`
+- `Assets/Scripts/Dice/DiceCombatEnchantRuntimeUtility.cs`
+
+Huong sua dot nay van giu nguyen nguyen tac:
+
+- utility / helper moi chua phan lon logic
+- file goc chi nhan hook mong
+- neu runtime nay co van de, co the go / refactor lai de hon viec da nhung het vao `TurnManager` hoac `DiceSpinnerGeneric`
+
+### Face enchant runtime da co
+
+Hien tai runtime da duoc doi sang pool enchant moi:
+
+- `Value +N` -> cong `+3 Added Value`
+- `Guard Boost` -> `+3 Guard`
+- `Gold Proc` -> `+5 Gold`
+- `Fire` -> ap `2 Burn` len `1 enemy random` con song
+- `Bleed` -> ap `2 Bleed` len `1 enemy random` con song
+- `Lightning` -> mat nay duoc doc la ca `Crit` va `Fail` cho condition skill / passive, nhung khong an crit bonus va khong chiu fail penalty
+- `Ice` -> mat stone-like, luon cho `+5 Added Value` va khong con duoc doc nhu mat so binh thuong
+
+Rule runtime dang dung:
+
+- enchant trigger ngay khi face roll ra
+- enchant doc lap voi skill
+- face khong co skill van trigger enchant
+- face co skill thi enchant trigger truoc, khong cho skill resolve xong moi chay
+- `Fire / Bleed` target random trong `all alive enemies`
+- `Bomb / Snipe / Mark Proc / Ice Proc` da bi loai khoi runtime hien tai
+
+### Whole-die runtime da co
+
+Whole-die layer hien tai moi khoa `None / Patina`.
+
+`Patina` da duoc noi vao runtime theo huong:
+
+- chi xet khi `thang combat`
+- dice phai da duoc dung it nhat `1 lan` trong combat
+- dice phai co `1 mat thap nhat duy nhat`
+- neu hop le -> mat thap nhat do nhan `+1 Base vinh vien`
+- neu co nhieu mat dong thap nhat hoac tat ca mat bang nhau -> khong tang
+
+### Hook da noi vao flow hien tai
+
+- `TurnManager`:
+  - resolve on-roll face enchant ngay sau khi dice roll xong
+  - khong con resolve assigned face enchant sau skill
+  - apply `Patina` khi combat da duoc xem la win
+- `DiceSlotRig`:
+  - da tinh Added Value tu `Value +N` va `Ice`
+  - giu source of truth cho crit/fail bonus, fail penalty, va non-numeric face state
+- `DiceSpinnerGeneric`:
+  - co debug text rieng cho mat hien tai qua `enchantText`
+  - khong con hien `Bomb / Snipe` trong enum hien tai
+
+### Dieu can verify trong Unity
+
+- `Fire / Bleed / Guard Boost / Gold Proc` co proc ngay sau roll, ke ca khi mat khong gan skill
+- `Lightning` co duoc doc dung cho crit/fail condition nhung khong doi damage theo crit/fail bonus
+- `Ice` co cho `+5 Added Value` va dong thoi bi loai khoi parity / exact / highest / lowest numeric checks
+- `Gold Proc` co cong dung vao `RunInventoryManager` trong scene runtime that hay khong
+- `Patina` co chi proc khi win combat va buff dung mat duy nhat thap nhat hay khong
+
+### Guardrail cho dot nay
+
+- chua co CLI build verify on dinh; moi thay doi runtime lon van phai test trong Unity
+- neu can rollback, uu tien go hook o `TurnManager` va tach khoi `DiceCombatEnchantRuntimeUtility` truoc
+- chua nen gop utility moi vao file lon neu chua verify gameplay / scene runtime on dinh
+
+### Debug/test roll hook tam thoi
+
+De test nhanh trong scene, `DiceSlotRig` hien tai co them debug keyboard mode:
+
+- checkbox `enableDebugRollHotkeys`
+  - bat -> `Space = roll all`, `A / S / D = reroll slot 1 / 2 / 3`
+  - tat -> quay ve flow binh thuong
+- checkbox `allowDebugRerollThisTurn`
+  - bat -> cho phep reroll trong cung 1 turn
+  - tat -> van bi khoa sau lan roll dau tien
+
+Rule quan trong:
+
+- debug reroll doc theo `slot hien tai`, khong doc theo identity cua vien dice
+- neu swap dice giua cac slot thi `A / S / D` se reroll vien dang nam o slot do tai thoi diem bam phim
+- hook nay chi de test, khong phai gameplay final
+
+### Consumable implementation state hien tai
+
+Tinh den dot chat nay, project da co:
+
+- spec consumable / Zodiac / Seals / Runes
+- runtime face enchant moi
+- runtime whole-die `Patina`
+- dice-edit sandbox de test thao tac chon mat / inspect
+
+Nhung van chua co:
+
+- `consumable data` that trong code
+- runtime cho `3 shared consumable slot`
+- `use flow` day du de bam va dung consumable
+- link giua `selected logical face` va Zodiac consumable cu the
+
+Vi vay neu tiep tuc sau dot nay, batch code hop ly nhat la:
+
+1. `consumable data`
+2. `consumable slot`
+3. `consumable use flow`
+
+Khong nen mo ta project nhu da co he consumable that; hien tai moi chi co spec va mot phan nen dice/enchant.
+
+## Runtime Update Note (2026-04-10)
+
+### Row runtime audit theo code hien tai
+
+Dot nay can note ro: `row` khong con o muc chi co spec.
+Theo code hien tai, `row` da co runtime that o muc combat core va target resolve.
+
+Nhung diem da co trong code:
+
+- `CombatActor` da co `RowTag.Front / Back` va moi actor giu `row` rieng.
+- `BattlePartyManager2D` da duoc cap nhat de:
+  - spawn actor theo `row`,
+  - giu `playerRow`,
+  - filter alive enemy theo `frontOnly`,
+  - layout world theo `row` qua depth / scale.
+- `SkillTargetRule` da co `RowEnemies / RowAllies`.
+- `TurnManagerTargetingUtility` da co rule chan `melee strike` vao `back row` neu ben dich van con `front row`.
+- `TurnManagerCombatUtility` da co resolve cho:
+  - `RowEnemies`,
+  - `RowAllies`,
+  - `AllEnemies`,
+  - `AllAllies`,
+  - filter target theo `clicked.row` hoac `caster.row`.
+- `TurnManager` da noi `aoeTargets` vao flow cast cua ca player va enemy cho cac skill target theo row.
+- `SkillExecutor` da xu ly duoc attack va buff/debuff co target rule theo row.
+- `DiceCombatEnchantRuntimeUtility` da resolve `Bomb` theo `Front row` va `Snipe` theo `Back row`.
+
+Noi ngan gon:
+
+- `row core logic` hien tai co the xem la da noi vao runtime that.
+- `row` khong con la phan "chua lam".
+
+### BattlePartyManager2D state can ghi nho khi handoff
+
+`BattlePartyManager2D` hien tai khong chi la spawn helper.
+No da tro thanh mot phan cua runtime row/formation:
+
+- la noi source roster song de resolve target theo row,
+- cap `GetAliveEnemies(frontOnly: true/false)`,
+- cap `GetAliveAllies(includePlayer: true)`,
+- la diem tu do `TurnManagerTargetingUtility`, `TurnManagerCombatUtility` va `DiceCombatEnchantRuntimeUtility` doc formation hien tai.
+
+Neu sua row runtime, phai tinh ca `BattlePartyManager2D`, khong duoc chi nhin `TurnManager`.
+
+### Nhung gi row con thieu hoac chua thay dau vet generic day du
+
+Theo code hien tai, nhung phan sau chua nen goi la da xong het:
+
+- chua thay preview / intent text noi ro muc tieu dang nham `Front Row` hay `Back Row`;
+- chua thay UI surfacing ro actor nao dang o `Front` hay `Back`;
+- chua thay mot lop generic rieng cho `Cross-row / All-row exception`;
+- chua thay runtime content hook ro rang cho cac case:
+  - check player dang o `Front Row` hay `Back Row`,
+  - move / swap row trong combat,
+  - payoff doc target row nhu mot condition axis authoring chung.
+
+Vi vay cach mo ta dung nhat luc nay la:
+
+- `row combat core / target legality / row target resolve`: da co
+- `row presentation / intent surfacing / content axis day du`: chua day du
+
+### Guardrail sau khi audit code
+
+- neu task lien quan `row`, dau tien phai phan biet dang sua `combat legality` hay `UI/presentation/content`;
+- khong nen tiep tuc mo ta `row` nhu mot phan chua implement o lop nen;
+- neu co bug row, phai test ca 4 diem:
+  - click target hop le / khong hop le,
+  - row-target skill cua player,
+  - row-target move cua enemy,
+  - `Bomb / Snipe` va cac effect phu doc formation.

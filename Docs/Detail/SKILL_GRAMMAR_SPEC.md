@@ -61,6 +61,9 @@ Mặc định hiện tại:
 - nghĩa là không chỉ damage, mà cả `Burn`, `Bleed`, `Guard`, payoff từ `combat history`, payoff từ `board state` cũng mặc định cộng `Added Value` trừ khi text skill ghi rõ ngược lại
 - nếu skill chiếm nhiều slot, `Added Value` mặc định là **tổng Added Value của toàn bộ dice trong local group**
 - ngoại lệ rất quan trọng: nếu skill là **split-role / multi-branch**, mỗi branch output phải đọc `Added Value` của **đúng die source** mà branch đó chọn, không được lấy `Total Added Value của cả action` đổ vào mọi branch
+- **Quy tắc chỉ số đầu tiên**: Nếu skill có **nhiều hơn 1 output** (ví dụ: vừa damage vừa Burn), Added Value mặc định chỉ cộng vào **output đầu tiên** được đề cập trong description của skill đó
+  - Ví dụ: "deal 4 damage và apply 2 Burn" → Added Value + vào 4 damage
+  - Ví dụ: "apply 4 Burn và deal 2 damage" → Added Value + vào 4 Burn
 
 Ví dụ:
 - Base Value = 4, Added Value = +3  

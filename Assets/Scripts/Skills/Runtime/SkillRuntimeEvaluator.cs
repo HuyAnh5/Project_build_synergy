@@ -30,9 +30,11 @@ public static class SkillRuntimeEvaluator
         var rt = SkillRuntime.FromDamage(skill);
         if (rt == null) return null;
         rt.localBaseValues = GatherDiceForScope(SkillConditionScope.SlotBound, diceRig, start0, span);
+        rt.localNumericFlags = GatherNumericFlags(diceRig, start0, span);
         rt.localCritFlags = GatherCritFlags(diceRig, start0, span);
         rt.localFailFlags = GatherFailFlags(diceRig, start0, span);
-        GatherCritFailFlags(diceRig, owner, start0, span, out rt.localCritAny, out rt.localFailAny);
+        rt.localFailPenaltyFlags = GatherFailPenaltyFlags(diceRig, start0, span);
+        GatherCritFailFlags(diceRig, start0, span, out rt.localCritAny, out rt.localFailAny, out rt.localFailPenaltyAny);
 
         bool met = false;
 
@@ -110,6 +112,7 @@ public static class SkillRuntimeEvaluator
         {
             scope = scope,
             localBaseValues = GatherDiceForScope(scope, diceRig, gatherStart, gatherSpan),
+            localNumericFlags = GatherNumericFlags(diceRig, gatherStart, gatherSpan),
             localResolvedValues = GatherResolvedDiceForScope(diceRig, owner, gatherStart, gatherSpan, skillElement),
             localCritFlags = GatherCritFlags(diceRig, gatherStart, gatherSpan),
             localFailFlags = GatherFailFlags(diceRig, gatherStart, gatherSpan),
@@ -143,8 +146,8 @@ public static class SkillRuntimeEvaluator
         {
             case SkillConditionFamily.DiceParity:
                 return skill.diceParityConditionPreset == DiceParityConditionPreset.Even
-                    ? AllEven(context.localBaseValues)
-                    : AllOdd(context.localBaseValues);
+                    ? AllEven(context.localBaseValues, context.localNumericFlags)
+                    : AllOdd(context.localBaseValues, context.localNumericFlags);
 
             case SkillConditionFamily.CritFail:
                 return skill.critFailConditionPreset == CritFailConditionPreset.Crit
@@ -152,7 +155,7 @@ public static class SkillRuntimeEvaluator
                     : AllTrue(context.localFailFlags);
 
             case SkillConditionFamily.ExactValue:
-                return EvaluateExactBuilderCondition(skill, owner, diceRig, context.localBaseValues);
+                return EvaluateExactBuilderCondition(skill, owner, diceRig, context.localBaseValues, context.localNumericFlags);
 
             case SkillConditionFamily.LocalGroupRelation:
                 return EvaluateLocalGroupCondition(skill, context);
@@ -167,26 +170,26 @@ public static class SkillRuntimeEvaluator
         }
     }
 
-    private static bool EvaluateExactBuilderCondition(SkillDamageSO skill, CombatActor owner, DiceSlotRig diceRig, IReadOnlyList<int> localBaseValues)
+    private static bool EvaluateExactBuilderCondition(SkillDamageSO skill, CombatActor owner, DiceSlotRig diceRig, IReadOnlyList<int> localBaseValues, IReadOnlyList<bool> localNumericFlags)
     {
         switch (skill.exactConditionMode)
         {
             case SkillExactConditionMode.DieEqualsX:
-                return AllMatch(localBaseValues, skill.exactValueX);
+                return AllMatch(localBaseValues, localNumericFlags, skill.exactValueX);
 
             case SkillExactConditionMode.GroupContainsPattern:
-                return ContainsAnyPatternValue(localBaseValues, ParseExactPattern(skill.exactValuePattern, ownedOnly: false, diceRig: diceRig));
+                return ContainsAnyPatternValue(localBaseValues, localNumericFlags, ParseExactPattern(skill.exactValuePattern, ownedOnly: false, diceRig: diceRig));
 
             case SkillExactConditionMode.RandomExactNumberOwned:
             {
                 int target = GetOrCreateRandomExactValue(skill, owner, diceRig, ownedOnly: true, fallbackValue: skill.exactValueX);
-                return ContainsAnyPatternValue(localBaseValues, new List<int> { target });
+                return ContainsAnyPatternValue(localBaseValues, localNumericFlags, new List<int> { target });
             }
 
             case SkillExactConditionMode.RandomExactNumberRandom:
             {
                 int target = GetOrCreateRandomExactValue(skill, owner, diceRig, ownedOnly: false, fallbackValue: skill.exactValueX);
-                return ContainsAnyPatternValue(localBaseValues, new List<int> { target });
+                return ContainsAnyPatternValue(localBaseValues, localNumericFlags, new List<int> { target });
             }
 
             default:
@@ -280,13 +283,15 @@ public static class SkillRuntimeEvaluator
         return values;
     }
 
-    private static bool ContainsAnyPatternValue(IReadOnlyList<int> localBaseValues, List<int> patternValues)
+    private static bool ContainsAnyPatternValue(IReadOnlyList<int> localBaseValues, IReadOnlyList<bool> numericFlags, List<int> patternValues)
     {
         if (localBaseValues == null || localBaseValues.Count == 0 || patternValues == null || patternValues.Count == 0)
             return false;
 
         for (int i = 0; i < localBaseValues.Count; i++)
         {
+            if (!IsNumeric(numericFlags, i))
+                continue;
             if (patternValues.Contains(localBaseValues[i]))
                 return true;
         }
@@ -294,13 +299,15 @@ public static class SkillRuntimeEvaluator
         return false;
     }
 
-    private static bool AllMatch(IReadOnlyList<int> values, int target)
+    private static bool AllMatch(IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags, int target)
     {
         if (values == null || values.Count == 0)
             return false;
 
         for (int i = 0; i < values.Count; i++)
         {
+            if (!IsNumeric(numericFlags, i))
+                return false;
             if (values[i] != target)
                 return false;
         }
@@ -308,13 +315,15 @@ public static class SkillRuntimeEvaluator
         return true;
     }
 
-    private static bool AllEven(IReadOnlyList<int> values)
+    private static bool AllEven(IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags)
     {
         if (values == null || values.Count == 0)
             return false;
 
         for (int i = 0; i < values.Count; i++)
         {
+            if (!IsNumeric(numericFlags, i))
+                return false;
             if ((values[i] % 2) != 0)
                 return false;
         }
@@ -322,13 +331,15 @@ public static class SkillRuntimeEvaluator
         return true;
     }
 
-    private static bool AllOdd(IReadOnlyList<int> values)
+    private static bool AllOdd(IReadOnlyList<int> values, IReadOnlyList<bool> numericFlags)
     {
         if (values == null || values.Count == 0)
             return false;
 
         for (int i = 0; i < values.Count; i++)
         {
+            if (!IsNumeric(numericFlags, i))
+                return false;
             if ((values[i] % 2) == 0)
                 return false;
         }
@@ -404,6 +415,22 @@ public static class SkillRuntimeEvaluator
         return list;
     }
 
+    private static List<bool> GatherNumericFlags(DiceSlotRig diceRig, int start0, int span)
+    {
+        var list = new List<bool>(3);
+        if (diceRig == null)
+            return list;
+
+        for (int i = start0; i < start0 + span; i++)
+        {
+            if (i < 0 || i > 2) continue;
+            if (!diceRig.IsSlotActive(i)) continue;
+            list.Add(diceRig.IsNumericFaceForConditions(i));
+        }
+
+        return list;
+    }
+
     private static List<int> GatherResolvedDiceForScope(DiceSlotRig diceRig, CombatActor owner, int start0, int span, ElementType skillElement)
     {
         var list = new List<int>(3);
@@ -453,10 +480,27 @@ public static class SkillRuntimeEvaluator
         return list;
     }
 
-    private static void GatherCritFailFlags(DiceSlotRig diceRig, CombatActor owner, int start0, int span, out bool critAny, out bool failAny)
+    private static List<bool> GatherFailPenaltyFlags(DiceSlotRig diceRig, int start0, int span)
+    {
+        var list = new List<bool>(3);
+        if (diceRig == null)
+            return list;
+
+        for (int i = start0; i < start0 + span; i++)
+        {
+            if (i < 0 || i > 2) continue;
+            if (!diceRig.IsSlotActive(i)) continue;
+            list.Add(diceRig.AppliesFailPenalty(i));
+        }
+
+        return list;
+    }
+
+    private static void GatherCritFailFlags(DiceSlotRig diceRig, int start0, int span, out bool critAny, out bool failAny, out bool failPenaltyAny)
     {
         critAny = false;
         failAny = false;
+        failPenaltyAny = false;
 
         if (diceRig == null)
             return;
@@ -467,7 +511,13 @@ public static class SkillRuntimeEvaluator
             if (!diceRig.IsSlotActive(i)) continue;
             critAny |= diceRig.IsCrit(i);
             failAny |= diceRig.IsFail(i);
+            failPenaltyAny |= diceRig.AppliesFailPenalty(i);
         }
+    }
+
+    private static bool IsNumeric(IReadOnlyList<bool> numericFlags, int index)
+    {
+        return numericFlags == null || (index >= 0 && index < numericFlags.Count && numericFlags[index]);
     }
 
     private static void ApplyDamageOverrides(ref SkillRuntime rt, SkillDamageConditionalOverrides ov)
@@ -489,10 +539,10 @@ public static class SkillRuntimeEvaluator
             rt.element = (ElementType)(int)ov.element;
             rt.range = ov.range;
 
-            rt.hitAllEnemies = (ov.target == SkillTargetRule.AllEnemies || ov.target == SkillTargetRule.AllUnits);
-            rt.hitAllAllies = (ov.target == SkillTargetRule.AllAllies || ov.target == SkillTargetRule.AllUnits);
+            rt.hitAllEnemies = (ov.target == SkillTargetRule.RowEnemies || ov.target == SkillTargetRule.AllEnemies);
+            rt.hitAllAllies = (ov.target == SkillTargetRule.RowAllies || ov.target == SkillTargetRule.AllAllies);
 
-            rt.target = (ov.target == SkillTargetRule.SingleEnemy || ov.target == SkillTargetRule.AllEnemies || ov.target == SkillTargetRule.AllUnits)
+            rt.target = SkillTargetRuleUtility.IsEnemySideTarget(ov.target)
                 ? TargetRule.Enemy
                 : TargetRule.Self;
         }

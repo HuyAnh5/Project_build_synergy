@@ -266,7 +266,7 @@ Mark **không stack**.
 
 Nếu direct-hit **không phải Lightning** đánh vào mục tiêu đang có Mark:
 
-- gây thêm **`+4 direct damage`** lên chính mục tiêu đó.
+- gây thêm **`+3 direct damage`** lên chính mục tiêu đó.
 
 Ý nghĩa:
 
@@ -278,7 +278,7 @@ Nếu direct-hit **không phải Lightning** đánh vào mục tiêu đang có M
 Nếu direct-hit **là Lightning** đánh vào mục tiêu có Mark:
 
 - hit chính gây damage bình thường,
-- sau đó proc **`4 damage all enemies`**.
+- sau đó proc **`3 damage all enemies`**.
 
 Ý nghĩa:
 
@@ -454,7 +454,7 @@ Nhưng các vùng sau là **current locked rules**:
 
 - Burn là resource để consume, baseline `+2 mỗi stack`,
 - Freeze → Chilled, miễn Freeze khi đang Freeze/Chilled, Ice hit cho `+1 Focus +3 Guard`,
-- Mark không stack, non-Lightning direct-hit vào Mark = `+4 direct damage`, Lightning direct-hit vào Mark = `4 damage all enemies`,
+- Mark không stack, non-Lightning direct-hit vào Mark = `+3 direct damage`, Lightning direct-hit vào Mark = `3 damage all enemies`,
 - shock phụ không chain, không proc lại, không consume Mark,
 - Bleed đầu lượt, bypass Guard, giảm dần, current wording `-1 stack mỗi cuối lượt`,
 - ailment là enemy-side system với current context `100% chance` từ enemy lên player.

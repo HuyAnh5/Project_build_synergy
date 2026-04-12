@@ -81,25 +81,25 @@ Game không ưu tiên phục vụ nhóm người chơi muốn:
 
 ## Combat loop cốt lõi
 
-Core loop của từng lượt combat là:
+Core loop runtime hiện tại của từng lượt combat là:
 
-**Roll → Plan → Lock → Execute → Enemy Turn**
+**Roll Dice → Reorder nếu cần → Drag skill vào target để cast ngay → End Turn → Enemy Turn**
 
 ### 1. Roll
 
 Người chơi roll toàn bộ dice đang equip ở turn đó. Kết quả roll không chỉ quyết định damage mà còn quyết định điều kiện, payoff, parity, Crit/Fail, exact number và nhiều lớp ý nghĩa khác.
 
-### 2. Plan
+### 2. Reorder nếu cần
 
-Người chơi gán dice vào skill slot, chọn die nào đi với skill nào, và có thể reorder cặp hành động trong giai đoạn này. Đây là nơi chiến thuật thật sự diễn ra.
+Người chơi nhìn thứ tự dice hiện tại và có thể reorder trước khi dùng skill. Sequencing vẫn là phần chiến thuật thật, nhưng trọng tâm hiện tại là thứ tự consume dice thay vì gán tay từng die vào từng skill.
 
-### 3. Lock
+### 3. Drag skill vào target để cast ngay
 
-Người chơi xác nhận kế hoạch. Từ thời điểm này, họ không còn được thay đổi thứ tự hay assignment nữa. Ý nghĩa của bước này là buộc người chơi “sống với quyết định của mình” thay vì liên tục đảo bài đến khi ra đáp án tối ưu tuyệt đối.
+Người chơi kéo icon skill từ skill slot vào enemy hoặc vùng self-cast hợp lệ. Skill được cast ngay khi drop hợp lệ; không còn bước lock plan riêng.
 
-### 4. Execute
+### 4. End Turn
 
-Các action được resolve từ trái sang phải theo lane hiện tại. Thứ tự thực thi là một phần của sức mạnh build, không phải chi tiết phụ.
+Khi không muốn dùng thêm skill, người chơi bấm End Turn để chốt lượt. Dice đã dùng được xem là đã consume cho lượt đó.
 
 ### 5. Enemy Turn
 
@@ -224,7 +224,7 @@ Combat cần đơn giản ở bề mặt nhưng giàu quyết định ở bên t
 ### Cấu trúc loadout hiện tại
 
 - 6 skill slot
-- 3 passive slot
+- 1 passive slot
 - 1 đến 3 dice
 - Basic Attack và Basic Guard luôn tồn tại
 
@@ -518,3 +518,19 @@ Tóm lại, hướng đi đúng của game là:
 - lane order là sức mạnh,
 - build phải đổi cách chơi, không chỉ đổi con số,
 - độ sâu phải luôn đi kèm khả năng đọc và hiểu.
+
+---
+
+## Runtime Direction Note (2026-04)
+
+- Vision goc cua file nay van hop le.
+- De tranh hieu nham voi implementation hien tai:
+  - build runtime hien tai chi con `1 passive slot`
+  - combat runtime hien tai dang dung grammar moi theo huong PC-first:
+    - `roll dice`
+    - `reorder neu can`
+    - `drag skill tu skill slot vao target de cast ngay`
+    - `bam End Turn de sang enemy turn`
+  - roll dice chua bi doi trong batch thu nghiem nay
+  - dice da dung hien tai van dang duoc bieu dien bang state spent / dim 50%, chua consume bien mat that
+- Huong note / thay doi 2026 duoc ghi rieng o [COMBAT_CHANGES_2026.md](/C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Docs/Detail/COMBAT_CHANGES_2026.md).

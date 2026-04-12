@@ -3,7 +3,7 @@ using UnityEngine;
 public static class AttackPreviewCalculator
 {
     private const int DefaultBurnConsumeDamagePerStack = 2;
-    private const int MarkDirectBonusDamage = 4;
+    private const int MarkDirectBonusDamage = 3;
 
     public static SkillExecutor.AttackPreview BuildAttackPreview(SkillRuntime rt, CombatActor caster, CombatActor target, int dieValue)
     {
@@ -294,7 +294,7 @@ public static class AttackPreviewCalculator
     // the action only halves its base damage once.
     private static bool ShouldApplyFailPenaltyOnce(SkillRuntime rt)
     {
-        return rt != null && rt.localFailAny;
+        return rt != null && rt.localFailPenaltyAny;
     }
 
     private static int GetConditionalDamageBonus(SkillRuntime rt, int effectiveDieValue)

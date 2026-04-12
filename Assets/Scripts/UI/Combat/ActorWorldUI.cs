@@ -29,6 +29,13 @@ public class ActorWorldUI : MonoBehaviour
     public float statusFontSize = 3f;
     public float lineSpacing = 0.9f; // khoảng cách giữa các dòng
 
+    private EnemyBrainController _brain;
+    private int _lastHp = int.MinValue;
+    private int _lastMaxHp = int.MinValue;
+    private int _lastGuard = int.MinValue;
+    private string _lastStatusText = null;
+    private string _lastIntentText = null;
+
     public void Bind(CombatActor a)
     {
         actor = a;
@@ -41,6 +48,7 @@ public class ActorWorldUI : MonoBehaviour
         Transform anchor = actor.uiAnchor ? actor.uiAnchor : actor.transform;
         transform.SetParent(anchor, worldPositionStays: false);
         transform.localPosition = localOffset;
+        _brain = actor.GetComponent<EnemyBrainController>();
 
         DisableAllGraphicRaycasts();
         EnsureTextsExist_3D_TMP();
@@ -61,17 +69,40 @@ public class ActorWorldUI : MonoBehaviour
     {
         if (!actor) return;
 
-        if (hpText) hpText.text = $"{actor.hp}/{actor.maxHP}";
-        if (guardText) guardText.text = actor.guardPool > 0 ? $"Guard:{actor.guardPool}" : "Guard:0";
-        if (statusText) statusText.text = BuildStatusString(actor.status);
+        if (hpText && (_lastHp != actor.hp || _lastMaxHp != actor.maxHP))
+        {
+            _lastHp = actor.hp;
+            _lastMaxHp = actor.maxHP;
+            hpText.text = $"{actor.hp}/{actor.maxHP}";
+        }
 
-        var brain = actor.GetComponent<EnemyBrainController>();
+        if (guardText && _lastGuard != actor.guardPool)
+        {
+            _lastGuard = actor.guardPool;
+            guardText.text = actor.guardPool > 0 ? $"Guard:{actor.guardPool}" : "Guard:0";
+        }
+
+        if (statusText)
+        {
+            string nextStatus = BuildStatusString(actor.status);
+            if (_lastStatusText != nextStatus)
+            {
+                _lastStatusText = nextStatus;
+                statusText.text = nextStatus;
+            }
+        }
+
         if (intentText)
         {
-            if (brain != null && brain.CurrentIntent.hasIntent)
-                intentText.text = brain.CurrentIntent.previewText;
-            else
-                intentText.text = "";
+            string nextIntent = _brain != null && _brain.CurrentIntent.hasIntent
+                ? _brain.CurrentIntent.previewText
+                : string.Empty;
+
+            if (_lastIntentText != nextIntent)
+            {
+                _lastIntentText = nextIntent;
+                intentText.text = nextIntent;
+            }
         }
     }
 

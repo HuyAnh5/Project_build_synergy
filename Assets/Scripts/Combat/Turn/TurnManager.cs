@@ -47,6 +47,8 @@ public class TurnManager : MonoBehaviour
 
     private readonly SkillPlanBoard _board = new SkillPlanBoard();
     private int _cursor = 0;
+    private readonly HashSet<DiceSpinnerGeneric> _spentDiceThisTurn = new HashSet<DiceSpinnerGeneric>();
+    private bool _victoryResolvedThisCombat;
 
     void Start()
     {
@@ -77,7 +79,10 @@ public class TurnManager : MonoBehaviour
 
             // apply any slot debuff immediately (if combat starts with it)
             ApplyPlayerSlotDebuffs();
+            DiceCombatEnchantRuntimeUtility.BeginCombat(diceRig);
         }
+
+        _victoryResolvedThisCombat = false;
 
         if (logPhase)
         {
@@ -88,6 +93,7 @@ public class TurnManager : MonoBehaviour
         RefreshPlanningInteractivity();
         RefreshAllPreviews();
         UpdateAllIconsDim();
+        UpdateAllDiceDim();
         BeginNewPlayerTurn();
         EnsureAllEnemyIntentsNow();
     }
@@ -154,7 +160,7 @@ public class TurnManager : MonoBehaviour
     }
 
     public void ClearSlot(int slotIndex1Based)
-        => TurnManagerPlanningUtility.ClearSlot(IsPlanning, player, diceRig, _board, slotIndex1Based, RefreshAllPreviews, UpdateAllIconsDim);
+        => TurnManagerPlanningUtility.ClearSlot(IsPlanning, player, diceRig, _board, slotIndex1Based, RefreshAllViews, UpdateAllIconsDim);
 
     // ---------------------------
     // Equip APIs (Damage/BuffDebuff)
@@ -166,16 +172,68 @@ public class TurnManager : MonoBehaviour
         => TryAssignActiveSkillToSlot(slotIndex1Based, skill);
 
     private bool TryAssignActiveSkillToSlot(int slotIndex1Based, ScriptableObject activeSkill)
-        => TurnManagerPlanningUtility.TryAssignSkillToSlot(IsPlanning, player, diceRig, _board, slotIndex1Based, activeSkill, AreSlotsActiveInRange, RefreshAllPreviews, UpdateAllIconsDim, clearExistingGroups: true);
+        => TurnManagerPlanningUtility.TryAssignSkillToSlot(IsPlanning, player, diceRig, _board, slotIndex1Based, activeSkill, IsSlotAssignable0, AreSlotsActiveInRange, RefreshAllViews, UpdateAllIconsDim, clearExistingGroups: true);
 
     public bool TryAutoAssignFromClick(SkillDamageSO skill) => TryAutoAssignActiveFromClick(skill);
     public bool TryAutoAssignFromClick(SkillBuffDebuffSO skill) => TryAutoAssignActiveFromClick(skill);
 
     private bool TryAutoAssignActiveFromClick(ScriptableObject activeSkill)
-        => TurnManagerPlanningUtility.TryAutoAssignFromClick(IsPlanning, player, diceRig, _board, activeSkill, IsSlotActive0, AreSlotsActiveInRange, RefreshAllPreviews, UpdateAllIconsDim);
+        => TurnManagerPlanningUtility.TryAutoAssignFromClick(IsPlanning, player, diceRig, _board, activeSkill, IsSlotActive0, IsSlotAssignable0, AreSlotsActiveInRange, RefreshAllViews, UpdateAllIconsDim);
 
     public bool IsSkillEquipped(SkillDamageSO skill) => _board.IsSkillEquipped(skill);
     public bool IsSkillEquipped(SkillBuffDebuffSO skill) => _board.IsSkillEquipped(skill);
+
+    public bool CanPrototypeCastSkillNow(ScriptableObject activeSkill)
+    {
+        if (player == null || activeSkill == null)
+            return false;
+        if (activeSkill is SkillPassiveSO)
+            return false;
+        if (_board.IsSkillEquipped(activeSkill))
+            return false;
+
+        return TryResolvePrototypeCastPlacement(activeSkill, out _, out _, commit: false);
+    }
+
+    public bool TryCastDraggedSkillToTarget(ScriptableObject activeSkill, CombatActor clicked)
+    {
+        if (!IsPlanning || player == null || activeSkill == null || clicked == null)
+            return false;
+        if (activeSkill is SkillPassiveSO)
+            return false;
+        if (_board.IsSkillEquipped(activeSkill))
+            return false;
+
+        int span = GetSkillSpan(activeSkill);
+        if (span <= 0)
+            return false;
+
+        if (!TryResolvePrototypeCastPlacement(activeSkill, out _, out int anchor0, commit: true))
+        {
+            RefreshAllViews();
+            return false;
+        }
+
+        _cursor = anchor0;
+        if (!TryValidateTargetForPendingSkill(clicked, out _))
+        {
+            _board.ClearGroupAtAnchor(anchor0, player);
+            _board.RecalculateRuntimesAndRebalance(player, diceRig);
+            RefreshAllViews();
+            return false;
+        }
+
+        RefreshAllViews();
+        StartCoroutine(ExecuteCurrent(clicked));
+        return true;
+    }
+
+    public bool TryCastDraggedSkillToSelf(ScriptableObject activeSkill)
+    {
+        if (player == null)
+            return false;
+        return TryCastDraggedSkillToTarget(activeSkill, player);
+    }
 
     public bool CommitDiceLaneReorder(int[] permutation)
     {
@@ -185,13 +243,11 @@ public class TurnManager : MonoBehaviour
         if (!_board.TryApplyLanePermutation(permutation, player, diceRig))
         {
             _board.Restore(snap, player);
-            RefreshAllPreviews();
-            UpdateAllIconsDim();
+            RefreshAllViews();
             return false;
         }
 
-        RefreshAllPreviews();
-        UpdateAllIconsDim();
+        RefreshAllViews();
         return true;
     }
 
@@ -220,8 +276,7 @@ public class TurnManager : MonoBehaviour
     public void RefreshPlanningAfterDiceValueReorder()
     {
         _board.RecalculateRuntimesAndRebalance(player, diceRig);
-        RefreshAllPreviews();
-        UpdateAllIconsDim();
+        RefreshAllViews();
     }
 
     // ---------------------------
@@ -230,35 +285,24 @@ public class TurnManager : MonoBehaviour
     public void OnContinue()
     {
         if (!IsPlanning) return;
+        StartCoroutine(ContinueRoutine());
+    }
 
-        if (lockPlanningUIUntilRolled)
-            LockPlanningUI(true);
+    private IEnumerator ContinueRoutine()
+    {
+        if (TryHandleCombatVictory())
+            yield break;
 
-        _cursor = 0;
-        SkipEmptyOrNonAnchorForward();
-
-        if (logPhase)
-        {
-            var asset = (_cursor < 3) ? _board.GetCellSkillAsset(_cursor) : null;
-            var rt = (_cursor < 3) ? _board.GetAnchorRuntime(_cursor) : null;
-
-            Debug.Log($"[TM] Continue -> cursor={_cursor} asset={(asset ? asset.name : "NULL")} type={(asset ? asset.GetType().Name : "NULL")} rt.kind={(rt.kind)} rt.target={(rt.target)} span={_board.GetAnchorSpan(_cursor)} start0={_board.GetStartForAnchor(_cursor)}", this);
-        }
-
-        if (_cursor >= 3)
-        {
-            EndPlayerTurn_TickStatusesAndPassives();
-            StartCoroutine(EnemyTurnThenBeginNewPlayerTurn());
-            return;
-        }
-
-        SetPhase(Phase.AwaitTarget);
+        EndPlayerTurn_TickStatusesAndPassives();
+        yield return EnemyTurnThenBeginNewPlayerTurn();
     }
 
 
     private IEnumerator EnemyTurnThenBeginNewPlayerTurn()
     {
         yield return EnemyTurnRoutine();
+        if (TryHandleCombatVictory())
+            yield break;
         BeginNewPlayerTurn();
     }
 
@@ -267,7 +311,16 @@ public class TurnManager : MonoBehaviour
         if (logPhase)
             Debug.Log($"[TM] OnTargetClicked phase={phase} cursor={_cursor} clicked={(clicked ? clicked.name : "NULL")}", this);
 
-        if (phase != Phase.AwaitTarget) return;
+        if (phase == Phase.Planning)
+        {
+            _cursor = FindNextExecutableAnchor();
+            if (_cursor < 0)
+                return;
+        }
+        else if (phase != Phase.AwaitTarget)
+        {
+            return;
+        }
 
         if (!TryValidateTargetForPendingSkill(clicked, out string reason))
         {
@@ -293,14 +346,14 @@ public class TurnManager : MonoBehaviour
         if (rt == null)
         {
             Debug.LogError($"[TM] AnchorRuntime NULL at cursor={_cursor}, asset={(asset ? asset.name : "NULL")}.", this);
-            SetPhase(Phase.AwaitTarget);
+            SetPhase(Phase.Planning);
             yield break;
         }
 
         if (executor == null)
         {
             Debug.LogError("[TM] Missing SkillExecutor reference!", this);
-            SetPhase(Phase.AwaitTarget);
+            SetPhase(Phase.Planning);
             yield break;
         }
 
@@ -317,15 +370,15 @@ public class TurnManager : MonoBehaviour
             Debug.Log($"[TM] Execute cursor={_cursor} asset={(asset ? asset.name : "NULL")} type={(asset ? asset.GetType().Name : "NULL")} rt.kind={rt.kind} rt.target={rt.target} span={span} start0={start0} rawSum={rawSum} resolvedSum={resolvedSum} maxFace={maxFace} playerFocus={(player ? player.focus : -999)}", this);
         }
 
+        MarkDiceSpentInRange(start0, span);
         _board.ConsumeGroupAtAnchor_NoRefund(_cursor);
-        RefreshAllPreviews();
-        UpdateAllIconsDim();
+        RefreshAllViews();
 
         // ✅ ROUTE: BuffDebuff phải gọi overload SkillBuffDebuffSO, runtime Utility không làm gì
         if (asset is SkillBuffDebuffSO buffSkill)
         {
-            var aoeTargets = (buffSkill.target == SkillTargetRule.AllEnemies || buffSkill.target == SkillTargetRule.AllUnits)
-                ? TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, enemy)
+            var aoeTargets = SkillTargetRuleUtility.IsMultiTarget(buffSkill.target)
+                ? TurnManagerCombatUtility.ResolveTargets(buffSkill.target, player, clicked, party, enemy)
                 : null;
 
             if (logPhase)
@@ -335,7 +388,7 @@ public class TurnManager : MonoBehaviour
         }
         else
         {
-            var aoeTargets = TurnManagerCombatUtility.ResolveAoeTargets(rt, party, enemy);
+            var aoeTargets = TurnManagerCombatUtility.ResolveAoeTargets(rt, player, clicked, party, enemy);
 
             if (logPhase)
                 Debug.Log($"[TM] Branch=Runtime (Attack/Guard/Legacy) -> rt.kind={rt.kind}", this);
@@ -350,20 +403,13 @@ public class TurnManager : MonoBehaviour
             }
         }
 
-        _cursor++;
-        SkipEmptyOrNonAnchorForward();
-
-        if (_cursor >= 3)
-        {
-            if (logPhase) Debug.Log("[TM] Player actions done -> EnemyTurn", this);
-
-            EndPlayerTurn_TickStatusesAndPassives();
-            yield return EnemyTurnRoutine();
-            BeginNewPlayerTurn();
+        if (TryHandleCombatVictory())
             yield break;
-        }
 
-        SetPhase(Phase.AwaitTarget);
+        _cursor = FindNextExecutableAnchor();
+        SetPhase(Phase.Planning);
+        RefreshAllViews();
+        RefreshPlanningInteractivity();
     }
 
     private IEnumerator EnemyTurnRoutine()
@@ -450,26 +496,24 @@ public class TurnManager : MonoBehaviour
                                         clicked = e; // fallback
                                     break;
 
+                                case SkillTargetRule.RowEnemies:
+                                    aoe = TurnManagerCombatUtility.ResolveTargets(move.buffDebuffSkill.target, e, player, party, enemy);
+                                    clicked = player;
+                                    break;
+
                                 case SkillTargetRule.AllEnemies:
-                                    aoe = party != null ? party.GetAliveAllies(includePlayer: true) : null;
+                                    aoe = TurnManagerCombatUtility.ResolveTargets(move.buffDebuffSkill.target, e, player, party, enemy);
                                     clicked = (aoe != null && aoe.Count > 0) ? aoe[0] : player;
                                     break;
 
-                                case SkillTargetRule.AllAllies:
-                                    aoe = party != null ? party.GetAliveEnemies(frontOnly: false) : null;
+                                case SkillTargetRule.RowAllies:
                                     clicked = e;
+                                    aoe = TurnManagerCombatUtility.ResolveTargets(move.buffDebuffSkill.target, e, clicked, party, enemy);
                                     break;
 
-                                case SkillTargetRule.AllUnits:
-                                    if (party != null)
-                                    {
-                                        var tmp = new List<CombatActor>();
-                                        tmp.AddRange(party.GetAliveAllies(includePlayer: true));
-                                        tmp.AddRange(party.GetAliveEnemies(frontOnly: false));
-                                        aoe = tmp;
-                                        clicked = (aoe.Count > 0) ? aoe[0] : player;
-                                    }
-                                    else clicked = player;
+                                case SkillTargetRule.AllAllies:
+                                    aoe = TurnManagerCombatUtility.ResolveTargets(move.buffDebuffSkill.target, e, e, party, enemy);
+                                    clicked = e;
                                     break;
                             }
 
@@ -494,16 +538,27 @@ public class TurnManager : MonoBehaviour
                         {
                             // resolve target cho damage
                             CombatActor target = null;
+                            IReadOnlyList<CombatActor> aoe = null;
                             switch (move.damageSkill.target)
                             {
                                 case SkillTargetRule.Self: target = e; break;
                                 case SkillTargetRule.SingleEnemy: target = player; break;
                                 case SkillTargetRule.SingleAlly: target = e; break; // damage hiếm khi dùng
+                                case SkillTargetRule.RowEnemies:
+                                case SkillTargetRule.AllEnemies:
+                                    target = player;
+                                    aoe = TurnManagerCombatUtility.ResolveTargets(move.damageSkill.target, e, target, party, enemy);
+                                    break;
+                                case SkillTargetRule.RowAllies:
+                                case SkillTargetRule.AllAllies:
+                                    target = e;
+                                    aoe = TurnManagerCombatUtility.ResolveTargets(move.damageSkill.target, e, target, party, enemy);
+                                    break;
                                 default: target = player; break;
                             }
 
                             if (target != null)
-                                yield return executor.ExecuteSkill(move.damageSkill, e, target, dieValue: 3, skipCost: true);
+                                yield return executor.ExecuteSkill(move.damageSkill, e, target, dieValue: 3, skipCost: true, aoeTargets: aoe);
                         }
 
                         // consume intent + tick cooldown turn (tối thiểu để cooldown hoạt động)
@@ -554,9 +609,8 @@ public class TurnManager : MonoBehaviour
             playerSkillState.BeginPlayerTurn();
         TurnManagerLifecycleUtility.BeginPlayerTurnStatusesAndFocus(player, logPhase, this);
 
+        _spentDiceThisTurn.Clear();
         _board.Reset();
-        RefreshAllPreviews();
-        UpdateAllIconsDim();
 
         if (diceRig != null)
         {
@@ -565,6 +619,7 @@ public class TurnManager : MonoBehaviour
             diceRig.BeginNewTurn();
         }
 
+        RefreshAllViews();
         RefreshPlanningInteractivity();
         LockPlanningUI(false);
 
@@ -577,6 +632,17 @@ public class TurnManager : MonoBehaviour
 
     // -------- helpers --------
     private bool IsSlotActive0(int i0) => diceRig == null || diceRig.IsSlotActive(i0);
+
+    private bool IsSlotAssignable0(int i0)
+    {
+        if (!IsSlotActive0(i0))
+            return false;
+        if (diceRig == null || diceRig.slots == null || i0 < 0 || i0 >= diceRig.slots.Length || diceRig.slots[i0] == null)
+            return true;
+
+        DiceSpinnerGeneric die = diceRig.slots[i0].dice;
+        return die == null || !_spentDiceThisTurn.Contains(die);
+    }
 
     private bool AreSlotsActiveInRange(int start0, int span)
     {
@@ -598,17 +664,29 @@ public class TurnManager : MonoBehaviour
         => TurnManagerViewUtility.RefreshAllPreviews(_drops, _board);
 
     private void UpdateAllIconsDim()
-        => TurnManagerViewUtility.UpdateAllIconsDim(_board);
+        => TurnManagerViewUtility.UpdateAllIconsDim(_board, this);
+
+    private void UpdateAllDiceDim()
+        => TurnManagerViewUtility.UpdateAllDiceDim(this);
+
+    private void RefreshAllViews()
+    {
+        RefreshAllPreviews();
+        UpdateAllIconsDim();
+        UpdateAllDiceDim();
+    }
 
 
     private void OnDiceRolled()
     {
+        DiceCombatEnchantRuntimeUtility.ResolveOnRollFaceEnchants(diceRig, player, party, enemy);
+
         PassiveSystem ps = player != null ? player.GetComponent<PassiveSystem>() : null;
         if (ps != null)
             ps.OnDiceRolled(player, diceRig);
 
         _board.RecalculateRuntimesAndRebalance(player, diceRig);
-        RefreshAllPreviews();
+        RefreshAllViews();
         RefreshPlanningInteractivity();
     }
 
@@ -717,6 +795,17 @@ public class TurnManager : MonoBehaviour
         return TurnManagerTargetingUtility.TryValidateTargetForPendingSkill(rt, clicked, player, party, enemy, out reason);
     }
 
+    private int FindNextExecutableAnchor()
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            if (_board.IsAnchorSlot(i))
+                return i;
+        }
+
+        return -1;
+    }
+
     private ElementType GetResolvedDiceElement(SkillRuntime rt, ScriptableObject asset)
     {
         if (rt != null && rt.kind == SkillKind.Attack)
@@ -730,6 +819,59 @@ public class TurnManager : MonoBehaviour
 
     private int ComputeMaxFace(int start0, int span)
         => TurnManagerCombatUtility.ComputeMaxFace(diceRig, start0, span);
+
+    private static int GetSkillSpan(ScriptableObject activeSkill)
+    {
+        switch (activeSkill)
+        {
+            case SkillDamageSO damage:
+                return Mathf.Clamp(damage.slotsRequired, 1, 3);
+            case SkillBuffDebuffSO buffDebuff:
+                return Mathf.Clamp(buffDebuff.slotsRequired, 1, 3);
+            default:
+                return 0;
+        }
+    }
+
+    private void MarkDiceSpentInRange(int start0, int span)
+    {
+        if (diceRig == null || diceRig.slots == null)
+            return;
+
+        for (int i = start0; i < start0 + span && i < diceRig.slots.Length; i++)
+        {
+            DiceSpinnerGeneric die = diceRig.slots[i] != null ? diceRig.slots[i].dice : null;
+            if (die != null)
+            {
+                _spentDiceThisTurn.Add(die);
+                DiceCombatEnchantRuntimeUtility.MarkDieUsedInCombat(die);
+            }
+        }
+    }
+
+    private bool TryHandleCombatVictory()
+    {
+        if (_victoryResolvedThisCombat)
+            return true;
+
+        if (!IsCombatWon())
+            return false;
+
+        _victoryResolvedThisCombat = true;
+
+        if (diceRig != null)
+            DiceCombatEnchantRuntimeUtility.ApplyVictoryWholeDieEffects(diceRig);
+
+        SetPhase(Phase.Planning);
+        RefreshAllViews();
+        RefreshPlanningInteractivity();
+        return true;
+    }
+
+    private bool IsCombatWon()
+    {
+        return TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, enemy).Count <= 0;
+    }
 
 
 
@@ -748,6 +890,40 @@ public class TurnManager : MonoBehaviour
         if (rt == null)
             return false;
         return rt.coreAction == CoreAction.BasicStrike;
+    }
+
+    public bool IsDieSpentThisTurn(DiceSpinnerGeneric die)
+        => die != null && _spentDiceThisTurn.Contains(die);
+
+    private bool TryResolvePrototypeCastPlacement(ScriptableObject activeSkill, out int start0, out int anchor0, bool commit)
+    {
+        start0 = -1;
+        anchor0 = -1;
+
+        int span = GetSkillSpan(activeSkill);
+        if (span <= 0)
+            return false;
+
+        if (!_board.TryFindEmptyPlacement(span, IsSlotAssignable0, out start0, out anchor0))
+            return false;
+        if (!AreSlotsActiveInRange(start0, span))
+            return false;
+        if (diceRig != null && !diceRig.CanFitAtDrop(start0, span))
+            return false;
+
+        var snap = _board.Capture(player);
+        _board.PlaceGroup(start0, anchor0, span, activeSkill);
+        bool ok = _board.RecalculateRuntimesAndRebalance(player, diceRig);
+        if (!ok)
+        {
+            _board.Restore(snap, player);
+            return false;
+        }
+
+        if (!commit)
+            _board.Restore(snap, player);
+
+        return true;
     }
 
 }

@@ -1,39 +1,33 @@
-# Unity generated folders
-[Ll]ibrary/
-[Tt]emp/
-[Oo]bj/
-[Bb]uild/
-[Bb]uilds/
-[Ll]ogs/
-[Mm]emoryCaptures/
-[Mm]emoryCaptures/
-UserSettings/
+# Bỏ qua file siêu rác về mặt số lượng (Cực kỳ quan trọng để giảm tải)
+*.meta
 
-# Visual Studio / Rider / IDE
-.vs/
-.vscode/
-.idea/
-*.user
-*.userprefs
-*.sln*
-*.csproj
-*.pidb
-*.booproj
-*.svd
+# Bỏ qua các file dữ liệu Unity (AI không cần đọc kiến trúc giao diện/scene)
+*.prefab
+*.unity
+*.asset
+*.mat
+*.anim
+*.controller
+*.overrideController
+*.physicMaterial
+*.physicsMaterial2D
+*.mixer
+*.spriteatlas
 
-# OS junk
-.DS_Store
-Thumbs.db
-
-# Crash / debug
-sysinfo.txt
-*.stacktrace
-
-# Builds
-[Bb]uilds*/
-*.apk
-*.aab
-*.app
-*.exe
-*.zip
-*.unitypackage
+# Bỏ qua các file Media (Đồ họa, Âm thanh, 3D Model, Font)
+*.png
+*.jpg
+*.jpeg
+*.tga
+*.psd
+*.exr
+*.gif
+*.wav
+*.mp3
+*.ogg
+*.fbx
+*.obj
+*.blend
+*.dae
+*.ttf
+*.otf

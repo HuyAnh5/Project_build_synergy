@@ -32,11 +32,11 @@ MonoBehaviour:
   physicalBehaviorId: 0
   kind: 0
   coreAction: 0
-  target: 1
+  target: 3
   group: 2
   element: 1
   range: 1
-  hitAllEnemies: 0
+  hitAllEnemies: 1
   hitAllAllies: 0
   slotsRequired: 2
   hasCondition: 0
@@ -88,7 +88,7 @@ MonoBehaviour:
     sunderGuardDamageMultiplier: 2
     overrideGuard: 0
     guardValueMode: 1
-    guardDieMultiplier: 1
+    legacyGuardDieMultiplier: 1
     guardFlat: 0
     overrideSpecialCombat: 0
     bypassGuard: 0
@@ -128,7 +128,7 @@ MonoBehaviour:
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
   guardValueMode: 1
-  guardDieMultiplier: 0
+  legacyGuardDieMultiplier: 0
   guardFlat: 0
   bypassGuard: 0
   clearsGuard: 0

@@ -5,7 +5,7 @@ using DG.Tweening;
 
 public class SkillExecutor : MonoBehaviour
 {
-    private const int LightningMarkShockDamage = 4;
+    private BattlePartyManager2D _cachedParty;
 
     internal struct AttackApplyResult
     {
@@ -50,10 +50,25 @@ public class SkillExecutor : MonoBehaviour
         return damagePopups;
     }
 
+    private BattlePartyManager2D GetParty()
+    {
+        if (_cachedParty != null)
+            return _cachedParty;
+
+        _cachedParty = FindObjectOfType<BattlePartyManager2D>(true);
+        return _cachedParty;
+    }
+
     public IEnumerator ExecuteSkill(SkillDamageSO skill, CombatActor caster, CombatActor target, int dieValue, bool skipCost = false)
     {
         var rt = SkillRuntime.FromDamage(skill);
         yield return ExecuteSkill(rt, caster, target, dieValue, skipCost);
+    }
+
+    public IEnumerator ExecuteSkill(SkillDamageSO skill, CombatActor caster, CombatActor target, int dieValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null)
+    {
+        var rt = SkillRuntime.FromDamage(skill);
+        yield return ExecuteSkill(rt, caster, target, dieValue, skipCost, aoeTargets);
     }
 
     // NEW: SkillBuffDebuffSO execution (applies via StatusController)
@@ -81,9 +96,10 @@ public class SkillExecutor : MonoBehaviour
                 targets.Add(caster);
                 break;
 
+            case SkillTargetRule.RowEnemies:
+            case SkillTargetRule.RowAllies:
             case SkillTargetRule.AllEnemies:
             case SkillTargetRule.AllAllies:
-            case SkillTargetRule.AllUnits:
                 if (aoeTargets != null) targets.AddRange(aoeTargets);
                 else if (clickedTarget != null) targets.Add(clickedTarget);
                 break;
@@ -147,7 +163,7 @@ public class SkillExecutor : MonoBehaviour
 
         bool wantsAoe =
             rt.kind == SkillKind.Attack &&
-            ((rt.useV2Targeting && (rt.targetRuleV2 == SkillTargetRule.AllEnemies || rt.targetRuleV2 == SkillTargetRule.AllAllies || rt.targetRuleV2 == SkillTargetRule.AllUnits))
+            ((rt.useV2Targeting && SkillTargetRuleUtility.IsMultiTarget(rt.targetRuleV2))
              || (!rt.useV2Targeting && (rt.hitAllEnemies || rt.hitAllAllies)));
 
         bool useAoe = wantsAoe && aoeTargets != null && aoeTargets.Count > 0;
@@ -383,10 +399,20 @@ public class SkillExecutor : MonoBehaviour
         if (caster == null || damage <= 0) return;
 
         var popups = GetPopups();
-        var allActors = FindObjectsOfType<CombatActor>(true);
-        for (int i = 0; i < allActors.Length; i++)
+        BattlePartyManager2D party = GetParty();
+        if (party == null)
+            return;
+
+        IReadOnlyList<CombatActor> targets = caster.team == CombatActor.TeamSide.Enemy
+            ? party.GetAliveAllies(includePlayer: true)
+            : party.Enemies;
+
+        if (targets == null)
+            return;
+
+        for (int i = 0; i < targets.Count; i++)
         {
-            var t = allActors[i];
+            var t = targets[i];
             if (t == null || t.IsDead) continue;
             if (t == caster) continue;
             if (t.team == caster.team) continue;

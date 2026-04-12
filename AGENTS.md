@@ -68,7 +68,7 @@ Game xoay quanh 5 trụ chính: dice, skill slot, passive, status/payoff, lane o
 ### 4.1 Những gì player có trong combat
 
 - **6 skill slot**
-- **3 passive slot**
+- **1 passive slot**
 - **1 đến 3 dice** (đầu run = 1 dice)
 
 Số dice equip = số action groups mỗi turn.
@@ -95,7 +95,7 @@ Vai trò: luôn cho player lựa chọn hợp lệ khi roll xấu hoặc thiếu
 ### 4.4 Loadout ngoài combat
 
 - 6 skill slot: swap tự do ngoài combat, mua ở shop, bán ngoài combat.
-- 3 passive slot: swap tự do ngoài combat.
+- 1 passive slot: swap tự do ngoài combat.
 - 1-3 dice slot: số dice equip = số action/turn.
 - Basic Attack + Basic Guard luôn tồn tại, không thể bỏ.
 
@@ -217,8 +217,8 @@ Burn **không phải DoT chính**. Burn là **tài nguyên để consume**.
 
 Mark là weak point để direct-hit khai thác. Mark **không stack**.
 
-- **Non-Lightning hit vào Mark**: +4 direct damage lên chính mục tiêu đó
-- **Lightning hit vào Mark**: hit chính damage bình thường → proc **4 damage all enemies**
+- **Non-Lightning hit vào Mark**: +3 direct damage lên chính mục tiêu đó
+- **Lightning hit vào Mark**: hit chính damage bình thường → proc **3 damage all enemies**
 - Shock phụ của Lightning: không cộng Added Value, không tiêu Mark, không proc Mark, không chain tiếp
 - AoE Lightning hit nhiều target có Mark → mỗi target tạo 1 shock proc, chạy tuần tự, cách nhau 0.2s
 
@@ -251,6 +251,35 @@ Ailment hiện được xem là **enemy-side system**.
 
 ---
 
+## 10.1 Row / Target taxonomy note
+
+`Row` và `target tag` là lớp gameplay thật, không phải chỉ để UI tô sáng.
+
+Target taxonomy đang dùng:
+
+- `Self`
+- `Single Enemy`
+- `Single Ally`
+- `Row Enemies`
+- `Row Allies`
+- `All Enemies`
+- `All Allies`
+
+Rule đọc:
+
+- `Row Enemies` / `Row Allies` = đúng 1 row
+- `All Enemies` / `All Allies` = toàn phe đó
+- `Strike / Range` là lớp riêng, quyết định target có bị front row chặn hay không
+
+Lưu ý gameplay rất quan trọng:
+
+- row của player hiện cũng là combat state thật
+- skill/passive có thể check player đang ở `Front Row` hay `Back Row`
+- enemy move / boss move cũng có thể đọc row này
+- player cũng phải thấy khi enemy đang chuẩn bị đòn nhắm `Front Row` hoặc `Back Row`
+
+---
+
 ## 11. Relic / Consumable System
 
 - Player có **3 relic slot**
@@ -258,9 +287,77 @@ Ailment hiện được xem là **enemy-side system**.
 - Pool relic lớn là chủ đích — tìm đúng relic cần là chuyện khó (giống Balatro tarot)
 - Drop thường xuyên từ enemy hoặc passive/skill
 
+Pool hiện tại đã chốt ở mức framework:
+
+- **22 consumable**
+- chia thành **11 Zodiac / 5 Seals / 6 Runes**
+- tất cả dùng chung **3 shared slot**
+
 **Type A — dùng trong combat**: quick action, không chiếm dice slot, có thể cần chọn target.
 
-**Type B — chỉnh dice ngoài combat**: forge +/- pip, move pip, copy face value, tăng base 1 mặt.
+**Type B — chỉnh dice ngoài combat**: sculpt dice, copy/paste face, gắn enchant, chỉnh Base/Added theo đúng rule của Zodiac.
+
+### 11.1 Zodiac — 11 cái
+
+- `Adjust Face (+)`: chọn `1-3 mặt` trên cùng `1 dice`, tất cả `+1 Base`, permanent
+- `Adjust Face (-)`: chọn `1-3 mặt` trên cùng `1 dice`, tất cả `-1 Base`, permanent
+- `Copy / Paste Face`: copy `Base + Added + enchant` từ `1 mặt nguồn` sang `1 mặt đích`, permanent
+- `Double Value`: chọn `1 dice`, trong turn đó **mặt thực tế được roll ra** nhận nhân đôi `Base + Added`
+- `Value +N`: hiện tại `N = 3`, thêm `+3 Added Value` lên `1-2 mặt`, permanent
+- `Guard Boost`: gắn enchant lên `1-2 mặt`, permanent
+- `Gold Proc`: gắn enchant lên `1-2 mặt`, permanent
+- `Fire`: gắn enchant lên `1-2 mặt`, permanent
+- `Ice`: gắn enchant lên `1-2 mặt`, permanent
+- `Bleed`: gắn enchant lên `1-2 mặt`, permanent
+- `Lightning`: gắn enchant lên `1-2 mặt`, permanent
+
+### 11.2 Seals — 5 cái
+
+- `Ignite Spread` (Fire): dàn Burn từ `1 mục tiêu` sang các mục tiêu khác
+- `Cryostasis` (Ice): đòn đánh tiếp theo vào player gây `0 damage`, kẻ gây damage bị `Freeze 1 lượt`
+- `Exploit Mark` (Mark): mỗi `Mark` trên enemy tạo `1 consumable`, tối đa `4`
+- `Exsanguinate` (Bleed): tiêu Bleed trên `1 mục tiêu` để hồi HP bằng lượng Bleed đã tiêu
+- `Final Verdict` (Physical): gây `20 damage` thuần lên `1 mục tiêu`
+
+### 11.3 Runes — 6 cái
+
+- `Restore Focus`: `+3 Focus`
+- `Heal`: `+8 HP`
+- `Cheat Death`: dùng chủ động để hồi `4 HP`; nếu giữ tới lúc chết thì tự vỡ và cứu player ở `1 HP`
+- `Double Gold`: nhân đôi `Gold hiện có`, lượng tăng thêm tối đa `+30`
+- `Create Last Used`: tạo lại loại consumable vừa dùng gần nhất
+- `Cleanse`: xóa tất cả hiệu ứng bất lợi hiện có trên player
+
+### 11.4 Enchant pool hiện tại
+
+Enchant pool lấy từ Zodiac và hiện có 7 loại:
+
+- `Value +N`
+- `Guard Boost`
+- `Gold Proc`
+- `Fire`
+- `Bleed`
+- `Lightning`
+- `Ice`
+
+4 trục hiện tại của face enchant:
+
+- `Value` = số: `Value +N`
+- `Resource` = tài nguyên: `Guard Boost`, `Gold Proc`
+- `Seed` = áp status: `Fire`, `Bleed`
+- `Rewrite` = đổi identity của mặt: `Lightning`, `Ice`
+
+Rule runtime mong muốn hiện tại:
+
+- enchant gắn `1-2 mặt`, permanent
+- enchant trigger **ngay khi face roll ra**
+- enchant **độc lập hoàn toàn với skill**
+- face không có skill vẫn trigger enchant
+- face có skill thì enchant trigger riêng, không chờ skill
+- enchant mới ghi đè enchant cũ trên mặt đó
+- `Fire / Bleed` target random trong `all alive enemies`
+- `Lightning` không áp status; nó rewrite cách mặt dice được đọc cho condition
+- `Ice` là enchant kiểu stone-like: luôn cho `+5 Added Value`, nhưng không còn là mặt số bình thường
 
 ---
 
@@ -317,6 +414,41 @@ Ví dụ định hướng:
 - Balatro tương đương: Brainstorm yêu cầu bỏ 1 Royal Flush để unlock
 
 Unlock condition chưa được thiết kế đầy đủ cho toàn bộ skill pool — đây là phần còn mở.
+
+## 14.1 Map Structure Note
+
+Map hiện tại đi theo hướng:
+
+- mỗi act là một `node graph` đi từ `đáy lên đỉnh` như STS
+- player bắt đầu ở `Start / Hub / Forge` ở đáy map
+- `Boss` luôn nằm sẵn ở đỉnh map
+- player có thể đi nhanh lên boss hoặc backtrack trong phần đường đã mở để tối ưu tài nguyên trong act hiện tại
+
+Các loại node hiện tại:
+
+| Node | Icon | Vai trò ngắn |
+|---|---|---|
+| Combat | 💀 | encounter thường |
+| Elite | ☠️ | encounter khó hơn, reward cao hơn |
+| Event | 📜 | event ngắn, quyết định nhanh |
+| Shop | 🛒 | mua `skill / relic / consumable / dice`, và mua `Boss Intel` đúng `1 lần` |
+| Rest | 🛏️ | hồi phục |
+| Hub / Forge | 🔨 | điểm xuất phát ở đáy act, forge `whole-die tag / màu` cho dice bằng `gem` |
+| Boss | 👹 | final boss của act |
+
+Rule map rất quan trọng:
+
+- `Hub / Forge` và `Shop` là 2 node khác nhau
+- node đã clear / đã mở đường sẽ thành `hình tròn rỗng`, đi qua chỉ là di chuyển
+- backtrack chỉ trong `act hiện tại`
+- boss luôn nhìn thấy trên map, nhưng `Boss Intel` quyết định player có biết boss đó là ai hay không
+- `3/3 intel` chỉ để reveal boss identity, không khóa quyền vào đánh boss
+- kể cả `0/3 intel` vẫn có thể đi đánh boss nếu đi tới được
+- intel hiện đến từ `Combat / Elite / Event`, và `Shop` có thể bán `1 lần`
+- lần 1, 2, 3 gặp boss đó vẫn theo rule đầy đủ; từ lần 4 trở đi chỉ cần `1/3 intel`
+- player có thể chạy khỏi combat nếu roll đạt điều kiện chạy; điều kiện cụ thể chưa chốt
+- nếu player chạy thì node chưa tính thắng và quay lại enemy full HP
+- nếu enemy tự chạy thì vẫn tính là player thắng, có reward, và lần gặp lại encounter mạnh hơn / reward cao hơn
 
 ---
 
@@ -577,10 +709,11 @@ Nếu vượt khỏi khung đó, mới cho phép thêm custom code.
 
 ### Ember Weapon [Status / Buff] — 1 slot, 2 Focus, Uncommon
 
-Trong **3 turn tiếp theo**, Basic Attack gây thêm **+1 damage** và áp **Burn = tổng damage gây ra**.
+Trong **3 turn tiếp theo**, Basic Attack gây thêm **+1 damage**. Nếu đòn Basic Attack đó **Crit** thì áp **Burn = tổng damage gây ra**.
 
-> Basic Attack base 4 dmg → với Ember Weapon = 5 dmg, áp 5 Burn/hit
-> Với Elemental Catalyst passive → 6 Burn/hit
+> Basic Attack base 4 dmg → với Ember Weapon = 5 dmg
+> Nếu hit đó Crit và gây 5 total damage → áp 5 Burn
+> Với Elemental Catalyst passive → thành 6 Burn
 
 ---
 
@@ -735,8 +868,8 @@ Dice Forging → Basic Attack mỗi combat → mặt specific tăng base vĩnh v
 ## 22. Kết luận thực dụng
 
 1. Đây là **dice-driven tactical roguelike**, dice là trung tâm.
-2. Core loop: **Roll → Plan → Lock → Execute → Enemy turn**.
-3. Player có **6 skill slot, 3 passive slot, 1-3 dice, Focus economy rõ ràng**.
+2. Core loop runtime hiện tại: **Roll Dice → Reorder nếu cần → Drag skill vào target để cast ngay → End Turn → Enemy turn**.
+3. Player có **6 skill slot, 1 passive slot, 1-3 dice, Focus economy rõ ràng**.
 4. **Base Value** quyết định condition; **Added Value** chỉ tăng output.
 5. Crit/Fail, exact value, parity, threshold đều là **trục build thật**.
 6. 5 hệ: **Physical, Fire, Ice, Lightning, Bleed**. 4 effect cốt lõi: **Burn, Freeze/Chilled, Mark, Bleed**.

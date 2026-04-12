@@ -304,3 +304,17 @@ Nhưng các phần sau là direction mạnh / đã chốt:
 - UI phải làm lane order, Focus, Guard, Stagger, status và intent đọc được rõ,
 - clarity quan trọng hơn flashy,
 - complexity được chấp nhận ở design; opacity không được chấp nhận ở UX.
+
+---
+
+## Runtime Note (2026-04)
+
+- UX/runtime combat hien tai dang dung grammar:
+  - `roll dice`
+  - `reorder neu can`
+  - `drag skill icon tu skill slot vao enemy de cast truc tiep`
+  - `bam End Turn`
+- Co `SelfCastDropZone` rieng cho skill target = self.
+- Roll dice van giu nguyen.
+- Dice da dung tam thoi van dim 50%, chua bien mat that.
+- Neu can huong design tiep theo, xem [COMBAT_CHANGES_2026.md](/C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Docs/Detail/COMBAT_CHANGES_2026.md).

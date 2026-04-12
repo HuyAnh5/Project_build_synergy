@@ -16,11 +16,12 @@ public static class SkillTargetResolver
                 case SkillTargetRule.SingleAlly:
                     return clicked != null ? clicked : caster;
 
+                case SkillTargetRule.RowAllies:
                 case SkillTargetRule.AllAllies:
                     return caster;
 
+                case SkillTargetRule.RowEnemies:
                 case SkillTargetRule.AllEnemies:
-                case SkillTargetRule.AllUnits:
                     if (clicked != null) return clicked;
                     if (aoeTargets != null && aoeTargets.Count > 0) return aoeTargets[0];
                     return null;

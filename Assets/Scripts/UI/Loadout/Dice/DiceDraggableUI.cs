@@ -21,6 +21,7 @@ public class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     private Tween _moveTween;
     private Tween _scaleTween;
     private Vector2 _dragPointerOffset;
+    private float _restingAlpha = 1f;
 
     private void Awake()
     {
@@ -34,6 +35,13 @@ public class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     {
         _prevParent = _rt.parent;
         _prevAnchoredPos = _rt.anchoredPosition;
+    }
+
+    public void SetRestingAlpha(float alpha)
+    {
+        _restingAlpha = Mathf.Clamp01(alpha);
+        if (!_dragging && _cg != null)
+            _cg.alpha = _restingAlpha;
     }
 
     public void ReturnToCachedHome()
@@ -93,7 +101,7 @@ public class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
         {
             _dragging = false;
             _cg.blocksRaycasts = true;
-            _cg.alpha = 1f;
+            _cg.alpha = _restingAlpha;
             manager.HandleInvalidDrop(this);
             return;
         }
@@ -110,7 +118,7 @@ public class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
 
         _dragging = false;
         _cg.blocksRaycasts = true;
-        _cg.alpha = 1f;
+        _cg.alpha = _restingAlpha;
 
         if (manager != null)
         {

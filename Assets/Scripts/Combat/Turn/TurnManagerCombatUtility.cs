@@ -3,15 +3,35 @@ using UnityEngine;
 
 public static class TurnManagerCombatUtility
 {
-    public static IReadOnlyList<CombatActor> ResolveAoeTargets(SkillRuntime rt, BattlePartyManager2D party, CombatActor enemy)
+    public static IReadOnlyList<CombatActor> ResolveAoeTargets(SkillRuntime rt, CombatActor caster, CombatActor clicked, BattlePartyManager2D party, CombatActor enemy)
     {
-        if (rt == null) return null;
-        if (!rt.hitAllEnemies && !rt.hitAllAllies) return null;
+        if (rt == null)
+            return null;
+        if (!rt.useV2Targeting || !SkillTargetRuleUtility.IsMultiTarget(rt.targetRuleV2))
+            return null;
 
-        if (rt.hitAllEnemies)
-            return ResolveAliveEnemiesSnapshot(party, enemy);
+        return ResolveTargets(rt.targetRuleV2, caster, clicked, party, enemy);
+    }
 
-        return null;
+    public static IReadOnlyList<CombatActor> ResolveTargets(SkillTargetRule rule, CombatActor caster, CombatActor clicked, BattlePartyManager2D party, CombatActor fallbackEnemy)
+    {
+        switch (rule)
+        {
+            case SkillTargetRule.RowEnemies:
+                return ResolveEnemyRowTargets(caster, clicked, party, fallbackEnemy);
+
+            case SkillTargetRule.RowAllies:
+                return ResolveAllyRowTargets(caster, clicked, party);
+
+            case SkillTargetRule.AllEnemies:
+                return ResolveEnemySideTargets(caster, party, fallbackEnemy);
+
+            case SkillTargetRule.AllAllies:
+                return ResolveAllySideTargets(caster, party);
+
+            default:
+                return null;
+        }
     }
 
     public static List<CombatActor> ResolveAliveEnemiesSnapshot(BattlePartyManager2D party, CombatActor enemy)
@@ -20,7 +40,113 @@ public static class TurnManagerCombatUtility
             return party.GetAliveEnemies(frontOnly: false);
 
         var list = new List<CombatActor>(1);
-        if (enemy != null && !enemy.IsDead) list.Add(enemy);
+        if (enemy != null && !enemy.IsDead)
+            list.Add(enemy);
+        return list;
+    }
+
+    public static List<CombatActor> ResolveAliveEnemiesInRow(BattlePartyManager2D party, CombatActor enemy, CombatActor.RowTag row)
+    {
+        if (party != null)
+        {
+            List<CombatActor> enemies = party.GetAliveEnemies(frontOnly: false);
+            return FilterActorsByRow(enemies, row);
+        }
+
+        var list = new List<CombatActor>(1);
+        if (enemy != null && !enemy.IsDead && enemy.row == row)
+            list.Add(enemy);
+        return list;
+    }
+
+    public static List<CombatActor> ResolveAliveAlliesSnapshot(BattlePartyManager2D party, CombatActor caster)
+    {
+        if (caster == null)
+            return new List<CombatActor>();
+
+        if (party == null)
+            return new List<CombatActor> { caster };
+
+        if (caster.team == CombatActor.TeamSide.Ally)
+            return party.GetAliveAllies(includePlayer: true);
+
+        return party.GetAliveEnemies(frontOnly: false);
+    }
+
+    public static List<CombatActor> ResolveAliveAlliesInRow(BattlePartyManager2D party, CombatActor caster, CombatActor.RowTag row)
+    {
+        if (caster == null)
+            return new List<CombatActor>();
+
+        if (party == null)
+        {
+            var list = new List<CombatActor>(1);
+            if (!caster.IsDead && caster.row == row)
+                list.Add(caster);
+            return list;
+        }
+
+        if (caster.team == CombatActor.TeamSide.Ally)
+            return FilterActorsByRow(party.GetAliveAllies(includePlayer: true), row);
+
+        return FilterActorsByRow(party.GetAliveEnemies(frontOnly: false), row);
+    }
+
+    private static IReadOnlyList<CombatActor> ResolveEnemySideTargets(CombatActor caster, BattlePartyManager2D party, CombatActor fallbackEnemy)
+    {
+        if (caster != null && caster.team == CombatActor.TeamSide.Enemy)
+        {
+            if (party != null)
+                return party.GetAliveAllies(includePlayer: true);
+            return new List<CombatActor>();
+        }
+
+        return ResolveAliveEnemiesSnapshot(party, fallbackEnemy);
+    }
+
+    private static IReadOnlyList<CombatActor> ResolveAllySideTargets(CombatActor caster, BattlePartyManager2D party)
+    {
+        return ResolveAliveAlliesSnapshot(party, caster);
+    }
+
+    private static IReadOnlyList<CombatActor> ResolveEnemyRowTargets(CombatActor caster, CombatActor clicked, BattlePartyManager2D party, CombatActor fallbackEnemy)
+    {
+        CombatActor.RowTag row = clicked != null ? clicked.row : CombatActor.RowTag.Front;
+
+        if (caster != null && caster.team == CombatActor.TeamSide.Enemy)
+        {
+            if (party != null)
+                return FilterActorsByRow(party.GetAliveAllies(includePlayer: true), row);
+
+            var list = new List<CombatActor>(1);
+            if (clicked != null && !clicked.IsDead && clicked.row == row)
+                list.Add(clicked);
+            return list;
+        }
+
+        return ResolveAliveEnemiesInRow(party, fallbackEnemy, row);
+    }
+
+    private static IReadOnlyList<CombatActor> ResolveAllyRowTargets(CombatActor caster, CombatActor clicked, BattlePartyManager2D party)
+    {
+        CombatActor.RowTag row = clicked != null ? clicked.row : (caster != null ? caster.row : CombatActor.RowTag.Front);
+        return ResolveAliveAlliesInRow(party, caster, row);
+    }
+
+    private static List<CombatActor> FilterActorsByRow(IReadOnlyList<CombatActor> actors, CombatActor.RowTag row)
+    {
+        var list = new List<CombatActor>();
+        if (actors == null)
+            return list;
+
+        for (int i = 0; i < actors.Count; i++)
+        {
+            CombatActor actor = actors[i];
+            if (actor == null || actor.IsDead || actor.row != row)
+                continue;
+            list.Add(actor);
+        }
+
         return list;
     }
 

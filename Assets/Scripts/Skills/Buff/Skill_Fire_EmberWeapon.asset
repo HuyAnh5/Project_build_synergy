@@ -13,16 +13,16 @@ MonoBehaviour:
   m_Name: Skill_Fire_EmberWeapon
   m_EditorClassIdentifier: Assembly-CSharp::SkillBuffDebuffSO
   icon: {fileID: 0}
-  displayName: 'Ember Weapon'
-  description: For the next 3 turns, Basic Attack gains bonus damage and applies Burn
-    equal to the total damage dealt.
+  displayName: Ember Weapon
+  description: For the next 3 turns, Basic Attack gains +1 damage. If that Basic
+    Attack crits, apply Burn equal to the total damage dealt.
   spec:
     rarity: 2
     specState: 2
     buildRole: 2
     implementationCoverage: 2
-    normalizedText: For the next 3 turns, Basic Attack deals bonus damage and applies
-      Burn equal to damage dealt.
+    normalizedText: For the next 3 turns, Basic Attack gains +1 damage. If it crits,
+      apply Burn equal to damage dealt.
     designIntent: Turns Basic Attack into a Burn engine and opens the Fire loop.
   behaviorId: 1
   identity: 0
@@ -38,6 +38,7 @@ MonoBehaviour:
     emberWeaponTurns: 3
     basicAttackBonusDamage: 1
     basicAttackAppliesBurnEqualDamage: 1
+    basicAttackBurnOnCritOnly: 0
     applyConsumeBonusDebuff: 0
     consumeBonusPerBurn: 1
     consumeBonusDebuffTurns: 2

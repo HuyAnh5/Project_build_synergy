@@ -15,6 +15,13 @@ public class CombatHUD : MonoBehaviour
     public TMP_Text playerGuardText;
     public TMP_Text playerStatusText;
 
+    private int _lastHp = int.MinValue;
+    private int _lastMaxHp = int.MinValue;
+    private int _lastFocus = int.MinValue;
+    private int _lastMaxFocus = int.MinValue;
+    private int _lastGuard = int.MinValue;
+    private string _lastStatusText = null;
+
     void Awake()
     {
         TryResolveRefs();
@@ -25,12 +32,35 @@ public class CombatHUD : MonoBehaviour
         if (!player) TryResolveRefs();
         if (!player) return;
 
-        if (playerHpText) playerHpText.text = $"HP: {player.hp}/{player.maxHP}";
-        if (playerFocusText) playerFocusText.text = $"Focus: {player.focus}/{player.maxFocus}";
-        if (playerGuardText) playerGuardText.text = $"Guard: {player.guardPool}";
+        if (playerHpText && (_lastHp != player.hp || _lastMaxHp != player.maxHP))
+        {
+            _lastHp = player.hp;
+            _lastMaxHp = player.maxHP;
+            playerHpText.text = $"HP: {player.hp}/{player.maxHP}";
+        }
+
+        if (playerFocusText && (_lastFocus != player.focus || _lastMaxFocus != player.maxFocus))
+        {
+            _lastFocus = player.focus;
+            _lastMaxFocus = player.maxFocus;
+            playerFocusText.text = $"Focus: {player.focus}/{player.maxFocus}";
+        }
+
+        if (playerGuardText && _lastGuard != player.guardPool)
+        {
+            _lastGuard = player.guardPool;
+            playerGuardText.text = $"Guard: {player.guardPool}";
+        }
 
         if (playerStatusText)
-            playerStatusText.text = BuildStatusString(player.status);
+        {
+            string nextStatus = BuildStatusString(player.status);
+            if (_lastStatusText != nextStatus)
+            {
+                _lastStatusText = nextStatus;
+                playerStatusText.text = nextStatus;
+            }
+        }
     }
 
     void TryResolveRefs()

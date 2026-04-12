@@ -217,17 +217,11 @@ public class DiceEditSandboxController : MonoBehaviour
     {
         string selectionText = "Selected: none";
         if (_selectedDie != null && _selectedLogicalFaceIndex >= 0)
-        {
-            int value = GetFaceValue(_selectedDie, _selectedLogicalFaceIndex);
-            selectionText = $"Selected: {_selectedDie.name} face {_selectedLogicalFaceIndex} (value {value})";
-        }
+            selectionText = $"Selected: {_selectedDie.name} face {_selectedLogicalFaceIndex}";
 
         string commitText = "Committed: none";
         if (_committedDie != null && _committedLogicalFaceIndex >= 0)
-        {
-            int value = GetFaceValue(_committedDie, _committedLogicalFaceIndex);
-            commitText = $"Committed: {_committedDie.name} face {_committedLogicalFaceIndex} (value {value})";
-        }
+            commitText = $"Committed: {_committedDie.name} face {_committedLogicalFaceIndex}";
 
         if (_selectionLabel != null)
             _selectionLabel.text = selectionText;

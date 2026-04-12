@@ -14,6 +14,7 @@ internal static class StatusNamedSkillUtility
                 owner.emberWeaponTurns = Mathf.Max(owner.emberWeaponTurns, Mathf.Max(1, skill.fireModules.emberWeaponTurns));
                 owner.emberWeaponBonusDamage = Mathf.Max(owner.emberWeaponBonusDamage, Mathf.Max(0, skill.fireModules.basicAttackBonusDamage));
                 owner.emberWeaponBurnEqualsDamage = owner.emberWeaponBurnEqualsDamage || skill.fireModules.basicAttackAppliesBurnEqualDamage;
+                owner.emberWeaponBurnOnCritOnly = owner.emberWeaponBurnOnCritOnly || skill.fireModules.basicAttackBurnOnCritOnly;
                 return true;
             }
 
@@ -30,6 +31,7 @@ internal static class StatusNamedSkillUtility
             owner.emberWeaponTurns = Mathf.Max(owner.emberWeaponTurns, 3);
             owner.emberWeaponBonusDamage = Mathf.Max(owner.emberWeaponBonusDamage, 1);
             owner.emberWeaponBurnEqualsDamage = true;
+            owner.emberWeaponBurnOnCritOnly = true;
             return true;
         }
 

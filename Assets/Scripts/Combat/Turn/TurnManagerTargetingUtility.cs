@@ -20,7 +20,7 @@ internal static class TurnManagerTargetingUtility
     {
         reason = "";
         if (rt == null) { reason = "rt == null"; return false; }
-        if (clicked == null) { reason = "clicked == null (không raycast trúng actor?)"; return false; }
+        if (clicked == null) { reason = "clicked == null"; return false; }
         if (player == null) { reason = "player == null"; return false; }
 
         if (rt.useV2Targeting)
@@ -28,44 +28,45 @@ internal static class TurnManagerTargetingUtility
             switch (rt.targetRuleV2)
             {
                 case SkillTargetRule.Self:
-                    if (clicked != player) { reason = "targetRuleV2=Self nhưng clicked != player"; return false; }
+                    if (clicked != player) { reason = "self target but clicked != player"; return false; }
                     return true;
 
                 case SkillTargetRule.SingleAlly:
+                case SkillTargetRule.RowAllies:
                 case SkillTargetRule.AllAllies:
-                    if (clicked != player) { reason = "ally target nhưng clicked != player"; return false; }
+                    if (!IsFriendlyTarget(clicked, player, party)) { reason = "ally target but clicked is not friendly"; return false; }
                     return true;
 
                 case SkillTargetRule.SingleEnemy:
+                case SkillTargetRule.RowEnemies:
                 case SkillTargetRule.AllEnemies:
-                    if (clicked == player) { reason = "enemy target nhưng clicked == player"; return false; }
+                    if (IsFriendlyTarget(clicked, player, party)) { reason = "enemy target but clicked is friendly"; return false; }
                     break;
-
-                case SkillTargetRule.AllUnits:
-                    return true;
             }
         }
         else
         {
             if (rt.target == TargetRule.Self)
             {
-                if (clicked != player) { reason = "rt.target=Self nhưng clicked != player"; return false; }
+                if (clicked != player) { reason = "legacy self target but clicked != player"; return false; }
                 return true;
             }
 
-            if (rt.target == TargetRule.Enemy && clicked == player)
+            if (rt.target == TargetRule.Enemy && IsFriendlyTarget(clicked, player, party))
             {
-                reason = "rt.target=Enemy nhưng clicked == player";
+                reason = "legacy enemy target but clicked is friendly";
                 return false;
             }
         }
 
-        if (rt.kind == SkillKind.Attack && rt.range == RangeType.Melee && !rt.hitAllEnemies)
+        if (rt.kind == SkillKind.Attack &&
+            rt.range == RangeType.Melee &&
+            ShouldUseStrikeFrontBlock(rt))
         {
             bool anyFrontAlive = HasFrontEnemyAlive(party, enemy);
-            if (anyFrontAlive && clicked != player && clicked.row != CombatActor.RowTag.Front)
+            if (anyFrontAlive && !IsFriendlyTarget(clicked, player, party) && clicked.row != CombatActor.RowTag.Front)
             {
-                reason = "melee front-only: clicked không phải Front";
+                reason = "melee strike is blocked by front row";
                 return false;
             }
         }
@@ -75,6 +76,27 @@ internal static class TurnManagerTargetingUtility
 
         reason = $"Unhandled target config target={rt.target} targetRuleV2={rt.targetRuleV2}";
         return false;
+    }
+
+    private static bool ShouldUseStrikeFrontBlock(SkillRuntime rt)
+    {
+        if (rt == null)
+            return false;
+
+        if (!rt.useV2Targeting)
+            return !rt.hitAllEnemies;
+
+        return rt.targetRuleV2 == SkillTargetRule.SingleEnemy ||
+               rt.targetRuleV2 == SkillTargetRule.RowEnemies;
+    }
+
+    private static bool IsFriendlyTarget(CombatActor actor, CombatActor player, BattlePartyManager2D party)
+    {
+        if (actor == null || player == null)
+            return false;
+        if (actor == player)
+            return true;
+        return party != null && actor.team == player.team;
     }
 
     private static bool HasFrontEnemyAlive(BattlePartyManager2D party, CombatActor enemy)
