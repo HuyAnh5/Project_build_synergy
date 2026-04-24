@@ -260,10 +260,11 @@ internal static class RunInventoryLoadoutUtility
         if (diceRig == null || equippedDice == null)
             return;
 
+        diceRig.ApplyDiceLayout(equippedDice);
+
         for (int i = 0; i < equippedDice.Length; i++)
         {
             DiceSpinnerGeneric dice = equippedDice[i];
-            diceRig.AssignDiceToSlot(i, dice);
             diceRig.SetSlotActive(i, dice != null);
         }
     }

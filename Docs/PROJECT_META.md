@@ -662,6 +662,181 @@ Vi vay neu tiep tuc sau dot nay, batch code hop ly nhat la:
 
 Khong nen mo ta project nhu da co he consumable that; hien tai moi chi co spec va mot phan nen dice/enchant.
 
+## Runtime Update Note (2026-04-22)
+
+### Gameplay dice edit / Zodiac implementation state
+
+Dot nay da co mot flow `gameplay dice edit` rieng de noi Zodiac vao scene combat thay vi chi dung `SampleScene sandbox`.
+
+Nhung diem da co trong code:
+
+- `ConsumableBarUIManager` da noi voi `GameplayDiceEditController`
+- Zodiac co the di theo flow:
+  - chon `dice truoc` hoac `consumable truoc`
+  - khi ca hai deu hop le thi `USE` mo `edit panel`
+- `edit panel` dung `inspect clone` thay vi be dice that ra khoi scene
+- `Use` moi thuc su consume charge va apply lai state tu clone ve dice that
+- `Cancel` dong panel ma khong consume neu chua dung
+- `Double Value` da duoc tach khoi Zodiac va chuyen sang `Rune`
+- `Copy / Paste Face` da co flow 2 slot rieng trong runtime edit
+- `Auto Upright` va `Roll` da co nut rieng trong panel edit
+
+Script/chot implementation chinh lien quan den batch nay:
+
+- `Assets/Scripts/DiceEditSandbox/GameplayDiceEditController.cs`
+- `Assets/Scripts/DiceEditSandbox/GameplayDiceEditInteractable.cs`
+- `Assets/Scripts/DiceEditSandbox/GameplayDiceEditPanelUI.cs`
+- `Assets/Scripts/UI/Combat/ConsumableBarUIManager.cs`
+- `Assets/Scripts/Editor/GameplayDiceEditSceneSetupTool.cs`
+
+### Trang thai logic hien tai cua Zodiac dice edit
+
+Neu chi noi `logic / gameplay core` thi co the xem la da gan xong:
+
+- pick / unpick die
+- chon Zodiac va bat `USE`
+- apply `Adjust +/-`
+- apply `face enchant`
+- `Copy / Paste Face`
+- dung `inspect clone` de preview va commit lai
+
+Nhung chua nen goi la `dong han` vi van can verify tiep:
+
+- `Auto Upright` tren nhieu loai dice khac nhau
+- `Roll preview` trong edit khong leak side effect ra dice/combat ben ngoai
+- hoi quy lai tren nhieu Zodiac face-target khac nhau
+
+### Rune / Double Value runtime state hien tai
+
+`Double Value` khong con di theo huong `resolved output x2` nua.
+Runtime hien tai dang di theo huong:
+
+- chon `1 die`
+- trong `1 turn`, toan bo `faces[i].value` cua runtime die do duoc nhan doi ngay lap tuc
+- clamp tung mat trong khoang `1..99`
+- sang turn moi, `DiceSlotRig.BeginNewTurn()` tra ve gia tri base truoc khi double
+
+State tam nay hien dang nam tren chinh `DiceSpinnerGeneric`, khong dung helper global rieng.
+
+Behavior hien tai can note ro:
+
+- sau khi dung `Double Value`, player thay so da x2 ngay, khong can doi roll
+- neu dang double ma dung `+1 / -1` len mot mat, runtime se giu duoc logic:
+  - `10 -> 20 -> 21 -> het turn = 11`
+  - `10 -> 20 -> 19 -> het turn = 9`
+- `Copy / Paste Face` trong luc dice dang double hien dang giu behavior runtime hien tai, chua co rule rieng tach biet giua `display value` va `stored base` cho thao tac paste tuyet doi
+
+File lien quan den batch nay:
+
+- `Assets/Scripts/Dice/DiceSpinnerGeneric.cs`
+- `Assets/Scripts/Dice/DiceSlotRig.cs`
+- `Assets/Scripts/Consumables/ConsumableRuntimeUtility.cs`
+- `Assets/Scripts/UI/Combat/ConsumableBarUIManager.cs`
+- `Assets/GameData/Consumables/RUNES/Consumable_DoubleValue.asset`
+
+### Consumable status checklist hien tai
+
+`Done` theo runtime code hien tai:
+
+- `Adjust Face (+/-)`
+- `ApplyFaceEnchant`
+- `Copy / Paste Face`
+- `Double Value`
+- `Heal`
+- `Restore Focus`
+- `Cleanse`
+- `Exsanguinate`
+- `Final Verdict`
+- `Double Gold`
+
+`Partial / prototype`:
+
+- `Cryostasis`
+  - co runtime
+  - nhung hien tai moi la prototype tam, chua dung full design reactive da chot
+
+`Chua done / chua co runtime that`:
+
+- `Ignite Spread`
+- `Exploit Mark`
+- `Cheat Death`
+- `Dice Reroll`
+- `Create Last Used`
+
+Noi theo family:
+
+- `Zodiac`: phan `dice edit core` da di xa nhat va gan xong nhat
+- `Rune`: moi xong mot phan
+- `Seal`: moi xong mot phan
+
+### Highlight / face marker state hien tai
+
+Batch nay da bat dau tach `highlight` khoi huong mesh-triangle cu.
+
+Da co:
+
+- `DiceFaceHighlightMetadata`
+- `DiceFaceSelectionMap` co the doc metadata nay neu co
+- tool generate metadata theo `faces.Length + faces[i].localEuler + bounds`
+
+File/tool moi lien quan:
+
+- `Assets/Scripts/DiceEditSandbox/DiceFaceHighlightMetadata.cs`
+- `Assets/Scripts/Editor/DiceFaceHighlightMetadataSetupTool.cs`
+
+Menu moi:
+
+- `Tools/Build Synergy/Generate Dice Face Highlight Metadata/For Selected Dice`
+- `Tools/Build Synergy/Generate Dice Face Highlight Metadata/For All Dice In Scene`
+
+Hai setup tool hien co da duoc noi them de auto-generate metadata:
+
+- `Tools/Build Synergy/Setup SampleScene Zodiac Panel`
+- `Tools/Build Synergy/Setup Gameplay Dice Edit Panel`
+
+Tuy nhien phai note ro:
+
+- `d8` hien van la loai dice on dinh nhat cho highlight
+- voi `d4 / d6 / d12 / d20`, logic metadata/tool da duoc dat nen nhung presentation highlight chua the xem la final
+- huong dang can nhac tiep theo la bo `full-face overlay` va chuyen sang `marker tren mat / tai vi tri icon enchant`
+- loi hien tai can xem la mo:
+  - highlight van chua bam on dinh tren cac dice khong phai `d8`
+  - shape/vi tri/offset highlight tren `d4 / d6 / d12 / d20` van chua du tin cay
+  - can can nhac bo hinh thuc `full-face overlay` neu tiep tuc ton nhieu cong ma van khong generic
+
+### SampleScene sandbox note sau batch nay
+
+`SampleScene` van la noi thu nghiem nhanh cho `dice edit interaction`.
+
+State hien tai:
+
+- sandbox van dung duoc de test inspect / click mat / Zodiac panel
+- da co huong metadata cho face highlight
+- nhung phan `highlight visualization` tren nhieu archetype dice van chua duoc xem la da khoa
+
+Vi vay cach mo ta dung luc nay la:
+
+- `gameplay dice edit flow` da tien xa hon sandbox va co the test duoc trong scene that
+- `highlight/presentation layer` cua dice edit van la phan con mo, dac biet tren cac dice khong phai `d8`
+- truoc khi ket luan `combat da du` de chuyen sang `map`, can xem `highlight / face marking` la mot blocker UX/presentation con mo cua he dice edit
+
+### Combat blockers truoc khi chuyen sang map
+
+Blocker ro nhat hien tai:
+
+- `highlight / face marking` tren cac dice khong phai `d8`
+
+Nhung diem van can verify them truoc khi goi combat la khoa han:
+
+- `Auto Upright` tren `d4 / d6 / d12 / d20`
+- hoi quy `Adjust +/-`, `Copy / Paste`, enchant, `Double Value` tren nhieu archetype dice
+- ra soat lai toan bo combat consumable ngoai nhanh `dice edit`
+
+Danh gia thuc dung:
+
+- neu muon bat dau lam `map flow` song song, co the bat dau
+- neu muon ket luan `combat / consumable layer da xong` roi moi sang map, thi chua nen
+
 ## Runtime Update Note (2026-04-10)
 
 ### Row runtime audit theo code hien tai

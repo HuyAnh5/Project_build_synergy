@@ -157,8 +157,32 @@ public class DiceSlotRig : MonoBehaviour
     {
         HasRolledThisTurn = false;
         EnsureSlots();
+        for (int i = 0; i < slots.Length; i++)
+        {
+            DiceSpinnerGeneric die = GetDice(i);
+            if (die != null)
+                die.ClearTemporaryTurnEffects();
+        }
         ClearRollInfos();
         ApplyActiveStates();
+    }
+
+    public void ShowRandomPresentationFaces()
+    {
+        EnsureSlots();
+        ApplyActiveStates();
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (!IsSlotActive(i))
+                continue;
+
+            DiceSpinnerGeneric die = GetDice(i);
+            if (die == null)
+                continue;
+
+            die.ShowRandomPresentationFace();
+        }
     }
 
     [Button(ButtonSizes.Medium)]
@@ -252,6 +276,15 @@ public class DiceSlotRig : MonoBehaviour
         return true;
     }
 
+    public void RefreshRollInfoCache()
+    {
+        EnsureSlots();
+        if (!HasRolledThisTurn)
+            return;
+
+        CacheRollInfos();
+    }
+
     public bool IsSlotActive(int slot0)
     {
         EnsureSlots();
@@ -260,7 +293,6 @@ public class DiceSlotRig : MonoBehaviour
         Entry e = slots[slot0];
         if (e == null) return false;
         if (!e.active) return false;
-        if (e.slotRoot != null && !e.slotRoot.activeInHierarchy) return false;
         return true;
     }
 
@@ -293,6 +325,91 @@ public class DiceSlotRig : MonoBehaviour
         ApplyActiveStates();
     }
 
+    public void ApplyDiceLayout(DiceSpinnerGeneric[] layout)
+    {
+        EnsureSlots();
+        if (layout == null)
+            return;
+
+        DiceSpinnerGeneric[] previousDice = new DiceSpinnerGeneric[slots.Length];
+        GameObject[] previousDiceRoots = new GameObject[slots.Length];
+        GameObject[] previousSlotRoots = new GameObject[slots.Length];
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            Entry entry = slots[i];
+            previousDice[i] = entry != null ? entry.dice : null;
+            previousDiceRoots[i] = entry != null ? entry.diceRoot : null;
+            previousSlotRoots[i] = entry != null ? entry.slotRoot : null;
+        }
+
+        bool[] slotRootUsed = new bool[slots.Length];
+        bool[] diceRootUsed = new bool[slots.Length];
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            Entry entry = slots[i] ?? new Entry();
+            DiceSpinnerGeneric nextDice = i < layout.Length ? layout[i] : null;
+            entry.dice = nextDice;
+
+            if (nextDice == null)
+            {
+                slots[i] = entry;
+                continue;
+            }
+
+            int previousIndex = FindPreviousSlotIndex(previousDice, nextDice);
+            if (previousIndex >= 0)
+            {
+                GameObject mappedDiceRoot = previousDiceRoots[previousIndex];
+                if (mappedDiceRoot == null || diceRootUsed[previousIndex])
+                {
+                    mappedDiceRoot = nextDice.gameObject;
+                }
+                else
+                {
+                    diceRootUsed[previousIndex] = true;
+                }
+
+                entry.diceRoot = mappedDiceRoot;
+
+                GameObject mappedSlotRoot = previousSlotRoots[previousIndex];
+                if (mappedSlotRoot != null && !slotRootUsed[previousIndex])
+                {
+                    entry.slotRoot = mappedSlotRoot;
+                    slotRootUsed[previousIndex] = true;
+                }
+                else if (entry.slotRoot == null || IsRootAlreadyUsed(previousSlotRoots, slotRootUsed, entry.slotRoot))
+                {
+                    entry.slotRoot = TakeFirstUnusedRoot(previousSlotRoots, slotRootUsed);
+                }
+            }
+            else
+            {
+                entry.diceRoot = nextDice.gameObject;
+                if (entry.slotRoot == null || IsRootAlreadyUsed(previousSlotRoots, slotRootUsed, entry.slotRoot))
+                    entry.slotRoot = TakeFirstUnusedRoot(previousSlotRoots, slotRootUsed);
+            }
+
+            slots[i] = entry;
+        }
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            Entry entry = slots[i] ?? new Entry();
+            if (entry.dice != null)
+                continue;
+
+            entry.diceRoot = null;
+            if (entry.slotRoot == null || IsRootAlreadyUsed(previousSlotRoots, slotRootUsed, entry.slotRoot))
+                entry.slotRoot = TakeFirstUnusedRoot(previousSlotRoots, slotRootUsed);
+
+            slots[i] = entry;
+        }
+
+        ApplyActiveStates();
+    }
+
     public void SwapDiceSlots(int a, int b)
     {
         EnsureSlots();
@@ -307,6 +424,10 @@ public class DiceSlotRig : MonoBehaviour
         GameObject tmpRoot = slots[a].diceRoot;
         slots[a].diceRoot = slots[b].diceRoot;
         slots[b].diceRoot = tmpRoot;
+
+        GameObject tmpSlotRoot = slots[a].slotRoot;
+        slots[a].slotRoot = slots[b].slotRoot;
+        slots[b].slotRoot = tmpSlotRoot;
         ApplyActiveStates();
     }
 
@@ -314,7 +435,7 @@ public class DiceSlotRig : MonoBehaviour
     {
         if (!HasRolledThisTurn) return 0;
         DiceSpinnerGeneric d = GetDice(slot0);
-        return d != null ? d.LastRolledValue : 0;
+        return d != null ? d.GetDisplayedRolledValue() : 0;
     }
 
     public RollInfo GetRollInfo(int slot0)
@@ -562,7 +683,7 @@ public class DiceSlotRig : MonoBehaviour
             }
 
             d.GetRollExtents(out int minFace, out int maxFace);
-            int rolled = d.LastRolledValue;
+            int rolled = d.GetDisplayedRolledValue();
             DiceFaceEnchantKind faceEnchant = d.GetCurrentFaceEnchant();
             bool isCrit = d.IsCritValue(rolled) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant);
             bool isFail = d.IsFailValue(rolled) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant);
@@ -606,6 +727,51 @@ public class DiceSlotRig : MonoBehaviour
         EnsureSlots();
         if (slot0 < 0 || slot0 >= slots.Length) return null;
         return slots[slot0] != null ? slots[slot0].dice : null;
+    }
+
+    private static int FindPreviousSlotIndex(DiceSpinnerGeneric[] previousDice, DiceSpinnerGeneric target)
+    {
+        if (previousDice == null || target == null)
+            return -1;
+
+        for (int i = 0; i < previousDice.Length; i++)
+        {
+            if (previousDice[i] == target)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private static bool IsRootAlreadyUsed(GameObject[] previousRoots, bool[] used, GameObject candidate)
+    {
+        if (previousRoots == null || used == null || candidate == null)
+            return false;
+
+        for (int i = 0; i < previousRoots.Length && i < used.Length; i++)
+        {
+            if (previousRoots[i] == candidate)
+                return used[i];
+        }
+
+        return false;
+    }
+
+    private static GameObject TakeFirstUnusedRoot(GameObject[] previousRoots, bool[] used)
+    {
+        if (previousRoots == null || used == null)
+            return null;
+
+        for (int i = 0; i < previousRoots.Length && i < used.Length; i++)
+        {
+            if (previousRoots[i] == null || used[i])
+                continue;
+
+            used[i] = true;
+            return previousRoots[i];
+        }
+
+        return null;
     }
 
     private void EnsureSlots()

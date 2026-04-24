@@ -28,7 +28,7 @@ internal static class DiceEquipWorldSyncUtility
             }
 
             d.GetRollExtents(out int minFace, out int maxFace);
-            int rolled = d.LastRolledValue;
+            int rolled = d.GetDisplayedRolledValue();
             DiceFaceEnchantKind faceEnchant = d.GetCurrentFaceEnchant();
             bool isCrit = d.IsCritValue(rolled) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant);
             bool isFail = d.IsFailValue(rolled) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant);

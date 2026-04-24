@@ -16,7 +16,9 @@ public class RunInventoryManager : MonoBehaviour
     [SerializeField] private DiceSlotRig diceRig;
 
     [Title("Build State - Dice")]
-    [SerializeField] private DiceSpinnerGeneric[] equippedDice = new DiceSpinnerGeneric[EQUIPPED_DICE_COUNT];
+    [InfoBox("Assign dice prefabs here. Runtime dice instances will be spawned into DiceRig from these prefab slots.", InfoMessageType.Info)]
+    [SerializeField] private DiceSpinnerGeneric[] equippedDicePrefabs = new DiceSpinnerGeneric[EQUIPPED_DICE_COUNT];
+    [SerializeField, HideInInspector] private DiceSpinnerGeneric[] equippedDice = new DiceSpinnerGeneric[EQUIPPED_DICE_COUNT];
 
     [Title("Build State - Passive")]
     [InfoBox("Passive now uses its own dedicated single-slot binding. Passive is no longer stored in owned skill slots.", InfoMessageType.Info)]
@@ -30,8 +32,8 @@ public class RunInventoryManager : MonoBehaviour
 
     [SerializeField] private SlotBinding[] ownedSlots = new SlotBinding[OWNED_SKILL_COUNT];
 
-    [Title("Relics (Future)")]
-    [SerializeField] private RelicSlot[] relicSlots = new RelicSlot[RELIC_SLOT_COUNT];
+    [Title("Consumables")]
+    [SerializeField] private ConsumableSlot[] consumableSlots = new ConsumableSlot[RELIC_SLOT_COUNT];
 
     [Title("Currency")]
     [SerializeField] private int gold;
@@ -108,6 +110,9 @@ public class RunInventoryManager : MonoBehaviour
     public DiceSpinnerGeneric GetEquippedDice(int index)
         => RunInventoryLoadoutUtility.GetAt(equippedDice, index);
 
+    public DiceSpinnerGeneric GetEquippedDicePrefab(int index)
+        => RunInventoryLoadoutUtility.GetAt(equippedDicePrefabs, index);
+
     public void FillEquippedDice(List<DiceSpinnerGeneric> buffer)
         => RunInventoryLoadoutUtility.Fill(equippedDice, buffer);
 
@@ -118,7 +123,22 @@ public class RunInventoryManager : MonoBehaviour
 
     public bool TryAddDiceToFirstEmptySlot(DiceSpinnerGeneric dice)
     {
-        if (!RunInventoryLoadoutUtility.TryAddToFirstEmpty(equippedDice, dice, out _)) return false;
+        if (IsPrefabAsset(dice))
+            return TryAddDicePrefabToFirstEmptySlot(dice);
+
+        if (!RunInventoryLoadoutUtility.TryAddToFirstEmpty(equippedDice, dice, out int addedIndex)) return false;
+        equippedDicePrefabs[addedIndex] = ResolveTrackedPrefabForRuntime(dice);
+        SyncDiceRigFromInventory();
+        InventoryChanged?.Invoke();
+        return true;
+    }
+
+    public bool TryAddDicePrefabToFirstEmptySlot(DiceSpinnerGeneric dicePrefab)
+    {
+        if (!RunInventoryLoadoutUtility.TryAddToFirstEmpty(equippedDicePrefabs, dicePrefab, out _))
+            return false;
+
+        RebuildSpawnedEquippedDiceFromPrefabs();
         SyncDiceRigFromInventory();
         InventoryChanged?.Invoke();
         return true;
@@ -126,7 +146,23 @@ public class RunInventoryManager : MonoBehaviour
 
     public void SetEquippedDice(int index, DiceSpinnerGeneric dice)
     {
+        if (IsPrefabAsset(dice))
+        {
+            SetEquippedDicePrefab(index, dice);
+            return;
+        }
+
+        DestroyIfSpawned(equippedDice[index]);
         if (!RunInventoryLoadoutUtility.SetAt(equippedDice, index, dice)) return;
+        equippedDicePrefabs[index] = ResolveTrackedPrefabForRuntime(dice);
+        SyncDiceRigFromInventory();
+        InventoryChanged?.Invoke();
+    }
+
+    public void SetEquippedDicePrefab(int index, DiceSpinnerGeneric dicePrefab)
+    {
+        if (!RunInventoryLoadoutUtility.SetAt(equippedDicePrefabs, index, dicePrefab)) return;
+        RebuildSpawnedEquippedDiceFromPrefabs();
         SyncDiceRigFromInventory();
         InventoryChanged?.Invoke();
     }
@@ -134,31 +170,41 @@ public class RunInventoryManager : MonoBehaviour
     public void SwapEquippedDice(int a, int b)
     {
         if (!RunInventoryLoadoutUtility.Swap(equippedDice, a, b)) return;
+        RunInventoryLoadoutUtility.Swap(equippedDicePrefabs, a, b);
         SyncDiceRigFromInventory();
         InventoryChanged?.Invoke();
     }
 
     public void ClearEquippedDice(int index)
     {
+        DestroyIfSpawned(RunInventoryLoadoutUtility.GetAt(equippedDice, index));
         if (!RunInventoryLoadoutUtility.SetAt<DiceSpinnerGeneric>(equippedDice, index, null)) return;
+        RunInventoryLoadoutUtility.SetAt<DiceSpinnerGeneric>(equippedDicePrefabs, index, null);
         SyncDiceRigFromInventory();
         InventoryChanged?.Invoke();
     }
 
     public bool RemoveEquippedDice(DiceSpinnerGeneric dice)
     {
+        DestroyIfSpawned(dice);
         if (!RunInventoryLoadoutUtility.RemoveReference(equippedDice, dice)) return false;
+        SyncPrefabLayoutFromRuntime();
         SyncDiceRigFromInventory();
         InventoryChanged?.Invoke();
         return true;
     }
 
-    public void SetDiceLayout(DiceSpinnerGeneric[] equipped)
+    public void SetDiceLayout(DiceSpinnerGeneric[] equipped, bool notifyChanged = true)
     {
         EnsureSizes();
+        DiceSpinnerGeneric[] previousLayout = new DiceSpinnerGeneric[equippedDice.Length];
+        RunInventoryLoadoutUtility.CopyLayout(previousLayout, equippedDice);
         RunInventoryLoadoutUtility.CopyLayout(equippedDice, equipped);
+        DestroyRemovedSpawnedDice(previousLayout, equippedDice);
+        SyncPrefabLayoutFromRuntime();
         SyncDiceRigFromInventory();
-        InventoryChanged?.Invoke();
+        if (notifyChanged)
+            InventoryChanged?.Invoke();
     }
 
     public void SyncDiceRigFromInventory()
@@ -255,50 +301,94 @@ public class RunInventoryManager : MonoBehaviour
     }
 
     // =========================================================
-    // ======================== RELICS =========================
+    // ===================== CONSUMABLES ======================
     // =========================================================
 
     [Serializable]
-    public struct RelicSlot
+    public struct ConsumableSlot
     {
-        public ScriptableObject asset;
+        public ConsumableDataSO asset;
         public int charges;
         public bool IsEmpty => asset == null;
     }
 
-    public bool TrySetRelic(int index, ScriptableObject asset, int charges)
+    public ConsumableDataSO GetConsumable(int index)
+    {
+        if (index < 0 || index >= RELIC_SLOT_COUNT) return null;
+        return consumableSlots[index].asset;
+    }
+
+    public int GetConsumableCharges(int index)
+    {
+        if (index < 0 || index >= RELIC_SLOT_COUNT) return 0;
+        return consumableSlots[index].asset != null ? Mathf.Max(0, consumableSlots[index].charges) : 0;
+    }
+
+    public bool TrySetConsumable(int index, ConsumableDataSO asset, int charges = -1)
     {
         if (index < 0 || index >= RELIC_SLOT_COUNT) return false;
         if (asset == null) return false;
 
-        relicSlots[index] = new RelicSlot { asset = asset, charges = Mathf.Max(0, charges) };
-        if (relicSlots[index].charges <= 0) relicSlots[index] = default;
-
+        int resolvedCharges = charges > 0 ? charges : asset.GetStartingCharges();
+        consumableSlots[index] = new ConsumableSlot { asset = asset, charges = Mathf.Max(0, resolvedCharges) };
+        if (consumableSlots[index].charges <= 0) consumableSlots[index] = default;
         InventoryChanged?.Invoke();
         return true;
     }
 
-    public bool TryConsumeRelicCharge(int index, int amount = 1)
+    public int FindFirstEmptyConsumableSlot()
+    {
+        for (int i = 0; i < RELIC_SLOT_COUNT; i++)
+        {
+            if (consumableSlots[i].asset == null)
+                return i;
+        }
+
+        return -1;
+    }
+
+    public bool TryAddConsumableToFirstEmptySlot(ConsumableDataSO asset, int charges = -1)
+    {
+        int index = FindFirstEmptyConsumableSlot();
+        return index >= 0 && TrySetConsumable(index, asset, charges);
+    }
+
+    public bool TryConsumeConsumableCharge(int index, int amount = 1)
     {
         if (index < 0 || index >= RELIC_SLOT_COUNT) return false;
         if (amount <= 0) return true;
 
-        RelicSlot slot = relicSlots[index];
+        ConsumableSlot slot = consumableSlots[index];
         if (slot.asset == null) return false;
 
         slot.charges -= amount;
         if (slot.charges <= 0) slot = default;
 
-        relicSlots[index] = slot;
+        consumableSlots[index] = slot;
         InventoryChanged?.Invoke();
         return true;
     }
 
-    public void ClearRelic(int index)
+    public void ClearConsumable(int index)
     {
         if (index < 0 || index >= RELIC_SLOT_COUNT) return;
-        relicSlots[index] = default;
+        consumableSlots[index] = default;
         InventoryChanged?.Invoke();
+    }
+
+    public bool TrySetRelic(int index, ScriptableObject asset, int charges)
+    {
+        return TrySetConsumable(index, asset as ConsumableDataSO, charges);
+    }
+
+    public bool TryConsumeRelicCharge(int index, int amount = 1)
+    {
+        return TryConsumeConsumableCharge(index, amount);
+    }
+
+    public void ClearRelic(int index)
+    {
+        ClearConsumable(index);
     }
 
     // =========================================================
@@ -339,6 +429,15 @@ public class RunInventoryManager : MonoBehaviour
         Debug.Log("[RunInventoryManager] Applied slot bindings to UI icons.");
     }
 
+    [Button(ButtonSizes.Medium)]
+    private void RebuildSpawnedEquippedDiceFromPrefabsButton()
+    {
+        EnsureSizes();
+        RebuildSpawnedEquippedDiceFromPrefabs();
+        SyncDiceRigFromInventory();
+        InventoryChanged?.Invoke();
+    }
+
     // =========================================================
     // ===================== UNITY / SAFETY ====================
     // =========================================================
@@ -346,7 +445,9 @@ public class RunInventoryManager : MonoBehaviour
     private void Awake()
     {
         EnsureSizes();
-        RunInventorySetupUtility.BootstrapEquippedDiceFromRigIfNeeded(diceRig, equippedDice);
+        RunInventorySetupUtility.BootstrapEquippedDiceFromRigIfNeeded(diceRig, equippedDicePrefabs, equippedDice);
+        if (HasAnyAssignedDicePrefabs())
+            RebuildSpawnedEquippedDiceFromPrefabs();
         SyncDiceRigFromInventory();
     }
 
@@ -361,8 +462,9 @@ public class RunInventoryManager : MonoBehaviour
     {
         EnsureSizes();
         ApplyBindingsToIcons();
-        RunInventorySetupUtility.BootstrapEquippedDiceFromRigIfNeeded(diceRig, equippedDice);
-        SyncDiceRigFromInventory();
+        RunInventorySetupUtility.BootstrapEquippedDiceFromRigIfNeeded(diceRig, equippedDicePrefabs, equippedDice);
+        if (!HasAnyAssignedDicePrefabs())
+            SyncDiceRigFromInventory();
     }
 #endif
 
@@ -371,9 +473,161 @@ public class RunInventoryManager : MonoBehaviour
         RunInventorySetupUtility.EnsureSizes(
             ref fixedSlots,
             ref ownedSlots,
-            ref relicSlots,
+            ref consumableSlots,
+            ref equippedDicePrefabs,
             ref equippedDice,
             ref passiveSlots);
+    }
+
+    private readonly Dictionary<DiceSpinnerGeneric, DiceSpinnerGeneric> _spawnedPrefabByRuntime = new Dictionary<DiceSpinnerGeneric, DiceSpinnerGeneric>();
+
+    private bool HasAnyAssignedDicePrefabs()
+    {
+        for (int i = 0; i < equippedDicePrefabs.Length; i++)
+        {
+            if (equippedDicePrefabs[i] != null)
+                return true;
+        }
+
+        return false;
+    }
+
+    private void RebuildSpawnedEquippedDiceFromPrefabs()
+    {
+        ClearSpawnedEquippedDiceInstances();
+
+        if (diceRig == null)
+            return;
+
+        for (int i = 0; i < equippedDicePrefabs.Length; i++)
+        {
+            DiceSpinnerGeneric prefab = equippedDicePrefabs[i];
+            if (prefab == null)
+            {
+                equippedDice[i] = null;
+                continue;
+            }
+
+            DiceSpinnerGeneric instance = SpawnEquippedDiceInstance(i, prefab);
+            equippedDice[i] = instance;
+            if (instance != null)
+                _spawnedPrefabByRuntime[instance] = prefab;
+        }
+    }
+
+    private void ClearSpawnedEquippedDiceInstances()
+    {
+        for (int i = 0; i < equippedDice.Length; i++)
+        {
+            DiceSpinnerGeneric runtime = equippedDice[i];
+            if (runtime == null)
+                continue;
+
+            if (_spawnedPrefabByRuntime.ContainsKey(runtime))
+                DestroyDiceInstance(runtime.gameObject);
+
+            equippedDice[i] = null;
+        }
+
+        _spawnedPrefabByRuntime.Clear();
+    }
+
+    private void DestroyRemovedSpawnedDice(DiceSpinnerGeneric[] previousLayout, DiceSpinnerGeneric[] nextLayout)
+    {
+        if (previousLayout == null)
+            return;
+
+        for (int i = 0; i < previousLayout.Length; i++)
+        {
+            DiceSpinnerGeneric previous = previousLayout[i];
+            if (previous == null || !_spawnedPrefabByRuntime.ContainsKey(previous))
+                continue;
+
+            bool stillPresent = false;
+            if (nextLayout != null)
+            {
+                for (int j = 0; j < nextLayout.Length; j++)
+                {
+                    if (nextLayout[j] == previous)
+                    {
+                        stillPresent = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!stillPresent)
+                DestroyIfSpawned(previous);
+        }
+    }
+
+    private DiceSpinnerGeneric SpawnEquippedDiceInstance(int slotIndex, DiceSpinnerGeneric prefab)
+    {
+        if (prefab == null)
+            return null;
+
+        Transform parent = diceRig != null &&
+                           diceRig.slots != null &&
+                           slotIndex >= 0 &&
+                           slotIndex < diceRig.slots.Length &&
+                           diceRig.slots[slotIndex] != null &&
+                           diceRig.slots[slotIndex].slotRoot != null
+            ? diceRig.slots[slotIndex].slotRoot.transform
+            : (diceRig != null ? diceRig.transform : transform);
+
+        GameObject instanceGo = Instantiate(prefab.gameObject, parent, false);
+        instanceGo.name = prefab.gameObject.name;
+        instanceGo.transform.localPosition = Vector3.zero;
+        instanceGo.transform.localRotation = Quaternion.identity;
+        instanceGo.transform.localScale = prefab.transform.localScale;
+        return instanceGo.GetComponent<DiceSpinnerGeneric>();
+    }
+
+    private void SyncPrefabLayoutFromRuntime()
+    {
+        for (int i = 0; i < equippedDice.Length; i++)
+            equippedDicePrefabs[i] = ResolveTrackedPrefabForRuntime(equippedDice[i]);
+    }
+
+    private DiceSpinnerGeneric ResolveTrackedPrefabForRuntime(DiceSpinnerGeneric runtime)
+    {
+        if (runtime == null)
+            return null;
+
+        if (_spawnedPrefabByRuntime.TryGetValue(runtime, out DiceSpinnerGeneric prefab))
+            return prefab;
+
+        return null;
+    }
+
+    private void DestroyIfSpawned(DiceSpinnerGeneric runtime)
+    {
+        if (runtime == null)
+            return;
+
+        if (!_spawnedPrefabByRuntime.Remove(runtime))
+            return;
+
+        DestroyDiceInstance(runtime.gameObject);
+    }
+
+    private static bool IsPrefabAsset(DiceSpinnerGeneric dice)
+    {
+        if (dice == null)
+            return false;
+
+        return !dice.gameObject.scene.IsValid();
+    }
+
+    private static void DestroyDiceInstance(GameObject target)
+    {
+        if (target == null)
+            return;
+
+        if (Application.isPlaying)
+            Destroy(target);
+        else
+            DestroyImmediate(target);
     }
 
     private static string ResolveSkillDisplayName(ScriptableObject asset, bool isFixed, int index)

@@ -35,10 +35,9 @@ public class TurnManager : MonoBehaviour
     public bool logPhase = true;
     public KeyCode toggleLogKey = KeyCode.F10;
 
-    // Planning is allowed ONLY after dice rolled (and not rolling)
-    public bool IsPlanning =>
-        phase == Phase.Planning &&
-        (diceRig == null || (diceRig.HasRolledThisTurn && !diceRig.IsRolling));
+    // Player can keep adjusting planning/reorder/select during the whole planning phase.
+    public bool IsPlanning => phase == Phase.Planning;
+    public bool CanInteractWithSkills => phase == Phase.Planning && !IsSkillInteractionLockedForCurrentRollWindow();
 
     private readonly ActionSlotDrop[] _drops = new ActionSlotDrop[3];
     // --- Slot Collapse support ---
@@ -46,6 +45,8 @@ public class TurnManager : MonoBehaviour
     private int _slotCollapseKeepIndex = -1;
 
     private readonly SkillPlanBoard _board = new SkillPlanBoard();
+    private readonly CombatActorRuntimeContext _playerContext = new CombatActorRuntimeContext();
+    private readonly EnemyTurnCoordinator _enemyTurnCoordinator = new EnemyTurnCoordinator();
     private int _cursor = 0;
     private readonly HashSet<DiceSpinnerGeneric> _spentDiceThisTurn = new HashSet<DiceSpinnerGeneric>();
     private bool _victoryResolvedThisCombat;
@@ -59,6 +60,8 @@ public class TurnManager : MonoBehaviour
             party.EnsureSpawned();
             if (party.Player != null) player = party.Player;
         }
+
+        _playerContext.Bind(player);
 
         if (diceRig != null)
         {
@@ -95,6 +98,8 @@ public class TurnManager : MonoBehaviour
         UpdateAllIconsDim();
         UpdateAllDiceDim();
         BeginNewPlayerTurn();
+        if (diceRig != null)
+            diceRig.ShowRandomPresentationFaces();
         EnsureAllEnemyIntentsNow();
     }
 
@@ -160,7 +165,7 @@ public class TurnManager : MonoBehaviour
     }
 
     public void ClearSlot(int slotIndex1Based)
-        => TurnManagerPlanningUtility.ClearSlot(IsPlanning, player, diceRig, _board, slotIndex1Based, RefreshAllViews, UpdateAllIconsDim);
+        => TurnManagerPlanningUtility.ClearSlot(CanInteractWithSkills, player, diceRig, _board, slotIndex1Based, RefreshAllViews, UpdateAllIconsDim);
 
     // ---------------------------
     // Equip APIs (Damage/BuffDebuff)
@@ -172,19 +177,21 @@ public class TurnManager : MonoBehaviour
         => TryAssignActiveSkillToSlot(slotIndex1Based, skill);
 
     private bool TryAssignActiveSkillToSlot(int slotIndex1Based, ScriptableObject activeSkill)
-        => TurnManagerPlanningUtility.TryAssignSkillToSlot(IsPlanning, player, diceRig, _board, slotIndex1Based, activeSkill, IsSlotAssignable0, AreSlotsActiveInRange, RefreshAllViews, UpdateAllIconsDim, clearExistingGroups: true);
+        => TurnManagerPlanningUtility.TryAssignSkillToSlot(CanInteractWithSkills, player, diceRig, _board, slotIndex1Based, activeSkill, IsSlotAssignable0, AreSlotsActiveInRange, RefreshAllViews, UpdateAllIconsDim, clearExistingGroups: true);
 
     public bool TryAutoAssignFromClick(SkillDamageSO skill) => TryAutoAssignActiveFromClick(skill);
     public bool TryAutoAssignFromClick(SkillBuffDebuffSO skill) => TryAutoAssignActiveFromClick(skill);
 
     private bool TryAutoAssignActiveFromClick(ScriptableObject activeSkill)
-        => TurnManagerPlanningUtility.TryAutoAssignFromClick(IsPlanning, player, diceRig, _board, activeSkill, IsSlotActive0, IsSlotAssignable0, AreSlotsActiveInRange, RefreshAllViews, UpdateAllIconsDim);
+        => TurnManagerPlanningUtility.TryAutoAssignFromClick(CanInteractWithSkills, player, diceRig, _board, activeSkill, IsSlotActive0, IsSlotAssignable0, AreSlotsActiveInRange, RefreshAllViews, UpdateAllIconsDim);
 
     public bool IsSkillEquipped(SkillDamageSO skill) => _board.IsSkillEquipped(skill);
     public bool IsSkillEquipped(SkillBuffDebuffSO skill) => _board.IsSkillEquipped(skill);
 
     public bool CanPrototypeCastSkillNow(ScriptableObject activeSkill)
     {
+        if (!CanInteractWithSkills)
+            return false;
         if (player == null || activeSkill == null)
             return false;
         if (activeSkill is SkillPassiveSO)
@@ -197,7 +204,7 @@ public class TurnManager : MonoBehaviour
 
     public bool TryCastDraggedSkillToTarget(ScriptableObject activeSkill, CombatActor clicked)
     {
-        if (!IsPlanning || player == null || activeSkill == null || clicked == null)
+        if (!CanInteractWithSkills || player == null || activeSkill == null || clicked == null)
             return false;
         if (activeSkill is SkillPassiveSO)
             return false;
@@ -396,11 +403,7 @@ public class TurnManager : MonoBehaviour
             yield return executor.ExecuteSkill(rt, player, clicked, resolvedSum, skipCost: true, aoeTargets: aoeTargets);
 
             if (IsBasicStrikeRuntime(rt))
-            {
-                PassiveSystem ps = player != null ? player.GetComponent<PassiveSystem>() : null;
-                if (ps != null)
-                    ps.TryHandleBasicStrikeUse(diceRig, start0);
-            }
+                _playerContext.HandleBasicStrikeUse(diceRig, start0);
         }
 
         if (TryHandleCombatVictory())
@@ -415,6 +418,11 @@ public class TurnManager : MonoBehaviour
     private IEnumerator EnemyTurnRoutine()
     {
         SetPhase(Phase.EnemyTurn);
+        _playerContext.Bind(player);
+        yield return _enemyTurnCoordinator.Execute(_playerContext, executor, party, enemy, delayBetweenEnemyAttacks, logPhase, this);
+        yield return null;
+        yield break;
+
         SkillCombatState playerSkillState = player != null ? player.GetComponent<SkillCombatState>() : null;
         if (player != null && playerSkillState != null)
             playerSkillState.BeginEnemyTurn(player.hp);
@@ -604,9 +612,9 @@ public class TurnManager : MonoBehaviour
     private void BeginNewPlayerTurn()
     {
         SetPhase(Phase.Planning);
-        SkillCombatState playerSkillState = player != null ? player.GetComponent<SkillCombatState>() : null;
-        if (playerSkillState != null)
-            playerSkillState.BeginPlayerTurn();
+        _playerContext.Bind(player);
+        if (_playerContext.SkillCombatState != null)
+            _playerContext.SkillCombatState.BeginPlayerTurn();
         TurnManagerLifecycleUtility.BeginPlayerTurnStatusesAndFocus(player, logPhase, this);
 
         _spentDiceThisTurn.Clear();
@@ -681,9 +689,9 @@ public class TurnManager : MonoBehaviour
     {
         DiceCombatEnchantRuntimeUtility.ResolveOnRollFaceEnchants(diceRig, player, party, enemy);
 
-        PassiveSystem ps = player != null ? player.GetComponent<PassiveSystem>() : null;
-        if (ps != null)
-            ps.OnDiceRolled(player, diceRig);
+        _playerContext.Bind(player);
+        if (_playerContext.PassiveSystem != null)
+            _playerContext.PassiveSystem.OnDiceRolled(player, diceRig);
 
         _board.RecalculateRuntimesAndRebalance(player, diceRig);
         RefreshAllViews();
@@ -693,15 +701,7 @@ public class TurnManager : MonoBehaviour
     private void RefreshPlanningInteractivity()
     {
         if (phase != Phase.Planning) return;
-
-        if (!lockPlanningUIUntilRolled)
-        {
-            LockPlanningUI(false); // preserves old roll button layouts
-            return;
-        }
-
-        bool locked = (diceRig != null) && (!diceRig.HasRolledThisTurn || diceRig.IsRolling);
-        LockPlanningUI(locked);
+        LockPlanningUI(lockPlanningUIUntilRolled && !CanInteractWithSkills);
     }
 
     private void LockPlanningUI(bool locked)
@@ -743,6 +743,14 @@ public class TurnManager : MonoBehaviour
 
         if (logPhase)
             Debug.Log($"[TurnManager] Phase => {phase}", this);
+    }
+
+    private bool IsSkillInteractionLockedForCurrentRollWindow()
+    {
+        if (diceRig == null)
+            return false;
+
+        return !diceRig.HasRolledThisTurn || diceRig.IsRolling;
     }
 
     private int ComputeAllDiceDelta(CombatActor owner)

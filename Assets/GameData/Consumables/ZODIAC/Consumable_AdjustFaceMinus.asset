@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4b92963ff6d82d49a8b2e6eb254de8c, type: 3}
+  m_Name: Consumable_AdjustFaceMinus
+  m_EditorClassIdentifier: Assembly-CSharp::ConsumableDataSO
+  icon: {fileID: 0}
+  displayName: Adjust Face (-)
+  description: Pick 1-3 faces on one die. Each selected face gets -1 Base permanently.
+  family: 0
+  useContext: 2
+  targetKind: 3
+  effectId: 1
+  charges: 3
+  valueA: -1
+  faceEnchant: 0

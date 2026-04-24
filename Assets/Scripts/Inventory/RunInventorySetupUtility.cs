@@ -5,7 +5,8 @@ public static class RunInventorySetupUtility
     public static void EnsureSizes(
         ref RunInventoryManager.SlotBinding[] fixedSlots,
         ref RunInventoryManager.SlotBinding[] ownedSlots,
-        ref RunInventoryManager.RelicSlot[] relicSlots,
+        ref RunInventoryManager.ConsumableSlot[] consumableSlots,
+        ref DiceSpinnerGeneric[] equippedDicePrefabs,
         ref DiceSpinnerGeneric[] equippedDice,
         ref RunInventoryManager.PassiveSlotBinding[] passiveSlots)
     {
@@ -21,8 +22,11 @@ public static class RunInventorySetupUtility
         for (int i = 0; i < RunInventoryManager.OWNED_SKILL_COUNT; i++)
             if (ownedSlots[i] == null) ownedSlots[i] = new RunInventoryManager.SlotBinding();
 
-        if (relicSlots == null || relicSlots.Length != RunInventoryManager.RELIC_SLOT_COUNT)
-            relicSlots = new RunInventoryManager.RelicSlot[RunInventoryManager.RELIC_SLOT_COUNT];
+        if (consumableSlots == null || consumableSlots.Length != RunInventoryManager.RELIC_SLOT_COUNT)
+            consumableSlots = new RunInventoryManager.ConsumableSlot[RunInventoryManager.RELIC_SLOT_COUNT];
+
+        if (equippedDicePrefabs == null || equippedDicePrefabs.Length != RunInventoryManager.EQUIPPED_DICE_COUNT)
+            equippedDicePrefabs = new DiceSpinnerGeneric[RunInventoryManager.EQUIPPED_DICE_COUNT];
 
         if (equippedDice == null || equippedDice.Length != RunInventoryManager.EQUIPPED_DICE_COUNT)
             equippedDice = new DiceSpinnerGeneric[RunInventoryManager.EQUIPPED_DICE_COUNT];
@@ -34,9 +38,18 @@ public static class RunInventorySetupUtility
             if (passiveSlots[i] == null) passiveSlots[i] = new RunInventoryManager.PassiveSlotBinding();
     }
 
-    public static void BootstrapEquippedDiceFromRigIfNeeded(DiceSlotRig diceRig, DiceSpinnerGeneric[] equippedDice)
+    public static void BootstrapEquippedDiceFromRigIfNeeded(DiceSlotRig diceRig, DiceSpinnerGeneric[] equippedDicePrefabs, DiceSpinnerGeneric[] equippedDice)
     {
         if (diceRig == null || equippedDice == null) return;
+
+        if (equippedDicePrefabs != null)
+        {
+            for (int i = 0; i < equippedDicePrefabs.Length; i++)
+            {
+                if (equippedDicePrefabs[i] != null)
+                    return;
+            }
+        }
 
         bool anyAssigned = false;
         for (int i = 0; i < RunInventoryManager.EQUIPPED_DICE_COUNT; i++)

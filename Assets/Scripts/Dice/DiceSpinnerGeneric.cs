@@ -8,6 +8,9 @@ using UnityEngine.InputSystem;
 
 public class DiceSpinnerGeneric : MonoBehaviour
 {
+    public const int MinFaceValue = 1;
+    public const int MaxFaceValue = 99;
+
     public Transform pivot;
     public DiceFace[] faces;
 
@@ -37,6 +40,7 @@ public class DiceSpinnerGeneric : MonoBehaviour
     [Header("Timing")]
     public float accelTime = 0.1f;
     public float totalTime = 1.5f;
+    public float inspectSnapTime = 0.22f;
 
     [Header("Loops (adds 360 degrees)")]
     public Vector3Int loopsMin = new Vector3Int(2, 2, 2);
@@ -44,6 +48,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
     [Range(0.05f, 0.6f)] public float accelPortion = 0.25f;
 
     private Tween _tween;
+    private bool _doubleValueActiveForTurn;
+    private int[] _doubleValueOriginalFaceValues;
 
     public int LastRolledValue { get; private set; }
     public int LastFaceIndex { get; private set; } = -1;
@@ -81,6 +87,16 @@ public class DiceSpinnerGeneric : MonoBehaviour
         int idx = Random.Range(0, faces.Length);
         RollToFaceIndex(idx);
         return faces[idx].value;
+    }
+
+    public int ShowRandomPresentationFace()
+    {
+        if (!ValidateFaces())
+            return -1;
+
+        int idx = Random.Range(0, faces.Length);
+        SnapToFaceIndexImmediate(idx, syncRollState: false);
+        return idx;
     }
 
     public void RollToFaceIndex(int faceIndex)
@@ -139,7 +155,195 @@ public class DiceSpinnerGeneric : MonoBehaviour
         _tween = seq;
     }
 
+    public void SnapToFaceIndexImmediate(int faceIndex, bool syncRollState = false)
+    {
+        if (!ValidateFaces())
+            return;
+
+        faceIndex = Mathf.Clamp(faceIndex, 0, faces.Length - 1);
+        _tween?.Kill();
+        IsRolling = false;
+
+        pivot.localEulerAngles = NormalizeEuler(faces[faceIndex].localEuler);
+
+        if (syncRollState)
+        {
+            LastFaceIndex = faceIndex;
+            LastRolledValue = faces[faceIndex].value;
+        }
+
+        RefreshDisplayedState();
+    }
+
+    public void SnapToFaceIndexAnimated(int faceIndex, bool syncRollState = false)
+    {
+        if (!ValidateFaces())
+            return;
+
+        faceIndex = Mathf.Clamp(faceIndex, 0, faces.Length - 1);
+        _tween?.Kill();
+        IsRolling = true;
+
+        Vector3 targetEuler = NormalizeEuler(faces[faceIndex].localEuler);
+        Sequence seq = DOTween.Sequence();
+        seq.Append(pivot.DOLocalRotate(targetEuler, Mathf.Max(0.01f, inspectSnapTime), RotateMode.Fast).SetEase(Ease.OutSine));
+        seq.OnComplete(() =>
+        {
+            IsRolling = false;
+
+            if (syncRollState)
+            {
+                LastFaceIndex = faceIndex;
+                LastRolledValue = faces[faceIndex].value;
+            }
+
+            RefreshDisplayedState();
+            onRollComplete?.Invoke(this);
+        });
+
+        _tween = seq;
+    }
+
+    public void SnapToFaceIndexAnimatedQuaternion(int faceIndex, bool syncRollState = false)
+    {
+        if (!ValidateFaces())
+            return;
+
+        faceIndex = Mathf.Clamp(faceIndex, 0, faces.Length - 1);
+        _tween?.Kill();
+        IsRolling = true;
+
+        Quaternion targetRotation = Quaternion.Euler(NormalizeEuler(faces[faceIndex].localEuler));
+        Sequence seq = DOTween.Sequence();
+        seq.Append(pivot.DOLocalRotateQuaternion(targetRotation, Mathf.Max(0.01f, inspectSnapTime)).SetEase(Ease.OutSine));
+        seq.OnComplete(() =>
+        {
+            IsRolling = false;
+
+            if (syncRollState)
+            {
+                LastFaceIndex = faceIndex;
+                LastRolledValue = faces[faceIndex].value;
+            }
+
+            RefreshDisplayedState();
+            onRollComplete?.Invoke(this);
+        });
+
+        _tween = seq;
+    }
+
+    public int GetBestFacingFaceIndex(Camera cam)
+    {
+        if (!ValidateFaces())
+            return -1;
+
+        Vector3 desiredNormal = cam != null ? -cam.transform.forward : Vector3.forward;
+        Quaternion currentRotation = pivot != null ? pivot.rotation : transform.rotation;
+
+        float bestScore = float.NegativeInfinity;
+        int bestFaceIndex = -1;
+
+        for (int faceIndex = 0; faceIndex < faces.Length; faceIndex++)
+        {
+            Quaternion faceRotation = Quaternion.Euler(NormalizeEuler(faces[faceIndex].localEuler));
+            Vector3 localFaceNormal = Quaternion.Inverse(faceRotation) * Vector3.back;
+            Vector3 worldFaceNormal = currentRotation * localFaceNormal;
+            float score = Vector3.Dot(worldFaceNormal, desiredNormal);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestFaceIndex = faceIndex;
+            }
+        }
+
+        return bestFaceIndex;
+    }
+
     public int GetBaseValue() => LastRolledValue;
+
+    public static int ClampFaceValue(int value)
+    {
+        return Mathf.Clamp(value, MinFaceValue, MaxFaceValue);
+    }
+
+    public bool HasDoubleValueForTurn => _doubleValueActiveForTurn;
+
+    public void EnableDoubleValueForTurn()
+    {
+        if (!ValidateFaces())
+            return;
+        if (_doubleValueActiveForTurn)
+            return;
+
+        _doubleValueOriginalFaceValues = new int[faces.Length];
+        for (int i = 0; i < faces.Length; i++)
+        {
+            _doubleValueOriginalFaceValues[i] = faces[i].value;
+
+            DiceFace face = faces[i];
+            face.value = ClampFaceValue(face.value * 2);
+            faces[i] = face;
+        }
+
+        _doubleValueActiveForTurn = true;
+        if (LastFaceIndex >= 0 && LastFaceIndex < faces.Length)
+            LastRolledValue = faces[LastFaceIndex].value;
+        RefreshDisplayedState();
+    }
+
+    public void ClearTemporaryTurnEffects()
+    {
+        if (_doubleValueActiveForTurn && _doubleValueOriginalFaceValues != null && ValidateFaces())
+        {
+            int count = Mathf.Min(faces.Length, _doubleValueOriginalFaceValues.Length);
+            for (int i = 0; i < count; i++)
+            {
+                DiceFace face = faces[i];
+                face.value = ClampFaceValue(_doubleValueOriginalFaceValues[i]);
+                faces[i] = face;
+            }
+        }
+
+        _doubleValueActiveForTurn = false;
+        _doubleValueOriginalFaceValues = null;
+        if (LastFaceIndex >= 0 && LastFaceIndex < faces.Length)
+            LastRolledValue = faces[LastFaceIndex].value;
+        RefreshDisplayedState();
+    }
+
+    public int GetModifiedFaceValue(int baseValue)
+    {
+        return ClampFaceValue(baseValue);
+    }
+
+    public int GetDisplayedRolledValue()
+    {
+        return ClampFaceValue(LastRolledValue);
+    }
+
+    public void CopyRuntimeStateFrom(DiceSpinnerGeneric other, bool copyRotation)
+    {
+        if (other == null)
+            return;
+
+        if (other.faces != null)
+            faces = (DiceFace[])other.faces.Clone();
+
+        wholeDieTag = other.wholeDieTag;
+
+        if (copyRotation && pivot != null && other.pivot != null)
+            pivot.localRotation = other.pivot.localRotation;
+
+        LastFaceIndex = other.LastFaceIndex;
+        LastRolledValue = other.LastRolledValue;
+        _doubleValueActiveForTurn = other._doubleValueActiveForTurn;
+        _doubleValueOriginalFaceValues = other._doubleValueOriginalFaceValues != null
+            ? (int[])other._doubleValueOriginalFaceValues.Clone()
+            : null;
+        IsRolling = false;
+        RefreshDisplayedState();
+    }
 
     public DiceWholeDieTag GetWholeDieTag()
     {
@@ -216,8 +420,16 @@ public class DiceSpinnerGeneric : MonoBehaviour
         if (!ValidateFaces() || faceIndex < 0 || faceIndex >= faces.Length)
             return false;
 
+        int clampedValue = ClampFaceValue(value);
         DiceFace face = faces[faceIndex];
-        face.value = Mathf.Max(1, value);
+        if (_doubleValueActiveForTurn && _doubleValueOriginalFaceValues != null && faceIndex < _doubleValueOriginalFaceValues.Length)
+        {
+            int currentDisplayedValue = face.value;
+            int delta = clampedValue - currentDisplayedValue;
+            _doubleValueOriginalFaceValues[faceIndex] = ClampFaceValue(_doubleValueOriginalFaceValues[faceIndex] + delta);
+        }
+
+        face.value = clampedValue;
         faces[faceIndex] = face;
 
         if (faceIndex == LastFaceIndex)
@@ -326,10 +538,11 @@ public class DiceSpinnerGeneric : MonoBehaviour
             return string.Empty;
 
         DiceFace face = faces[faceIndex];
+        int displayedValue = face.value;
         if (face.enchant == DiceFaceEnchantKind.None)
-            return face.value.ToString();
+            return displayedValue.ToString();
 
-        return $"{face.value} {GetEnchantShortLabel(face.enchant)}";
+        return $"{displayedValue} {GetEnchantShortLabel(face.enchant)}";
     }
 
     public string GetCurrentFaceDebugLabel()

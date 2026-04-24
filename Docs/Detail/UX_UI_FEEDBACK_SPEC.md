@@ -50,6 +50,22 @@ Tooltip nên hiện ở dạng tĩnh, ví dụ:
 
 Mục tiêu là để player hiểu purpose của skill mà không cần ngữ cảnh roll hiện tại.
 
+### 3.1A Dice presentation face outside combat
+
+Rule nay chi la presentation, khong phai roll state that.
+
+- Shop:
+  - Moi vien dice duoc ban trong shop random 1 mat de show cho player khi shop do duoc tao ra.
+  - Mat nay phai duoc giu nguyen trong suot vong doi cua cung mot shop do.
+  - Thoat shop roi vao lai cung shop van giu nguyen mat dang show.
+  - Sang shop khac, hoac inventory shop duoc reroll / spawn dice moi, tung vien dice moi duoc random lai 1 mat presentation moi.
+- Bag / inventory:
+  - Moi lan player mo tui do, tat ca dice dang co trong tui se random lai 1 mat de hien thi.
+  - Day chi la random presentation cho lan mo tui do do, khong phai reroll that va khong duoc sua data mat.
+- Guardrail:
+  - Reorder, refresh layout, va UI rebuild khong duoc tu random lai presentation face neu context presentation chua doi.
+  - Presentation face phai bi rang buoc theo context entry: tao shop moi, mo bag moi.
+
 ### 3.2 Trong combat / khi đã roll
 
 Tooltip và preview nên hiện **số thật đã resolve** hoặc gần-resolve nhất có thể.

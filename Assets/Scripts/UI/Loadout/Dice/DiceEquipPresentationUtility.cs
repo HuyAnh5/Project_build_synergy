@@ -132,21 +132,22 @@ internal static class DiceEquipPresentationUtility
             instant);
     }
 
-    public static void SyncOutputs(DiceDraggableUI[] equipped, RunInventoryManager runInventory, DiceSlotRig diceRig)
+    public static void SyncOutputs(DiceDraggableUI[] equipped, RunInventoryManager runInventory, DiceSlotRig diceRig, bool notifyInventoryChanged = true)
     {
         DiceSpinnerGeneric[] assets = new DiceSpinnerGeneric[3];
         for (int i = 0; i < 3; i++)
             assets[i] = equipped[i] != null ? equipped[i].dice : null;
 
         if (runInventory != null)
-            runInventory.SetDiceLayout(assets);
+            runInventory.SetDiceLayout(assets, notifyChanged: notifyInventoryChanged);
 
         if (diceRig == null)
             return;
 
+        diceRig.ApplyDiceLayout(assets);
+
         for (int i = 0; i < 3; i++)
         {
-            diceRig.AssignDiceToSlot(i, assets[i]);
             diceRig.SetSlotActive(i, assets[i] != null);
         }
 

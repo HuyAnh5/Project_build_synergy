@@ -243,10 +243,20 @@ Ngoài combat bình thường, player có thể mở panel dice để **inspect 
 
 - Chọn `1 dice`
 - Trong `1 turn`, dice đó được xem là đang ở trạng thái `Double Value`
-- Khi roll ra mặt nào của dice đó, mặt vừa roll ra sẽ được nhân đôi:
-  - Base Value
-  - Added Value
+- Runtime hiện tại đang làm theo hướng:
+  - toàn bộ `face value` của runtime die được nhân đôi ngay lập tức
+  - clamp từng mặt về `99`
+  - hết turn thì trả về `base` trước khi double
 - Đây là buff theo `1 dice trong 1 turn`, không phải permanent sculpt
+
+Rule runtime hiện đang chốt:
+
+- player không cần đợi roll mới thấy dice đã x2
+- nếu mặt gốc `10`, khi double sẽ thấy `20` ngay
+- nếu trong lúc đang double mà dùng `+1 / -1` lên mặt đó:
+  - `10 -> 20 -> 21 -> hết turn = 11`
+  - `10 -> 20 -> 19 -> hết turn = 9`
+- `Copy / Paste Face` trong lúc dice đang double hiện giữ behavior runtime hiện tại, chưa có rule riêng tách bạch `display value` và `stored base` cho thao tác paste tuyệt đối
 
 #### E. Value +N (Permanent)
 

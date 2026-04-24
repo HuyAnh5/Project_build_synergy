@@ -33,14 +33,14 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
     // Unequip by clicking the slot icon (not the skill icon)
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (!turn || !turn.IsPlanning) return;
+        if (!turn || !turn.CanInteractWithSkills) return;
         if (!iconPreview || iconPreview.sprite == null) return;
         turn.ClearSlot(slotIndex);
     }
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        if (!turn || !turn.IsPlanning) return;
+        if (!turn || !turn.CanInteractWithSkills) return;
         if (!iconPreview || iconPreview.sprite == null) return;
 
         _groupReorderDrag = ShouldUseTwoSlotGroupReorderDrag();
@@ -58,7 +58,7 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
         if (_ghostRT) Destroy(_ghostRT.gameObject);
         _ghostRT = null;
 
-        if (!turn || !turn.IsPlanning) return;
+        if (!turn || !turn.CanInteractWithSkills) return;
 
         if (_groupReorderDrag)
         {

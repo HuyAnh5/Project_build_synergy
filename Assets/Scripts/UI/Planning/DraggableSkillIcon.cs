@@ -156,7 +156,7 @@ public class DraggableSkillIcon : MonoBehaviour,
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (!turn || !turn.IsPlanning) return;
+        if (!turn || !turn.CanInteractWithSkills) return;
 
         var a = GetSkillAsset();
         if (a == null) return;
@@ -169,7 +169,7 @@ public class DraggableSkillIcon : MonoBehaviour,
 
     public void OnBeginDrag(PointerEventData eventData)
     {
-        if (!turn || !turn.IsPlanning) return;
+        if (!turn || !turn.CanInteractWithSkills) return;
 
         var a = GetSkillAsset();
         if (a == null) return;

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [RequireComponent(typeof(DiceSpinnerGeneric))]
@@ -5,17 +6,17 @@ public class DiceEditInteractable : MonoBehaviour
 {
     private const bool DebugLogs = false;
 
-    [SerializeField] private float rotationSpeed = 4f;
-    [SerializeField] private float verticalFlipSpeed = 3f;
+    [SerializeField] private float rotationSpeed = 0.2f;
+    [SerializeField] private float verticalFlipSpeed = 1.2f;
     [SerializeField] private float clickThresholdPixels = 10f;
     [SerializeField] private bool invertHorizontalDrag;
     [SerializeField] private DiceEditDragProfileSO dragProfile;
     [SerializeField] private DiceEditDragProfileSO.RotationAxisMode rotationAxisMode = DiceEditDragProfileSO.RotationAxisMode.FreeXY;
     [SerializeField] private bool allowVerticalFlipInZOnly;
-    [SerializeField] private float inertiaDamping = 720f;
-    [SerializeField] private float flipInertiaDamping = 900f;
-    [SerializeField] private float maxRollVelocity = 540f;
-    [SerializeField] private float maxFlipVelocity = 360f;
+    [SerializeField] private float inertiaDamping = 1400f;
+    [SerializeField] private float flipInertiaDamping = 1600f;
+    [SerializeField] private float maxRollVelocity = 200f;
+    [SerializeField] private float maxFlipVelocity = 140f;
     [SerializeField, Range(0f, 2f)] private float verticalFlipBias = 0.75f;
 
     private DiceEditSandboxController _controller;
@@ -24,6 +25,7 @@ public class DiceEditInteractable : MonoBehaviour
     private DiceFaceHighlightRenderer _highlightRenderer;
     private Camera _cachedMainCamera;
     private bool _bindingsReady;
+    private bool _rollCompleteSubscribed;
 
     private bool _dragging;
     private Vector3 _pointerDownPosition;
@@ -32,6 +34,14 @@ public class DiceEditInteractable : MonoBehaviour
     private float _flipVelocity;
     private float _yawVelocity;
     private float _pitchVelocity;
+    private readonly List<int> _highlightFaces = new List<int>();
+    private readonly List<DiceEditSandboxController.SandboxFaceHighlightKind> _highlightKinds = new List<DiceEditSandboxController.SandboxFaceHighlightKind>();
+
+    private void OnDestroy()
+    {
+        if (_spinner != null && _rollCompleteSubscribed)
+            _spinner.onRollComplete -= HandleRollComplete;
+    }
 
     private void Update()
     {
@@ -99,6 +109,7 @@ public class DiceEditInteractable : MonoBehaviour
 
         _highlightRenderer.Configure(_spinner, _selectionMap);
         _cachedMainCamera = Camera.main;
+        SubscribeRollComplete();
         _bindingsReady = _controller != null && _spinner != null && _selectionMap != null && _highlightRenderer != null;
         RefreshHighlight();
     }
@@ -201,26 +212,44 @@ public class DiceEditInteractable : MonoBehaviour
         if (_highlightRenderer == null || _controller == null || _spinner == null)
             return;
 
-        int faceIndex = -1;
-        bool committed = false;
+        _highlightFaces.Clear();
+        _highlightKinds.Clear();
 
         if (_spinner.faces != null)
         {
             for (int i = 0; i < _spinner.faces.Length; i++)
             {
-                if (_controller.IsCommittedSelection(_spinner, i))
-                {
-                    faceIndex = i;
-                    committed = true;
-                    break;
-                }
+                DiceEditSandboxController.SandboxFaceHighlightKind highlightKind = _controller.GetHighlightKindForFace(_spinner, i);
+                if (highlightKind == DiceEditSandboxController.SandboxFaceHighlightKind.None)
+                    continue;
 
-                if (_controller.IsPreviewSelection(_spinner, i))
-                    faceIndex = i;
+                _highlightFaces.Add(i);
+                _highlightKinds.Add(highlightKind);
             }
         }
 
-        _highlightRenderer.ShowFace(faceIndex, committed);
+        if (_highlightFaces.Count > 0)
+        {
+            _highlightRenderer.ShowFacesWithKinds(_highlightFaces, _highlightKinds);
+            return;
+        }
+
+        _controller.CopySelectedFacesTo(_highlightFaces);
+        if (_highlightFaces.Count > 0 && _controller.IsPreviewSelection(_spinner, _highlightFaces[0]))
+        {
+            _highlightRenderer.ShowFaces(_highlightFaces, committed: false);
+            return;
+        }
+
+        _highlightRenderer.Clear();
+    }
+
+    public void ClearHighlight()
+    {
+        if (!_bindingsReady)
+            EnsureBound();
+
+        _highlightRenderer?.Clear();
     }
 
     public void FlipInspectOrientation()
@@ -231,6 +260,51 @@ public class DiceEditInteractable : MonoBehaviour
             return;
 
         _spinner.pivot.Rotate(_spinner.pivot.forward, 180f, Space.World);
+    }
+
+    public bool CanRollInspectDie()
+    {
+        if (!_bindingsReady)
+            EnsureBound();
+
+        return _spinner != null && !_spinner.IsRolling;
+    }
+
+    public void RollInspectDie()
+    {
+        if (!_bindingsReady)
+            EnsureBound();
+        if (_spinner == null || _spinner.IsRolling)
+            return;
+
+        _spinner.RollRandomFace();
+    }
+
+    public bool CanAutoUprightInspectDie()
+    {
+        if (!_bindingsReady)
+            EnsureBound();
+
+        return _spinner != null && _spinner.pivot != null && !_spinner.IsRolling;
+    }
+
+    public void AutoUprightInspectDie()
+    {
+        if (!_bindingsReady)
+            EnsureBound();
+        if (_spinner == null || _spinner.pivot == null)
+            return;
+
+        Camera cam = GetMainCamera();
+        if (cam == null)
+            return;
+
+        int frontMostFace = _spinner.GetBestFacingFaceIndex(cam);
+        if (frontMostFace < 0)
+            return;
+
+        StopInspectMotion();
+        _spinner.SnapToFaceIndexAnimatedQuaternion(frontMostFace, syncRollState: false);
     }
 
     private void TrySelectClickedFace()
@@ -250,19 +324,22 @@ public class DiceEditInteractable : MonoBehaviour
             return;
         }
 
-        Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-        RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
-        if (hits == null || hits.Length == 0)
-        {
-            Debug.Log("[DiceEditSelect] Click failed: raycast hit nothing.");
-            return;
-        }
-
         int logicalFaceIndex = -1;
-        for (int i = 0; i < hits.Length; i++)
+        Vector2 screenPosition = Input.mousePosition;
+        if (!_selectionMap.TryGetNearestVisibleLogicalFace(screenPosition, cam, out logicalFaceIndex))
         {
-            if (_selectionMap.TryResolveLogicalFace(hits[i], cam, out logicalFaceIndex))
-                break;
+            Ray ray = cam.ScreenPointToRay(screenPosition);
+            RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
+            if (hits == null || hits.Length == 0)
+            {
+                Debug.Log("[DiceEditSelect] Click failed: raycast hit nothing.");
+            }
+
+            for (int i = 0; hits != null && i < hits.Length; i++)
+            {
+                if (_selectionMap.TryResolveLogicalFace(hits[i], cam, out logicalFaceIndex))
+                    break;
+            }
         }
 
         if (logicalFaceIndex < 0)
@@ -304,6 +381,8 @@ public class DiceEditInteractable : MonoBehaviour
         if (_highlightRenderer != null && _spinner != null && _selectionMap != null)
             _highlightRenderer.Configure(_spinner, _selectionMap);
 
+        SubscribeRollComplete();
+
         if (_cachedMainCamera == null)
             _cachedMainCamera = Camera.main;
 
@@ -314,6 +393,20 @@ public class DiceEditInteractable : MonoBehaviour
     {
         if (DebugLogs)
             Debug.Log($"[DiceEditInteractable] {message}");
+    }
+
+    private void SubscribeRollComplete()
+    {
+        if (_spinner == null || _rollCompleteSubscribed)
+            return;
+
+        _spinner.onRollComplete += HandleRollComplete;
+        _rollCompleteSubscribed = true;
+    }
+
+    private void HandleRollComplete(DiceSpinnerGeneric _)
+    {
+        _controller?.NotifyInspectDieStateChanged();
     }
 
     private float GetInertiaDamping()
@@ -334,6 +427,15 @@ public class DiceEditInteractable : MonoBehaviour
     private float GetMaxFlipVelocity()
     {
         return dragProfile != null ? dragProfile.maxFlipVelocity : maxFlipVelocity;
+    }
+
+    private void StopInspectMotion()
+    {
+        _dragging = false;
+        _rollVelocity = 0f;
+        _flipVelocity = 0f;
+        _yawVelocity = 0f;
+        _pitchVelocity = 0f;
     }
 
     private Camera GetMainCamera()

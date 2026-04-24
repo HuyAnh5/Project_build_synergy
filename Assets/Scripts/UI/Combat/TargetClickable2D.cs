@@ -15,6 +15,13 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
 
     public void OnPointerClick(PointerEventData eventData)
     {
+        if (_actor)
+        {
+            ConsumableBarUIManager consumableUi = FindObjectOfType<ConsumableBarUIManager>(true);
+            if (consumableUi != null && consumableUi.TryHandleTargetClick(_actor))
+                return;
+        }
+
         if (!turn || !_actor) return;
         turn.OnTargetClicked(_actor);
     }

@@ -1,91 +1,77 @@
+using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
-/// 3-slot dice loadout UI.
-/// - No overflow.
-/// - Reorder / swap only.
-/// - Locked whenever an active TurnManager exists in the scene.
-/// - Adaptive 'joker row' layout:
-///   1 equipped -> center
-///   2 equipped -> left/right
-///   3 equipped -> left/center/right
-/// - Optional linked combat SlotsPanel row that mirrors the same adaptive X layout.
-/// - Optional linked world DiceSlotRig slot roots that follow the paired DiceUi live.
+/// Dice row UI rendered directly from the current dice order.
+/// Source of truth is the ordered dice list; UI only mirrors and reorders that list.
 /// </summary>
 public class DiceEquipUIManager : MonoBehaviour
 {
-    [Header("Wiring")]
+    [Header("Legacy Wiring (unused by row layout)")]
     public RectTransform[] equipSlotAnchors = new RectTransform[3];
     public RectTransform dragLayer;
+
+    [Header("Runtime Links")]
     public DiceSlotRig diceRig;
     public RunInventoryManager runInventory;
     public TurnManager turnManager;
 
-    [Header("Linked Combat SlotsPanel (optional)")]
-    [Tooltip("Assign Canvas/SlotsPanel/Slot1..3 here so combat slots move with dice layout.")]
+    [Header("Linked Combat Slots (optional)")]
     public RectTransform[] linkedCombatSlotAnchors = new RectTransform[3];
-    [Tooltip("Mirror the adaptive X layout onto SlotsPanel/Slot1..3.")]
-    public bool mirrorAdaptiveLayoutToCombatSlots = true;
-    [Tooltip("Hide empty combat slot anchors together with empty dice anchors.")]
-    public bool hideEmptyCombatSlotAnchors = true;
-    [Tooltip("Optional extra X offset applied only to combat slots.")]
-    public float combatSlotsXOffset = 0f;
 
     [Header("Linked World Dice Slots (optional)")]
-    [Tooltip("If enabled, DiceSlotRig slotRoot objects follow the paired DiceUi live, including while dragging.")]
     public bool mirrorDiceRigSlotsWithLiveUI = true;
-    [Tooltip("Camera used to convert DiceUi screen position into world position. Leave empty to use Canvas worldCamera or Camera.main.")]
     public Camera worldFollowCamera;
 
     [Header("Behavior")]
-    [Tooltip("If true, any active TurnManager in the scene will lock dice dragging.")]
     public bool lockWhenCombatManagerExists = true;
-    [Tooltip("If true, dragging a die inside a planned 2-slot skill only allows local swap, while dragging the centered skill icon can move the whole 2-die group.")]
     public bool enableGroupedSkillDiceReorder = true;
 
-    [Header("Adaptive Layout")]
-    [Tooltip("Auto-present like Balatro jokers: 1 center, 2 split, 3 spread.")]
-    public bool useAdaptiveCenterLayout = true;
-    [Tooltip("Half distance used when 2 items are equipped.")]
-    public float pairHalfSpacing = 180f;
-    [Tooltip("Side offset used when 3 items are equipped.")]
-    public float trioSideOffset = 250f;
-    [Tooltip("Local Y for the whole dice row.")]
+    [Header("Balatro Row Layout")]
+    public RectTransform layoutContainer;
+    public float spacing = 250f;
     public float rowY = 0f;
-    [Tooltip("Hide empty anchor objects so only occupied dice positions remain visible.")]
-    public bool hideEmptyAnchors = true;
+    public Vector2 diceUiSize = new Vector2(100f, 100f);
+    public bool autoCreateMissingUi = true;
 
     [Header("Tween")]
-    public float anchorTweenDuration = 0.22f;
     public float itemSnapDuration = 0.18f;
-    public Ease anchorEase = Ease.OutCubic;
     public Ease itemEase = Ease.OutBack;
 
-    [Header("Combat Slot Preview Tween")]
-    public float combatSlotPreviewDuration = 0.18f;
-    public Ease combatSlotPreviewEase = Ease.OutBack;
+    [Header("Selection")]
+    public bool keepSelectionOnRepeatedClick = true;
 
-    public DiceDraggableUI[] equipped = new DiceDraggableUI[3];
+    public DiceDraggableUI[] equipped = new DiceDraggableUI[RunInventoryManager.EQUIPPED_DICE_COUNT];
     public bool WasDropConsumedThisFrame { get; private set; }
 
-    private readonly float[] _combatSlotBaseY = new float[3];
-    private readonly RectTransform[] _combatSlotIdentity = new RectTransform[3];
-    private readonly DiceDraggableUI[] _displayOrderBuffer = new DiceDraggableUI[3];
-    private readonly RectTransform[] _combatDisplayBuffer = new RectTransform[3];
-    private readonly DiceDraggableUI[] _worldSlotOwners = new DiceDraggableUI[3];
-    private readonly Transform[] _worldSlotRoots = new Transform[3];
-    private bool _capturedCombatSlotY;
+    private readonly List<DiceSpinnerGeneric> _orderedDice = new List<DiceSpinnerGeneric>(RunInventoryManager.EQUIPPED_DICE_COUNT);
+    private readonly List<DiceDraggableUI> _orderedUi = new List<DiceDraggableUI>(RunInventoryManager.EQUIPPED_DICE_COUNT);
+    private readonly Dictionary<DiceSpinnerGeneric, DiceDraggableUI> _uiByDice = new Dictionary<DiceSpinnerGeneric, DiceDraggableUI>();
+    private readonly DiceDraggableUI[] _worldSlotOwners = new DiceDraggableUI[RunInventoryManager.EQUIPPED_DICE_COUNT];
+    private readonly Transform[] _worldSlotRoots = new Transform[RunInventoryManager.EQUIPPED_DICE_COUNT];
 
+    private Canvas _rootCanvas;
+    private RectTransform _container;
+    private DiceDraggableUI _selectedDice;
     private DiceDraggableUI _draggingDice;
-    private RectTransform _draggingCombatSlot;
     private int _dragSourceIndex = -1;
     private int _previewInsertIndex = -1;
-    private Canvas _rootCanvas;
+    private bool _suppressInventoryRefresh;
+    private static readonly Color[] DefaultDiceUiColors =
+    {
+        new Color(1f, 0.514151f, 0.514151f, 1f),
+        new Color(0.77953416f, 0.5613208f, 1f, 1f),
+        new Color(0.6821208f, 1f, 0.5801887f, 1f),
+        new Color(0.45f, 0.83f, 1f, 1f),
+        new Color(1f, 0.82f, 0.45f, 1f),
+    };
 
     private void Awake()
     {
         _rootCanvas = GetComponentInParent<Canvas>();
+        _container = layoutContainer != null ? layoutContainer : transform as RectTransform;
 
         if (runInventory == null)
             runInventory = GetComponentInParent<RunInventoryManager>(true);
@@ -94,17 +80,25 @@ public class DiceEquipUIManager : MonoBehaviour
             diceRig = runInventory.DiceRig;
 
         RefreshTurnManagerRef();
-        CaptureCombatSlotBaseY();
-        RebindWorldSlotOwnersFromCurrentOrder();
+        CacheDiceUi();
+        RefreshFromAuthoritativeOrder(true);
+    }
+
+    private void OnEnable()
+    {
+        if (runInventory != null)
+            runInventory.InventoryChanged += HandleInventoryChanged;
     }
 
     private void Start()
     {
-        ApplyAdaptiveLayout(true);
-        RebindCombatSlotLaneIndices();
-        RefreshAllSlots(true);
-        SyncOutputs();
-        SyncWorldSlotRootsToUI(true);
+        RefreshFromAuthoritativeOrder(true);
+    }
+
+    private void OnDisable()
+    {
+        if (runInventory != null)
+            runInventory.InventoryChanged -= HandleInventoryChanged;
     }
 
     private void LateUpdate()
@@ -115,18 +109,21 @@ public class DiceEquipUIManager : MonoBehaviour
 
     public bool CanInteract()
     {
-        if (!lockWhenCombatManagerExists) return true;
+        if (!lockWhenCombatManagerExists)
+            return true;
 
         RefreshTurnManagerRef();
-        if (turnManager == null) return true;
-        if (!turnManager.isActiveAndEnabled) return true;
+        if (turnManager == null || !turnManager.isActiveAndEnabled)
+            return true;
 
         return turnManager.IsPlanning;
     }
 
     public void Register(DiceDraggableUI dice)
     {
-        if (dice == null) return;
+        if (dice == null)
+            return;
+
         dice.manager = this;
         dice.tweenDuration = itemSnapDuration;
     }
@@ -134,182 +131,105 @@ public class DiceEquipUIManager : MonoBehaviour
     [ContextMenu("Rebuild From Children")]
     public void RebuildFromChildren()
     {
-        for (int i = 0; i < equipped.Length; i++)
-            equipped[i] = null;
+        CacheDiceUi();
+        RefreshFromAuthoritativeOrder(true);
+    }
 
-        for (int i = 0; i < equipSlotAnchors.Length; i++)
-        {
-            RectTransform anchor = equipSlotAnchors[i];
-            if (anchor == null) continue;
+    [ContextMenu("Remove Rightmost Dice")]
+    public void RemoveRightmostDice()
+    {
+        if (_orderedDice.Count == 0)
+            return;
 
-            DiceDraggableUI dice = anchor.GetComponentInChildren<DiceDraggableUI>(true);
-            if (dice == null) continue;
+        List<DiceSpinnerGeneric> previous = new List<DiceSpinnerGeneric>(_orderedDice);
+        List<DiceSpinnerGeneric> reordered = new List<DiceSpinnerGeneric>(_orderedDice);
+        reordered.RemoveAt(reordered.Count - 1);
+        if (TryApplyOrderedDice(reordered, previous, notifyInventoryChanged: !ShouldUseDiceRigOrderForRefresh()))
+            RefreshVisualState(false);
+    }
 
-            Register(dice);
-            equipped[i] = dice;
-        }
-
-        CompactEquipped();
-        RebindWorldSlotOwnersFromCurrentOrder();
-        ApplyAdaptiveLayout(true);
-        RebindCombatSlotLaneIndices();
-        RefreshAllSlots(true);
-        SyncOutputs();
-        SyncWorldSlotRootsToUI(true);
+    public void RemoveLastDice()
+    {
+        RemoveRightmostDice();
     }
 
     public void NotifyBeginDrag(DiceDraggableUI dice)
     {
-        if (dice == null) return;
+        if (dice == null)
+            return;
 
+        WasDropConsumedThisFrame = false;
         _draggingDice = dice;
-        _dragSourceIndex = GetEquippedIndex(dice);
+        _dragSourceIndex = _orderedUi.IndexOf(dice);
         _previewInsertIndex = _dragSourceIndex;
-        _draggingCombatSlot = IsDirectGroupDiceDrag(dice) ? null : GetCombatSlotAt(_dragSourceIndex);
-        if (_draggingCombatSlot != null)
-            RefreshCombatSlotPreview(true);
+
+        if (_selectedDice == dice)
+            ClearDiceSelection(true);
     }
 
     public void NotifyDrag(DiceDraggableUI dice, Vector2 screenPosition, Camera eventCamera)
     {
-        if (dice == null || dice != _draggingDice) return;
-        if (_dragSourceIndex < 0) return;
-
-        if (IsDirectGroupDiceDrag(dice))
-        {
-            int groupedInsertIndex = GetDragInsertIndex(screenPosition, eventCamera);
-            if (groupedInsertIndex != _previewInsertIndex)
-            {
-                _previewInsertIndex = groupedInsertIndex;
-                RefreshAllSlots();
-            }
-
-            SyncWorldSlotRootsToUI(false);
+        if (dice == null || dice != _draggingDice || _dragSourceIndex < 0)
             return;
-        }
 
-        int nextInsertIndex = GetDragInsertIndex(screenPosition, eventCamera);
-        if (nextInsertIndex != _previewInsertIndex)
-        {
-            _previewInsertIndex = nextInsertIndex;
-            RefreshAllSlots();
-            RefreshCombatSlotPreview();
-        }
+        int nextInsertIndex = GetInsertIndexFromScreenPosition(screenPosition, eventCamera);
+        if (nextInsertIndex == _previewInsertIndex)
+            return;
 
+        _previewInsertIndex = nextInsertIndex;
+        RefreshRowLayout(false);
         SyncWorldSlotRootsToUI(false);
     }
 
     public void NotifyEndDrag(DiceDraggableUI dice, Vector2 screenPosition, Camera eventCamera)
     {
-        if (dice == null) return;
-
         WasDropConsumedThisFrame = true;
-
-        if (dice != _draggingDice)
+        if (dice == null || dice != _draggingDice)
         {
             HandleInvalidDrop(dice);
             return;
         }
 
-        if (_dragSourceIndex < 0)
-        {
-            HandleInvalidDrop(dice);
-            return;
-        }
-
-        if (IsDirectGroupDiceDrag(dice))
-        {
-            FinalizeDirectGroupedDiceDrag(_previewInsertIndex >= 0 ? _previewInsertIndex : GetClosestEquipSlotIndexFromScreenPosition(screenPosition, eventCamera));
-            return;
-        }
-
-        FinalizeDraggedDice(GetDragInsertIndex(screenPosition, eventCamera));
+        CommitDrag(GetInsertIndexFromScreenPosition(screenPosition, eventCamera));
     }
 
     public void HandleDropToEquipSlot(DiceDraggableUI dice, int slotIndex)
     {
         WasDropConsumedThisFrame = true;
-        if (!CanInteract() || dice == null) return;
-
-        slotIndex = Mathf.Clamp(slotIndex, 0, 2);
-
-        if (dice == _draggingDice && TryGetDirectDragAllowedRange(dice, out int minSlot, out int maxSlot))
-        {
-            if (slotIndex < minSlot || slotIndex > maxSlot)
-            {
-                HandleInvalidDrop(dice);
-                return;
-            }
-
-            FinalizeDirectGroupedDiceDrag(slotIndex);
+        if (dice == null || dice != _draggingDice)
             return;
-        }
 
-        if (dice == _draggingDice && TryAdjustExternalGroupDropTarget(slotIndex, out int adjustedSlotIndex))
-        {
-            if (adjustedSlotIndex < 0)
-            {
-                HandleInvalidDrop(dice);
-                return;
-            }
-
-            slotIndex = adjustedSlotIndex;
-        }
-
-        if (dice == _draggingDice && _dragSourceIndex >= 0)
-        {
-            FinalizeDraggedDice(slotIndex);
-            return;
-        }
-
-        int fromSlot = GetEquippedIndex(dice);
-        DiceDraggableUI existing = equipped[slotIndex];
-
-        if (fromSlot == slotIndex)
-        {
-            ApplyAdaptiveLayout();
-            SnapToEquip(slotIndex, dice);
-            SyncWorldSlotRootsToUI(false);
-            return;
-        }
-
-        if (fromSlot < 0 && existing != null)
-        {
-            dice.ReturnToCachedHome();
-            ApplyAdaptiveLayout();
-            RefreshAllSlots();
-            SyncWorldSlotRootsToUI(false);
-            return;
-        }
-
-        if (fromSlot >= 0)
-            equipped[fromSlot] = null;
-
-        if (existing != null && fromSlot >= 0)
-            equipped[fromSlot] = existing;
-
-        equipped[slotIndex] = dice;
-
-        if (linkedCombatSlotAnchors != null && fromSlot >= 0 && fromSlot < linkedCombatSlotAnchors.Length && slotIndex < linkedCombatSlotAnchors.Length)
-            linkedCombatSlotAnchors = DiceEquipStateUtility.MoveCombatSlot(linkedCombatSlotAnchors, fromSlot, slotIndex);
-
-        CompactEquipped();
-        ApplyAdaptiveLayout();
-        RebindCombatSlotLaneIndices();
-        RefreshAllSlots();
-        SyncOutputs();
-        SyncWorldSlotRootsToUI(false);
+        CommitDrag(Mathf.Clamp(slotIndex, 0, Mathf.Max(0, _orderedUi.Count - 1)));
     }
 
     public void HandleInvalidDrop(DiceDraggableUI dice)
     {
-        if (dice == null) return;
+        if (dice != null)
+            dice.ReturnToCachedHome();
 
         ClearDragState();
-        dice.ReturnToCachedHome();
-        ApplyAdaptiveLayout();
-        RefreshAllSlots();
+        RefreshRowLayout(false);
         SyncWorldSlotRootsToUI(false);
+    }
+
+    public void HandleDiceClicked(DiceDraggableUI dice)
+    {
+        if (dice == null)
+            return;
+
+        if (_selectedDice == dice)
+        {
+            ClearDiceSelection();
+            return;
+        }
+
+        SetSelectedDice(dice);
+    }
+
+    public void HandleDiceBeginDrag(DiceDraggableUI dice)
+    {
+        if (_selectedDice == dice)
+            ClearDiceSelection(true);
     }
 
     public bool TryMovePlannedTwoSlotGroup(int anchorLane1Based, Vector2 screenPosition, Camera eventCamera)
@@ -323,90 +243,43 @@ public class DiceEquipUIManager : MonoBehaviour
 
         if (!turnManager.TryGetPlannedGroupAtLane(anchorLane1Based, out int anchor0, out int start0, out int span))
             return false;
-        if (span != 2)
+        if (span != 2 || anchor0 != start0)
             return false;
-        if (anchor0 != start0)
+        if (start0 < 0 || start0 + 1 >= _orderedDice.Count)
             return false;
 
-        int targetStart0 = GetClosestTwoSlotStartFromScreenPosition(screenPosition, eventCamera);
-        if (targetStart0 == start0)
+        int targetStart = GetClosestTwoSlotStartFromScreenPosition(screenPosition, eventCamera);
+        if (targetStart == start0)
             return true;
 
-        int[] permutation = BuildTwoSlotGroupPermutation(start0, targetStart0);
-        if (permutation == null)
+        List<DiceSpinnerGeneric> previous = new List<DiceSpinnerGeneric>(_orderedDice);
+        List<DiceSpinnerGeneric> reordered = new List<DiceSpinnerGeneric>(_orderedDice);
+        DiceSpinnerGeneric first = reordered[start0];
+        DiceSpinnerGeneric second = reordered[start0 + 1];
+        reordered.RemoveAt(start0 + 1);
+        reordered.RemoveAt(start0);
+        reordered.Insert(targetStart, second);
+        reordered.Insert(targetStart, first);
+
+        if (!TryApplyOrderedDice(reordered, previous, notifyInventoryChanged: !ShouldUseDiceRigOrderForRefresh()))
             return false;
 
-        DiceDraggableUI[] oldEquipped = (DiceDraggableUI[])equipped.Clone();
-        RectTransform[] oldCombatAnchors = linkedCombatSlotAnchors != null ? (RectTransform[])linkedCombatSlotAnchors.Clone() : null;
-
-        equipped = DiceEquipStateUtility.ApplyPermutation(equipped, permutation);
-        if (linkedCombatSlotAnchors != null && linkedCombatSlotAnchors.Length == permutation.Length)
-            linkedCombatSlotAnchors = DiceEquipStateUtility.ApplyPermutation(linkedCombatSlotAnchors, permutation);
-
-        RebindCombatSlotLaneIndices();
-        SyncOutputs();
-
-        bool committed = turnManager.CommitDiceLaneReorder(permutation);
-        if (!committed)
-        {
-            equipped = oldEquipped;
-            if (oldCombatAnchors != null)
-                linkedCombatSlotAnchors = oldCombatAnchors;
-            RebindCombatSlotLaneIndices();
-            SyncOutputs();
-            ApplyAdaptiveLayout();
-            RefreshAllSlots();
-            SyncWorldSlotRootsToUI(false);
-            return false;
-        }
-
-        ApplyAdaptiveLayout();
-        RefreshAllSlots();
-        SyncWorldSlotRootsToUI(false);
+        RefreshVisualState(false);
         return true;
     }
 
-    private void FinalizeDraggedDice(int insertIndex)
+    public void SyncOutputs()
     {
-        int count = CountEquipped();
-        if (_draggingDice == null || _dragSourceIndex < 0 || count <= 0)
-        {
-            ClearDragState();
-            return;
-        }
-
-        insertIndex = Mathf.Clamp(insertIndex, 0, Mathf.Max(0, count - 1));
-        _previewInsertIndex = insertIndex;
-
-        DiceDraggableUI[] oldEquipped = (DiceDraggableUI[])equipped.Clone();
-        RectTransform[] oldCombatAnchors = linkedCombatSlotAnchors != null ? (RectTransform[])linkedCombatSlotAnchors.Clone() : null;
-        int[] permutation = BuildCommittedPermutation();
-
-        ApplyInsertedOrder(insertIndex);
-        ApplyInsertedOrderToCombatSlots(insertIndex);
-        RebindCombatSlotLaneIndices();
-        SyncOutputs();
-
-        bool committed = true;
-        if (turnManager != null)
-            committed = turnManager.CommitDiceLaneReorder(permutation);
-
-        if (!committed)
-        {
-            equipped = oldEquipped;
-            if (oldCombatAnchors != null)
-                linkedCombatSlotAnchors = oldCombatAnchors;
-            RebindCombatSlotLaneIndices();
-            SyncOutputs();
-        }
-
-        ClearDragState();
-        ApplyAdaptiveLayout();
-        RefreshAllSlots();
-        SyncWorldSlotRootsToUI(false);
+        SyncOutputs(notifyInventoryChanged: !ShouldUseDiceRigOrderForRefresh());
     }
 
-    private void FinalizeDirectGroupedDiceDrag(int targetSlotIndex)
+    public bool TryGetSelectedDice(out DiceSpinnerGeneric dice)
+    {
+        dice = _selectedDice != null ? _selectedDice.dice : null;
+        return dice != null;
+    }
+
+    private void CommitDrag(int insertIndex)
     {
         if (_draggingDice == null || _dragSourceIndex < 0)
         {
@@ -414,445 +287,481 @@ public class DiceEquipUIManager : MonoBehaviour
             return;
         }
 
-        targetSlotIndex = Mathf.Clamp(targetSlotIndex, 0, 2);
+        List<DiceSpinnerGeneric> previous = new List<DiceSpinnerGeneric>(_orderedDice);
+        insertIndex = Mathf.Clamp(insertIndex, 0, Mathf.Max(0, _orderedDice.Count - 1));
 
-        if (!TryGetDirectDragAllowedRange(_draggingDice, out int minSlot, out int maxSlot))
+        DiceSpinnerGeneric dragged = _draggingDice.dice;
+        _orderedDice.RemoveAt(_dragSourceIndex);
+        _orderedDice.Insert(insertIndex, dragged);
+
+        if (!TryApplyOrderedDice(_orderedDice, previous, notifyInventoryChanged: !ShouldUseDiceRigOrderForRefresh()))
         {
-            HandleInvalidDrop(_draggingDice);
-            return;
+            _orderedDice.Clear();
+            _orderedDice.AddRange(previous);
+            RebuildUiOrderFromDiceList();
+            UpdateEquippedArray();
         }
-
-        if (targetSlotIndex < minSlot || targetSlotIndex > maxSlot)
-        {
-            HandleInvalidDrop(_draggingDice);
-            return;
-        }
-
-        if (targetSlotIndex != _dragSourceIndex)
-            equipped = DiceEquipStateUtility.SwapItems(equipped, _dragSourceIndex, targetSlotIndex);
-
-        SyncOutputs();
-        RefreshTurnManagerRef();
-        if (turnManager != null)
-            turnManager.RefreshPlanningAfterDiceValueReorder();
 
         ClearDragState();
-        ApplyAdaptiveLayout();
-        RefreshAllSlots();
-        SyncWorldSlotRootsToUI(false);
+        RefreshVisualState(false);
     }
 
-    private void ApplyInsertedOrder(int insertIndex)
+    private bool TryApplyOrderedDice(List<DiceSpinnerGeneric> nextOrder, List<DiceSpinnerGeneric> previousOrder, bool notifyInventoryChanged)
     {
-        if (_draggingDice == null) return;
-        equipped = DiceEquipStateUtility.InsertDraggedItem(equipped, _draggingDice, insertIndex);
-    }
+        List<DiceSpinnerGeneric> nextSnapshot = new List<DiceSpinnerGeneric>(nextOrder);
+        List<DiceSpinnerGeneric> previousSnapshot = new List<DiceSpinnerGeneric>(previousOrder);
 
-    private void ApplyInsertedOrderToCombatSlots(int insertIndex)
-    {
-        if (_draggingCombatSlot == null)
-            return;
+        _orderedDice.Clear();
+        _orderedDice.AddRange(nextSnapshot);
+        RebuildUiOrderFromDiceList();
+        UpdateEquippedArray();
+        SyncOutputs(notifyInventoryChanged);
 
-        linkedCombatSlotAnchors = DiceEquipStateUtility.ReorderCombatSlots(
-            linkedCombatSlotAnchors,
-            _draggingCombatSlot,
-            insertIndex,
-            CountEquipped());
-    }
-
-    private int[] BuildCommittedPermutation()
-    {
-        int count = CountEquipped();
-        int insertIndex = Mathf.Clamp(_previewInsertIndex, 0, Mathf.Max(0, count - 1));
-        return DiceEquipStateUtility.BuildPermutation((DiceDraggableUI[])equipped.Clone(), _draggingDice, insertIndex);
-    }
-
-    private RectTransform GetCombatSlotAt(int index)
-        => DiceEquipStateUtility.GetCombatSlotAt(linkedCombatSlotAnchors, index);
-
-    private void ClearDragState()
-    {
-        _draggingDice = null;
-        _draggingCombatSlot = null;
-        _dragSourceIndex = -1;
-        _previewInsertIndex = -1;
-    }
-
-    private void CompactEquipped()
-        => equipped = DiceEquipStateUtility.Compact(equipped);
-
-    private void RebindCombatSlotLaneIndices()
-    {
-        RefreshTurnManagerRef();
-        DiceEquipStateUtility.RebindCombatSlotLaneIndices(linkedCombatSlotAnchors, turnManager);
-    }
-
-    private int CountEquipped()
-        => DiceEquipLayoutUtility.CountOccupied(equipped);
-
-    private int GetEquippedIndex(DiceDraggableUI dice)
-        => DiceEquipLayoutUtility.FindIndex(equipped, dice);
-
-    private void SnapToEquip(int slotIndex, DiceDraggableUI dice, bool instant = false)
-    {
-        RectTransform anchor = equipSlotAnchors != null && slotIndex >= 0 && slotIndex < equipSlotAnchors.Length
-            ? equipSlotAnchors[slotIndex]
-            : null;
-
-        if (anchor == null)
+        if (!CommitPlanningPermutation(previousSnapshot, _orderedDice))
         {
-            dice.ReturnToCachedHome();
-            return;
+            _orderedDice.Clear();
+            _orderedDice.AddRange(previousSnapshot);
+            RebuildUiOrderFromDiceList();
+            UpdateEquippedArray();
+            SyncOutputs(notifyInventoryChanged);
+            return false;
         }
 
-        Register(dice);
-        if (instant)
-        {
-            RectTransform rt = dice.GetComponent<RectTransform>();
-            rt.SetParent(anchor, worldPositionStays: false);
-            rt.anchoredPosition = Vector2.zero;
-            rt.localScale = Vector3.one;
-        }
-        else
-        {
-            dice.SnapToAnchorAnimated(anchor, Vector2.zero);
-        }
-    }
-
-    private void RefreshAllSlots(bool instant = false)
-    {
-        DiceEquipLayoutUtility.BuildDisplayedOrder(equipped, _displayOrderBuffer, _draggingDice, _dragSourceIndex, _previewInsertIndex);
-
-        for (int i = 0; i < _displayOrderBuffer.Length; i++)
-        {
-            DiceDraggableUI dice = _displayOrderBuffer[i];
-            if (dice == null || dice == _draggingDice) continue;
-            SnapToEquip(i, dice, instant);
-        }
-    }
-
-    private void RefreshCombatSlotPreview(bool instant = false)
-    {
-        CaptureCombatSlotBaseY();
-        DiceEquipPresentationUtility.RefreshCombatSlotPreview(
-            mirrorAdaptiveLayoutToCombatSlots,
-            linkedCombatSlotAnchors,
-            _combatDisplayBuffer,
-            _draggingCombatSlot,
-            _dragSourceIndex,
-            _previewInsertIndex,
-            CountEquipped(),
-            hideEmptyCombatSlotAnchors,
-            rowY,
-            useAdaptiveCenterLayout,
-            pairHalfSpacing,
-            trioSideOffset,
-            combatSlotsXOffset,
-            _combatSlotIdentity,
-            _combatSlotBaseY,
-            instant,
-            combatSlotPreviewDuration,
-            combatSlotPreviewEase);
-    }
-
-    private int GetInsertIndexFromScreenPosition(Vector2 screenPosition, Camera eventCamera)
-        => DiceEquipLayoutUtility.GetInsertIndexFromScreenPosition(
-            equipped,
-            _dragSourceIndex,
-            equipSlotAnchors,
-            transform,
-            useAdaptiveCenterLayout,
-            pairHalfSpacing,
-            trioSideOffset,
-            rowY,
-            screenPosition,
-            eventCamera);
-
-    private int GetDragInsertIndex(Vector2 screenPosition, Camera eventCamera)
-    {
-        int insertIndex = GetInsertIndexFromScreenPosition(screenPosition, eventCamera);
-        if (!enableGroupedSkillDiceReorder)
-            return insertIndex;
-
-        if (!TryGetDirectDragAllowedRange(_draggingDice, out int minInsert, out int maxInsert))
-            return AdjustInsertIndexForExternalGroupBlock(insertIndex, screenPosition, eventCamera);
-
-        return Mathf.Clamp(insertIndex, minInsert, maxInsert);
-    }
-
-    private int GetClosestEquipSlotIndexFromScreenPosition(Vector2 screenPosition, Camera eventCamera)
-    {
-        Vector3 pointerWorld;
-        RectTransformUtility.ScreenPointToWorldPointInRectangle(transform as RectTransform, screenPosition, eventCamera, out pointerWorld);
-
-        int bestIndex = 0;
-        float bestDistance = float.MaxValue;
-        for (int i = 0; i < equipSlotAnchors.Length; i++)
-        {
-            RectTransform anchor = equipSlotAnchors[i];
-            if (anchor == null)
-                continue;
-
-            float distance = Mathf.Abs(pointerWorld.x - anchor.position.x);
-            if (distance < bestDistance)
-            {
-                bestDistance = distance;
-                bestIndex = i;
-            }
-        }
-
-        return bestIndex;
-    }
-
-    private bool TryGetDirectDragAllowedRange(DiceDraggableUI dice, out int minInsert, out int maxInsert)
-    {
-        minInsert = -1;
-        maxInsert = -1;
-
-        if (dice == null)
-            return false;
-
-        int draggedIndex = dice == _draggingDice ? _dragSourceIndex : GetEquippedIndex(dice);
-        if (draggedIndex < 0)
-            return false;
-
-        RefreshTurnManagerRef();
-        if (turnManager == null)
-            return false;
-
-        if (!turnManager.TryGetPlannedGroupAtLane(draggedIndex + 1, out _, out int start0, out int span))
-            return false;
-        if (span != 2)
-            return false;
-
-        minInsert = start0;
-        maxInsert = span == 2 ? start0 + 1 : start0 + span - 1;
         return true;
     }
 
-    private bool IsDirectGroupDiceDrag(DiceDraggableUI dice)
-        => enableGroupedSkillDiceReorder && TryGetDirectDragAllowedRange(dice, out _, out _);
-
-    private int AdjustInsertIndexForExternalGroupBlock(int proposedInsertIndex, Vector2 screenPosition, Camera eventCamera)
+    private bool CommitPlanningPermutation(List<DiceSpinnerGeneric> previousOrder, List<DiceSpinnerGeneric> nextOrder)
     {
-        if (_draggingDice == null)
-            return proposedInsertIndex;
-
-        int draggedIndex = _dragSourceIndex;
-        if (draggedIndex < 0)
-            return proposedInsertIndex;
-
-        if (!TryFindTwoSlotGroup(out int groupStart, out int groupEnd))
-            return proposedInsertIndex;
-
-        if (draggedIndex >= groupStart && draggedIndex <= groupEnd)
-            return proposedInsertIndex;
-
-        float pointerX = GetPointerWorldX(screenPosition, eventCamera);
-        float leftEdgeX = GetAnchorWorldX(groupStart);
-        float rightEdgeX = GetAnchorWorldX(groupEnd);
-
-        if (draggedIndex > groupEnd)
-        {
-            if (pointerX < leftEdgeX)
-                return groupStart;
-
-            return Mathf.Clamp(draggedIndex, 0, 2);
-        }
-
-        if (draggedIndex < groupStart)
-        {
-            if (pointerX > rightEdgeX)
-                return groupEnd;
-
-            return Mathf.Clamp(draggedIndex, 0, 2);
-        }
-
-        return proposedInsertIndex;
-    }
-
-    private bool TryFindTwoSlotGroup(out int groupStart, out int groupEnd)
-    {
-        groupStart = -1;
-        groupEnd = -1;
-
         RefreshTurnManagerRef();
-        if (turnManager == null)
-            return false;
-
-        for (int lane1 = 1; lane1 <= 3; lane1++)
-        {
-            if (!turnManager.TryGetPlannedGroupAtLane(lane1, out _, out int start0, out int span))
-                continue;
-            if (span != 2)
-                continue;
-
-            groupStart = start0;
-            groupEnd = start0 + 1;
+        if (turnManager == null || !turnManager.IsPlanning)
             return true;
-        }
 
-        return false;
+        int[] permutation = BuildPermutation(previousOrder, nextOrder, RunInventoryManager.EQUIPPED_DICE_COUNT);
+        return turnManager.CommitDiceLaneReorder(permutation);
     }
 
-    private bool TryAdjustExternalGroupDropTarget(int proposedSlotIndex, out int adjustedSlotIndex)
+    private void SyncOutputs(bool notifyInventoryChanged)
     {
-        adjustedSlotIndex = proposedSlotIndex;
+        DiceSpinnerGeneric[] assets = new DiceSpinnerGeneric[RunInventoryManager.EQUIPPED_DICE_COUNT];
+        for (int i = 0; i < assets.Length && i < _orderedDice.Count; i++)
+            assets[i] = _orderedDice[i];
 
-        if (_dragSourceIndex < 0)
-            return false;
-
-        if (!TryFindTwoSlotGroup(out int groupStart, out int groupEnd))
-            return false;
-
-        if (_dragSourceIndex >= groupStart && _dragSourceIndex <= groupEnd)
-            return false;
-
-        if (_dragSourceIndex > groupEnd)
+        if (runInventory != null)
         {
-            if (proposedSlotIndex == groupEnd)
+            _suppressInventoryRefresh = true;
+            try
             {
-                adjustedSlotIndex = -1;
-                return true;
+                runInventory.SetDiceLayout(assets, notifyChanged: notifyInventoryChanged);
             }
-
-            if (proposedSlotIndex == groupStart)
+            finally
             {
-                adjustedSlotIndex = groupStart;
-                return true;
+                _suppressInventoryRefresh = false;
             }
         }
 
-        if (_dragSourceIndex < groupStart)
+        if (diceRig != null)
         {
-            if (proposedSlotIndex == groupStart)
+            diceRig.ApplyDiceLayout(assets);
+
+            for (int i = 0; i < assets.Length; i++)
             {
-                adjustedSlotIndex = -1;
-                return true;
+                diceRig.SetSlotActive(i, assets[i] != null);
             }
 
-            if (proposedSlotIndex == groupEnd)
+            DiceEquipWorldSyncUtility.RefreshDiceRigRollInfosAfterReorder(diceRig);
+        }
+    }
+
+    private void RefreshFromAuthoritativeOrder(bool instant)
+    {
+        CacheDiceUi();
+        BuildOrderedDiceFromRuntime();
+        RebuildUiOrderFromDiceList();
+        UpdateEquippedArray();
+        ApplyUiActiveStates();
+        RefreshDiceSelectionVisuals(instant);
+        RebindCombatLaneIndices();
+        RebindWorldSlotOwners();
+        RefreshRowLayout(instant);
+        SyncWorldSlotRootsToUI(instant);
+    }
+
+    private void BuildOrderedDiceFromRuntime()
+    {
+        _orderedDice.Clear();
+
+        if (ShouldUseDiceRigOrderForRefresh() && diceRig != null && diceRig.slots != null)
+        {
+            for (int i = 0; i < diceRig.slots.Length; i++)
             {
-                adjustedSlotIndex = groupEnd;
-                return true;
+                DiceSpinnerGeneric dice = diceRig.slots[i] != null ? diceRig.slots[i].dice : null;
+                if (dice != null)
+                    _orderedDice.Add(dice);
             }
+
+            return;
         }
 
-        return false;
+        if (runInventory != null)
+        {
+            for (int i = 0; i < RunInventoryManager.EQUIPPED_DICE_COUNT; i++)
+            {
+                DiceSpinnerGeneric dice = runInventory.GetEquippedDice(i);
+                if (dice != null)
+                    _orderedDice.Add(dice);
+            }
+
+            return;
+        }
+
+        foreach (KeyValuePair<DiceSpinnerGeneric, DiceDraggableUI> pair in _uiByDice)
+        {
+            if (pair.Key != null)
+                _orderedDice.Add(pair.Key);
+        }
     }
 
-    private float GetPointerWorldX(Vector2 screenPosition, Camera eventCamera)
+    private void CacheDiceUi()
     {
-        Vector3 pointerWorld;
-        RectTransformUtility.ScreenPointToWorldPointInRectangle(transform as RectTransform, screenPosition, eventCamera, out pointerWorld);
-        return pointerWorld.x;
+        _uiByDice.Clear();
+        CacheDiceUiFromRoot(transform);
+        if (layoutContainer != null && layoutContainer != transform)
+            CacheDiceUiFromRoot(layoutContainer);
+        if (dragLayer != null && dragLayer != transform)
+            CacheDiceUiFromRoot(dragLayer);
     }
 
-    private float GetAnchorWorldX(int slotIndex)
+    private void CacheDiceUiFromRoot(Transform root)
     {
-        if (equipSlotAnchors == null || slotIndex < 0 || slotIndex >= equipSlotAnchors.Length || equipSlotAnchors[slotIndex] == null)
-            return transform.position.x;
-        return equipSlotAnchors[slotIndex].position.x;
+        if (root == null)
+            return;
+
+        DiceDraggableUI[] diceUi = root.GetComponentsInChildren<DiceDraggableUI>(true);
+        for (int i = 0; i < diceUi.Length; i++)
+        {
+            DiceDraggableUI ui = diceUi[i];
+            if (ui == null || ui.dice == null || _uiByDice.ContainsKey(ui.dice))
+                continue;
+
+            _uiByDice.Add(ui.dice, ui);
+            Register(ui);
+        }
+    }
+
+    private void RebuildUiOrderFromDiceList()
+    {
+        EnsureUiExistsForOrderedDice();
+        _orderedUi.Clear();
+        for (int i = 0; i < _orderedDice.Count; i++)
+        {
+            if (_uiByDice.TryGetValue(_orderedDice[i], out DiceDraggableUI ui) && ui != null)
+                _orderedUi.Add(ui);
+        }
+    }
+
+    private void EnsureUiExistsForOrderedDice()
+    {
+        if (!autoCreateMissingUi)
+            return;
+
+        for (int i = 0; i < _orderedDice.Count; i++)
+        {
+            DiceSpinnerGeneric dice = _orderedDice[i];
+            if (dice == null || _uiByDice.ContainsKey(dice))
+                continue;
+
+            DiceDraggableUI created = CreateRuntimeDiceUi(dice, i);
+            if (created == null)
+                continue;
+
+            _uiByDice[dice] = created;
+            Register(created);
+        }
+    }
+
+    private DiceDraggableUI CreateRuntimeDiceUi(DiceSpinnerGeneric dice, int orderIndex)
+    {
+        if (dice == null)
+            return null;
+
+        Transform parent = GetLayoutContainer() != null ? GetLayoutContainer() : transform;
+        GameObject go = new GameObject($"DiceCard_{dice.name}", typeof(RectTransform), typeof(Image), typeof(CanvasGroup), typeof(DiceDraggableUI));
+        go.layer = gameObject.layer;
+        go.transform.SetParent(parent, false);
+
+        RectTransform rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.5f, 0.5f);
+        rt.anchorMax = new Vector2(0.5f, 0.5f);
+        rt.pivot = new Vector2(0.5f, 0.5f);
+        rt.sizeDelta = diceUiSize;
+
+        Image image = go.GetComponent<Image>();
+        image.color = GetDefaultDiceUiColor(orderIndex);
+        image.raycastTarget = true;
+
+        DiceDraggableUI diceUi = go.GetComponent<DiceDraggableUI>();
+        diceUi.dice = dice;
+        diceUi.manager = this;
+        diceUi.backgroundImage = image;
+        diceUi.tweenDuration = itemSnapDuration;
+        return diceUi;
+    }
+
+    private void UpdateEquippedArray()
+    {
+        for (int i = 0; i < equipped.Length; i++)
+            equipped[i] = i < _orderedUi.Count ? _orderedUi[i] : null;
+    }
+
+    private void ApplyUiActiveStates()
+    {
+        foreach (KeyValuePair<DiceSpinnerGeneric, DiceDraggableUI> pair in _uiByDice)
+        {
+            bool active = _orderedDice.Contains(pair.Key);
+            if (pair.Value != null && pair.Value.gameObject.activeSelf != active)
+                pair.Value.gameObject.SetActive(active);
+        }
+    }
+
+    private void RefreshVisualState(bool instant)
+    {
+        ApplyUiActiveStates();
+        RefreshDiceSelectionVisuals(instant);
+        RebindCombatLaneIndices();
+        RebindWorldSlotOwners();
+        RefreshRowLayout(instant);
+        SyncWorldSlotRootsToUI(instant);
+    }
+
+    private void RefreshRowLayout(bool instant)
+    {
+        RectTransform container = GetLayoutContainer();
+        if (container == null)
+            return;
+
+        List<DiceDraggableUI> displayed = BuildDisplayedOrder();
+        for (int i = 0; i < displayed.Count; i++)
+        {
+            DiceDraggableUI diceUi = displayed[i];
+            if (diceUi == null || diceUi == _draggingDice)
+                continue;
+
+            Register(diceUi);
+            diceUi.SnapToAnchorAnimated(container, GetPositionForIndex(i, displayed.Count), instant);
+        }
+    }
+
+    private List<DiceDraggableUI> BuildDisplayedOrder()
+    {
+        List<DiceDraggableUI> displayed = new List<DiceDraggableUI>(_orderedUi.Count);
+        if (_draggingDice == null || _dragSourceIndex < 0 || _previewInsertIndex < 0)
+        {
+            displayed.AddRange(_orderedUi);
+            return displayed;
+        }
+
+        for (int i = 0; i < _orderedUi.Count; i++)
+        {
+            DiceDraggableUI current = _orderedUi[i];
+            if (current == _draggingDice)
+                continue;
+
+            if (displayed.Count == _previewInsertIndex)
+                displayed.Add(_draggingDice);
+
+            displayed.Add(current);
+        }
+
+        if (!displayed.Contains(_draggingDice))
+            displayed.Add(_draggingDice);
+
+        return displayed;
+    }
+
+    private Vector2 GetPositionForIndex(int index, int count)
+    {
+        float x = (index - (count - 1) / 2f) * spacing;
+        return new Vector2(x, rowY);
+    }
+
+    private int GetInsertIndexFromScreenPosition(Vector2 screenPosition, Camera eventCamera)
+    {
+        RectTransform container = GetLayoutContainer();
+        if (container == null || _orderedUi.Count <= 1)
+            return 0;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(container, screenPosition, eventCamera, out Vector2 local))
+            return Mathf.Clamp(_dragSourceIndex, 0, Mathf.Max(0, _orderedUi.Count - 1));
+
+        for (int i = 0; i < _orderedUi.Count - 1; i++)
+        {
+            float midpoint = (GetPositionForIndex(i, _orderedUi.Count).x + GetPositionForIndex(i + 1, _orderedUi.Count).x) * 0.5f;
+            if (local.x < midpoint)
+                return i;
+        }
+
+        return _orderedUi.Count - 1;
     }
 
     private int GetClosestTwoSlotStartFromScreenPosition(Vector2 screenPosition, Camera eventCamera)
     {
-        Vector3 pointerWorld;
-        RectTransformUtility.ScreenPointToWorldPointInRectangle(transform as RectTransform, screenPosition, eventCamera, out pointerWorld);
+        if (_orderedUi.Count <= 2)
+            return 0;
 
-        Vector3 start0Center = GetTwoSlotCenterWorldPos(0);
-        Vector3 start1Center = GetTwoSlotCenterWorldPos(1);
+        RectTransform container = GetLayoutContainer();
+        if (container == null)
+            return 0;
 
-        float distToStart0 = Mathf.Abs(pointerWorld.x - start0Center.x);
-        float distToStart1 = Mathf.Abs(pointerWorld.x - start1Center.x);
-        return distToStart0 <= distToStart1 ? 0 : 1;
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(container, screenPosition, eventCamera, out Vector2 local))
+            return 0;
+
+        float firstCenter = (GetPositionForIndex(0, _orderedUi.Count).x + GetPositionForIndex(1, _orderedUi.Count).x) * 0.5f;
+        float secondCenter = (GetPositionForIndex(1, _orderedUi.Count).x + GetPositionForIndex(2, _orderedUi.Count).x) * 0.5f;
+        return Mathf.Abs(local.x - firstCenter) <= Mathf.Abs(local.x - secondCenter) ? 0 : 1;
     }
 
-    private Vector3 GetTwoSlotCenterWorldPos(int start0)
+    private void SetSelectedDice(DiceDraggableUI dice, bool instant = false)
     {
-        start0 = Mathf.Clamp(start0, 0, 1);
-        RectTransform left = equipSlotAnchors != null && start0 < equipSlotAnchors.Length ? equipSlotAnchors[start0] : null;
-        RectTransform right = equipSlotAnchors != null && start0 + 1 < equipSlotAnchors.Length ? equipSlotAnchors[start0 + 1] : null;
+        if (_selectedDice != null)
+            _selectedDice.SetSelected(false, instant);
 
-        if (left == null && right == null)
-            return transform.position;
-        if (left == null)
-            return right.position;
-        if (right == null)
-            return left.position;
-
-        return (left.position + right.position) * 0.5f;
+        _selectedDice = dice;
+        if (_selectedDice != null)
+            _selectedDice.SetSelected(true, instant);
     }
 
-    private static int[] BuildTwoSlotGroupPermutation(int currentStart0, int targetStart0)
+    private void ClearDiceSelection(bool instant = false)
     {
-        currentStart0 = Mathf.Clamp(currentStart0, 0, 1);
-        targetStart0 = Mathf.Clamp(targetStart0, 0, 1);
+        if (_selectedDice == null)
+            return;
 
-        if (currentStart0 == targetStart0)
-            return new[] { 0, 1, 2 };
-
-        if (currentStart0 == 0 && targetStart0 == 1)
-            return new[] { 2, 0, 1 };
-
-        if (currentStart0 == 1 && targetStart0 == 0)
-            return new[] { 1, 2, 0 };
-
-        return null;
+        _selectedDice.SetSelected(false, instant);
+        _selectedDice = null;
     }
 
-    private void ApplyAdaptiveLayout(bool instant = false)
+    private void RefreshDiceSelectionVisuals(bool instant)
     {
-        CaptureCombatSlotBaseY();
-        DiceEquipPresentationUtility.ApplyAdaptiveLayout(
-            equipSlotAnchors,
-            linkedCombatSlotAnchors,
-            CountEquipped(),
-            rowY,
-            useAdaptiveCenterLayout,
-            pairHalfSpacing,
-            trioSideOffset,
-            hideEmptyAnchors,
-            mirrorAdaptiveLayoutToCombatSlots,
-            hideEmptyCombatSlotAnchors,
-            combatSlotsXOffset,
-            _combatSlotBaseY,
-            anchorTweenDuration,
-            anchorEase,
-            instant);
+        if (_selectedDice != null && !_orderedUi.Contains(_selectedDice))
+            _selectedDice = null;
+
+        foreach (KeyValuePair<DiceSpinnerGeneric, DiceDraggableUI> pair in _uiByDice)
+        {
+            DiceDraggableUI diceUi = pair.Value;
+            if (diceUi == null)
+                continue;
+
+            diceUi.SetSelected(diceUi == _selectedDice, instant);
+        }
     }
 
-    private void CaptureCombatSlotBaseY()
-        => DiceEquipPresentationUtility.CaptureCombatSlotBaseY(linkedCombatSlotAnchors, _combatSlotIdentity, _combatSlotBaseY, ref _capturedCombatSlotY);
+    private void RebindCombatLaneIndices()
+    {
+        DiceEquipStateUtility.RebindCombatSlotLaneIndices(linkedCombatSlotAnchors, turnManager);
+    }
 
-    public void SyncOutputs()
-        => DiceEquipPresentationUtility.SyncOutputs(equipped, runInventory, diceRig);
-
-    private void RebindWorldSlotOwnersFromCurrentOrder()
-        => DiceEquipWorldSyncUtility.RebindWorldSlotOwnersFromCurrentOrder(equipped, _worldSlotOwners, _worldSlotRoots, diceRig);
+    private void RebindWorldSlotOwners()
+    {
+        DiceEquipWorldSyncUtility.RebindWorldSlotOwnersFromCurrentOrder(equipped, _worldSlotOwners, _worldSlotRoots, diceRig);
+    }
 
     private void SyncWorldSlotRootsToUI(bool instant)
     {
-        if (!mirrorDiceRigSlotsWithLiveUI) return;
-        if (diceRig == null) return;
+        if (!mirrorDiceRigSlotsWithLiveUI || diceRig == null)
+            return;
 
-        if (_worldSlotOwners[0] == null && _worldSlotOwners[1] == null && _worldSlotOwners[2] == null)
-            RebindWorldSlotOwnersFromCurrentOrder();
-
-        DiceEquipWorldFollowUtility.SyncWorldSlotRootsToUI(
+        Camera uiCamera = DiceEquipWorldSyncUtility.GetUICamera(_rootCanvas);
+        Camera worldCameraToUse = DiceEquipWorldSyncUtility.GetWorldFollowCamera(worldFollowCamera, uiCamera);
+        DiceEquipWorldSyncUtility.SyncWorldSlotRootsToUI(
             mirrorDiceRigSlotsWithLiveUI,
             diceRig,
             _worldSlotOwners,
             _worldSlotRoots,
             instant,
-            ref _rootCanvas,
-            this,
-            worldFollowCamera);
+            uiCamera,
+            worldCameraToUse);
     }
 
     private void RefreshTurnManagerRef()
     {
         if (turnManager == null)
             turnManager = FindObjectOfType<TurnManager>(true);
+    }
+
+    private void HandleInventoryChanged()
+    {
+        if (_suppressInventoryRefresh || _draggingDice != null)
+            return;
+
+        RefreshFromAuthoritativeOrder(false);
+    }
+
+    private bool ShouldUseDiceRigOrderForRefresh()
+    {
+        RefreshTurnManagerRef();
+        if (turnManager == null || !turnManager.isActiveAndEnabled)
+            return false;
+
+        return turnManager.phase == TurnManager.Phase.Planning ||
+               turnManager.phase == TurnManager.Phase.AwaitTarget ||
+               turnManager.phase == TurnManager.Phase.Executing;
+    }
+
+    private void ClearDragState()
+    {
+        _draggingDice = null;
+        _dragSourceIndex = -1;
+        _previewInsertIndex = -1;
+    }
+
+    private RectTransform GetLayoutContainer()
+    {
+        if (layoutContainer != null && _container != layoutContainer)
+            _container = layoutContainer;
+
+        if (_container == null)
+            _container = transform as RectTransform;
+
+        return _container;
+    }
+
+    private static int[] BuildPermutation(List<DiceSpinnerGeneric> previousOrder, List<DiceSpinnerGeneric> nextOrder, int slotCount)
+    {
+        int[] permutation = new int[slotCount];
+        DiceSpinnerGeneric[] previous = new DiceSpinnerGeneric[slotCount];
+        DiceSpinnerGeneric[] next = new DiceSpinnerGeneric[slotCount];
+
+        for (int i = 0; i < slotCount; i++)
+        {
+            permutation[i] = i;
+            previous[i] = i < previousOrder.Count ? previousOrder[i] : null;
+            next[i] = i < nextOrder.Count ? nextOrder[i] : null;
+        }
+
+        for (int newIndex = 0; newIndex < slotCount; newIndex++)
+        {
+            DiceSpinnerGeneric target = next[newIndex];
+            if (target == null)
+                continue;
+
+            for (int oldIndex = 0; oldIndex < slotCount; oldIndex++)
+            {
+                if (previous[oldIndex] == target)
+                {
+                    permutation[newIndex] = oldIndex;
+                    break;
+                }
+            }
+        }
+
+        return permutation;
+    }
+
+    public static Color GetDefaultDiceUiColor(int index)
+    {
+        if (DefaultDiceUiColors.Length == 0)
+            return Color.white;
+
+        index = Mathf.Abs(index);
+        return DefaultDiceUiColors[index % DefaultDiceUiColors.Length];
     }
 }

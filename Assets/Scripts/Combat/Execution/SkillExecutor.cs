@@ -6,6 +6,7 @@ using DG.Tweening;
 public class SkillExecutor : MonoBehaviour
 {
     private BattlePartyManager2D _cachedParty;
+    private readonly SkillTargetSelectionService _targetSelectionService = new SkillTargetSelectionService();
 
     internal struct AttackApplyResult
     {
@@ -89,27 +90,8 @@ public class SkillExecutor : MonoBehaviour
             Debug.Log($"[EXEC] SpendFocus OK: {before}->{caster.focus}", this);
         }
 
-        List<CombatActor> targets = new List<CombatActor>(8);
-        switch (skill.target)
-        {
-            case SkillTargetRule.Self:
-                targets.Add(caster);
-                break;
-
-            case SkillTargetRule.RowEnemies:
-            case SkillTargetRule.RowAllies:
-            case SkillTargetRule.AllEnemies:
-            case SkillTargetRule.AllAllies:
-                if (aoeTargets != null) targets.AddRange(aoeTargets);
-                else if (clickedTarget != null) targets.Add(clickedTarget);
-                break;
-
-            case SkillTargetRule.SingleAlly:
-            case SkillTargetRule.SingleEnemy:
-            default:
-                if (clickedTarget != null) targets.Add(clickedTarget);
-                break;
-        }
+        SkillTargetSelection selection = _targetSelectionService.SelectExecutionTargets(skill.target, caster, clickedTarget, aoeTargets);
+        IReadOnlyList<CombatActor> targets = selection.Targets;
 
         Debug.Log($"[EXEC] Targets resolved count={targets.Count}", this);
 

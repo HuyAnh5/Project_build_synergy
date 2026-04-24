@@ -38,7 +38,7 @@ public class ActionSlotDrop : MonoBehaviour, IDropHandler
 
     public void OnDrop(PointerEventData eventData)
     {
-        if (!turn || !turn.IsPlanning) return;
+        if (!turn || !turn.CanInteractWithSkills) return;
 
         var drag = eventData.pointerDrag;
         if (!drag) return;
