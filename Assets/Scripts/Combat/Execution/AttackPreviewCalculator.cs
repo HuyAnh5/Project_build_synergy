@@ -128,29 +128,37 @@ public static class AttackPreviewCalculator
 
     private static void ApplyBehaviorPreviewBonuses(SkillRuntime rt, CombatActor caster, CombatActor target, ref SkillExecutor.AttackPreview preview, ref int dmg)
     {
-        if (ApplyBaseEffectBehaviorPreview(rt, ref preview, ref dmg))
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.NoName) && !rt.conditionMet)
+        {
+            preview.baseDamage = 0;
+            preview.bonusDamage = 0;
+            dmg = 0;
             return;
+        }
+
+        ApplyBaseEffectBehaviorPreview(rt, ref preview, ref dmg);
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.PrecisionStrike))
         {
-            if (SkillBehaviorRuntimeUtility.TryGetSingleBaseValue(rt, out int baseValue) &&
-                (baseValue % 2) == 0 &&
-                !rt.localCritAny)
+            if (rt.localCritAny)
             {
-                int critAdd = Mathf.FloorToInt(baseValue * DiceSlotRig.PhysicalCritPercent);
-                preview.bonusDamage += critAdd;
-                dmg += critAdd;
+                preview.bonusDamage += 2;
+                dmg += 2;
             }
             return;
         }
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.HeavyCleave))
         {
-            int add = SkillBehaviorRuntimeUtility.GetHighestBaseValue(rt);
-            if (add > 0)
+            int baseDamage = SkillBehaviorRuntimeUtility.GetHighestBaseValue(rt);
+            preview.baseDamage = Mathf.Max(0, baseDamage);
+            dmg = preview.baseDamage + preview.bonusDamage;
+
+            int actionAddedValue = SkillOutputValueUtility.GetTotalActionAddedValue(rt);
+            if (actionAddedValue > 0)
             {
-                preview.bonusDamage += add;
-                dmg += add;
+                preview.bonusDamage += actionAddedValue;
+                dmg += actionAddedValue;
             }
             return;
         }
@@ -175,15 +183,18 @@ public static class AttackPreviewCalculator
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.ColdSnap))
         {
-            int low = SkillBehaviorRuntimeUtility.GetLowestBaseValue(rt);
-            preview.baseDamage = Mathf.Max(0, low);
+            int leftIndex = 0;
+            preview.baseDamage = GetPerDieAdjustedBase(rt, leftIndex);
+            int leftAdded = GetPerDieAddedValue(rt, leftIndex);
+            if (leftAdded > 0)
+                preview.bonusDamage += leftAdded;
             dmg = preview.baseDamage + preview.bonusDamage;
             return;
         }
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, LightningDamageBehaviorId.Overload))
         {
-            int add = 4 * SkillBehaviorRuntimeUtility.CountMarkedEnemies(caster);
+            int add = 5 * SkillBehaviorRuntimeUtility.CountMarkedEnemies(caster);
             if (add > 0)
             {
                 preview.bonusDamage += add;
@@ -194,16 +205,6 @@ public static class AttackPreviewCalculator
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, LightningDamageBehaviorId.Thunderclap))
         {
-            int high = SkillBehaviorRuntimeUtility.GetHighestResolvedValue(rt);
-            preview.baseDamage = Mathf.Max(0, high);
-            dmg = preview.baseDamage + preview.bonusDamage;
-
-            int add = 4 * SkillBehaviorRuntimeUtility.CountMarkedEnemies(caster);
-            if (add > 0)
-            {
-                preview.bonusDamage += add;
-                dmg += add;
-            }
             return;
         }
 
@@ -220,9 +221,9 @@ public static class AttackPreviewCalculator
         if (rt == null || rt.kind != SkillKind.Attack)
             return;
 
-        if (rt.baseDamageValueMode == BaseEffectValueMode.X || rt.fireUseXFormula)
+        if (IsXDamageFormula(rt))
         {
-            preview.baseDamage = Mathf.Max(0, preview.effectiveDieValue);
+            preview.baseDamage = GetActionBaseValue(rt, preview.effectiveDieValue);
         }
     }
 
@@ -231,13 +232,13 @@ public static class AttackPreviewCalculator
         if (rt == null || rt.kind != SkillKind.Attack)
             return false;
 
-        if (rt.baseDamageValueMode == BaseEffectValueMode.X || rt.fireUseXFormula)
+        if (IsXDamageFormula(rt))
         {
-            preview.baseDamage = Mathf.Max(0, preview.effectiveDieValue);
+            preview.baseDamage = GetActionBaseValue(rt, preview.effectiveDieValue);
             dmg = preview.baseDamage + preview.bonusDamage;
         }
 
-        return rt.baseDamageValueMode == BaseEffectValueMode.X || rt.fireUseXFormula;
+        return IsXDamageFormula(rt);
     }
 
     public static bool CanUseMarkPayoff(SkillRuntime rt, CombatActor target)
@@ -253,6 +254,9 @@ public static class AttackPreviewCalculator
 
     public static bool CanConsumeStagger(SkillRuntime rt, CombatActor target)
     {
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.FatedSunder))
+            return false;
+
         return rt != null &&
                target != null &&
                target.status != null &&
@@ -283,7 +287,13 @@ public static class AttackPreviewCalculator
         if (rt == null || rt.kind != SkillKind.Attack)
             return false;
 
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.NoName) && !rt.conditionMet)
+            return false;
+
         if (IsBasicStrike(rt))
+            return true;
+
+        if (IsXDamageFormula(rt))
             return true;
 
         return Mathf.Approximately(rt.dieMultiplier, 0f) && rt.flatDamage > 0;
@@ -294,7 +304,63 @@ public static class AttackPreviewCalculator
     // the action only halves its base damage once.
     private static bool ShouldApplyFailPenaltyOnce(SkillRuntime rt)
     {
-        return rt != null && rt.localFailPenaltyAny;
+        if (rt == null || !rt.localFailPenaltyAny)
+            return false;
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.ColdSnap))
+            return false;
+
+        return true;
+    }
+
+    private static bool IsXDamageFormula(SkillRuntime rt)
+    {
+        if (rt == null || rt.kind != SkillKind.Attack)
+            return false;
+
+        if (rt.baseDamageValueMode == BaseEffectValueMode.X || rt.fireUseXFormula)
+            return true;
+
+        return rt.flatDamage == 0 && rt.dieMultiplier > 0f;
+    }
+
+    private static int GetActionBaseValue(SkillRuntime rt, int fallbackResolvedValue)
+    {
+        if (rt == null || rt.localBaseValues == null || rt.localBaseValues.Count <= 0)
+            return Mathf.Max(0, fallbackResolvedValue);
+
+        int baseOutput = 0;
+        for (int i = 0; i < rt.localBaseValues.Count; i++)
+            baseOutput += Mathf.Max(0, rt.localBaseValues[i]);
+
+        return Mathf.Max(0, baseOutput);
+    }
+
+    private static int GetPerDieAdjustedBase(SkillRuntime rt, int localIndex)
+    {
+        if (rt == null || rt.localBaseValues == null || localIndex < 0 || localIndex >= rt.localBaseValues.Count)
+            return 0;
+
+        int baseValue = Mathf.Max(0, rt.localBaseValues[localIndex]);
+        bool appliesFailPenalty = rt.localFailPenaltyFlags != null &&
+                                  localIndex < rt.localFailPenaltyFlags.Count &&
+                                  rt.localFailPenaltyFlags[localIndex];
+        return appliesFailPenalty ? Mathf.FloorToInt(baseValue * 0.5f) : baseValue;
+    }
+
+    private static int GetPerDieAddedValue(SkillRuntime rt, int localIndex)
+    {
+        if (rt == null ||
+            rt.localBaseValues == null ||
+            rt.localResolvedValues == null ||
+            localIndex < 0 ||
+            localIndex >= rt.localBaseValues.Count ||
+            localIndex >= rt.localResolvedValues.Count)
+        {
+            return 0;
+        }
+
+        return Mathf.Max(0, rt.localResolvedValues[localIndex] - rt.localBaseValues[localIndex]);
     }
 
     private static int GetConditionalDamageBonus(SkillRuntime rt, int effectiveDieValue)

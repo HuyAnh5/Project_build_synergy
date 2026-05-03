@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 internal static class SkillPlanRuntimeUtility
@@ -20,7 +21,7 @@ internal static class SkillPlanRuntimeUtility
                 return SkillRuntimeEvaluator.Evaluate(dmg, owner, diceRig, anchor0, baseSpan, baseStart0);
 
             case SkillBuffDebuffSO buff:
-                return BuildRuntimeFromBuffDebuffSkill(buff);
+                return BuildRuntimeFromBuffDebuffSkill(buff, owner, diceRig, baseSpan, baseStart0);
 
             default:
                 return null;
@@ -134,10 +135,11 @@ internal static class SkillPlanRuntimeUtility
         return rt;
     }
 
-    private static SkillRuntime BuildRuntimeFromBuffDebuffSkill(SkillBuffDebuffSO b)
+    private static SkillRuntime BuildRuntimeFromBuffDebuffSkill(SkillBuffDebuffSO b, CombatActor owner, DiceSlotRig diceRig, int baseSpan, int baseStart0)
     {
         if (b == null) return null;
 
+        int span = Mathf.Clamp(baseSpan > 0 ? baseSpan : b.slotsRequired, 1, 3);
         var rt = new SkillRuntime
         {
             sourceAsset = b,
@@ -147,7 +149,7 @@ internal static class SkillPlanRuntimeUtility
             group = DamageGroup.Effect,
             element = ElementType.Neutral,
             range = RangeType.Ranged,
-            slotsRequired = Mathf.Clamp(b.slotsRequired, 1, 3),
+            slotsRequired = span,
             focusCost = Mathf.Max(0, b.focusCost),
             focusGainOnCast = b.focusGainOnCast,
             dieMultiplier = 0,
@@ -159,6 +161,40 @@ internal static class SkillPlanRuntimeUtility
         if (rt.target == TargetRule.Self) rt.hitAllEnemies = false;
         if (rt.target == TargetRule.Enemy) rt.hitAllAllies = false;
 
+        PopulateLocalDiceSnapshot(rt, owner, diceRig, baseStart0, span);
+
         return rt;
+    }
+
+    private static void PopulateLocalDiceSnapshot(SkillRuntime rt, CombatActor owner, DiceSlotRig diceRig, int start0, int span)
+    {
+        if (rt == null || diceRig == null || !diceRig.HasRolledThisTurn)
+            return;
+
+        start0 = Mathf.Clamp(start0, 0, 2);
+        span = Mathf.Clamp(span, 1, 3);
+
+        rt.localBaseValues = new List<int>(span);
+        rt.localResolvedValues = new List<int>(span);
+        rt.localNumericFlags = new List<bool>(span);
+        rt.localCritFlags = new List<bool>(span);
+        rt.localFailFlags = new List<bool>(span);
+        rt.localFailPenaltyFlags = new List<bool>(span);
+
+        for (int i = start0; i < start0 + span && i < 3; i++)
+        {
+            rt.localBaseValues.Add(diceRig.GetBaseValue(i));
+            rt.localResolvedValues.Add(diceRig.GetResolvedDieValue(i, owner));
+            rt.localNumericFlags.Add(diceRig.IsNumericFaceForConditions(i));
+            bool isCrit = diceRig.IsCrit(i);
+            bool isFail = diceRig.IsFail(i);
+            bool appliesFailPenalty = diceRig.AppliesFailPenalty(i);
+            rt.localCritFlags.Add(isCrit);
+            rt.localFailFlags.Add(isFail);
+            rt.localFailPenaltyFlags.Add(appliesFailPenalty);
+            rt.localCritAny |= isCrit;
+            rt.localFailAny |= isFail;
+            rt.localFailPenaltyAny |= appliesFailPenalty;
+        }
     }
 }

@@ -52,7 +52,6 @@ internal static class SkillAttackResolutionUtility
         bool hadGuardBeforeHit = target.guardPool > 0;
         bool targetHadBurnBeforeHit = target.status != null && target.status.burnStacks > 0;
         bool targetHadMarkBeforeHit = target.status != null && target.status.marked;
-        bool targetWasChilledBeforeHit = target.status != null && target.status.chilledTurns > 0;
         SkillExecutor.AttackPreview preview = buildAttackPreview(rt, caster, target, dieValue);
 
         var info = new DamageInfo
@@ -80,6 +79,9 @@ internal static class SkillAttackResolutionUtility
             target.status.ConsumeAllBurn();
         }
 
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.FatedSunder) && rt.conditionMet)
+            target.guardPool = 0;
+
         if (Debug.isDebugBuild)
         {
             bool hasPS = ps != null;
@@ -88,14 +90,17 @@ internal static class SkillAttackResolutionUtility
 
         CombatActor.DamageResult dmgResult = target.TakeDamageDetailed(preview.finalDamage, bypassGuard: info.bypassGuard);
 
-        if (info.isDamage && rt.element == ElementType.Ice && target.status != null && caster != null)
+        if (info.isDamage &&
+            rt.element == ElementType.Ice &&
+            !SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.Shatter) &&
+            target.status != null &&
+            caster != null)
         {
             bool isFrozen = target.status.frozen;
             bool isChilled = target.status.chilledTurns > 0;
             if (isFrozen || isChilled)
             {
                 caster.AddGuard(3);
-                caster.GainFocus(1);
             }
         }
 
@@ -122,7 +127,7 @@ internal static class SkillAttackResolutionUtility
 
         ApplyStatusesAfterHit(rt, caster, target, dieValue, preview.finalDamage, targetHadBurnBeforeHit);
 
-        ApplyBehaviorAfterHit(rt, caster, target, dieValue, preview.finalDamage, targetHadMarkBeforeHit, targetWasChilledBeforeHit, preview, dmgResult);
+        ApplyBehaviorAfterHit(rt, caster, target, dieValue, preview.finalDamage, targetHadMarkBeforeHit, preview, dmgResult);
         ApplyBounceIfNeeded(rt, caster, target, dieValue, preview.finalDamage, popups);
 
         ConsumeExecutionCarryIfNeeded(rt, caster);
@@ -214,7 +219,9 @@ internal static class SkillAttackResolutionUtility
         }
 
         if (rt.applyMark) target.status.ApplyMark();
-        if (rt.applyBleed)
+        if (rt.applyBleed &&
+            !SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.Lacerate) &&
+            !SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.Hemorrhage))
         {
             int bleedStacks = SkillOutputValueUtility.AddActionAddedValue(rt.bleedTurns, rt);
             bleedStacks += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Bleed) : 0;
@@ -245,7 +252,6 @@ internal static class SkillAttackResolutionUtility
         int dieValue,
         int finalDamage,
         bool targetHadMarkBeforeHit,
-        bool targetWasChilledBeforeHit,
         SkillExecutor.AttackPreview preview,
         CombatActor.DamageResult dmgResult)
     {
@@ -299,12 +305,8 @@ internal static class SkillAttackResolutionUtility
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.Shatter))
         {
-            if (targetWasChilledBeforeHit)
-            {
-                int addGuard = Mathf.Min(20, Mathf.FloorToInt(caster.guardPool * 0.5f));
-                if (addGuard > 0)
-                    caster.AddGuard(addGuard);
-            }
+            if (finalDamage > 0)
+                caster.AddGuard(finalDamage);
             return;
         }
 
@@ -329,7 +331,9 @@ internal static class SkillAttackResolutionUtility
             return;
         }
 
-        if (rt.element == ElementType.Fire && rt.fireApplyConsumeBonusDebuff)
+        if (rt.element == ElementType.Fire &&
+            rt.fireApplyConsumeBonusDebuff &&
+            (!SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.Ignite) || rt.conditionMet))
         {
             if (target != null && target.status != null)
             {
@@ -348,8 +352,7 @@ internal static class SkillAttackResolutionUtility
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.ColdSnap))
         {
-            int guard = SkillBehaviorRuntimeUtility.GetHighestBaseValue(rt);
-            guard = SkillOutputValueUtility.AddActionAddedValue(guard, rt);
+            int guard = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, 1);
             if (guard > 0)
                 caster.AddGuard(guard);
             return;
@@ -359,7 +362,7 @@ internal static class SkillAttackResolutionUtility
         {
             if (targetHadMarkBeforeHit)
             {
-                List<CombatActor> others = SkillBehaviorRuntimeUtility.GetOtherEnemies(caster, target);
+                List<CombatActor> others = SkillBehaviorRuntimeUtility.GetOtherEnemiesInSameRow(caster, target);
                 for (int i = 0; i < others.Count; i++)
                 {
                     if (others[i] != null && others[i].status != null)
@@ -373,9 +376,9 @@ internal static class SkillAttackResolutionUtility
         {
             if (target != null && target.status != null)
             {
-                int bleed = SkillOutputValueUtility.ResolveXValue(dieValue, rt);
+                int bleed = SkillOutputValueUtility.AddActionAddedValue(Mathf.Max(0, rt.bleedTurns), rt);
                 if (rt.localCritAny)
-                    bleed += SkillOutputValueUtility.ResolveXValue(dieValue, rt);
+                    bleed += SkillOutputValueUtility.AddActionAddedValue(Mathf.Max(0, rt.bleedTurns), rt);
                 bleed += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Bleed) : 0;
                 if (bleed > 0)
                     target.status.ApplyBleed(bleed);

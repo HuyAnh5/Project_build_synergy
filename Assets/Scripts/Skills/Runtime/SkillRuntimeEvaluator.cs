@@ -48,6 +48,16 @@ public static class SkillRuntimeEvaluator
 
         rt.conditionMet = met;
 
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.NoName) && skill.hasCondition)
+        {
+            rt.focusCost = met ? 3 : 0;
+            if (!met)
+            {
+                rt.dieMultiplier = 0f;
+                rt.flatDamage = 0;
+            }
+        }
+
         // Safety: Guard always Self and not AoE
         if (rt.kind == SkillKind.Guard || rt.coreAction == CoreAction.BasicGuard)
         {

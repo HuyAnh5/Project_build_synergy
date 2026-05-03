@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -26,8 +29,14 @@ public class ConsumableBarUIManager : MonoBehaviour
     public CombatActor player;
     public GameplayDiceEditController diceEditController;
 
-    [Header("Slots")]
-    public ConsumableSlotView[] slots = new ConsumableSlotView[RunInventoryManager.RELIC_SLOT_COUNT];
+    [Header("Consumable Row")]
+    public RectTransform layoutContainer;
+    public ConsumableSlotView[] slots = new ConsumableSlotView[RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY];
+    public Vector2 cardSize = new Vector2(96f, 128f);
+    public float relaxedSpacing = 112f;
+    public float minStackedSpacing = 42f;
+    public float fallbackRowWidth = 520f;
+    public bool autoCreateMissingCards = true;
 
     [Header("Action Panel")]
     public RectTransform actionPanelRoot;
@@ -52,13 +61,30 @@ public class ConsumableBarUIManager : MonoBehaviour
     public Color enabledUseButtonColor = new Color(0.73f, 0.18f, 0.18f, 1f);
     public Color enabledSellButtonColor = new Color(0.17f, 0.7f, 0.54f, 1f);
 
+    [Header("Drag & Layout")]
+    public RectTransform dragLayer;
+    public float dragScale = 1.08f;
+    public float dragSnapDuration = 0.18f;
+    public Ease dragMoveEase = Ease.OutQuart;
+    public Ease dragScaleEase = Ease.OutCubic;
+
     private int _selectedSlot = -1;
     private int _hoveredSlot = -1;
     private int _pendingTargetSlot = -1;
     private int _latchedDiceTargetSlot = -1;
+    private int _dragSlot = -1;
+    private int _dragSourceIndex = -1;
+    private int _previewInsertIndex = -1;
     private CombatActor _pendingTargetActor;
     private DiceSpinnerGeneric _latchedDiceTarget;
     private GameplayDiceEditController _subscribedDiceEditController;
+    private RectTransform _dragRect;
+    private CanvasGroup _dragGhostCanvasGroup;
+    private Vector2 _dragPointerOffset;
+    private Tween _dragMoveTween;
+    private Tween _dragScaleTween;
+    private bool _suppressInventoryRefresh;
+    private bool _dragRegistered;
 
     private void Awake()
     {
@@ -71,6 +97,7 @@ public class ConsumableBarUIManager : MonoBehaviour
     {
         if (runInventory != null)
             runInventory.InventoryChanged += HandleInventoryChanged;
+        UiDragState.DragStateChanged += HandleUiDragStateChanged;
         SubscribeDiceEditController();
     }
 
@@ -83,11 +110,30 @@ public class ConsumableBarUIManager : MonoBehaviour
     {
         if (runInventory != null)
             runInventory.InventoryChanged -= HandleInventoryChanged;
+        UiDragState.DragStateChanged -= HandleUiDragStateChanged;
         UnsubscribeDiceEditController();
+        if (_dragSlot >= 0)
+            SetSlotCanvasAlpha(_dragSlot, 1f);
+        if (_dragRegistered)
+        {
+            UiDragState.EndDrag(this);
+            _dragRegistered = false;
+        }
+        _dragSlot = -1;
+        _dragSourceIndex = -1;
+        _previewInsertIndex = -1;
+        ClearDragGhost(instant: true);
     }
 
     public void HandleSlotHoverEnter(int index)
     {
+        if (UiDragState.IsDragging)
+        {
+            _hoveredSlot = -1;
+            RefreshTooltip();
+            return;
+        }
+
         _hoveredSlot = index;
         RefreshTooltip();
     }
@@ -101,6 +147,9 @@ public class ConsumableBarUIManager : MonoBehaviour
 
     public void HandleSlotClicked(int index)
     {
+        if (_dragSlot >= 0)
+            return;
+
         if (runInventory == null || runInventory.GetConsumable(index) == null)
         {
             _selectedSlot = -1;
@@ -129,6 +178,116 @@ public class ConsumableBarUIManager : MonoBehaviour
         if (_selectedSlot != _latchedDiceTargetSlot)
             ClearLatchedDiceTarget();
 
+        RefreshAll();
+    }
+
+    public void HandleSlotBeginDrag(int index, PointerEventData eventData)
+    {
+        if (runInventory == null || index < 0 || runInventory.GetConsumable(index) == null)
+            return;
+
+        EnsureSlotViews();
+        ConsumableSlotView slot = GetSlot(index);
+        if (slot == null || slot.root == null || eventData == null)
+            return;
+
+        EnsureDragLayer();
+        if (dragLayer == null)
+            return;
+
+        ClearDragGhost(instant: true);
+        UiDragState.BeginDrag(this);
+        _dragRegistered = true;
+        _dragSlot = index;
+        _dragSourceIndex = index;
+        _previewInsertIndex = index;
+        _hoveredSlot = -1;
+        if (_selectedSlot == index || _pendingTargetSlot == index)
+        {
+            _selectedSlot = -1;
+            _pendingTargetSlot = -1;
+            _pendingTargetActor = null;
+            ClearLatchedDiceTarget();
+        }
+
+        _dragRect = slot.root;
+        _dragRect.SetParent(dragLayer, worldPositionStays: true);
+        _dragRect.SetAsLastSibling();
+        _dragGhostCanvasGroup = _dragRect.GetComponent<CanvasGroup>();
+        if (_dragGhostCanvasGroup == null)
+            _dragGhostCanvasGroup = _dragRect.gameObject.AddComponent<CanvasGroup>();
+        _dragGhostCanvasGroup.blocksRaycasts = false;
+        _dragGhostCanvasGroup.alpha = 0.92f;
+
+        CacheDragPointerOffset(eventData.position, eventData.pressEventCamera);
+        MoveGhostWithPointer(eventData.position, eventData.pressEventCamera);
+
+        _dragScaleTween = _dragRect.DOScale(dragScale, 0.12f).SetEase(Ease.OutBack).SetUpdate(true);
+        RefreshRowLayout(false);
+        RefreshActionPanel();
+        RefreshTooltip();
+    }
+
+    public void HandleSlotDrag(int index, PointerEventData eventData)
+    {
+        if (_dragSlot != index || _dragRect == null || eventData == null)
+            return;
+
+        MoveGhostWithPointer(eventData.position, eventData.pressEventCamera);
+
+        int nextInsertIndex = GetInsertIndexFromScreenPosition(eventData.position, eventData.pressEventCamera);
+        if (nextInsertIndex == _previewInsertIndex)
+            return;
+
+        _previewInsertIndex = nextInsertIndex;
+        RefreshRowLayout(false);
+    }
+
+    public void HandleSlotEndDrag(int index, PointerEventData eventData)
+    {
+        if (_dragSlot != index)
+            return;
+
+        int source = _dragSourceIndex;
+        int target = eventData != null ? GetInsertIndexFromScreenPosition(eventData.position, eventData.pressEventCamera) : source;
+        bool moved = false;
+        if (source >= 0 && runInventory != null)
+        {
+            _suppressInventoryRefresh = true;
+            try
+            {
+                moved = runInventory.TryMoveConsumable(source, target);
+            }
+            finally
+            {
+                _suppressInventoryRefresh = false;
+            }
+        }
+
+        int finalIndex = moved ? Mathf.Clamp(target, 0, Mathf.Max(0, runInventory.GetConsumableCount() - 1)) : source;
+        if (moved)
+            MoveSlotView(source, finalIndex);
+
+        if (_dragRect != null && layoutContainer != null)
+            _dragRect.SetParent(layoutContainer, worldPositionStays: true);
+
+        if (_dragGhostCanvasGroup != null)
+        {
+            _dragGhostCanvasGroup.blocksRaycasts = true;
+            _dragGhostCanvasGroup.alpha = 1f;
+        }
+
+        if (_dragRegistered)
+        {
+            UiDragState.EndDrag(this);
+            _dragRegistered = false;
+        }
+
+        _dragSlot = -1;
+        _dragSourceIndex = -1;
+        _previewInsertIndex = -1;
+        _dragRect = null;
+        _dragGhostCanvasGroup = null;
         RefreshAll();
     }
 
@@ -204,10 +363,13 @@ public class ConsumableBarUIManager : MonoBehaviour
             diceEditController = FindObjectOfType<GameplayDiceEditController>(true);
 
         SubscribeDiceEditController();
+        EnsureDragLayer();
     }
 
     private void WireButtons()
     {
+        EnsureSlotViews();
+
         if (slots != null)
         {
             for (int i = 0; i < slots.Length; i++)
@@ -242,19 +404,26 @@ public class ConsumableBarUIManager : MonoBehaviour
 
     private void RefreshSlots()
     {
+        EnsureSlotViews();
+
         if (slots == null)
             return;
 
+        int visibleCount = runInventory != null ? runInventory.GetConsumableCount() : 0;
         for (int i = 0; i < slots.Length; i++)
         {
             ConsumableSlotView slot = slots[i];
             if (slot == null)
                 continue;
 
-            ConsumableDataSO data = runInventory != null ? runInventory.GetConsumable(i) : null;
-            int charges = runInventory != null ? runInventory.GetConsumableCharges(i) : 0;
+            bool showSlot = i < visibleCount;
+            ConsumableDataSO data = showSlot && runInventory != null ? runInventory.GetConsumable(i) : null;
+            int charges = showSlot && runInventory != null ? runInventory.GetConsumableCharges(i) : 0;
             bool selected = i == _selectedSlot && data != null;
             bool targeting = i == _pendingTargetSlot && data != null;
+
+            if (slot.root != null && slot.root.gameObject.activeSelf != showSlot)
+                slot.root.gameObject.SetActive(showSlot);
 
             if (slot.icon != null)
             {
@@ -274,7 +443,12 @@ public class ConsumableBarUIManager : MonoBehaviour
 
             if (slot.button != null)
                 slot.button.interactable = data != null;
+
+            if (slot.root != null && data != null && i != _dragSlot)
+                SetSlotCanvasAlpha(i, 1f);
         }
+
+        RefreshRowLayout(false);
     }
 
     private void RefreshActionPanel()
@@ -287,7 +461,7 @@ public class ConsumableBarUIManager : MonoBehaviour
         if (!show)
             return;
 
-        ConsumableSlotView slot = slots[_selectedSlot];
+        ConsumableSlotView slot = GetSlot(_selectedSlot);
         RectTransform visualTarget = GetSlotVisualTarget(slot);
         if (visualTarget != null)
             PositionPanelAtSlotRight(actionPanelRoot, visualTarget, actionPanelOffset);
@@ -329,13 +503,19 @@ public class ConsumableBarUIManager : MonoBehaviour
         if (tooltipRoot == null)
             return;
 
+        if (UiDragState.IsDragging)
+        {
+            tooltipRoot.gameObject.SetActive(false);
+            return;
+        }
+
         int tooltipSlot = _hoveredSlot;
         bool show = runInventory != null && tooltipSlot >= 0 && runInventory.GetConsumable(tooltipSlot) != null;
         tooltipRoot.gameObject.SetActive(show);
         if (!show)
             return;
 
-        ConsumableSlotView slot = slots[tooltipSlot];
+        ConsumableSlotView slot = GetSlot(tooltipSlot);
         ConsumableDataSO data = runInventory.GetConsumable(tooltipSlot);
         int charges = runInventory.GetConsumableCharges(tooltipSlot);
 
@@ -464,7 +644,20 @@ public class ConsumableBarUIManager : MonoBehaviour
 
     private void HandleInventoryChanged()
     {
+        if (_suppressInventoryRefresh || _dragSlot >= 0)
+            return;
+
         RefreshAll();
+    }
+
+    private void HandleUiDragStateChanged()
+    {
+        if (!UiDragState.IsDragging)
+            return;
+
+        _hoveredSlot = -1;
+        if (tooltipRoot != null)
+            tooltipRoot.gameObject.SetActive(false);
     }
 
     private RectTransform GetSlotVisualTarget(ConsumableSlotView slot)
@@ -476,6 +669,392 @@ public class ConsumableBarUIManager : MonoBehaviour
             return slot.icon.rectTransform;
 
         return slot.root;
+    }
+
+    private void EnsureSlotViews()
+    {
+        if (layoutContainer == null)
+        {
+            ConsumableSlotView existing = FindFirstUsableSlotView();
+            if (existing != null && existing.root != null)
+                layoutContainer = existing.root.parent as RectTransform;
+        }
+
+        if (layoutContainer == null)
+            layoutContainer = transform as RectTransform;
+
+        DisableAutoLayout(layoutContainer);
+
+        int capacity = runInventory != null ? runInventory.ConsumableCapacity : RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY;
+        capacity = Mathf.Clamp(capacity, 1, RunInventoryManager.MAX_CONSUMABLE_CAPACITY);
+        if (slots == null)
+            slots = new ConsumableSlotView[capacity];
+        else if (slots.Length < capacity)
+            Array.Resize(ref slots, capacity);
+
+        ConsumableSlotView template = FindFirstUsableSlotView();
+        for (int i = 0; i < capacity; i++)
+        {
+            if (slots[i] == null || slots[i].root == null)
+            {
+                if (!autoCreateMissingCards || template == null || template.root == null || layoutContainer == null)
+                    continue;
+
+                RectTransform cloneRoot = Instantiate(template.root, layoutContainer);
+                cloneRoot.name = $"ConsumableCard_{i + 1}";
+                slots[i] = BuildSlotViewFromRoot(cloneRoot);
+            }
+
+            ConfigureSlotView(slots[i], i);
+        }
+    }
+
+    private ConsumableSlotView FindFirstUsableSlotView()
+    {
+        if (slots == null)
+            return null;
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i] != null && slots[i].root != null)
+                return slots[i];
+        }
+
+        return null;
+    }
+
+    private ConsumableSlotView BuildSlotViewFromRoot(RectTransform root)
+    {
+        if (root == null)
+            return null;
+
+        return new ConsumableSlotView
+        {
+            root = root,
+            button = root.GetComponent<Button>(),
+            background = root.GetComponent<Image>(),
+            icon = FindChildComponent<Image>(root, "Icon"),
+            titleText = FindChildComponent<TMP_Text>(root, "Title"),
+            chargesText = FindChildComponent<TMP_Text>(root, "Charges"),
+            interactionProxy = root.GetComponent<ConsumableSlotInteractionProxy>()
+        };
+    }
+
+    private static T FindChildComponent<T>(Transform root, string childName) where T : Component
+    {
+        if (root == null)
+            return null;
+
+        Transform direct = root.Find(childName);
+        if (direct != null && direct.TryGetComponent(out T directComponent))
+            return directComponent;
+
+        T[] components = root.GetComponentsInChildren<T>(true);
+        for (int i = 0; i < components.Length; i++)
+        {
+            if (components[i] != null && components[i].transform != root)
+                return components[i];
+        }
+
+        return null;
+    }
+
+    private void ConfigureSlotView(ConsumableSlotView slot, int index)
+    {
+        if (slot == null || slot.root == null)
+            return;
+
+        slot.root.anchorMin = slot.root.anchorMax = new Vector2(0.5f, 0.5f);
+        slot.root.pivot = new Vector2(0.5f, 0.5f);
+        slot.root.sizeDelta = cardSize;
+
+        LayoutElement layout = slot.root.GetComponent<LayoutElement>();
+        if (layout == null)
+            layout = slot.root.gameObject.AddComponent<LayoutElement>();
+        layout.ignoreLayout = true;
+        layout.preferredWidth = cardSize.x;
+        layout.preferredHeight = cardSize.y;
+
+        if (slot.interactionProxy == null)
+            slot.interactionProxy = slot.root.GetComponent<ConsumableSlotInteractionProxy>();
+        if (slot.interactionProxy == null)
+            slot.interactionProxy = slot.root.gameObject.AddComponent<ConsumableSlotInteractionProxy>();
+
+        slot.interactionProxy.manager = this;
+        slot.interactionProxy.slotIndex = index;
+
+        if (slot.button != null && slot.background != null)
+            slot.button.targetGraphic = slot.background;
+    }
+
+    private static void DisableAutoLayout(RectTransform container)
+    {
+        if (container == null)
+            return;
+
+        HorizontalLayoutGroup horizontal = container.GetComponent<HorizontalLayoutGroup>();
+        if (horizontal != null)
+            horizontal.enabled = false;
+
+        ContentSizeFitter fitter = container.GetComponent<ContentSizeFitter>();
+        if (fitter != null)
+            fitter.enabled = false;
+    }
+
+    private void RefreshRowLayout(bool instant)
+    {
+        RectTransform container = GetLayoutContainer();
+        if (container == null || slots == null)
+            return;
+
+        int count = runInventory != null ? runInventory.GetConsumableCount() : 0;
+        if (count <= 0)
+            return;
+
+        List<ConsumableSlotView> displayed = BuildDisplayedOrder(count);
+        for (int i = 0; i < displayed.Count; i++)
+        {
+            ConsumableSlotView slot = displayed[i];
+            if (slot == null || slot.root == null || slot.root == _dragRect)
+                continue;
+
+            SnapViewToAnchor(slot.root, container, GetPositionForIndex(i, displayed.Count), instant);
+            slot.root.SetSiblingIndex(Mathf.Min(i, container.childCount - 1));
+        }
+    }
+
+    private List<ConsumableSlotView> BuildDisplayedOrder(int count)
+    {
+        List<ConsumableSlotView> displayed = new List<ConsumableSlotView>(count);
+        bool usePreview = _dragSlot >= 0 && _dragSourceIndex >= 0 && _previewInsertIndex >= 0;
+        if (!usePreview)
+        {
+            for (int i = 0; i < count && i < slots.Length; i++)
+                displayed.Add(slots[i]);
+            return displayed;
+        }
+
+        int insertIndex = Mathf.Clamp(_previewInsertIndex, 0, Mathf.Max(0, count - 1));
+        ConsumableSlotView dragged = GetSlot(_dragSourceIndex);
+        for (int i = 0; i < count && i < slots.Length; i++)
+        {
+            ConsumableSlotView current = slots[i];
+            if (current == dragged)
+                continue;
+
+            if (displayed.Count == insertIndex)
+                displayed.Add(dragged);
+
+            displayed.Add(current);
+        }
+
+        if (!displayed.Contains(dragged))
+            displayed.Add(dragged);
+
+        return displayed;
+    }
+
+    private Vector2 GetPositionForIndex(int index, int count)
+    {
+        if (count <= 1)
+            return Vector2.zero;
+
+        float width = fallbackRowWidth;
+        RectTransform container = GetLayoutContainer();
+        if (container != null && container.rect.width > 1f)
+            width = container.rect.width;
+
+        float cardWidth = Mathf.Max(1f, cardSize.x);
+        float fitSpacing = Mathf.Max(1f, (width - cardWidth) / Mathf.Max(1, count - 1));
+        float spacing = Mathf.Min(relaxedSpacing, fitSpacing);
+        if (fitSpacing >= minStackedSpacing)
+            spacing = Mathf.Max(spacing, minStackedSpacing);
+
+        float x = (index - (count - 1) / 2f) * spacing;
+        return new Vector2(x, 0f);
+    }
+
+    private int GetInsertIndexFromScreenPosition(Vector2 screenPosition, Camera eventCamera)
+    {
+        int count = runInventory != null ? runInventory.GetConsumableCount() : 0;
+        RectTransform container = GetLayoutContainer();
+        if (container == null || count <= 1)
+            return 0;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(container, screenPosition, eventCamera, out Vector2 local))
+            return Mathf.Clamp(_dragSourceIndex, 0, Mathf.Max(0, count - 1));
+
+        for (int i = 0; i < count - 1; i++)
+        {
+            float midpoint = (GetPositionForIndex(i, count).x + GetPositionForIndex(i + 1, count).x) * 0.5f;
+            if (local.x < midpoint)
+                return i;
+        }
+
+        return count - 1;
+    }
+
+    private void MoveSlotView(int fromIndex, int insertIndex)
+    {
+        if (slots == null || fromIndex < 0 || fromIndex >= slots.Length)
+            return;
+
+        List<ConsumableSlotView> ordered = new List<ConsumableSlotView>(slots);
+        ConsumableSlotView moving = ordered[fromIndex];
+        ordered.RemoveAt(fromIndex);
+        insertIndex = Mathf.Clamp(insertIndex, 0, ordered.Count);
+        ordered.Insert(insertIndex, moving);
+        slots = ordered.ToArray();
+
+        for (int i = 0; i < slots.Length; i++)
+            ConfigureSlotView(slots[i], i);
+    }
+
+    private void SnapViewToAnchor(RectTransform view, RectTransform parent, Vector2 anchoredPos, bool instant)
+    {
+        if (view == null || parent == null)
+            return;
+
+        if (view.parent != parent)
+            view.SetParent(parent, worldPositionStays: true);
+
+        view.anchorMin = view.anchorMax = new Vector2(0.5f, 0.5f);
+        view.pivot = new Vector2(0.5f, 0.5f);
+        view.sizeDelta = cardSize;
+
+        view.DOKill();
+        if (instant)
+        {
+            view.anchoredPosition = anchoredPos;
+            view.localScale = Vector3.one;
+            return;
+        }
+
+        view.DOAnchorPos(anchoredPos, Mathf.Max(0.01f, dragSnapDuration)).SetEase(dragMoveEase).SetUpdate(true);
+        view.DOScale(1f, Mathf.Max(0.01f, dragSnapDuration)).SetEase(dragScaleEase).SetUpdate(true);
+    }
+
+    private RectTransform GetLayoutContainer()
+    {
+        if (layoutContainer == null)
+        {
+            ConsumableSlotView first = FindFirstUsableSlotView();
+            if (first != null && first.root != null)
+                layoutContainer = first.root.parent as RectTransform;
+        }
+
+        if (layoutContainer == null)
+            layoutContainer = transform as RectTransform;
+
+        return layoutContainer;
+    }
+
+    private ConsumableSlotView GetSlot(int index)
+    {
+        if (slots == null || index < 0 || index >= slots.Length)
+            return null;
+
+        return slots[index];
+    }
+
+    private void EnsureDragLayer()
+    {
+        if (dragLayer != null)
+            return;
+
+        Canvas canvas = GetComponentInParent<Canvas>();
+        Transform parent = canvas != null ? canvas.transform : transform.parent;
+        if (parent == null)
+            return;
+
+        Transform existing = parent.Find("ConsumableDragLayer");
+        if (existing != null)
+        {
+            dragLayer = existing as RectTransform;
+            return;
+        }
+
+        GameObject go = new GameObject("ConsumableDragLayer", typeof(RectTransform));
+        dragLayer = go.GetComponent<RectTransform>();
+        dragLayer.SetParent(parent, false);
+        dragLayer.anchorMin = Vector2.zero;
+        dragLayer.anchorMax = Vector2.one;
+        dragLayer.offsetMin = Vector2.zero;
+        dragLayer.offsetMax = Vector2.zero;
+        dragLayer.SetAsLastSibling();
+    }
+
+    private void CacheDragPointerOffset(Vector2 screenPos, Camera eventCamera)
+    {
+        if (_dragRect == null || dragLayer == null)
+        {
+            _dragPointerOffset = Vector2.zero;
+            return;
+        }
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(dragLayer, screenPos, eventCamera, out Vector2 local))
+        {
+            _dragPointerOffset = Vector2.zero;
+            return;
+        }
+
+        _dragPointerOffset = local - _dragRect.anchoredPosition;
+    }
+
+    private void MoveGhostWithPointer(Vector2 screenPos, Camera eventCamera)
+    {
+        if (_dragRect == null || dragLayer == null)
+            return;
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(dragLayer, screenPos, eventCamera, out Vector2 local))
+            return;
+
+        _dragRect.anchoredPosition = local - _dragPointerOffset;
+    }
+
+    private void ClearDragGhost(bool instant)
+    {
+        _dragMoveTween?.Kill();
+        _dragScaleTween?.Kill();
+        _dragMoveTween = null;
+        _dragScaleTween = null;
+
+        if (_dragRect != null)
+        {
+            if (_dragGhostCanvasGroup != null)
+            {
+                _dragGhostCanvasGroup.blocksRaycasts = true;
+                _dragGhostCanvasGroup.alpha = 1f;
+            }
+
+            if (_dragRect.parent != layoutContainer && layoutContainer != null)
+                _dragRect.SetParent(layoutContainer, worldPositionStays: true);
+
+            if (instant)
+            {
+                _dragRect.localScale = Vector3.one;
+            }
+            else
+            {
+                _dragRect.DOScale(1f, Mathf.Max(0.01f, dragSnapDuration)).SetEase(dragScaleEase).SetUpdate(true);
+            }
+        }
+
+        _dragRect = null;
+        _dragGhostCanvasGroup = null;
+    }
+
+    private void SetSlotCanvasAlpha(int index, float alpha)
+    {
+        ConsumableSlotView slot = GetSlot(index);
+        if (slot == null || slot.root == null)
+            return;
+
+        CanvasGroup group = slot.root.GetComponent<CanvasGroup>();
+        if (group == null)
+            group = slot.root.gameObject.AddComponent<CanvasGroup>();
+
+        group.alpha = alpha;
     }
 
     private void PositionPanelAtSlotRight(RectTransform panel, RectTransform slotRoot, Vector2 offset)
@@ -626,7 +1205,7 @@ public class ConsumableBarUIManager : MonoBehaviour
             targetDie.RefreshDisplayedState();
 
         runInventory.TryConsumeConsumableCharge(slotIndex, 1);
-        if (runInventory.GetConsumable(slotIndex) == null)
+        if (runInventory.GetConsumable(slotIndex) != data)
             _selectedSlot = -1;
     }
 

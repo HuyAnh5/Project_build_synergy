@@ -1,7 +1,7 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 
-public class SlotIconPreviewInputForwarder : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
+public class SlotIconPreviewInputForwarder : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler
 {
     public SlotIconDragToClear owner;
 
@@ -27,5 +27,17 @@ public class SlotIconPreviewInputForwarder : MonoBehaviour, IBeginDragHandler, I
     {
         if (owner != null)
             owner.OnPointerClick(eventData);
+    }
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (owner != null)
+            owner.OnPointerEnter(eventData);
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        if (owner != null)
+            owner.OnPointerExit(eventData);
     }
 }

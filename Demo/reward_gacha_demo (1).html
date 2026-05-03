@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reward Gacha Demo</title>
+  <style>
+    :root {
+      --bg: #100d14;
+      --panel: rgba(28, 23, 36, 0.94);
+      --panel2: rgba(255,255,255,0.045);
+      --text: #f7efdf;
+      --muted: #b9ad9d;
+      --line: rgba(255,255,255,0.13);
+      --common: #aeb4bd;
+      --uncommon: #55aaff;
+      --rare: #ffd05a;
+      --special: #ff4f66;
+      --ok: #7ee38a;
+      --shadow: rgba(0,0,0,0.42);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 10% 2%, rgba(255, 208, 90, 0.16), transparent 31%),
+        radial-gradient(circle at 93% 92%, rgba(85, 170, 255, 0.13), transparent 30%),
+        linear-gradient(180deg, #15111d, #0b0910);
+    }
+
+    .app {
+      width: min(1540px, calc(100vw - 22px));
+      margin: 0 auto;
+      padding: 12px 0;
+      display: grid;
+      gap: 10px;
+    }
+
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+    }
+
+    h1 {
+      margin: 0 0 4px;
+      font-size: clamp(24px, 3vw, 38px);
+      letter-spacing: -0.045em;
+      line-height: 1;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+      max-width: 980px;
+    }
+
+    .mode-tabs, .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, #332b40, #211b29);
+      color: var(--text);
+      border-radius: 12px;
+      padding: 9px 12px;
+      font-weight: 850;
+      font-size: 13px;
+      cursor: pointer;
+      box-shadow: 0 10px 20px var(--shadow);
+      transition: transform 120ms ease, border-color 120ms ease, filter 120ms ease, opacity 120ms ease;
+    }
+    button:hover { transform: translateY(-1px); filter: brightness(1.08); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+    .mode-btn.active {
+      border-color: rgba(255, 208, 90, 0.95);
+      box-shadow: 0 0 0 2px rgba(255, 208, 90, 0.16), 0 10px 20px var(--shadow);
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      box-shadow: 0 22px 54px var(--shadow);
+      overflow: hidden;
+      backdrop-filter: blur(10px);
+    }
+
+    .panel-header {
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0));
+    }
+
+    .panel-title {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -0.025em;
+      line-height: 1.1;
+    }
+    .small, .mini-note { color: var(--muted); font-size: 12px; line-height: 1.3; }
+
+    .reward-meta { display: flex; flex-wrap: wrap; gap: 7px; align-items: center; justify-content: flex-end; }
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 6px 9px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.045);
+      font-size: 12px;
+      font-weight: 850;
+      white-space: nowrap;
+    }
+    .pill.gold { color: #ffd36a; border-color: rgba(255, 208, 90, 0.35); }
+    .pill.pick { color: #9ae6a1; border-color: rgba(126, 227, 138, 0.35); }
+
+    .toolbar {
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+    }
+    .status-line { color: var(--muted); font-size: 12.5px; line-height: 1.35; text-align: right; }
+    .status-line strong { color: var(--text); }
+
+    .cards-wrap { padding: 12px; }
+    .cards {
+      --card-count: 3;
+      display: grid;
+      grid-template-columns: repeat(var(--card-count), minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .card {
+      min-width: 0;
+      height: 250px;
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      border-radius: 20px;
+      border: 1px solid var(--line);
+      background: linear-gradient(180deg, rgba(255,255,255,0.075), rgba(255,255,255,0.015)), #241e2e;
+      padding: 14px;
+      cursor: pointer;
+      box-shadow: 0 18px 34px rgba(0,0,0,0.28);
+      display: grid;
+      grid-template-rows: auto auto 1fr auto;
+      gap: 9px;
+      transition: transform 140ms ease, border-color 140ms ease, box-shadow 140ms ease, filter 140ms ease, opacity 120ms ease;
+    }
+    .card:hover { transform: translateY(-3px); filter: brightness(1.05); }
+    .card.selected { border-color: rgba(126, 227, 138, 0.95); box-shadow: 0 0 0 2px rgba(126, 227, 138, 0.18), 0 18px 38px rgba(0,0,0,0.35); }
+    .card.locked:not(.selected) { opacity: 0.44; cursor: default; transform: none; }
+    .card::before { content: ""; position: absolute; inset: 0 0 auto 0; height: 7px; background: var(--rarity-color); z-index: 1; }
+    .card::after { content: ""; position: absolute; width: 150px; height: 150px; right: -62px; bottom: -62px; border-radius: 999px; background: color-mix(in srgb, var(--rarity-color) 30%, transparent); z-index: -1; filter: blur(2px); }
+
+    .icon-wrap {
+      width: 48px;
+      height: 48px;
+      border-radius: 16px;
+      display: grid;
+      place-items: center;
+      border: 1px solid color-mix(in srgb, var(--rarity-color) 48%, var(--line));
+      background: color-mix(in srgb, var(--rarity-color) 13%, rgba(255,255,255,0.04));
+      font-size: 25px;
+      box-shadow: inset 0 0 18px rgba(255,255,255,0.035);
+    }
+    .category { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em; font-weight: 950; margin-bottom: 6px; }
+    .reward-name { font-size: clamp(15px, 1.5vw, 23px); line-height: 1.03; letter-spacing: -0.045em; font-weight: 950; word-break: break-word; }
+    .desc { color: var(--muted); font-size: 12px; line-height: 1.3; max-width: 28ch; }
+    .rarity-badge { justify-self: start; border: 1px solid color-mix(in srgb, var(--rarity-color) 65%, transparent); color: var(--rarity-color); background: color-mix(in srgb, var(--rarity-color) 12%, transparent); border-radius: 999px; padding: 6px 9px; font-size: 11px; font-weight: 950; text-transform: uppercase; letter-spacing: 0.06em; }
+    .card-footer { display: flex; justify-content: space-between; align-items: end; gap: 8px; }
+    .selected-mark { color: var(--ok); font-weight: 950; opacity: 0; transform: translateY(5px); transition: 120ms ease; font-size: 12px; white-space: nowrap; }
+    .card.selected .selected-mark { opacity: 1; transform: translateY(0); }
+
+    .bottom-layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr); gap: 10px; align-items: start; }
+    .info-body { padding: 12px 14px; display: grid; gap: 10px; }
+
+    table { width: 100%; border-collapse: collapse; background: rgba(255,255,255,0.035); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+    th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; font-size: 12px; line-height: 1.3; }
+    tr:last-child td { border-bottom: 0; }
+    th { color: var(--text); background: rgba(255,255,255,0.045); font-weight: 900; }
+    td { color: var(--muted); }
+    td strong { color: var(--text); }
+
+    .split-info { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .box { border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,0.04); padding: 10px 12px; }
+    .box-title { margin: 0 0 8px; font-size: 13px; font-weight: 900; color: var(--text); }
+    .notes, .color-list { margin: 0; padding-left: 16px; color: var(--muted); line-height: 1.35; font-size: 12px; }
+    .notes li, .color-list li { margin: 5px 0; }
+
+    .common { color: var(--common); }
+    .uncommon { color: var(--uncommon); }
+    .rare { color: var(--rare); }
+    .special { color: var(--special); }
+    .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 0; background: currentColor; }
+
+    .stats-top { display: flex; justify-content: space-between; gap: 10px; align-items: center; color: var(--muted); font-size: 12px; }
+    .stat-row { display: grid; grid-template-columns: 58px 1fr 52px; gap: 8px; align-items: center; margin: 8px 0 4px; font-size: 12px; }
+    .bar { height: 9px; border-radius: 999px; background: rgba(255,255,255,0.08); overflow: hidden; border: 1px solid var(--line); }
+    .bar-fill { height: 100%; width: 0%; background: currentColor; border-radius: 999px; }
+
+    @media (max-width: 1200px) {
+      .topbar, .bottom-layout { grid-template-columns: 1fr; }
+      .mode-tabs, .actions { justify-content: flex-start; }
+      .cards { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+      .card { height: 240px; }
+      .split-info { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="topbar">
+      <div>
+        <h1>Reward Gacha Demo</h1>
+        <p class="subtitle">Demo reward sau combat: chọn Combat thường / Elite / Boss, roll theo rarity, chọn card rồi tự roll lại sau 1 giây. Không có inventory, không cộng tài nguyên thật.</p>
+      </div>
+      <div class="mode-tabs" aria-label="Encounter mode">
+        <button class="mode-btn active" data-mode="normal">⚔️ Combat thường</button>
+        <button class="mode-btn" data-mode="elite">☠️ Elite</button>
+        <button class="mode-btn" data-mode="boss">👹 Boss</button>
+      </div>
+    </section>
+
+    <section class="panel reward-panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title" id="modeTitle">Combat thường</h2>
+          <div class="small" id="modeRule">Hiện 3 reward, chọn 1.</div>
+        </div>
+        <div class="reward-meta">
+          <span class="pill gold" id="baseGold">Base Gold +10</span>
+          <span class="pill pick" id="pickCounter">Selected 0/1</span>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="actions" style="justify-content:flex-start;">
+          <button id="rerollBtn">🎲 Reroll test</button>
+          <button id="resetStatsBtn">↺ Reset stats</button>
+        </div>
+        <div class="status-line" id="statusLine">Bấm vào một reward để chọn.</div>
+      </div>
+
+      <div class="cards-wrap">
+        <div class="cards" id="cards"></div>
+      </div>
+    </section>
+
+    <section class="bottom-layout">
+      <div class="panel">
+        <div class="panel-header"><h2 class="panel-title">Rule / Rarity / Purpose</h2></div>
+        <div class="info-body">
+          <table>
+            <thead><tr><th>Mode reward</th><th>pick</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Combat</strong><br>3 card, chọn 1 · 65% Xám / 30% Xanh / 5% Vàng / 0% Đỏ<br><span class="small">Không guarantee.</span></td><td>1</td></tr>
+              <tr><td><strong>Elite</strong><br>4 card, chọn 1 · 35% Xám / 45% Xanh / 18% Vàng / 2% Đỏ<br><span class="small">Không guarantee.</span></td><td>1</td></tr>
+              <tr><td><strong>Boss</strong><br>5 card, chọn 2 · 0% Xám / 60% Xanh / 35% Vàng / 5% Đỏ<br><strong>Guarantee:</strong> ít nhất 2 card Vàng/Đỏ sau roll.</td><td>2</td></tr>
+            </tbody>
+          </table>
+
+          <div class="split-info">
+            <div class="box">
+              <h3 class="box-title">Rarity / Màu</h3>
+              <ul class="color-list">
+                <li class="common"><span class="dot"></span><strong>Xám Common</strong>: Extra Gold, skill cơ bản.</li>
+                <li class="uncommon"><span class="dot"></span><strong>Xanh Uncommon</strong>: toàn bộ consumable, skill tốt hơn, passive bắt đầu xuất hiện.</li>
+                <li class="rare"><span class="dot"></span><strong>Vàng Rare</strong>: skill/passive mạnh, Whole-die Color material.</li>
+                <li class="special"><span class="dot"></span><strong>Đỏ Special</strong>: skill/passive cực mạnh, run-defining.</li>
+              </ul>
+            </div>
+
+            <div class="box">
+              <h3 class="box-title">Purpose</h3>
+              <table>
+                <tbody>
+                  <tr><td><strong>💰 Economy</strong></td><td>Extra Gold · tối đa 1 card mỗi roll</td></tr>
+                  <tr><td><strong>⚔️ Skill</strong></td><td>Common → Special</td></tr>
+                  <tr><td><strong>🧠 Passive</strong></td><td>Uncommon → Special</td></tr>
+                  <tr><td><strong>🎲 Edit Dice</strong></td><td>Zodiac + Whole-die Color</td></tr>
+                  <tr><td><strong>🔥 Combat Aid</strong></td><td>Seal</td></tr>
+                  <tr><td><strong>✨ Utility Support</strong></td><td>Rune</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="box">
+            <h3 class="box-title">Notes</h3>
+            <ul class="notes">
+              <li>Boss Intel không nằm trong gacha; event/encounter liên quan sẽ cho trực tiếp.</li>
+              <li>Whole-die Color nằm trong Edit Dice và cần Forge để dùng.</li>
+              <li>Economy tối đa 1 card trong một lần roll; các Purpose khác tối đa 2 card.</li>
+              <li>Elite không có guarantee; chỉ Boss có guarantee sau roll.</li>
+              <li>Boss guarantee là post-roll: nếu thiếu high-rarity thì nâng card cho đủ 2 Vàng/Đỏ.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <h2 class="panel-title">Observed stats</h2>
+            <div class="small" id="statModeLabel">Current mode: Combat thường</div>
+          </div>
+        </div>
+        <div class="info-body" id="statsBody"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const modes = {
+      normal: {
+        label: "Combat thường",
+        icon: "⚔️",
+        choices: 3,
+        picks: 1,
+        gold: [8, 14],
+        rates: { common: 65, uncommon: 30, rare: 5, special: 0 },
+        guaranteeHigh: 0
+      },
+      elite: {
+        label: "Elite",
+        icon: "☠️",
+        choices: 4,
+        picks: 1,
+        gold: [22, 35],
+        rates: { common: 35, uncommon: 45, rare: 18, special: 2 },
+        guaranteeHigh: 0
+      },
+      boss: {
+        label: "Boss",
+        icon: "👹",
+        choices: 5,
+        picks: 2,
+        gold: [50, 70],
+        rates: { common: 0, uncommon: 60, rare: 35, special: 5 },
+        guaranteeHigh: 2
+      }
+    };
+
+    const rarityInfo = {
+      common: { label: "Xám", color: "var(--common)", statClass: "common" },
+      uncommon: { label: "Xanh", color: "var(--uncommon)", statClass: "uncommon" },
+      rare: { label: "Vàng", color: "var(--rare)", statClass: "rare" },
+      special: { label: "Đỏ", color: "var(--special)", statClass: "special" }
+    };
+
+    const purposeInfo = {
+      "Economy": { icon: "💰", desc: "Gold thêm ngoài base gold." },
+      "Skill": { icon: "⚔️", desc: "Thêm hoặc thay hành động combat." },
+      "Passive": { icon: "🧠", desc: "Đổi engine / hướng build." },
+      "Edit Dice": { icon: "🎲", desc: "Zodiac hoặc đổi màu/tag dice." },
+      "Combat Aid": { icon: "🔥", desc: "Seal: tác động combat trực tiếp." },
+      "Utility Support": { icon: "✨", desc: "Rune: utility, focus, reroll, cleanse." }
+    };
+
+    const rewardPool = {
+      "Economy": {
+        common: ["Extra Gold +10", "Extra Gold +12", "Extra Gold +15", "Small Bonus Purse"]
+      },
+      "Skill": {
+        common: ["Fire Slash", "Shatter Guard", "Brutal Smash", "Fated Sunder"],
+        uncommon: ["Ignite+", "Cauterize", "Deep Freeze", "Static Conduit", "Winter's Bite"],
+        rare: ["Hellfire", "Permafrost Chain", "Execution", "Adaptive Slot Attack"],
+        special: ["Astral Verdict", "Dragon Pact Skill", "Void Technique", "Crownbreaker"]
+      },
+      "Passive": {
+        uncommon: ["Clear Mind", "Even Resonance", "Fail Forward", "Iron Stance"],
+        rare: ["Elemental Catalyst", "Crit Escalation", "Dice Forging", "Burn Engine"],
+        special: ["Fate Engine", "Perfect Resonance", "Dragonheart", "Void Contract"]
+      },
+      "Edit Dice": {
+        uncommon: ["Adjust Face +", "Adjust Face -", "Copy / Paste Face", "Value +N", "Guard Boost Enchant", "Fire Enchant", "Ice Enchant", "Bleed Enchant", "Lightning Enchant"],
+        rare: ["Whole-die Color: Patina", "Whole-die Color: Ember", "Whole-die Color: Frost", "Whole-die Color: Volt"]
+      },
+      "Combat Aid": {
+        uncommon: ["Last Rite", "Cryostasis", "Ignite Spread", "Exploit Mark", "Exsanguinate"]
+      },
+      "Utility Support": {
+        uncommon: ["Restore Focus", "Dice Reroll", "Cleanse", "Double Gold", "Create Last Used"]
+      }
+    };
+
+    const state = {
+      mode: "normal",
+      cards: [],
+      selected: new Set(),
+      locked: false,
+      stats: { normal: blankStats(), elite: blankStats(), boss: blankStats() }
+    };
+
+    function blankStats() { return { total: 0, common: 0, uncommon: 0, rare: 0, special: 0 }; }
+
+    const cardsEl = document.getElementById("cards");
+    const modeTitleEl = document.getElementById("modeTitle");
+    const modeRuleEl = document.getElementById("modeRule");
+    const baseGoldEl = document.getElementById("baseGold");
+    const pickCounterEl = document.getElementById("pickCounter");
+    const statusLineEl = document.getElementById("statusLine");
+    const statsBodyEl = document.getElementById("statsBody");
+    const statModeLabelEl = document.getElementById("statModeLabel");
+    const rerollBtn = document.getElementById("rerollBtn");
+    const resetStatsBtn = document.getElementById("resetStatsBtn");
+
+    document.querySelectorAll(".mode-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        if (state.locked) return;
+        state.mode = btn.dataset.mode;
+        document.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("active", b.dataset.mode === state.mode));
+        rollRewards();
+      });
+    });
+
+    rerollBtn.addEventListener("click", () => { if (!state.locked) rollRewards(); });
+    resetStatsBtn.addEventListener("click", () => { state.stats[state.mode] = blankStats(); renderStats(); });
+
+    function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function pickRandom(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+    function isHighRarity(rarity) { return rarity === "rare" || rarity === "special"; }
+    function purposeCap(purpose) { return purpose === "Economy" ? 1 : 2; }
+
+    function rollRarity(modeKey) {
+      const rates = modes[modeKey].rates;
+      const roll = Math.random() * 100;
+      let acc = 0;
+      for (const rarity of ["common", "uncommon", "rare", "special"]) {
+        acc += rates[rarity];
+        if (roll < acc) return rarity;
+      }
+      return "common";
+    }
+
+    function getEligiblePurposes(rarity, purposeCounts) {
+      return Object.keys(rewardPool).filter(purpose => {
+        const hasRarity = Array.isArray(rewardPool[purpose][rarity]) && rewardPool[purpose][rarity].length > 0;
+        const underCap = (purposeCounts[purpose] || 0) < purposeCap(purpose);
+        return hasRarity && underCap;
+      });
+    }
+
+    function rollCard(index, purposeCounts, usedNames, forcedRarity = null) {
+      let rarity = forcedRarity || rollRarity(state.mode);
+      let eligible = getEligiblePurposes(rarity, purposeCounts);
+      let safety = 0;
+
+      while (!forcedRarity && eligible.length === 0 && safety < 40) {
+        rarity = rollRarity(state.mode);
+        eligible = getEligiblePurposes(rarity, purposeCounts);
+        safety++;
+      }
+
+      if (eligible.length === 0) {
+        rarity = "rare";
+        eligible = getEligiblePurposes(rarity, purposeCounts);
+      }
+
+      if (eligible.length === 0) {
+        rarity = "uncommon";
+        eligible = getEligiblePurposes(rarity, purposeCounts);
+      }
+
+      const purpose = pickRandom(eligible);
+      purposeCounts[purpose] = (purposeCounts[purpose] || 0) + 1;
+      let name = pickRandom(rewardPool[purpose][rarity]);
+      let nameSafety = 0;
+      while (usedNames.has(`${purpose}:${name}`) && nameSafety < 20) {
+        name = pickRandom(rewardPool[purpose][rarity]);
+        nameSafety++;
+      }
+      usedNames.add(`${purpose}:${name}`);
+
+      return { id: `${Date.now()}-${index}-${Math.random()}`, purpose, rarity, name };
+    }
+
+    function rebuildPurposeCounts(cards) {
+      const counts = {};
+      cards.forEach(card => { counts[card.purpose] = (counts[card.purpose] || 0) + 1; });
+      return counts;
+    }
+
+    function applyBossGuarantee(usedNames) {
+      const requiredHigh = modes[state.mode].guaranteeHigh || 0;
+      if (!requiredHigh) return;
+
+      let highCount = state.cards.filter(c => isHighRarity(c.rarity)).length;
+      while (highCount < requiredHigh) {
+        const lowIndexes = state.cards
+          .map((card, index) => ({ card, index }))
+          .filter(x => !isHighRarity(x.card.rarity));
+
+        if (lowIndexes.length === 0) break;
+
+        const { card, index } = pickRandom(lowIndexes);
+        const purposeCounts = rebuildPurposeCounts(state.cards);
+        purposeCounts[card.purpose] = Math.max(0, (purposeCounts[card.purpose] || 1) - 1);
+        usedNames.delete(`${card.purpose}:${card.name}`);
+        state.cards[index] = rollCard(`guarantee-${index}`, purposeCounts, usedNames, "rare");
+        highCount++;
+      }
+    }
+
+    function addCurrentCardsToStats() {
+      const stats = state.stats[state.mode];
+      state.cards.forEach(card => {
+        stats.total += 1;
+        stats[card.rarity] += 1;
+      });
+    }
+
+    function rollRewards() {
+      const mode = modes[state.mode];
+      state.locked = false;
+      state.selected.clear();
+      state.cards = [];
+      const purposeCounts = {};
+      const usedNames = new Set();
+
+      for (let i = 0; i < mode.choices; i++) {
+        state.cards.push(rollCard(i, purposeCounts, usedNames));
+      }
+
+      applyBossGuarantee(usedNames);
+      addCurrentCardsToStats();
+      updateHeader(randInt(mode.gold[0], mode.gold[1]));
+      renderCards();
+      renderStats();
+      statusLineEl.textContent = `Bấm reward để chọn. ${mode.label}: chọn ${mode.picks}/${mode.choices}.`;
+      rerollBtn.disabled = false;
+    }
+
+    function updateHeader(gold) {
+      const mode = modes[state.mode];
+      modeTitleEl.textContent = `${mode.icon} ${mode.label}`;
+      modeRuleEl.textContent = mode.guaranteeHigh
+        ? `Hiện ${mode.choices} reward trên 1 row, chọn ${mode.picks}. Boss guarantee: ít nhất ${mode.guaranteeHigh} Vàng/Đỏ.`
+        : `Hiện ${mode.choices} reward trên 1 row, chọn ${mode.picks}.`;
+      baseGoldEl.textContent = `Base Gold +${gold}`;
+      updatePickCounter();
+    }
+
+    function updatePickCounter() {
+      const mode = modes[state.mode];
+      pickCounterEl.textContent = `Selected ${state.selected.size}/${mode.picks}`;
+    }
+
+    function renderCards() {
+      const mode = modes[state.mode];
+      cardsEl.style.setProperty("--card-count", mode.choices);
+      cardsEl.innerHTML = "";
+
+      state.cards.forEach(card => {
+        const rarity = rarityInfo[card.rarity];
+        const purpose = purposeInfo[card.purpose];
+        const el = document.createElement("article");
+        el.className = "card";
+        el.style.setProperty("--rarity-color", rarity.color);
+        if (state.selected.has(card.id)) el.classList.add("selected");
+        if (state.locked) el.classList.add("locked");
+        el.innerHTML = `
+          <div class="icon-wrap">${purpose.icon}</div>
+          <div>
+            <div class="category">${card.purpose}</div>
+            <div class="reward-name">${card.name}</div>
+          </div>
+          <div class="desc">${purpose.desc}</div>
+          <div class="card-footer">
+            <span class="rarity-badge">${rarity.label}</span>
+            <span class="selected-mark">✓ Selected</span>
+          </div>
+        `;
+        el.addEventListener("click", () => selectCard(card.id));
+        cardsEl.appendChild(el);
+      });
+    }
+
+    function selectCard(id) {
+      if (state.locked) return;
+      const mode = modes[state.mode];
+
+      if (state.selected.has(id)) {
+        state.selected.delete(id);
+      } else {
+        if (state.selected.size >= mode.picks) return;
+        state.selected.add(id);
+      }
+
+      updatePickCounter();
+      renderCards();
+
+      if (state.selected.size === mode.picks) {
+        const pickedNames = state.cards
+          .filter(c => state.selected.has(c.id))
+          .map(c => `${c.purpose}: ${c.name}`)
+          .join(" | ");
+        state.locked = true;
+        rerollBtn.disabled = true;
+        statusLineEl.innerHTML = `<strong>Đã chọn:</strong> ${pickedNames}. Roll lại sau 1 giây...`;
+        renderCards();
+        setTimeout(() => rollRewards(), 1000);
+      } else {
+        statusLineEl.textContent = `Đã chọn ${state.selected.size}/${mode.picks}.`;
+      }
+    }
+
+    function renderStats() {
+      const mode = modes[state.mode];
+      const stats = state.stats[state.mode];
+      statModeLabelEl.textContent = `Current mode: ${mode.label}`;
+      const rows = ["common", "uncommon", "rare", "special"].map(r => {
+        const count = stats[r];
+        const pct = stats.total ? ((count / stats.total) * 100) : 0;
+        const target = mode.rates[r];
+        return `
+          <div class="stat-row ${rarityInfo[r].statClass}">
+            <div>${rarityInfo[r].label}</div>
+            <div class="bar"><div class="bar-fill" style="width:${pct.toFixed(1)}%"></div></div>
+            <div>${pct.toFixed(1)}%</div>
+          </div>
+          <div class="mini-note" style="margin: -3px 0 5px 66px;">Base target ${target}% · Count ${count}</div>
+        `;
+      }).join("");
+
+      const guaranteeNote = mode.guaranteeHigh
+        ? `<div class="mini-note">Boss có post-roll guarantee nên Observed stats có thể lệch khỏi base target theo hướng có lợi cho player.</div>`
+        : ``;
+
+      statsBodyEl.innerHTML = `
+        <div class="stats-top">
+          <div>Tổng card đã roll ở mode này</div>
+          <strong style="color:var(--text)">${stats.total}</strong>
+        </div>
+        ${rows}
+        ${guaranteeNote}
+      `;
+    }
+
+    rollRewards();
+  </script>
+</body>
+</html>

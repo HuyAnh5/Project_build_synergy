@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Cold Snap'
-  description: 'Left slot deals damage equal to the left die. Right slot grants Guard equal to the right die.'
+  description: 'Left slot deals "X damage". Right slot gains "X Guard".'
   spec:
     rarity: 0
     specState: 1
     buildRole: 2
     implementationCoverage: 0
-    normalizedText: 'Left slot deals damage equal to the left die. Right slot grants Guard equal to the right die.'
+    normalizedText: 'Left slot deals "X damage". Right slot gains "X Guard".'
     designIntent: 'Positional split grammar piece for Ice.'
   behaviorFamily: 2
   fireBehaviorId: 0
@@ -28,10 +28,10 @@ MonoBehaviour:
   lightningBehaviorId: 0
   bleedBehaviorId: 0
   physicalBehaviorId: 0
-  kind: 2
+  kind: 0
   coreAction: 0
-  target: 0
-  group: 2
+  target: 1
+  group: 0
   element: 2
   range: 1
   hitAllEnemies: 0
@@ -97,7 +97,7 @@ MonoBehaviour:
   guardFlat: 0
   bypassGuard: 0
   clearsGuard: 0
-  canUseMarkMultiplier: 0
+  canUseMarkMultiplier: 1
   consumesBurn: 0
   burnDamagePerStack: 2
   applyBurn: 0

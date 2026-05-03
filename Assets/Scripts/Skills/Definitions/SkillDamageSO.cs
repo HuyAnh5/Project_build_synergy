@@ -600,8 +600,8 @@ public class SkillDamageSO : ScriptableObject
         range = RangeType.Melee;
 
         bypassGuard = true;
-        clearsGuard = true;
-        canUseMarkMultiplier = false;
+        clearsGuard = false;
+        canUseMarkMultiplier = true;
         consumesBurn = false;
 
         applyBurn = applyMark = applyBleed = applyFreeze = false;

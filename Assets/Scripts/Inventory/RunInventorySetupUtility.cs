@@ -8,7 +8,8 @@ public static class RunInventorySetupUtility
         ref RunInventoryManager.ConsumableSlot[] consumableSlots,
         ref DiceSpinnerGeneric[] equippedDicePrefabs,
         ref DiceSpinnerGeneric[] equippedDice,
-        ref RunInventoryManager.PassiveSlotBinding[] passiveSlots)
+        ref RunInventoryManager.PassiveSlotBinding[] passiveSlots,
+        int consumableCapacity)
     {
         if (fixedSlots == null || fixedSlots.Length != RunInventoryManager.FIXED_SKILL_COUNT)
             fixedSlots = new RunInventoryManager.SlotBinding[RunInventoryManager.FIXED_SKILL_COUNT];
@@ -22,8 +23,19 @@ public static class RunInventorySetupUtility
         for (int i = 0; i < RunInventoryManager.OWNED_SKILL_COUNT; i++)
             if (ownedSlots[i] == null) ownedSlots[i] = new RunInventoryManager.SlotBinding();
 
-        if (consumableSlots == null || consumableSlots.Length != RunInventoryManager.RELIC_SLOT_COUNT)
-            consumableSlots = new RunInventoryManager.ConsumableSlot[RunInventoryManager.RELIC_SLOT_COUNT];
+        consumableCapacity = Mathf.Clamp(consumableCapacity, 1, RunInventoryManager.MAX_CONSUMABLE_CAPACITY);
+        if (consumableSlots == null || consumableSlots.Length != consumableCapacity)
+        {
+            RunInventoryManager.ConsumableSlot[] resized = new RunInventoryManager.ConsumableSlot[consumableCapacity];
+            if (consumableSlots != null)
+            {
+                int count = Mathf.Min(consumableSlots.Length, resized.Length);
+                for (int i = 0; i < count; i++)
+                    resized[i] = consumableSlots[i];
+            }
+
+            consumableSlots = resized;
+        }
 
         if (equippedDicePrefabs == null || equippedDicePrefabs.Length != RunInventoryManager.EQUIPPED_DICE_COUNT)
             equippedDicePrefabs = new DiceSpinnerGeneric[RunInventoryManager.EQUIPPED_DICE_COUNT];

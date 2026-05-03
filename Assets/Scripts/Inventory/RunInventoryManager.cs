@@ -7,8 +7,10 @@ using Sirenix.OdinInspector;
 public class RunInventoryManager : MonoBehaviour
 {
     public const int FIXED_SKILL_COUNT = 2;
-    public const int OWNED_SKILL_COUNT = 6;
+    public const int OWNED_SKILL_COUNT = 4;
     public const int RELIC_SLOT_COUNT = 3;
+    public const int DEFAULT_CONSUMABLE_CAPACITY = 5;
+    public const int MAX_CONSUMABLE_CAPACITY = 10;
     public const int EQUIPPED_DICE_COUNT = 3;
     public const int PASSIVE_SLOT_COUNT = 1;
 
@@ -26,14 +28,15 @@ public class RunInventoryManager : MonoBehaviour
 
     [Title("Skill + UI Bindings")]
     [InfoBox("Each slot contains BOTH:\n- UI Icon (usually fixed)\n- Skill Asset (changes often)\n\n" +
-             "Fixed = 2 default skills (Strike/Guard)\nOwned = 6 flexible slots\n\n" +
+             "Fixed = 2 default skills (Strike/Guard)\nOwned = 4 flexible slots\n\n" +
              "Use 'Apply Bindings To Icons' after assigning icons.", InfoMessageType.Info)]
     [SerializeField] private SlotBinding[] fixedSlots = new SlotBinding[FIXED_SKILL_COUNT];
 
     [SerializeField] private SlotBinding[] ownedSlots = new SlotBinding[OWNED_SKILL_COUNT];
 
     [Title("Consumables")]
-    [SerializeField] private ConsumableSlot[] consumableSlots = new ConsumableSlot[RELIC_SLOT_COUNT];
+    [SerializeField, Min(1)] private int consumableCapacity = DEFAULT_CONSUMABLE_CAPACITY;
+    [SerializeField] private ConsumableSlot[] consumableSlots = new ConsumableSlot[DEFAULT_CONSUMABLE_CAPACITY];
 
     [Title("Currency")]
     [SerializeField] private int gold;
@@ -42,8 +45,64 @@ public class RunInventoryManager : MonoBehaviour
 
     public DiceSlotRig DiceRig => diceRig;
     public int Gold => gold;
+    public int ConsumableCapacity => consumableSlots != null ? Mathf.Clamp(consumableSlots.Length, 1, MAX_CONSUMABLE_CAPACITY) : Mathf.Clamp(consumableCapacity, 1, MAX_CONSUMABLE_CAPACITY);
 
     public enum SkillSource { Fixed, Owned }
+
+    public RunInventoryState CaptureState()
+    {
+        EnsureSizes();
+
+        RunInventoryState snapshot = new RunInventoryState();
+        DiceSpinnerGeneric[] dice = CaptureEquippedDicePrefabLayout();
+        ScriptableObject[] skills = CaptureOwnedSkillAssets();
+        SkillPassiveSO[] passives = CapturePassiveAssets();
+        RunConsumableSlotState[] relics = CaptureConsumableState();
+
+        snapshot.SetDiceState(dice, dice);
+        snapshot.SetSkillState(skills, skills);
+        snapshot.SetPassiveState(passives, passives);
+        snapshot.SetConsumableState(relics, relics);
+        return snapshot;
+    }
+
+    public void WriteStateTo(RunState state)
+    {
+        if (state == null)
+            return;
+
+        state.SetGold(gold);
+        state.SetInventoryState(CaptureState());
+    }
+
+    public void ApplyState(RunState state, bool notifyChanged = true)
+    {
+        if (state == null)
+            return;
+
+        ApplyInventoryState(state.InventoryState, notifyChanged: false);
+        gold = Mathf.Max(0, state.Gold);
+
+        if (notifyChanged)
+            InventoryChanged?.Invoke();
+    }
+
+    public void ApplyInventoryState(RunInventoryState snapshot, bool notifyChanged = true)
+    {
+        if (snapshot == null)
+            return;
+
+        EnsureSizes();
+        ApplyDiceState(snapshot.EquippedDice);
+        ApplyOwnedSkills(snapshot.EquippedSkills);
+        ApplyPassives(snapshot.EquippedPassive);
+        ApplyConsumables(HasAnyConsumable(snapshot.RelicSlots) ? snapshot.RelicSlots : snapshot.Consumables);
+
+        RunInventoryBindingUtility.ApplyBindingsToIcons(this, fixedSlots, ownedSlots, passiveSlots);
+
+        if (notifyChanged)
+            InventoryChanged?.Invoke();
+    }
 
     // =========================================================
     // ===================== PUBLIC API ========================
@@ -293,6 +352,12 @@ public class RunInventoryManager : MonoBehaviour
         InventoryChanged?.Invoke();
     }
 
+    public void SetGold(int amount)
+    {
+        gold = Mathf.Max(0, amount);
+        InventoryChanged?.Invoke();
+    }
+
     public bool TrySpendGold(int amount)
     {
         if (!RunInventoryLoadoutUtility.TrySpendGold(ref gold, amount)) return false;
@@ -314,31 +379,50 @@ public class RunInventoryManager : MonoBehaviour
 
     public ConsumableDataSO GetConsumable(int index)
     {
-        if (index < 0 || index >= RELIC_SLOT_COUNT) return null;
+        EnsureSizes();
+        if (index < 0 || index >= ConsumableCapacity) return null;
         return consumableSlots[index].asset;
     }
 
     public int GetConsumableCharges(int index)
     {
-        if (index < 0 || index >= RELIC_SLOT_COUNT) return 0;
+        EnsureSizes();
+        if (index < 0 || index >= ConsumableCapacity) return 0;
         return consumableSlots[index].asset != null ? Mathf.Max(0, consumableSlots[index].charges) : 0;
+    }
+
+    public int GetConsumableCount()
+    {
+        EnsureSizes();
+
+        int count = 0;
+        for (int i = 0; i < consumableSlots.Length; i++)
+        {
+            if (consumableSlots[i].asset != null)
+                count++;
+        }
+
+        return count;
     }
 
     public bool TrySetConsumable(int index, ConsumableDataSO asset, int charges = -1)
     {
-        if (index < 0 || index >= RELIC_SLOT_COUNT) return false;
+        EnsureSizes();
+        if (index < 0 || index >= ConsumableCapacity) return false;
         if (asset == null) return false;
 
         int resolvedCharges = charges > 0 ? charges : asset.GetStartingCharges();
         consumableSlots[index] = new ConsumableSlot { asset = asset, charges = Mathf.Max(0, resolvedCharges) };
         if (consumableSlots[index].charges <= 0) consumableSlots[index] = default;
+        CompactConsumables();
         InventoryChanged?.Invoke();
         return true;
     }
 
     public int FindFirstEmptyConsumableSlot()
     {
-        for (int i = 0; i < RELIC_SLOT_COUNT; i++)
+        EnsureSizes();
+        for (int i = 0; i < ConsumableCapacity; i++)
         {
             if (consumableSlots[i].asset == null)
                 return i;
@@ -353,9 +437,56 @@ public class RunInventoryManager : MonoBehaviour
         return index >= 0 && TrySetConsumable(index, asset, charges);
     }
 
+    public bool TrySwapConsumables(int a, int b)
+    {
+        EnsureSizes();
+        if (a < 0 || a >= ConsumableCapacity) return false;
+        if (b < 0 || b >= ConsumableCapacity) return false;
+        if (a == b) return true;
+
+        ConsumableSlot temp = consumableSlots[a];
+        consumableSlots[a] = consumableSlots[b];
+        consumableSlots[b] = temp;
+        CompactConsumables();
+        InventoryChanged?.Invoke();
+        return true;
+    }
+
+    public bool TryMoveConsumable(int fromIndex, int insertIndex)
+    {
+        EnsureSizes();
+        if (fromIndex < 0 || fromIndex >= ConsumableCapacity) return false;
+        if (consumableSlots[fromIndex].asset == null) return false;
+
+        List<ConsumableSlot> ordered = new List<ConsumableSlot>(ConsumableCapacity);
+        int compactSourceIndex = -1;
+        for (int i = 0; i < consumableSlots.Length; i++)
+        {
+            if (consumableSlots[i].asset == null)
+                continue;
+
+            if (i == fromIndex)
+                compactSourceIndex = ordered.Count;
+
+            ordered.Add(consumableSlots[i]);
+        }
+
+        if (compactSourceIndex < 0)
+            return false;
+
+        ConsumableSlot moving = ordered[compactSourceIndex];
+        ordered.RemoveAt(compactSourceIndex);
+        insertIndex = Mathf.Clamp(insertIndex, 0, ordered.Count);
+        ordered.Insert(insertIndex, moving);
+        ApplyOrderedConsumables(ordered);
+        InventoryChanged?.Invoke();
+        return true;
+    }
+
     public bool TryConsumeConsumableCharge(int index, int amount = 1)
     {
-        if (index < 0 || index >= RELIC_SLOT_COUNT) return false;
+        EnsureSizes();
+        if (index < 0 || index >= ConsumableCapacity) return false;
         if (amount <= 0) return true;
 
         ConsumableSlot slot = consumableSlots[index];
@@ -365,14 +496,17 @@ public class RunInventoryManager : MonoBehaviour
         if (slot.charges <= 0) slot = default;
 
         consumableSlots[index] = slot;
+        CompactConsumables();
         InventoryChanged?.Invoke();
         return true;
     }
 
     public void ClearConsumable(int index)
     {
-        if (index < 0 || index >= RELIC_SLOT_COUNT) return;
+        EnsureSizes();
+        if (index < 0 || index >= ConsumableCapacity) return;
         consumableSlots[index] = default;
+        CompactConsumables();
         InventoryChanged?.Invoke();
     }
 
@@ -470,13 +604,162 @@ public class RunInventoryManager : MonoBehaviour
 
     private void EnsureSizes()
     {
+        consumableCapacity = Mathf.Clamp(consumableCapacity, 1, MAX_CONSUMABLE_CAPACITY);
         RunInventorySetupUtility.EnsureSizes(
             ref fixedSlots,
             ref ownedSlots,
             ref consumableSlots,
             ref equippedDicePrefabs,
             ref equippedDice,
-            ref passiveSlots);
+            ref passiveSlots,
+            consumableCapacity);
+    }
+
+    private DiceSpinnerGeneric[] CaptureEquippedDicePrefabLayout()
+    {
+        DiceSpinnerGeneric[] snapshot = new DiceSpinnerGeneric[EQUIPPED_DICE_COUNT];
+
+        for (int i = 0; i < snapshot.Length; i++)
+        {
+            DiceSpinnerGeneric prefab = i < equippedDicePrefabs.Length ? equippedDicePrefabs[i] : null;
+            if (prefab != null)
+            {
+                snapshot[i] = prefab;
+                continue;
+            }
+
+            DiceSpinnerGeneric runtime = i < equippedDice.Length ? equippedDice[i] : null;
+            snapshot[i] = ResolveTrackedPrefabForRuntime(runtime) ?? runtime;
+        }
+
+        return snapshot;
+    }
+
+    private ScriptableObject[] CaptureOwnedSkillAssets()
+    {
+        ScriptableObject[] snapshot = new ScriptableObject[OWNED_SKILL_COUNT];
+
+        for (int i = 0; i < snapshot.Length; i++)
+            snapshot[i] = ownedSlots[i]?.skillAsset;
+
+        return snapshot;
+    }
+
+    private SkillPassiveSO[] CapturePassiveAssets()
+    {
+        SkillPassiveSO[] snapshot = new SkillPassiveSO[PASSIVE_SLOT_COUNT];
+
+        for (int i = 0; i < snapshot.Length; i++)
+            snapshot[i] = passiveSlots[i]?.passiveAsset;
+
+        return snapshot;
+    }
+
+    private RunConsumableSlotState[] CaptureConsumableState()
+    {
+        RunConsumableSlotState[] snapshot = new RunConsumableSlotState[ConsumableCapacity];
+
+        for (int i = 0; i < snapshot.Length; i++)
+        {
+            ConsumableSlot slot = consumableSlots[i];
+            snapshot[i] = new RunConsumableSlotState(slot.asset, slot.asset != null ? slot.charges : 0);
+        }
+
+        return snapshot;
+    }
+
+    private void ApplyDiceState(DiceSpinnerGeneric[] dicePrefabs)
+    {
+        ClearSpawnedEquippedDiceInstances();
+        RunInventoryLoadoutUtility.CopyLayout(equippedDicePrefabs, dicePrefabs);
+
+        if (diceRig != null && HasAnyAssignedDicePrefabs())
+            RebuildSpawnedEquippedDiceFromPrefabs();
+        else
+            RunInventoryLoadoutUtility.CopyLayout(equippedDice, dicePrefabs);
+
+        SyncDiceRigFromInventory();
+    }
+
+    private void ApplyOwnedSkills(ScriptableObject[] skills)
+    {
+        for (int i = 0; i < ownedSlots.Length; i++)
+        {
+            if (ownedSlots[i] == null)
+                ownedSlots[i] = new SlotBinding();
+
+            ownedSlots[i].skillAsset = skills != null && i < skills.Length ? skills[i] : null;
+        }
+    }
+
+    private void ApplyPassives(SkillPassiveSO[] passives)
+    {
+        for (int i = 0; i < passiveSlots.Length; i++)
+        {
+            if (passiveSlots[i] == null)
+                passiveSlots[i] = new PassiveSlotBinding();
+
+            passiveSlots[i].passiveAsset = passives != null && i < passives.Length ? passives[i] : null;
+        }
+    }
+
+    private void ApplyConsumables(RunConsumableSlotState[] slots)
+    {
+        EnsureSizes();
+        for (int i = 0; i < consumableSlots.Length; i++)
+        {
+            if (slots == null || i >= slots.Length || slots[i].IsEmpty)
+            {
+                consumableSlots[i] = default;
+                continue;
+            }
+
+            consumableSlots[i] = new ConsumableSlot
+            {
+                asset = slots[i].Asset,
+                charges = slots[i].Charges
+            };
+        }
+
+        CompactConsumables();
+    }
+
+    private static bool HasAnyConsumable(RunConsumableSlotState[] slots)
+    {
+        if (slots == null)
+            return false;
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (!slots[i].IsEmpty)
+                return true;
+        }
+
+        return false;
+    }
+
+    private void CompactConsumables()
+    {
+        if (consumableSlots == null || consumableSlots.Length == 0)
+            return;
+
+        List<ConsumableSlot> ordered = new List<ConsumableSlot>(consumableSlots.Length);
+        for (int i = 0; i < consumableSlots.Length; i++)
+        {
+            if (consumableSlots[i].asset != null && consumableSlots[i].charges > 0)
+                ordered.Add(consumableSlots[i]);
+        }
+
+        ApplyOrderedConsumables(ordered);
+    }
+
+    private void ApplyOrderedConsumables(List<ConsumableSlot> ordered)
+    {
+        if (consumableSlots == null)
+            return;
+
+        for (int i = 0; i < consumableSlots.Length; i++)
+            consumableSlots[i] = i < ordered.Count ? ordered[i] : default;
     }
 
     private readonly Dictionary<DiceSpinnerGeneric, DiceSpinnerGeneric> _spawnedPrefabByRuntime = new Dictionary<DiceSpinnerGeneric, DiceSpinnerGeneric>();

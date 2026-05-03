@@ -198,6 +198,30 @@ internal static class SkillBehaviorRuntimeUtility
         return list;
     }
 
+    public static List<CombatActor> GetOtherEnemiesInSameRow(CombatActor caster, CombatActor except)
+    {
+        List<CombatActor> list = new List<CombatActor>();
+        if (except == null)
+            return list;
+
+        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>(true);
+        for (int i = 0; i < actors.Length; i++)
+        {
+            CombatActor actor = actors[i];
+            if (actor == null || actor.IsDead)
+                continue;
+            if (actor == except)
+                continue;
+            if (actor.row != except.row)
+                continue;
+            if (caster != null && actor.team == caster.team)
+                continue;
+            list.Add(actor);
+        }
+
+        return list;
+    }
+
     private static bool IsNumeric(SkillRuntime rt, int localIndex)
     {
         return rt == null ||

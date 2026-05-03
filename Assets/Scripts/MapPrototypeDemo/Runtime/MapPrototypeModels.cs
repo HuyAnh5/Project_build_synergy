@@ -93,6 +93,10 @@ public sealed class MapPrototypeConfig
     public int eventVarianceMax = 2;
     public int firstRowMaxEvents = 2;
     public int hintMinNodesBetween = 1;
+    public int eliteMinNodeGap = 1;
+    public int eliteThreeThresholdIntermediateNodes = 25;
+    public int maxHostileStreak = 5;
+    public int bossRouteMaxSharedRow = 6;
 
     public int bossHintsRequired = 3;
     public int extraHintSources = 3;
@@ -132,6 +136,10 @@ public sealed class MapPrototypeConfig
         eventVarianceMax = 2;
         firstRowMaxEvents = 2;
         hintMinNodesBetween = 1;
+        eliteMinNodeGap = 1;
+        eliteThreeThresholdIntermediateNodes = 25;
+        maxHostileStreak = 5;
+        bossRouteMaxSharedRow = 6;
 
         bossHintsRequired = 3;
         extraHintSources = 3;

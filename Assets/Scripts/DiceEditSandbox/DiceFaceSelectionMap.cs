@@ -4,6 +4,8 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class DiceFaceSelectionMap : MonoBehaviour
 {
+    private const float NormalGroupDotThreshold = 0.995f;
+
     private readonly List<FaceGroup> _faceGroups = new List<FaceGroup>();
     private readonly Dictionary<int, int> _triangleToGroup = new Dictionary<int, int>();
     private readonly Dictionary<int, int> _logicalToGroup = new Dictionary<int, int>();
@@ -138,10 +140,10 @@ public class DiceFaceSelectionMap : MonoBehaviour
             return float.NegativeInfinity;
 
         Vector3 desiredNormal = cam != null ? -cam.transform.forward : Vector3.forward;
-        Vector3 localNormal = GetLocalFaceNormal(logicalFaceIndex);
-        Transform referenceTransform = _usingFallbackGroups ? transform : (_meshTransform != null ? _meshTransform : pivot);
-        Vector3 worldNormal = referenceTransform != null ? referenceTransform.TransformDirection(localNormal) : pivot.rotation * localNormal;
-        return Vector3.Dot(worldNormal, desiredNormal);
+        if (!_logicalToGroup.TryGetValue(logicalFaceIndex, out int groupIndex))
+            return float.NegativeInfinity;
+
+        return Vector3.Dot(GetGroupWorldNormal(groupIndex), desiredNormal);
     }
 
     public Vector3 GetWorldFaceCenter(int logicalFaceIndex)
@@ -217,7 +219,10 @@ public class DiceFaceSelectionMap : MonoBehaviour
         EnsureMeshSource();
         MeshFilter filter = _meshTransform != null ? _meshTransform.GetComponent<MeshFilter>() : null;
         if (filter == null)
+        {
+            BuildFallbackFaceGroups();
             return;
+        }
 
         _mesh = filter.sharedMesh;
         if (_mesh == null)
@@ -234,9 +239,10 @@ public class DiceFaceSelectionMap : MonoBehaviour
         Vector3[] vertices = _mesh.vertices;
         int[] triangles = _mesh.triangles;
         if (vertices == null || triangles == null || triangles.Length < 3)
+        {
+            BuildFallbackFaceGroups();
             return;
-
-        Dictionary<string, int> normalKeyToGroup = new Dictionary<string, int>();
+        }
 
         for (int tri = 0; tri < triangles.Length; tri += 3)
         {
@@ -248,12 +254,13 @@ public class DiceFaceSelectionMap : MonoBehaviour
             Vector3 b = vertices[i1];
             Vector3 c = vertices[i2];
             Vector3 normal = Vector3.Cross(b - a, c - a).normalized;
-            string key = QuantizeNormalKey(normal);
+            if (normal.sqrMagnitude <= 0.0001f)
+                continue;
 
-            if (!normalKeyToGroup.TryGetValue(key, out int groupIndex))
+            int groupIndex = FindBestNormalGroup(normal);
+            if (groupIndex < 0)
             {
                 groupIndex = _faceGroups.Count;
-                normalKeyToGroup[key] = groupIndex;
                 _faceGroups.Add(new FaceGroup(normal));
             }
 
@@ -261,30 +268,45 @@ public class DiceFaceSelectionMap : MonoBehaviour
             group.AddVertex(vertices[i0]);
             group.AddVertex(vertices[i1]);
             group.AddVertex(vertices[i2]);
+            group.AddArea(Vector3.Cross(b - a, c - a).magnitude * 0.5f);
             group.AddTriangle(i0, i1, i2);
             _triangleToGroup[tri / 3] = groupIndex;
         }
 
-        Camera cam = Camera.main;
         if (_spinner == null || _spinner.faces == null)
             return;
 
-        HashSet<int> claimedGroups = new HashSet<int>();
-        Vector3 desiredNormal = cam != null ? -cam.transform.forward : Vector3.back;
+        if (_faceGroups.Count == 0)
+        {
+            BuildFallbackFaceGroups();
+            return;
+        }
 
+        MapLogicalFacesToMeshGroups();
+    }
+
+    private void MapLogicalFacesToMeshGroups()
+    {
+        _logicalToGroup.Clear();
+        if (_spinner == null || _spinner.faces == null || _faceGroups.Count == 0)
+            return;
+
+        List<int> candidateGroups = BuildPrimaryFaceCandidateGroups(_spinner.faces.Length);
+        HashSet<int> claimedGroups = new HashSet<int>();
         for (int faceIndex = 0; faceIndex < _spinner.faces.Length; faceIndex++)
         {
-            Quaternion rotation = Quaternion.Euler(_spinner.faces[faceIndex].localEuler);
+            Vector3 expectedNormal = GetExpectedFaceNormalInSpinnerLocal(faceIndex);
             float bestScore = float.NegativeInfinity;
             int bestGroup = -1;
 
-            for (int groupIndex = 0; groupIndex < _faceGroups.Count; groupIndex++)
+            for (int i = 0; i < candidateGroups.Count; i++)
             {
+                int groupIndex = candidateGroups[i];
                 if (claimedGroups.Contains(groupIndex))
                     continue;
 
-                Vector3 rotated = rotation * _faceGroups[groupIndex].localNormal;
-                float score = Vector3.Dot(rotated, desiredNormal);
+                Vector3 groupNormal = GetGroupNormalInSpinnerLocal(groupIndex);
+                float score = Vector3.Dot(groupNormal, expectedNormal);
                 if (score > bestScore)
                 {
                     bestScore = score;
@@ -298,7 +320,6 @@ public class DiceFaceSelectionMap : MonoBehaviour
                 _logicalToGroup[faceIndex] = bestGroup;
             }
         }
-
     }
 
     private bool BuildFaceGroupsFromMetadata()
@@ -390,15 +411,14 @@ public class DiceFaceSelectionMap : MonoBehaviour
         if (_spinner == null || _spinner.faces == null || groupIndex < 0 || groupIndex >= _faceGroups.Count)
             return -1;
 
-        Vector3 desiredNormal = cam != null ? -cam.transform.forward : Vector3.back;
+        Vector3 groupNormal = GetGroupNormalInSpinnerLocal(groupIndex);
         float bestScore = float.NegativeInfinity;
         int bestFace = -1;
 
         for (int faceIndex = 0; faceIndex < _spinner.faces.Length; faceIndex++)
         {
-            Quaternion rotation = Quaternion.Euler(_spinner.faces[faceIndex].localEuler);
-            Vector3 rotated = rotation * _faceGroups[groupIndex].localNormal;
-            float score = Vector3.Dot(rotated, desiredNormal);
+            Vector3 expectedNormal = GetExpectedFaceNormalInSpinnerLocal(faceIndex);
+            float score = Vector3.Dot(groupNormal, expectedNormal);
             if (score > bestScore)
             {
                 bestScore = score;
@@ -409,10 +429,86 @@ public class DiceFaceSelectionMap : MonoBehaviour
         return bestFace;
     }
 
-    private static string QuantizeNormalKey(Vector3 normal)
+    private int FindBestNormalGroup(Vector3 normal)
     {
-        Vector3 n = normal.normalized;
-        return $"{Mathf.RoundToInt(n.x * 1000f)}_{Mathf.RoundToInt(n.y * 1000f)}_{Mathf.RoundToInt(n.z * 1000f)}";
+        float bestDot = NormalGroupDotThreshold;
+        int bestGroup = -1;
+
+        for (int i = 0; i < _faceGroups.Count; i++)
+        {
+            float dot = Vector3.Dot(_faceGroups[i].localNormal, normal);
+            if (dot <= bestDot)
+                continue;
+
+            bestDot = dot;
+            bestGroup = i;
+        }
+
+        return bestGroup;
+    }
+
+    private List<int> BuildPrimaryFaceCandidateGroups(int desiredCount)
+    {
+        List<int> candidates = new List<int>(_faceGroups.Count);
+        for (int i = 0; i < _faceGroups.Count; i++)
+            candidates.Add(i);
+
+        candidates.Sort((a, b) => _faceGroups[b].area.CompareTo(_faceGroups[a].area));
+
+        if (desiredCount > 0 && candidates.Count > desiredCount)
+            candidates.RemoveRange(desiredCount, candidates.Count - desiredCount);
+
+        return candidates;
+    }
+
+    private Vector3 GetExpectedFaceNormalInSpinnerLocal(int logicalFaceIndex)
+    {
+        if (_spinner == null || _spinner.faces == null || logicalFaceIndex < 0 || logicalFaceIndex >= _spinner.faces.Length)
+            return Vector3.back;
+
+        Quaternion faceRotation = Quaternion.Euler(_spinner.faces[logicalFaceIndex].localEuler);
+        return (Quaternion.Inverse(faceRotation) * Vector3.back).normalized;
+    }
+
+    private Vector3 GetGroupNormalInSpinnerLocal(int groupIndex)
+    {
+        if (groupIndex < 0 || groupIndex >= _faceGroups.Count)
+            return Vector3.forward;
+
+        if (_usingFallbackGroups || _meshTransform == null)
+            return _faceGroups[groupIndex].localNormal.normalized;
+
+        Transform reference = GetSpinnerReferenceTransform();
+        Vector3 worldNormal = _meshTransform.TransformDirection(_faceGroups[groupIndex].localNormal);
+        return reference != null
+            ? reference.InverseTransformDirection(worldNormal).normalized
+            : worldNormal.normalized;
+    }
+
+    private Vector3 GetGroupWorldNormal(int groupIndex)
+    {
+        if (groupIndex < 0 || groupIndex >= _faceGroups.Count)
+            return Vector3.forward;
+
+        if (_usingFallbackGroups)
+        {
+            Transform reference = GetSpinnerReferenceTransform();
+            return reference != null
+                ? reference.TransformDirection(_faceGroups[groupIndex].localNormal).normalized
+                : transform.TransformDirection(_faceGroups[groupIndex].localNormal).normalized;
+        }
+
+        return _meshTransform != null
+            ? _meshTransform.TransformDirection(_faceGroups[groupIndex].localNormal).normalized
+            : transform.TransformDirection(_faceGroups[groupIndex].localNormal).normalized;
+    }
+
+    private Transform GetSpinnerReferenceTransform()
+    {
+        if (_spinner == null)
+            return transform;
+
+        return _spinner.pivot != null ? _spinner.pivot : _spinner.transform;
     }
 
     private Bounds GetApproximateBounds()
@@ -577,8 +673,10 @@ public class DiceFaceSelectionMap : MonoBehaviour
         private int[] _cachedVertexIndices;
         private Vector3 _vertexSum;
         private int _vertexCount;
+        private float _area;
 
         public Vector3 localNormal { get; }
+        public float area => _area;
         private readonly bool _hasManualCenter;
         private readonly Vector3 _manualCenter;
         public int polygonSides { get; }
@@ -627,6 +725,11 @@ public class DiceFaceSelectionMap : MonoBehaviour
             _vertexIndexSet.Add(i1);
             _vertexIndexSet.Add(i2);
             _cachedVertexIndices = null;
+        }
+
+        public void AddArea(float area)
+        {
+            _area += Mathf.Max(0f, area);
         }
 
         public void AddVertex(Vector3 vertex)

@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Shatter'
-  description: 'Deal X damage. If the target is Chilled, gain bonus damage equal to 50% of current player Guard, up to +20.'
+  description: 'Deal "3 damage". Gain Guard equal to damage dealt.'
   spec:
     rarity: 0
     specState: 0
     buildRole: 5
     implementationCoverage: 0
-    normalizedText: 'Deal X damage. If target is Chilled, add 50% of current player Guard, capped at +20.'
-    designIntent: 'Turn control window into payoff damage.'
+    normalizedText: 'Deal "3 damage". Gain Guard equal to damage dealt.'
+    designIntent: 'Turn Ice damage into a stronger Guard payoff than the baseline Ice hit reward.'
   behaviorFamily: 2
   fireBehaviorId: 0
   iceBehaviorId: 1
@@ -89,9 +89,9 @@ MonoBehaviour:
     projectilePrefab: {fileID: 0}
   focusCost: 2
   focusGainOnCast: 0
-  dieMultiplier: 1
-  flatDamage: 0
-  sunderBonusIfTargetHasGuard: 1
+  dieMultiplier: 0
+  flatDamage: 3
+  sunderBonusIfTargetHasGuard: 0
   sunderGuardDamageMultiplier: 2
   guardDieMultiplier: 1
   guardFlat: 0

@@ -2,7 +2,7 @@
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler, IDropHandler
+public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler, IDropHandler, IPointerEnterHandler, IPointerExitHandler, ISkillTooltipSource
 {
     public TurnManager turn;
     public int slotIndex = 1; // 1..3
@@ -16,6 +16,8 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
     private RectTransform _ghostRT;
     private DiceEquipUIManager _diceUiManager;
     private bool _groupReorderDrag;
+    private bool _dragRegistered;
+    private bool _pointerInside;
 
     private void Awake()
     {
@@ -23,6 +25,24 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
         _canvasRT = _canvas.transform as RectTransform;
         _uiCam = (_canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : _canvas.worldCamera;
         EnsurePreviewInputForwarder();
+    }
+
+    private void OnEnable()
+    {
+        UiDragState.DragStateChanged += HandleUiDragStateChanged;
+    }
+
+    private void OnDisable()
+    {
+        UiDragState.DragStateChanged -= HandleUiDragStateChanged;
+        if (_dragRegistered)
+        {
+            UiDragState.EndDrag(this);
+            _dragRegistered = false;
+        }
+
+        _pointerInside = false;
+        SkillTooltipUI.HideCurrent();
     }
 
     public void SetVisualLaneIndex(int lane1Based)
@@ -38,12 +58,34 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
         turn.ClearSlot(slotIndex);
     }
 
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        _pointerInside = true;
+        if (UiDragState.IsDragging)
+            return;
+        if (!iconPreview || iconPreview.sprite == null)
+            return;
+        if (turn == null)
+            return;
+
+        SkillTooltipUI.Show(this);
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        _pointerInside = false;
+        SkillTooltipUI.HideCurrent();
+    }
+
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (!turn || !turn.CanInteractWithSkills) return;
         if (!iconPreview || iconPreview.sprite == null) return;
 
         _groupReorderDrag = ShouldUseTwoSlotGroupReorderDrag();
+        SkillTooltipUI.HideCurrent();
+        UiDragState.BeginDrag(this);
+        _dragRegistered = true;
         CreateGhost();
         MoveGhost(eventData.position);
     }
@@ -55,6 +97,12 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
 
     public void OnEndDrag(PointerEventData eventData)
     {
+        if (_dragRegistered)
+        {
+            UiDragState.EndDrag(this);
+            _dragRegistered = false;
+        }
+
         if (_ghostRT) Destroy(_ghostRT.gameObject);
         _ghostRT = null;
 
@@ -138,6 +186,35 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
         if (_diceUiManager == null)
             _diceUiManager = FindObjectOfType<DiceEquipUIManager>();
         return _diceUiManager;
+    }
+
+    private void HandleUiDragStateChanged()
+    {
+        if (UiDragState.IsDragging)
+        {
+            SkillTooltipUI.HideCurrent();
+            return;
+        }
+
+        if (_pointerInside)
+            SkillTooltipUI.Show(this);
+    }
+
+    public bool TryGetSkillTooltip(out Canvas canvas, out RectTransform target, out ScriptableObject asset, out SkillRuntime runtime)
+    {
+        canvas = _canvas;
+        target = iconPreview != null ? iconPreview.rectTransform : transform as RectTransform;
+        asset = null;
+        runtime = null;
+
+        if (canvas == null || target == null)
+            return false;
+        if (!iconPreview || iconPreview.sprite == null)
+            return false;
+        if (turn == null)
+            return false;
+
+        return turn.TryGetPlannedSkillTooltipAtLane(slotIndex, out asset, out runtime);
     }
 
     private void EnsurePreviewInputForwarder()

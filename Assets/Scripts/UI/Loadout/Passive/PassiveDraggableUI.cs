@@ -17,6 +17,7 @@ public class PassiveDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler
     private RectTransform _rt;
     private Transform _prevParent;
     private Vector2 _prevAnchoredPos;
+    private bool _dragRegistered;
 
     private void Awake()
     {
@@ -66,6 +67,8 @@ public class PassiveDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler
 
     public void OnBeginDrag(PointerEventData eventData)
     {
+        UiDragState.BeginDrag(this);
+        _dragRegistered = true;
         ReturnToCachedHome();
     }
 
@@ -75,6 +78,21 @@ public class PassiveDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler
 
     public void OnEndDrag(PointerEventData eventData)
     {
+        EndDragRegistration();
         ReturnToCachedHome();
+    }
+
+    private void OnDisable()
+    {
+        EndDragRegistration();
+    }
+
+    private void EndDragRegistration()
+    {
+        if (!_dragRegistered)
+            return;
+
+        UiDragState.EndDrag(this);
+        _dragRegistered = false;
     }
 }

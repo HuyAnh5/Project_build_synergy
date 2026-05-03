@@ -144,7 +144,7 @@ Phần này không thay thế rule chi tiết ở các section sau; nó là bả
 
 Trong combat, player hiện có:
 
-- **6 skill slot**,
+- **4 skill slot**,
 - **1 passive slot**,
 - **1 đến 3 dice**,
 - **Basic Attack**,
@@ -179,7 +179,7 @@ Current locked rules:
 
 ### 4.3 Basic actions
 
-Basic actions luôn có sẵn và **không chiếm 6 skill slot chính**.
+Basic actions luôn có sẵn và **không chiếm 4 skill slot chính**.
 
 #### Basic Attack
 

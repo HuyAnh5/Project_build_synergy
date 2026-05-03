@@ -32,7 +32,7 @@ Phần này mô tả đường đi logic của build: player nhận content mớ
 ### 2.2 Flow loadout trước combat
 
 `Chuẩn bị vào combat`
-→ hệ thống đọc đúng **6 skill slot**, **1 passive slot**, **1–3 dice đang equip**, cùng với **Basic Attack / Basic Guard**
+→ hệ thống đọc đúng **4 skill slot**, **1 passive slot**, **1–3 dice đang equip**, cùng với **Basic Attack / Basic Guard**
 → build hiện tại được xem là input chính cho combat
 → combat bắt đầu với đúng loadout đã được chốt ở ngoài combat
 
@@ -60,10 +60,10 @@ Phần này mô tả đường đi logic của build: player nhận content mớ
 
 Player hiện có:
 
-* **6 skill slot**
+* **4 skill slot**
 * **1 passive slot**
 * **1 đến 3 dice slot**
-* **Basic Attack** và **Basic Guard** luôn tồn tại, không nằm trong 6 slot chính
+* **Basic Attack** và **Basic Guard** luôn tồn tại, không nằm trong 4 slot chính
 
 Rule làm rõ rất quan trọng:
 
@@ -368,7 +368,7 @@ Những phần đó thuộc các spec khác.
 
 Những phần sau nên được coi là direction đã khóa đủ mạnh ở cấp loadout:
 
-* **6 skill slot / 1 passive slot / 1–3 dice slot**,
+* **4 skill slot / 1 passive slot / 1–3 dice slot**,
 * **Basic Attack** và **Basic Guard** luôn tồn tại,
 * không có inventory dự trữ,
 * full slot thì phải thay món cũ hoặc bỏ qua,
@@ -384,7 +384,7 @@ Những phần sau nên được coi là direction đã khóa đủ mạnh ở c
 ## Runtime Update Note (2026-04)
 
 - Passive loadout runtime hien tai da khoa o `1 passive slot`.
-- Skill loadout van la `6 skill slot`.
+- Skill loadout van la `4 skill slot`.
 - Combat/runtime grammar hien tai dang dung:
   - player roll dice dau luot
   - reorder neu can

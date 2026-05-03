@@ -223,7 +223,7 @@ Combat cần đơn giản ở bề mặt nhưng giàu quyết định ở bên t
 
 ### Cấu trúc loadout hiện tại
 
-- 6 skill slot
+- 4 skill slot
 - 1 passive slot
 - 1 đến 3 dice
 - Basic Attack và Basic Guard luôn tồn tại

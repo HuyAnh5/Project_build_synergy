@@ -166,7 +166,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f4688fdb7df04437aeb418b961361dc5, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Unity.TextMeshPro::TMPro.TextMeshProUGUI
   m_Material: {fileID: 0}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -5339,6 +5339,7 @@ GameObject:
   - component: {fileID: 268812365}
   - component: {fileID: 268812364}
   - component: {fileID: 268812363}
+  - component: {fileID: 268812366}
   m_Layer: 0
   m_Name: MapPrototypeDemo
   m_TagString: Untagged
@@ -5451,6 +5452,86 @@ MonoBehaviour:
   modalTitleText: {fileID: 1732259367}
   modalBodyText: {fileID: 945166704}
   modalActionsRoot: {fileID: 1301648192}
+--- !u!114 &268812366
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 268812361}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11e8b2c040cf4805b8f970119f9b8f1a, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::RunManager
+  runInventory: {fileID: 0}
+  mapController: {fileID: 268812363}
+  playerActor: {fileID: 0}
+  startingAct: 1
+  startingMaxHp: 30
+  startNewRunOnStart: 0
+  state:
+    runActive: 0
+    currentAct: 1
+    currentNodeId:
+    playerMaxHp: 30
+    playerHp: 30
+    gold: 0
+    bossIntelCount: 0
+    bossRevealed: 0
+    pendingEncounterNodeId:
+    pendingEncounterType: 0
+    lastCombatResult: 0
+    inventoryState:
+      diceInventory:
+      - {fileID: 0}
+      - {fileID: 0}
+      - {fileID: 0}
+      equippedDice:
+      - {fileID: 0}
+      - {fileID: 0}
+      - {fileID: 0}
+      skillInventory:
+      - {fileID: 0}
+      - {fileID: 0}
+      - {fileID: 0}
+      - {fileID: 0}
+      equippedSkills:
+      - {fileID: 0}
+      - {fileID: 0}
+      - {fileID: 0}
+      - {fileID: 0}
+      passiveInventory:
+      - {fileID: 0}
+      equippedPassive:
+      - {fileID: 0}
+      consumables:
+      - asset: {fileID: 0}
+        charges: 0
+      - asset: {fileID: 0}
+        charges: 0
+      - asset: {fileID: 0}
+        charges: 0
+      relicSlots:
+      - asset: {fileID: 0}
+        charges: 0
+      - asset: {fileID: 0}
+        charges: 0
+      - asset: {fileID: 0}
+        charges: 0
+    shopState:
+      shopNodeId:
+      bossIntelPurchased: 0
+      offeredSkills: []
+      offeredDice: []
+      offeredPassives: []
+      offeredConsumables: []
+    forgeState:
+      forgeNodeId:
+      gems: 0
+      hasPendingEdit: 0
+    rewardQueue:
+      rewards: []
 --- !u!114 &268812364
 MonoBehaviour:
   m_ObjectHideFlags: 0

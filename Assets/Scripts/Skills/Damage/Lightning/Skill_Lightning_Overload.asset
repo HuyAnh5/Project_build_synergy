@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Overload'
-  description: 'Deal X damage plus 4 damage for each Mark currently on the board.'
+  description: 'Deal "2 damage" plus 5 damage for each Marked enemy.'
   spec:
     rarity: 0
     specState: 0
     buildRole: 5
     implementationCoverage: 0
-    normalizedText: 'Deal X damage plus 4 damage for each Mark on the board.'
+    normalizedText: 'Deal "2 damage" plus 5 damage for each Marked enemy.'
     designIntent: 'Clear board-count payoff for Mark economy.'
   behaviorFamily: 3
   fireBehaviorId: 0
@@ -89,8 +89,8 @@ MonoBehaviour:
     projectilePrefab: {fileID: 0}
   focusCost: 2
   focusGainOnCast: 0
-  dieMultiplier: 1
-  flatDamage: 0
+  dieMultiplier: 0
+  flatDamage: 2
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
   guardDieMultiplier: 1

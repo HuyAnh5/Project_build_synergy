@@ -18,7 +18,7 @@ public class DiceEditSandboxController : MonoBehaviour
     }
 
     private const bool DebugLogs = false;
-    private const int ConsumableSlotCount = RunInventoryManager.RELIC_SLOT_COUNT;
+    private const int ConsumableSlotCount = RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY;
     private readonly List<DiceEditInteractable> _interactables = new List<DiceEditInteractable>();
 
     private Canvas _canvas;

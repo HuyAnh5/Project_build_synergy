@@ -27,15 +27,18 @@ public static class ConsumableUiSetupTool
         if (manager == null)
             manager = Undo.AddComponent<ConsumableBarUIManager>(root);
 
+        RectTransform dragLayer = BuildOrGetDragLayer(canvas.transform);
+
         GameObject row = FindOrCreateChild(root.transform, "ConsumableRow", typeof(RectTransform), typeof(HorizontalLayoutGroup), typeof(ContentSizeFitter));
         RectTransform rowRt = row.GetComponent<RectTransform>();
         rowRt.anchorMin = new Vector2(0.5f, 0f);
         rowRt.anchorMax = new Vector2(0.5f, 0f);
         rowRt.pivot = new Vector2(0.5f, 0f);
         rowRt.anchoredPosition = new Vector2(0f, 0f);
-        rowRt.sizeDelta = new Vector2(420f, 120f);
+        rowRt.sizeDelta = new Vector2(520f, 140f);
 
         HorizontalLayoutGroup rowLayout = row.GetComponent<HorizontalLayoutGroup>();
+        rowLayout.enabled = false;
         rowLayout.spacing = 16f;
         rowLayout.childAlignment = TextAnchor.MiddleCenter;
         rowLayout.childControlWidth = false;
@@ -44,11 +47,13 @@ public static class ConsumableUiSetupTool
         rowLayout.childForceExpandHeight = false;
 
         ContentSizeFitter rowFitter = row.GetComponent<ContentSizeFitter>();
+        rowFitter.enabled = false;
         rowFitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
         rowFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
-        manager.slots = new ConsumableBarUIManager.ConsumableSlotView[RunInventoryManager.RELIC_SLOT_COUNT];
-        for (int i = 0; i < RunInventoryManager.RELIC_SLOT_COUNT; i++)
+        manager.layoutContainer = rowRt;
+        manager.slots = new ConsumableBarUIManager.ConsumableSlotView[RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY];
+        for (int i = 0; i < RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY; i++)
             manager.slots[i] = BuildOrGetSlot(row.transform, i, manager);
 
         RectTransform actionPanel = BuildOrGetActionPanel(root.transform, manager, out Button useButton, out TMP_Text useLabel, out Button sellButton, out TMP_Text sellLabel);
@@ -62,6 +67,12 @@ public static class ConsumableUiSetupTool
         manager.tooltipRoot = tooltip;
         manager.tooltipTitleText = tooltipTitle;
         manager.tooltipBodyText = tooltipBody;
+        manager.dragLayer = dragLayer;
+        manager.cardSize = new Vector2(96f, 128f);
+        manager.relaxedSpacing = 112f;
+        manager.minStackedSpacing = 42f;
+        manager.fallbackRowWidth = 520f;
+        manager.autoCreateMissingCards = true;
         manager.runInventory = Object.FindObjectOfType<RunInventoryManager>(true);
         manager.turnManager = Object.FindObjectOfType<TurnManager>(true);
         manager.combatHud = Object.FindObjectOfType<CombatHUD>(true);
@@ -209,6 +220,18 @@ public static class ConsumableUiSetupTool
         body.raycastTarget = false;
         tooltipGo.SetActive(false);
         return tooltipRt;
+    }
+
+    private static RectTransform BuildOrGetDragLayer(Transform parent)
+    {
+        GameObject layerGo = FindOrCreateChild(parent, "ConsumableDragLayer", typeof(RectTransform));
+        RectTransform layerRt = layerGo.GetComponent<RectTransform>();
+        layerRt.anchorMin = Vector2.zero;
+        layerRt.anchorMax = Vector2.one;
+        layerRt.offsetMin = Vector2.zero;
+        layerRt.offsetMax = Vector2.zero;
+        layerRt.SetAsLastSibling();
+        return layerRt;
     }
 
     private static TMP_Text GetOrCreateText(Transform parent, string name, string defaultText, float fontSize, FontStyles style, TextAlignmentOptions alignment)

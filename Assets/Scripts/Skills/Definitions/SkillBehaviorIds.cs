@@ -38,7 +38,8 @@ public enum PhysicalDamageBehaviorId
     BrutalSmash = 2,
     HeavyCleave = 3,
     Execution = 4,
-    FatedSunder = 5
+    FatedSunder = 5,
+    NoName = 6
 }
 
 public enum BuffBehaviorId

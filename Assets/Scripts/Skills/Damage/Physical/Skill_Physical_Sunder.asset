@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Sunder'
-  description: 'Deal X damage. Bypass Guard completely and clear all Guard on the target.'
+  description: 'Deal "X damage". Bypass Guard.'
   spec:
     rarity: 0
     specState: 0
     buildRole: 3
     implementationCoverage: 2
-    normalizedText: 'Deal X damage. Ignore all Guard and clear all Guard on the target.'
+    normalizedText: 'Deal "X damage". Bypass Guard.'
     designIntent: 'Direct anti-Guard tech piece.'
   kind: 0
   coreAction: 0
@@ -85,13 +85,13 @@ MonoBehaviour:
   focusGainOnCast: 0
   dieMultiplier: 1
   flatDamage: 0
-  sunderBonusIfTargetHasGuard: 1
+  sunderBonusIfTargetHasGuard: 0
   sunderGuardDamageMultiplier: 2
   guardDieMultiplier: 1
   guardFlat: 0
   bypassGuard: 1
-  clearsGuard: 1
-  canUseMarkMultiplier: 0
+  clearsGuard: 0
+  canUseMarkMultiplier: 1
   consumesBurn: 0
   burnDamagePerStack: 2
   applyBurn: 0

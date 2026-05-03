@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Hemorrhage'
-  description: 'Apply Bleed equal to the HP the player lost last turn.'
+  description: 'Apply "Bleed" equal to the HP the player lost last turn.'
   spec:
     rarity: 0
     specState: 0
     buildRole: 1
     implementationCoverage: 0
-    normalizedText: 'Apply Bleed equal to HP the player lost last turn.'
+    normalizedText: 'Apply "Bleed" equal to HP the player lost last turn.'
     designIntent: 'Reactive pressure reflected into Bleed payoff.'
   behaviorFamily: 4
   fireBehaviorId: 0

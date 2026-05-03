@@ -14,14 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'No Name'
-  description: 'If Base Value = 1, this skill effectively costs 2 Focus and deals 20 damage.'
+  description: 'If Base Value = 1, this skill costs 3 Focus and deals "12 damage".'
   spec:
     rarity: 3
     specState: 0
     buildRole: 5
     implementationCoverage: 0
-    normalizedText: 'If Base Value = 1, this skill effectively costs 2 Focus and deals 20 damage.'
+    normalizedText: 'If Base Value = 1, this skill costs 3 Focus and deals "12 damage".'
     designIntent: 'Low-roll jackpot / exact-value finisher.'
+  behaviorFamily: 5
+  fireBehaviorId: 0
+  iceBehaviorId: 0
+  lightningBehaviorId: 0
+  bleedBehaviorId: 0
+  physicalBehaviorId: 6
   kind: 0
   coreAction: 0
   target: 1
@@ -31,7 +37,12 @@ MonoBehaviour:
   hitAllEnemies: 0
   hitAllAllies: 0
   slotsRequired: 1
-  hasCondition: 0
+  hasCondition: 1
+  conditionEditorMode: 0
+  useSystemConditionPreset: 1
+  standardConditionFamily: 2
+  exactConditionMode: 0
+  exactValueX: 1
   condition:
     scope: 0
     kind: 0
@@ -81,10 +92,10 @@ MonoBehaviour:
     freezeChance: 0.4
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
-  focusCost: 4
+  focusCost: 0
   focusGainOnCast: 0
   dieMultiplier: 0
-  flatDamage: 20
+  flatDamage: 12
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
   guardDieMultiplier: 1

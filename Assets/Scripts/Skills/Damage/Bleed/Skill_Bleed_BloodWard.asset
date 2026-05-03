@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Blood Ward'
-  description: 'Gain Guard equal to total Bleed stacks across all enemies.'
+  description: 'Gain "Guard" equal to total Bleed stacks across all enemies.'
   spec:
     rarity: 0
     specState: 0
     buildRole: 8
     implementationCoverage: 0
-    normalizedText: 'Gain Guard equal to total Bleed stacks across all enemies.'
+    normalizedText: 'Gain "Guard" equal to total Bleed stacks across all enemies.'
     designIntent: 'Convert Bleed pressure into defense.'
   behaviorFamily: 4
   fireBehaviorId: 0

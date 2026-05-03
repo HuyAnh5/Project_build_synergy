@@ -14,16 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
   displayName: Hellfire
-  description: Requires Burn already on target to Consume . If every die in this
-    group rolled exactly 7, apply 7 Burn again.
+  description: Requires Burn already on target. Consume all Burn and deal 3 damage per Burn. Each die with Base 7 reapplies 7 Burn.
   spec:
     rarity: 3
     specState: 2
     buildRole: 0
     implementationCoverage: 2
     normalizedText: Consume all Burn and deal 3 damage per Burn stack. If the target
-      had Burn before hit and every die in the group rolled exactly 7, apply 7 Burn
-      again per matching die.
+      had Burn before hit, each die in the group with Base 7 applies 7 Burn again.
     designIntent: Exact-value Fire win condition and payoff engine.
   behaviorFamily: 0
   fireBehaviorId: 2
@@ -133,7 +131,7 @@ MonoBehaviour:
   clearsGuard: 0
   canUseMarkMultiplier: 1
   consumesBurn: 1
-  burnDamagePerStack: 2
+  burnDamagePerStack: 3
   fireModules:
     useXFormula: 0
     applyBurnFromResolvedValue: 0

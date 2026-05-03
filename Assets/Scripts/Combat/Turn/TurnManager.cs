@@ -202,6 +202,36 @@ public class TurnManager : MonoBehaviour
         return TryResolvePrototypeCastPlacement(activeSkill, out _, out _, commit: false);
     }
 
+    public bool TryGetPrototypeSkillTooltipRuntime(ScriptableObject activeSkill, out SkillRuntime runtime)
+    {
+        runtime = null;
+
+        if (activeSkill == null || activeSkill is SkillPassiveSO)
+            return false;
+        if (player == null)
+            return false;
+
+        int span = GetSkillSpan(activeSkill);
+        if (span <= 0)
+            return false;
+
+        if (!_board.TryFindEmptyPlacement(span, IsSlotAssignable0, out int start0, out int anchor0))
+            return false;
+        if (!AreSlotsActiveInRange(start0, span))
+            return false;
+        if (diceRig != null && !diceRig.CanFitAtDrop(start0, span))
+            return false;
+
+        var snap = _board.Capture(player);
+        _board.PlaceGroup(start0, anchor0, span, activeSkill);
+        bool ok = _board.RecalculateRuntimesAndRebalance(player, diceRig);
+        if (ok)
+            runtime = _board.GetAnchorRuntime(anchor0);
+
+        _board.Restore(snap, player);
+        return ok && runtime != null;
+    }
+
     public bool TryCastDraggedSkillToTarget(ScriptableObject activeSkill, CombatActor clicked)
     {
         if (!CanInteractWithSkills || player == null || activeSkill == null || clicked == null)
@@ -278,6 +308,19 @@ public class TurnManager : MonoBehaviour
         start0 = _board.GetStartForAnchor(anchor0);
         span = _board.GetAnchorSpan(anchor0);
         return span > 0;
+    }
+
+    public bool TryGetPlannedSkillTooltipAtLane(int lane1Based, out ScriptableObject asset, out SkillRuntime runtime)
+    {
+        asset = null;
+        runtime = null;
+
+        if (!TryGetPlannedGroupAtLane(lane1Based, out int anchor0, out _, out _))
+            return false;
+
+        asset = _board.GetCellSkillAsset(anchor0);
+        runtime = _board.GetAnchorRuntime(anchor0);
+        return asset != null;
     }
 
     public void RefreshPlanningAfterDiceValueReorder()
@@ -682,6 +725,7 @@ public class TurnManager : MonoBehaviour
         RefreshAllPreviews();
         UpdateAllIconsDim();
         UpdateAllDiceDim();
+        SkillTooltipUI.RefreshCurrent();
     }
 
 

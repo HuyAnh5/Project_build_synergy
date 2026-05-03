@@ -33,6 +33,7 @@ public class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     private Tween _scaleTween;
     private Vector2 _dragPointerOffset;
     private float _restingAlpha = 1f;
+    private bool _dragRegistered;
 
     private void Awake()
     {
@@ -112,6 +113,8 @@ public class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
 
         CacheHome();
         _dragging = true;
+        UiDragState.BeginDrag(this);
+        _dragRegistered = true;
         manager.HandleDiceBeginDrag(this);
 
         KillTweens();
@@ -142,6 +145,7 @@ public class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
         if (manager != null && !manager.CanInteract())
         {
             _dragging = false;
+            EndDragRegistration();
             _cg.blocksRaycasts = true;
             _cg.alpha = _restingAlpha;
             manager.HandleInvalidDrop(this);
@@ -157,9 +161,14 @@ public class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     public void OnEndDrag(PointerEventData eventData)
     {
         EnsureInitialized();
-        if (!_dragging) return;
+        if (!_dragging)
+        {
+            EndDragRegistration();
+            return;
+        }
 
         _dragging = false;
+        EndDragRegistration();
         _cg.blocksRaycasts = true;
         _cg.alpha = _restingAlpha;
 
@@ -187,6 +196,11 @@ public class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
         if (manager == null) return;
         if (!manager.CanInteract()) return;
         manager.HandleDiceClicked(this);
+    }
+
+    private void OnDisable()
+    {
+        EndDragRegistration();
     }
 
     private void CachePointerOffset(Vector2 screenPos, Camera eventCamera)
@@ -224,6 +238,15 @@ public class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, I
     {
         _moveTween?.Kill();
         _scaleTween?.Kill();
+    }
+
+    private void EndDragRegistration()
+    {
+        if (!_dragRegistered)
+            return;
+
+        UiDragState.EndDrag(this);
+        _dragRegistered = false;
     }
 
     private void AnimateToAnchoredHome(Transform parent, Vector2 anchoredPos, bool instant)

@@ -14,14 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: Ignite+
-  description: Apply X Burn. If any base value used by this skill is odd, gain bonus
-    Burn and apply the consume-vulnerability rider.
+  description: Apply "X Burn". If Base Value is odd, apply +2 Burn and Burn consumed on this target deals +1 damage for 2 turns.
   spec:
     rarity: 0
     specState: 0
     buildRole: 4
     implementationCoverage: 2
-    normalizedText: Apply X Burn. Odd base opens a stronger Burn payoff branch.
+    normalizedText: Apply "X Burn". Odd base applies +2 Burn and the consume-vulnerability rider.
     designIntent: Fire X-skill setup piece that reads parity as a reference frame,
       not as a fixed payoff type.
   behaviorFamily: 0
@@ -111,7 +110,7 @@ MonoBehaviour:
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
   conditionalOutcome:
-    enabled: 1
+    enabled: 0
     type: 2
     valueMode: 0
     flatValue: 2

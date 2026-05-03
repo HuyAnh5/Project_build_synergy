@@ -14,7 +14,7 @@ using UnityEngine.UI;
 /// Passive (SkillPassiveSO) is NOT draggable and NOT click-to-equip.
 /// </summary>
 public class DraggableSkillIcon : MonoBehaviour,
-    IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
+    IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler, ISkillTooltipSource
 {
     [Title("Source")]
     [Tooltip("If enabled, this icon always reads the skill from RunInventoryManager (Fixed/Owned slot).")]
@@ -59,6 +59,7 @@ public class DraggableSkillIcon : MonoBehaviour,
     private Vector2 _ghostHomeAnchoredPos;
     private bool _inUse;
     private bool _castable = true;
+    private bool _dragRegistered;
 
     private void Awake()
     {
@@ -90,6 +91,14 @@ public class DraggableSkillIcon : MonoBehaviour,
     {
         if (inventory != null)
             inventory.InventoryChanged -= OnInventoryChanged;
+
+        if (_dragRegistered)
+        {
+            UiDragState.EndDrag(this);
+            _dragRegistered = false;
+        }
+
+        SkillTooltipUI.HideCurrent();
     }
 
     private void OnInventoryChanged()
@@ -167,6 +176,23 @@ public class DraggableSkillIcon : MonoBehaviour,
         if (a is SkillBuffDebuffSO bd) { turn.TryAutoAssignFromClick(bd); return; }
     }
 
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        if (UiDragState.IsDragging)
+            return;
+
+        ScriptableObject asset = GetSkillAsset();
+        if (asset == null)
+            return;
+
+        SkillTooltipUI.Show(this);
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        SkillTooltipUI.HideCurrent();
+    }
+
     public void OnBeginDrag(PointerEventData eventData)
     {
         if (!turn || !turn.CanInteractWithSkills) return;
@@ -177,6 +203,9 @@ public class DraggableSkillIcon : MonoBehaviour,
         if (!CanDragCurrentSkill()) return;
 
         _dropAccepted = false;
+        SkillTooltipUI.HideCurrent();
+        UiDragState.BeginDrag(this);
+        _dragRegistered = true;
         CreateGhost();
         MoveGhost(eventData.position);
         _cg.blocksRaycasts = false;
@@ -191,6 +220,12 @@ public class DraggableSkillIcon : MonoBehaviour,
     public void OnEndDrag(PointerEventData eventData)
     {
         _cg.blocksRaycasts = true;
+        if (_dragRegistered)
+        {
+            UiDragState.EndDrag(this);
+            _dragRegistered = false;
+        }
+
         if (_ghostRT == null) return;
 
         if (!_dropAccepted &&
@@ -344,6 +379,18 @@ public class DraggableSkillIcon : MonoBehaviour,
         }
     }
 
+    public bool TryGetSkillTooltip(out Canvas canvas, out RectTransform target, out ScriptableObject asset, out SkillRuntime runtime)
+    {
+        canvas = _canvas;
+        target = transform as RectTransform;
+        asset = GetSkillAsset();
+        runtime = null;
+        if (turn != null && asset != null && !(asset is SkillPassiveSO))
+            turn.TryGetPrototypeSkillTooltipRuntime(asset, out runtime);
+
+        return canvas != null && target != null && asset != null;
+    }
+
     private void ApplyVisualState()
     {
         if (_img == null) return;
@@ -356,7 +403,7 @@ public class DraggableSkillIcon : MonoBehaviour,
         c.a = alpha;
         _img.color = c;
 
-        if (_cg != null)
-            _cg.blocksRaycasts = _castable;
+        if (_cg != null && !_dragRegistered)
+            _cg.blocksRaycasts = true;
     }
 }

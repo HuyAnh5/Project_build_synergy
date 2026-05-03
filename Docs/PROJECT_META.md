@@ -62,7 +62,7 @@ Những phần đó đã có tài liệu riêng.
   - Source of truth cho: grammar thiết kế skill, condition/scope, effect modules, source model và template thêm skill mới.
 
 - `LOADOUT_AND_BUILD_SPEC.md`
-  - Source of truth cho: 6 skill slot, 1 passive slot, basic actions, equip/swap structure, build identity và nguyên tắc loadout.
+  - Source of truth cho: 4 skill slot, 1 passive slot, basic actions, equip/swap structure, build identity và nguyên tắc loadout.
 
 - `RELICS_AND_DICE_PROGRESSION_SPEC.md`
   - Source of truth cho: relic framework, dice customization, dice progression, unlock relation, progression role của relic/dice.

@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Winter''s Bite'
-  description: 'Deal 6 fixed damage. Extend Chilled by 1 turn.'
+  description: 'Deal "6 damage". Extend Chilled by 1 turn.'
   spec:
     rarity: 0
     specState: 0
     buildRole: 3
     implementationCoverage: 0
-    normalizedText: 'Deal 6 fixed damage. Extend Chilled by 1 turn.'
+    normalizedText: 'Deal "6 damage". Extend Chilled by 1 turn.'
     designIntent: 'Cheap Chilled maintenance and payoff.'
   behaviorFamily: 2
   fireBehaviorId: 0

@@ -67,7 +67,7 @@ Game xoay quanh 5 trụ chính: dice, skill slot, passive, status/payoff, lane o
 
 ### 4.1 Những gì player có trong combat
 
-- **6 skill slot**
+- **4 skill slot**
 - **1 passive slot**
 - **1 đến 3 dice** (đầu run = 1 dice)
 
@@ -85,7 +85,7 @@ Rule đã chốt:
 
 ### 4.3 Basic actions
 
-Luôn có sẵn, không nằm trong 6 skill slot chính:
+Luôn có sẵn, không nằm trong 4 skill slot chính:
 
 - **Basic Attack**: 0 Focus, 4 damage cố định, +1 Focus
 - **Basic Guard**: 0 Focus, Guard = Base Value của die dùng cho action đó
@@ -94,7 +94,7 @@ Vai trò: luôn cho player lựa chọn hợp lệ khi roll xấu hoặc thiếu
 
 ### 4.4 Loadout ngoài combat
 
-- 6 skill slot: swap tự do ngoài combat, mua ở shop, bán ngoài combat.
+- 4 skill slot: swap tự do ngoài combat, mua ở shop, bán ngoài combat.
 - 1 passive slot: swap tự do ngoài combat.
 - 1-3 dice slot: số dice equip = số action/turn.
 - Basic Attack + Basic Guard luôn tồn tại, không thể bỏ.
@@ -869,7 +869,7 @@ Dice Forging → Basic Attack mỗi combat → mặt specific tăng base vĩnh v
 
 1. Đây là **dice-driven tactical roguelike**, dice là trung tâm.
 2. Core loop runtime hiện tại: **Roll Dice → Reorder nếu cần → Drag skill vào target để cast ngay → End Turn → Enemy turn**.
-3. Player có **6 skill slot, 1 passive slot, 1-3 dice, Focus economy rõ ràng**.
+3. Player có **4 skill slot, 1 passive slot, 1-3 dice, Focus economy rõ ràng**.
 4. **Base Value** quyết định condition; **Added Value** chỉ tăng output.
 5. Crit/Fail, exact value, parity, threshold đều là **trục build thật**.
 6. 5 hệ: **Physical, Fire, Ice, Lightning, Bleed**. 4 effect cốt lõi: **Burn, Freeze/Chilled, Mark, Bleed**.

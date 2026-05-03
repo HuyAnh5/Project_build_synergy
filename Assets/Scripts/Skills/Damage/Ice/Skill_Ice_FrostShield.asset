@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Frost Shield'
-  description: 'Gain X Guard.'
+  description: 'Gain "X Guard".'
   spec:
     rarity: 0
     specState: 0
     buildRole: 7
     implementationCoverage: 2
-    normalizedText: 'Gain X Guard.'
+    normalizedText: 'Gain "X Guard".'
     designIntent: 'Defensive anchor of the Ice branch.'
   kind: 1
   coreAction: 0

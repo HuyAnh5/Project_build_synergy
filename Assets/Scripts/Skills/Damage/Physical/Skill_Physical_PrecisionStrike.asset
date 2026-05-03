@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Precision Strike'
-  description: 'Deal X damage. If Base Value is even, this hit always Crits.'
+  description: 'Deal "X damage". If this hit Crits, gain +2 Added Value for this hit.'
   spec:
     rarity: 0
     specState: 0
     buildRole: 9
     implementationCoverage: 1
-    normalizedText: 'Deal X damage. If Base Value is even, this hit always Crits.'
-    designIntent: 'Parity entry-point for Physical crit build.'
+    normalizedText: 'Deal "X damage". If this hit Crits, gain +2 Added Value for this hit.'
+    designIntent: 'Crit payoff entry-point for Physical build.'
   behaviorFamily: 5
   fireBehaviorId: 0
   iceBehaviorId: 0

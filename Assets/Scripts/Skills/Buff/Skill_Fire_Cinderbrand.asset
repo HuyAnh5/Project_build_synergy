@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillBuffDebuffSO
   icon: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
   displayName: Cinderbrand
-  description: For 2 turns, Burn consumed on this target deals +1 extra damage per
+  description: For 3 turns, Burn consumed on this target deals +1 extra damage per
     stack.
   spec:
     rarity: 2
@@ -42,7 +42,7 @@ MonoBehaviour:
     basicAttackBurnOnCritOnly: 0
     applyConsumeBonusDebuff: 1
     consumeBonusPerBurn: 1
-    consumeBonusDebuffTurns: 2
+    consumeBonusDebuffTurns: 3
   applyAilment: 0
   ailment:
     ailment: 0

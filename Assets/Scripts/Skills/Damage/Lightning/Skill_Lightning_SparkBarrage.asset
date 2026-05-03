@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Spark Barrage'
-  description: 'Deal X damage. If Base Value is even, this hit bounces to another target.'
+  description: 'Deal "5 damage". If Base Value is even, this hit bounces to another target.'
   spec:
     rarity: 0
     specState: 0
     buildRole: 2
     implementationCoverage: 1
-    normalizedText: 'Deal X damage. If Base Value is even, bounce to another target.'
+    normalizedText: 'Deal "5 damage". If Base Value is even, bounce to another target.'
     designIntent: 'Parity-driven chain hit bridge for Lightning.'
   behaviorFamily: 3
   fireBehaviorId: 0
@@ -89,8 +89,8 @@ MonoBehaviour:
     projectilePrefab: {fileID: 0}
   focusCost: 2
   focusGainOnCast: 0
-  dieMultiplier: 1
-  flatDamage: 0
+  dieMultiplier: 0
+  flatDamage: 5
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
   guardDieMultiplier: 1

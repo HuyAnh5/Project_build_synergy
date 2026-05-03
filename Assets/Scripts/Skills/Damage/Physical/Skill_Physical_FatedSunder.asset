@@ -14,14 +14,20 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Fated Sunder'
-  description: 'Deal 2 damage. If Base Value equals the Fate Number, clear Guard before damage. This skill does not benefit from Stagger x1.2.'
+  description: 'Deal "2 damage". If Base Value equals the Fate Number, clear Guard before damage. This skill does not benefit from Stagger x1.2.'
   spec:
     rarity: 0
     specState: 0
     buildRole: 11
     implementationCoverage: 0
-    normalizedText: 'Deal 2 damage. If Base Value equals the combat Fate Number, clear Guard before damage and ignore Stagger payoff.'
+    normalizedText: 'Deal "2 damage". If Base Value equals the combat Fate Number, clear Guard before damage and ignore Stagger payoff.'
     designIntent: 'Exact-value anti-Guard tech with downside.'
+  behaviorFamily: 5
+  fireBehaviorId: 0
+  iceBehaviorId: 0
+  lightningBehaviorId: 0
+  bleedBehaviorId: 0
+  physicalBehaviorId: 5
   kind: 0
   coreAction: 0
   target: 1
@@ -31,7 +37,12 @@ MonoBehaviour:
   hitAllEnemies: 0
   hitAllAllies: 0
   slotsRequired: 1
-  hasCondition: 0
+  hasCondition: 1
+  conditionEditorMode: 0
+  useSystemConditionPreset: 1
+  standardConditionFamily: 2
+  exactConditionMode: 3
+  exactValueX: 7
   condition:
     scope: 0
     kind: 0
@@ -85,13 +96,13 @@ MonoBehaviour:
   focusGainOnCast: 0
   dieMultiplier: 0
   flatDamage: 2
-  sunderBonusIfTargetHasGuard: 1
+  sunderBonusIfTargetHasGuard: 0
   sunderGuardDamageMultiplier: 2
   guardDieMultiplier: 1
   guardFlat: 0
   bypassGuard: 1
-  clearsGuard: 1
-  canUseMarkMultiplier: 0
+  clearsGuard: 0
+  canUseMarkMultiplier: 1
   consumesBurn: 0
   burnDamagePerStack: 2
   applyBurn: 0

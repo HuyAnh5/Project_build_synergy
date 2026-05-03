@@ -240,3 +240,38 @@ Nhưng các phần sau là direction rất mạnh / đã chốt ở mức triế
 - boss là mechanic wall, không hard-counter build,
 - hidden boss chỉ nên nằm trong Endless,
 - encounter pressure phải đọc được và phải có counterplay.
+
+
+## Runtime Update Note (2026-04-24 - Override)
+
+Phần note ngay phía trên là bản chèn tạm không dấu. Phần này ghi đè và phải được xem là cách hiểu đúng hiện tại.
+
+### Enemy-side dice disruption
+
+- `Freeze` lên player:
+  - chọn `1` viên dice mà player đang sở hữu trong loadout hiện tại,
+  - effect này kéo dài `1 turn`,
+  - viên dice đó vẫn được `reorder`,
+  - nhưng không được dùng làm die source cho action trong thời gian effect còn tồn tại.
+- `Burn` lên player:
+  - chọn `1` viên dice mà player đang sở hữu trong loadout hiện tại,
+  - effect này kéo dài `2 turn`,
+  - viên dice đó vẫn được `reorder`,
+  - nhưng nếu player dùng đúng viên dice đó thì player mất HP theo rule của skill / effect nguồn.
+- `Lightning` lên player:
+  - effect này kéo dài `2 turn`,
+  - giảm `-1 Base Value` trên **tất cả các mặt** của **tất cả các viên dice** player đang sở hữu,
+  - đây là rule sửa trên profile mặt dice, không chỉ trên mặt vừa roll của turn hiện tại.
+
+### Rule loại trừ giữa Freeze và Burn
+
+- `Freeze` và `Burn` cùng bám vào `1 die cụ thể` của player.
+- `Freeze` và `Burn` **không được chồng lên cùng 1 viên dice**.
+- Nếu một viên đang bị `Freeze` thì không được chọn viên đó để áp `Burn` cho tới khi `Freeze` hết.
+- Nếu một viên đang bị `Burn` thì không được chọn viên đó để áp `Freeze` cho tới khi `Burn` hết.
+
+### Cách hiểu thiết kế
+
+- Đây là pressure nhắm vào `dice loop` của player, không chỉ vào HP / Guard thông thường.
+- Enemy-side status giờ có thể buộc player đổi cách dùng die, đổi sequencing, hoặc đổi decision phòng thủ / payoff.
+- Rule này vẫn phải được telegraph rõ qua intent hoặc UX để player đọc được counterplay.

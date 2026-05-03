@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Heavy Cleave'
-  description: 'Deal damage equal to X plus the highest Base Value in this 2-die local group.'
+  description: 'Deal "X damage". X is the highest Base Value in this 2-die local group and uses Added Value from both dice.'
   spec:
     rarity: 0
     specState: 0
     buildRole: 5
     implementationCoverage: 1
-    normalizedText: 'Deal damage = X + highest Base Value in the 2-die local group.'
+    normalizedText: 'Deal "X damage". X = highest Base Value in the 2-die local group plus Added Value from both dice.'
     designIntent: 'Highest-in-group payoff for Physical.'
   behaviorFamily: 5
   fireBehaviorId: 0
@@ -89,7 +89,7 @@ MonoBehaviour:
     projectilePrefab: {fileID: 0}
   focusCost: 3
   focusGainOnCast: 0
-  dieMultiplier: 1
+  dieMultiplier: 0
   flatDamage: 0
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2

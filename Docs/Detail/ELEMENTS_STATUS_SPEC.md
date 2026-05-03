@@ -458,3 +458,40 @@ Nhưng các vùng sau là **current locked rules**:
 - shock phụ không chain, không proc lại, không consume Mark,
 - Bleed đầu lượt, bypass Guard, giảm dần, current wording `-1 stack mỗi cuối lượt`,
 - ailment là enemy-side system với current context `100% chance` từ enemy lên player.
+
+## Runtime Update Note (2026-04-24 - Override)
+
+Phần note ngay phía trên là bản chèn tạm không dấu. Phần này ghi đè và phải được xem là cách hiểu đúng hiện tại.
+
+### Enemy -> player dice ailment rules
+
+- `Freeze` lên player:
+  - chọn `1` viên dice mà player đang sở hữu trong loadout hiện tại,
+  - effect này kéo dài `1 turn`,
+  - viên dice đó vẫn được `reorder`,
+  - nhưng không được dùng làm die source cho action trong thời gian effect còn tồn tại.
+- `Burn` lên player:
+  - chọn `1` viên dice mà player đang sở hữu trong loadout hiện tại,
+  - effect này kéo dài `2 turn`,
+  - viên dice đó vẫn được `reorder`,
+  - nhưng nếu player dùng viên dice đó thì player mất HP theo rule của skill / effect nguồn.
+- `Lightning` lên player:
+  - effect này kéo dài `2 turn`,
+  - giảm `-1 Base Value` trên **tất cả các mặt** của **tất cả các viên dice** player đang sở hữu,
+  - đây là giảm trên profile mặt của die, không chỉ giảm kết quả roll của turn hiện tại.
+
+### Rule loại trừ giữa Freeze và Burn
+
+- Cả hai cùng bám vào `1 die cụ thể` của player.
+- Một viên đang bị `Freeze` không được chọn để áp `Burn` cho tới khi `Freeze` hết.
+- Một viên đang bị `Burn` không được chọn để áp `Freeze` cho tới khi `Burn` hết.
+- Hai effect này không được chồng lên cùng `1` viên dice.
+
+### Rule đọc UI / board state
+
+Ngoài các status trên target / board, player cũng phải đọc được ít nhất:
+
+- viên dice nào của mình đang bị `Freeze`,
+- viên dice nào của mình đang bị `Burn`,
+- player có đang bị `Lightning` debuff làm giảm `-1 Base Value` trên mọi mặt của toàn bộ dice hay không,
+- và còn bao nhiêu turn tồn tại của từng effect này.

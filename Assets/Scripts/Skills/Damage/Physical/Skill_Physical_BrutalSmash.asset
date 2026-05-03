@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Brutal Smash'
-  description: 'Deal 12 fixed damage. If the target was already Marked before hit, refund 1 Focus.'
+  description: 'Deal "6 damage". If the target was already Marked before hit, refund 1 Focus.'
   spec:
     rarity: 0
     specState: 0
     buildRole: 1
     implementationCoverage: 1
-    normalizedText: 'Deal 12 fixed damage. If target had Mark before hit, refund 1 Focus.'
+    normalizedText: 'Deal "6 damage". If target had Mark before hit, refund 1 Focus.'
     designIntent: 'Simple Physical-Mark payoff.'
   behaviorFamily: 5
   fireBehaviorId: 0
@@ -90,7 +90,7 @@ MonoBehaviour:
   focusCost: 1
   focusGainOnCast: 0
   dieMultiplier: 0
-  flatDamage: 12
+  flatDamage: 6
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
   guardDieMultiplier: 1

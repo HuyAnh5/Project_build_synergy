@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: Fire Slash
-  description: Deal 3 damage.
+  description: Deal "3 damage".
   spec:
     rarity: 0
     specState: 0
     buildRole: 5
     implementationCoverage: 2
-    normalizedText: Deal X damage. Consume all Burn for +2 damage per stack.
-    designIntent: Baseline Burn spender and payoff piece.
+    normalizedText: Deal "3 damage".
+    designIntent: Baseline Fire direct-hit payoff piece.
   behaviorFamily: 0
   fireBehaviorId: 0
   iceBehaviorId: 0

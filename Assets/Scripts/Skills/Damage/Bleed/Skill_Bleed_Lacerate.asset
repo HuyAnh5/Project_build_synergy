@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: Lacerate
-  description: Apply X Bleed. If this hit Crits, apply X Bleed again.
+  description: Apply "5 Bleed". If this hit Crits, apply Bleed again.
   spec:
     rarity: 0
     specState: 0
     buildRole: 4
     implementationCoverage: 1
-    normalizedText: Apply X Bleed. If Crit, apply X Bleed again.
+    normalizedText: Apply "5 Bleed". If Crit, apply Bleed again.
     designIntent: Crit-based Bleed injector.
   behaviorFamily: 1
   fireBehaviorId: 0
@@ -104,8 +104,8 @@ MonoBehaviour:
   burnAddStacks: 2
   burnRefreshTurns: 3
   applyMark: 0
-  applyBleed: 1
-  bleedTurns: 3
+  applyBleed: 0
+  bleedTurns: 5
   applyFreeze: 0
   freezeChance: 0.4
   projectilePrefab: {fileID: 0}

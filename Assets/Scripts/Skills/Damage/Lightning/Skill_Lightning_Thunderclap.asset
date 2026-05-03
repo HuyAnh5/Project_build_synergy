@@ -14,13 +14,13 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: 'Thunderclap'
-  description: 'X equals the highest die in the group. Deal X damage to all enemies, then add 4 damage for each enemy that has Mark.'
+  description: 'Deal "5 damage" to one enemy row.'
   spec:
     rarity: 0
     specState: 0
     buildRole: 10
     implementationCoverage: 1
-    normalizedText: 'X = highest die in the group. Deal X damage to all enemies and add 4 damage for each Marked enemy.'
+    normalizedText: 'Deal "5 damage" to one enemy row.'
     designIntent: 'AoE finisher for Lightning board control.'
   behaviorFamily: 3
   fireBehaviorId: 0
@@ -89,8 +89,8 @@ MonoBehaviour:
     projectilePrefab: {fileID: 0}
   focusCost: 4
   focusGainOnCast: 0
-  dieMultiplier: 1
-  flatDamage: 0
+  dieMultiplier: 0
+  flatDamage: 5
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
   guardDieMultiplier: 1
