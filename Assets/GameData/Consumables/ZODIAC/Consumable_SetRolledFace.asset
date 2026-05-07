@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4b92963ff6d82d49a8b2e6eb254de8c, type: 3}
+  m_Name: Consumable_SetRolledFace
+  m_EditorClassIdentifier: Assembly-CSharp::ConsumableDataSO
+  icon: {fileID: 0}
+  displayName: Set Rolled Face
+  description: Pick 1 face on one die. After use, that die shows that face as its current rolled result.
+  family: 0
+  useContext: 2
+  targetKind: 3
+  effectId: 17
+  charges: 1
+  valueA: 0
+  minSelectedDice: 1
+  maxSelectedDice: 1
+  faceEnchant: 0

@@ -54,11 +54,12 @@ public class DiceEquipUIManager : MonoBehaviour
 
     private Canvas _rootCanvas;
     private RectTransform _container;
-    private DiceDraggableUI _selectedDice;
+    private readonly List<DiceDraggableUI> _selectedDice = new List<DiceDraggableUI>(RunInventoryManager.EQUIPPED_DICE_COUNT);
     private DiceDraggableUI _draggingDice;
     private int _dragSourceIndex = -1;
     private int _previewInsertIndex = -1;
     private bool _suppressInventoryRefresh;
+    public event System.Action SelectionChanged;
     private static readonly Color[] DefaultDiceUiColors =
     {
         new Color(1f, 0.514151f, 0.514151f, 1f),
@@ -163,8 +164,8 @@ public class DiceEquipUIManager : MonoBehaviour
         _dragSourceIndex = _orderedUi.IndexOf(dice);
         _previewInsertIndex = _dragSourceIndex;
 
-        if (_selectedDice == dice)
-            ClearDiceSelection(true);
+        if (_selectedDice.Contains(dice))
+            RemoveSelectedDice(dice, true);
     }
 
     public void NotifyDrag(DiceDraggableUI dice, Vector2 screenPosition, Camera eventCamera)
@@ -217,19 +218,19 @@ public class DiceEquipUIManager : MonoBehaviour
         if (dice == null)
             return;
 
-        if (_selectedDice == dice)
+        if (_selectedDice.Contains(dice))
         {
-            ClearDiceSelection();
+            ToggleSelectedDice(dice);
             return;
         }
 
-        SetSelectedDice(dice);
+        ToggleSelectedDice(dice);
     }
 
     public void HandleDiceBeginDrag(DiceDraggableUI dice)
     {
-        if (_selectedDice == dice)
-            ClearDiceSelection(true);
+        if (dice != null && _selectedDice.Contains(dice))
+            RemoveSelectedDice(dice, true);
     }
 
     public bool TryMovePlannedTwoSlotGroup(int anchorLane1Based, Vector2 screenPosition, Camera eventCamera)
@@ -275,8 +276,34 @@ public class DiceEquipUIManager : MonoBehaviour
 
     public bool TryGetSelectedDice(out DiceSpinnerGeneric dice)
     {
-        dice = _selectedDice != null ? _selectedDice.dice : null;
+        dice = _selectedDice.Count == 1 ? _selectedDice[0].dice : null;
         return dice != null;
+    }
+
+    public int GetSelectedDiceCount()
+    {
+        PruneSelection();
+        return _selectedDice.Count;
+    }
+
+    public void GetSelectedDice(List<DiceSpinnerGeneric> buffer)
+    {
+        if (buffer == null)
+            return;
+
+        buffer.Clear();
+        PruneSelection();
+        for (int i = 0; i < _selectedDice.Count; i++)
+        {
+            DiceSpinnerGeneric dice = _selectedDice[i] != null ? _selectedDice[i].dice : null;
+            if (dice != null)
+                buffer.Add(dice);
+        }
+    }
+
+    public void ClearSelectedDice(bool instant = false)
+    {
+        ClearDiceSelection(instant);
     }
 
     private void CommitDrag(int insertIndex)
@@ -620,29 +647,35 @@ public class DiceEquipUIManager : MonoBehaviour
         return Mathf.Abs(local.x - firstCenter) <= Mathf.Abs(local.x - secondCenter) ? 0 : 1;
     }
 
-    private void SetSelectedDice(DiceDraggableUI dice, bool instant = false)
+    private void ToggleSelectedDice(DiceDraggableUI dice, bool instant = false)
     {
-        if (_selectedDice != null)
-            _selectedDice.SetSelected(false, instant);
+        if (dice == null)
+            return;
 
-        _selectedDice = dice;
-        if (_selectedDice != null)
-            _selectedDice.SetSelected(true, instant);
+        if (_selectedDice.Contains(dice))
+            RemoveSelectedDice(dice, instant);
+        else
+            AddSelectedDice(dice, instant);
     }
 
     private void ClearDiceSelection(bool instant = false)
     {
-        if (_selectedDice == null)
+        if (_selectedDice.Count == 0)
             return;
 
-        _selectedDice.SetSelected(false, instant);
-        _selectedDice = null;
+        for (int i = 0; i < _selectedDice.Count; i++)
+        {
+            if (_selectedDice[i] != null)
+                _selectedDice[i].SetSelected(false, instant);
+        }
+
+        _selectedDice.Clear();
+        SelectionChanged?.Invoke();
     }
 
     private void RefreshDiceSelectionVisuals(bool instant)
     {
-        if (_selectedDice != null && !_orderedUi.Contains(_selectedDice))
-            _selectedDice = null;
+        PruneSelection();
 
         foreach (KeyValuePair<DiceSpinnerGeneric, DiceDraggableUI> pair in _uiByDice)
         {
@@ -650,8 +683,47 @@ public class DiceEquipUIManager : MonoBehaviour
             if (diceUi == null)
                 continue;
 
-            diceUi.SetSelected(diceUi == _selectedDice, instant);
+            diceUi.SetSelected(_selectedDice.Contains(diceUi), instant);
         }
+    }
+
+    private void AddSelectedDice(DiceDraggableUI dice, bool instant)
+    {
+        if (dice == null || _selectedDice.Contains(dice))
+            return;
+
+        _selectedDice.Add(dice);
+        dice.SetSelected(true, instant);
+        SelectionChanged?.Invoke();
+    }
+
+    private void RemoveSelectedDice(DiceDraggableUI dice, bool instant)
+    {
+        if (dice == null)
+            return;
+
+        if (!_selectedDice.Remove(dice))
+            return;
+
+        dice.SetSelected(false, instant);
+        SelectionChanged?.Invoke();
+    }
+
+    private void PruneSelection()
+    {
+        bool changed = false;
+        for (int i = _selectedDice.Count - 1; i >= 0; i--)
+        {
+            DiceDraggableUI diceUi = _selectedDice[i];
+            if (diceUi == null || !_orderedUi.Contains(diceUi))
+            {
+                _selectedDice.RemoveAt(i);
+                changed = true;
+            }
+        }
+
+        if (changed)
+            SelectionChanged?.Invoke();
     }
 
     private void RebindCombatLaneIndices()

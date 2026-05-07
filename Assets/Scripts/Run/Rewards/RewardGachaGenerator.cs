@@ -454,7 +454,7 @@ public static class RewardGachaGenerator
         else if (purpose == RewardGachaPurpose.UtilitySupport)
         {
             AddFallbackNames(result, purpose, rarity, RewardGachaItemKind.Fallback, rarity == RewardGachaRarity.Uncommon
-                ? new[] { "Restore Focus", "Dice Reroll", "Cleanse", "Double Gold", "Create Last Used" }
+                ? new[] { "Restore Focus", "Cleanse", "Double Gold", "Create Last Used" }
                 : Array.Empty<string>());
         }
 
@@ -517,7 +517,7 @@ public static class RewardGachaGenerator
         switch (rarity)
         {
             case RewardGachaRarity.Uncommon:
-                return new[] { "Adjust Face +", "Adjust Face -", "Copy / Paste Face", "Value +N", "Guard Boost Enchant", "Fire Enchant", "Ice Enchant", "Bleed Enchant", "Lightning Enchant" };
+                return new[] { "Adjust Face +", "Adjust Face -", "Copy / Paste Face", "Set Rolled Face", "Dice Reroll", "Value +N", "Guard Boost Enchant", "Fire Enchant", "Ice Enchant", "Bleed Enchant", "Lightning Enchant" };
             case RewardGachaRarity.Rare:
             case RewardGachaRarity.Special:
                 return new[] { "Whole-die Color Ore: Patina" };

@@ -27,6 +27,7 @@ public class ConsumableBarUIManager : MonoBehaviour
     public CombatHUD combatHud;
     public BattlePartyManager2D party;
     public CombatActor player;
+    public DiceEquipUIManager diceEquipUiManager;
     public GameplayDiceEditController diceEditController;
 
     [Header("Consumable Row")]
@@ -78,6 +79,7 @@ public class ConsumableBarUIManager : MonoBehaviour
     private CombatActor _pendingTargetActor;
     private DiceSpinnerGeneric _latchedDiceTarget;
     private GameplayDiceEditController _subscribedDiceEditController;
+    private DiceEquipUIManager _subscribedDiceEquipUiManager;
     private RectTransform _dragRect;
     private CanvasGroup _dragGhostCanvasGroup;
     private Vector2 _dragPointerOffset;
@@ -112,6 +114,7 @@ public class ConsumableBarUIManager : MonoBehaviour
             runInventory.InventoryChanged -= HandleInventoryChanged;
         UiDragState.DragStateChanged -= HandleUiDragStateChanged;
         UnsubscribeDiceEditController();
+        UnsubscribeDiceEquipUiManager();
         if (_dragSlot >= 0)
             SetSlotCanvasAlpha(_dragSlot, 1f);
         if (_dragRegistered)
@@ -359,10 +362,14 @@ public class ConsumableBarUIManager : MonoBehaviour
                 player = combatHud.player;
         }
 
+        if (diceEquipUiManager == null)
+            diceEquipUiManager = FindObjectOfType<DiceEquipUIManager>(true);
+
         if (diceEditController == null)
             diceEditController = FindObjectOfType<GameplayDiceEditController>(true);
 
         SubscribeDiceEditController();
+        SubscribeDiceEquipUiManager();
         EnsureDragLayer();
     }
 
@@ -470,11 +477,13 @@ public class ConsumableBarUIManager : MonoBehaviour
         CombatActor user = ResolveUser();
         CombatActor target = ResolveTarget(data, user);
         DiceSpinnerGeneric targetDie = ResolveTargetDie(data);
-        bool canUse = CanUseFromActionPanel(data, user, target, targetDie);
+        DiceSpinnerGeneric selectedCombatDie = ResolveSelectedCombatDie();
+        int selectedDiceCount = GetSelectedDiceCount();
+        bool canUse = CanUseFromActionPanel(data, user, target, targetDie, selectedCombatDie);
         if (data != null && data.family == ConsumableFamily.Zodiac)
         {
             Debug.Log(
-                $"[ConsumableBarUI] Zodiac action panel refresh: slot={_selectedSlot} data={data.displayName} canUse={canUse}",
+                $"[ConsumableBarUI] Zodiac action panel refresh: slot={_selectedSlot} data={data.displayName} canUse={canUse} selectedDice={selectedDiceCount}",
                 this);
         }
 
@@ -557,10 +566,11 @@ public class ConsumableBarUIManager : MonoBehaviour
 
         CombatActor user = ResolveUser();
         DiceSpinnerGeneric targetDie = ResolveTargetDie(data);
-        if (data.family == ConsumableFamily.Zodiac && diceEditController != null)
+        DiceSpinnerGeneric selectedCombatDie = ResolveSelectedCombatDie();
+        if (IsReadyToOpenDiceEdit(data))
         {
             Debug.Log($"[ConsumableBarUI] Attempt open dice edit for slot={_selectedSlot} data={data.displayName}", this);
-            if (diceEditController.TryOpenPanelFromSelections(_selectedSlot, data))
+            if (diceEditController.TryOpenPanelForDie(_selectedSlot, data, selectedCombatDie))
             {
                 Debug.Log("[ConsumableBarUI] Dice edit panel opened.", this);
                 RefreshAll();
@@ -1107,16 +1117,23 @@ public class ConsumableBarUIManager : MonoBehaviour
     {
         return data != null &&
                data.family == ConsumableFamily.Zodiac &&
+               data.targetKind == ConsumableTargetKind.DiceFace &&
                diceEditController != null;
     }
 
-    private bool CanUseFromActionPanel(ConsumableDataSO data, CombatActor user, CombatActor target, DiceSpinnerGeneric targetDie)
+    private bool CanUseFromActionPanel(ConsumableDataSO data, CombatActor user, CombatActor target, DiceSpinnerGeneric targetDie, DiceSpinnerGeneric selectedCombatDie)
     {
         if (data == null)
             return false;
 
+        if (data.UsesDiceSelection() && !data.MatchesSelectedDiceCount(GetSelectedDiceCount()))
+            return false;
+
         if (IsReadyToOpenDiceEdit(data))
-            return diceEditController.CanOpenPanelFromSelections(_selectedSlot, data);
+            return diceEditController.CanOpenPanelForDie(_selectedSlot, data, selectedCombatDie);
+
+        if (data.effectId == ConsumableEffectId.DiceReroll)
+            return GetSelectedDiceCount() > 0;
 
         return ConsumableRuntimeUtility.CanUseInCombat(data, user, target, runInventory, targetDie);
     }
@@ -1148,6 +1165,33 @@ public class ConsumableBarUIManager : MonoBehaviour
         RefreshAll();
     }
 
+    private void SubscribeDiceEquipUiManager()
+    {
+        if (_subscribedDiceEquipUiManager == diceEquipUiManager)
+            return;
+
+        if (_subscribedDiceEquipUiManager != null)
+            _subscribedDiceEquipUiManager.SelectionChanged -= HandleDiceEquipSelectionChanged;
+
+        _subscribedDiceEquipUiManager = diceEquipUiManager;
+
+        if (_subscribedDiceEquipUiManager != null)
+            _subscribedDiceEquipUiManager.SelectionChanged += HandleDiceEquipSelectionChanged;
+    }
+
+    private void UnsubscribeDiceEquipUiManager()
+    {
+        if (_subscribedDiceEquipUiManager != null)
+            _subscribedDiceEquipUiManager.SelectionChanged -= HandleDiceEquipSelectionChanged;
+
+        _subscribedDiceEquipUiManager = null;
+    }
+
+    private void HandleDiceEquipSelectionChanged()
+    {
+        RefreshAll();
+    }
+
     private bool IsValidManualTarget(ConsumableDataSO data, CombatActor clicked)
     {
         if (data == null || clicked == null)
@@ -1172,15 +1216,60 @@ public class ConsumableBarUIManager : MonoBehaviour
         if (_selectedSlot >= 0 && _selectedSlot == _latchedDiceTargetSlot && _latchedDiceTarget != null)
             return _latchedDiceTarget;
 
-        if (diceEditController == null)
+        if (diceEquipUiManager == null)
             return null;
 
-        diceEditController.TryGetSelectedSceneDie(out DiceSpinnerGeneric die);
+        diceEquipUiManager.TryGetSelectedDice(out DiceSpinnerGeneric die);
+        return die;
+    }
+
+    private int GetSelectedDiceCount()
+    {
+        return diceEquipUiManager != null ? diceEquipUiManager.GetSelectedDiceCount() : 0;
+    }
+
+    private DiceSpinnerGeneric ResolveSelectedCombatDie()
+    {
+        if (diceEquipUiManager == null)
+            return null;
+
+        diceEquipUiManager.TryGetSelectedDice(out DiceSpinnerGeneric die);
         return die;
     }
 
     private void ExecuteConsumable(int slotIndex, ConsumableDataSO data, CombatActor user, CombatActor target, DiceSpinnerGeneric targetDie)
     {
+        if (data != null && data.effectId == ConsumableEffectId.DiceReroll)
+        {
+            List<DiceSpinnerGeneric> selectedDice = new List<DiceSpinnerGeneric>();
+            if (diceEquipUiManager != null)
+                diceEquipUiManager.GetSelectedDice(selectedDice);
+
+            bool rerolledAny = false;
+            for (int i = 0; i < selectedDice.Count; i++)
+            {
+                ConsumableUseResult rerollResult = ConsumableRuntimeUtility.TryUseInCombat(data, user, target, runInventory, selectedDice[i]);
+                if (!rerollResult.success)
+                    continue;
+
+                rerolledAny = true;
+            }
+
+            if (!rerolledAny)
+                return;
+
+            ClearLatchedDiceTarget();
+            SyncInventoryDiceLayoutFromRig();
+            if (turnManager != null && turnManager.diceRig != null)
+                turnManager.diceRig.RefreshRollInfoCache();
+            diceEquipUiManager?.ClearSelectedDice();
+
+            runInventory.TryConsumeConsumableCharge(slotIndex, 1);
+            if (runInventory.GetConsumable(slotIndex) != data)
+                _selectedSlot = -1;
+            return;
+        }
+
         ConsumableUseResult result = ConsumableRuntimeUtility.TryUseInCombat(data, user, target, runInventory, targetDie);
         Debug.Log($"[ConsumableBarUI] {result.message}", this);
 
@@ -1203,6 +1292,8 @@ public class ConsumableBarUIManager : MonoBehaviour
             turnManager.diceRig.RefreshRollInfoCache();
         if (targetDie != null)
             targetDie.RefreshDisplayedState();
+        if (data != null && data.UsesDiceSelection())
+            diceEquipUiManager?.ClearSelectedDice();
 
         runInventory.TryConsumeConsumableCharge(slotIndex, 1);
         if (runInventory.GetConsumable(slotIndex) != data)

@@ -72,6 +72,8 @@ public static class ConsumableRuntimeUtility
                 return TryAdjustBaseValue(data, die, faceIndex);
             case ConsumableEffectId.ApplyFaceEnchant:
                 return TryApplyFaceEnchant(data, die, faceIndex);
+            case ConsumableEffectId.SetRolledFace:
+                return TrySetRolledFace(die, faceIndex);
             case ConsumableEffectId.CopyPasteFace:
                 return ConsumableUseResult.Fail(ConsumableUseFailure.UnsupportedEffect, "Copy / Paste Face requires source and target faces.");
             default:
@@ -121,6 +123,8 @@ public static class ConsumableRuntimeUtility
                 return inventory != null;
             case ConsumableEffectId.DoubleValue:
                 return targetDie != null;
+            case ConsumableEffectId.DiceReroll:
+                return targetDie != null;
 
             default:
                 return false;
@@ -152,6 +156,8 @@ public static class ConsumableRuntimeUtility
                 return TryDoubleGold(data, inventory);
             case ConsumableEffectId.DoubleValue:
                 return TryDoubleValue(targetDie);
+            case ConsumableEffectId.DiceReroll:
+                return TryRerollDie(targetDie);
             default:
                 return ConsumableUseResult.Fail(ConsumableUseFailure.UnsupportedEffect, "This combat consumable is not implemented yet.");
         }
@@ -179,6 +185,15 @@ public static class ConsumableRuntimeUtility
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Could not apply enchant to the dice face.");
 
         return ConsumableUseResult.Ok($"{die.name} face {faceIndex} gained {DiceFaceEnchantUtility.GetDisplayName(data.faceEnchant)}.");
+    }
+
+    private static ConsumableUseResult TrySetRolledFace(DiceSpinnerGeneric die, int faceIndex)
+    {
+        if (die == null || faceIndex < 0)
+            return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Select a dice face first.");
+
+        die.SnapToFaceIndexImmediate(faceIndex, syncRollState: true);
+        return ConsumableUseResult.Ok($"{die.name} rolled face is now set to face {faceIndex}.");
     }
 
     private static ConsumableUseResult TryHeal(ConsumableDataSO data, CombatActor user)
@@ -268,5 +283,14 @@ public static class ConsumableRuntimeUtility
         targetDie.EnableDoubleValueForTurn();
         targetDie.RefreshDisplayedState();
         return ConsumableUseResult.Ok($"{targetDie.name} face values are doubled for this turn.");
+    }
+
+    private static ConsumableUseResult TryRerollDie(DiceSpinnerGeneric targetDie)
+    {
+        if (targetDie == null)
+            return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Select a die first.");
+
+        targetDie.RollRandomFace();
+        return ConsumableUseResult.Ok($"{targetDie.name} rerolled.");
     }
 }

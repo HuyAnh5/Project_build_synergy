@@ -17,6 +17,7 @@ public class GameplayDiceEditController : MonoBehaviour
     [SerializeField] private RunInventoryManager runInventory;
     [SerializeField] private DiceSlotRig diceRig;
     [SerializeField] private TurnManager turnManager;
+    [SerializeField] private DiceEquipUIManager diceEquipUiManager;
     [SerializeField] private GameplayDiceEditPanelUI panelUi;
     [SerializeField] private Transform inspectAnchor;
 
@@ -159,6 +160,36 @@ public class GameplayDiceEditController : MonoBehaviour
         return true;
     }
 
+    public bool CanOpenPanelForDie(int slotIndex, ConsumableDataSO data, DiceSpinnerGeneric die)
+    {
+        AutoResolveReferences();
+        AttachToDiceRig();
+        if (data == null || data.family != ConsumableFamily.Zodiac)
+            return false;
+        if (runInventory == null || slotIndex < 0 || runInventory.GetConsumable(slotIndex) != data)
+            return false;
+        if (die == null)
+            return false;
+        return ResolveSceneInteractableForSpinner(die) != null;
+    }
+
+    public bool TryOpenPanelForDie(int slotIndex, ConsumableDataSO data, DiceSpinnerGeneric die)
+    {
+        AutoResolveReferences();
+        if (!CanOpenPanelForDie(slotIndex, data, die))
+            return false;
+
+        AttachToDiceRig();
+        _pendingConsumableSlot = slotIndex;
+        _activeConsumable = data;
+        _selectedLogicalFaceIndices.Clear();
+        _copySourceFaceIndex = -1;
+        _copyTargetFaceIndex = -1;
+        GameplayDiceEditInteractable selectedInteractable = ResolveSceneInteractableForSpinner(die);
+        OpenPanelForInteractable(selectedInteractable);
+        return true;
+    }
+
     public bool CanManipulateInteractable(GameplayDiceEditInteractable interactable)
     {
         return IsPanelOpen && interactable != null && interactable == _activeInteractable;
@@ -293,11 +324,12 @@ public class GameplayDiceEditController : MonoBehaviour
         }
 
         if (sourceDie != null && die != null)
-            sourceDie.CopyRuntimeStateFrom(die, copyRotation: false);
+            sourceDie.CopyRuntimeStateFrom(die, copyRotation: _activeConsumable.effectId == ConsumableEffectId.SetRolledFace);
 
         runInventory.TryConsumeConsumableCharge(_pendingConsumableSlot, 1);
         if (sourceDie != null)
             sourceDie.RefreshDisplayedState();
+        diceEquipUiManager?.ClearSelectedDice();
 
         CancelAndClose();
     }
@@ -403,6 +435,8 @@ public class GameplayDiceEditController : MonoBehaviour
             diceRig = FindFirstObjectByType<DiceSlotRig>(FindObjectsInactive.Include);
         if (turnManager == null)
             turnManager = FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+        if (diceEquipUiManager == null)
+            diceEquipUiManager = FindFirstObjectByType<DiceEquipUIManager>(FindObjectsInactive.Include);
         if (panelUi == null)
             panelUi = FindFirstObjectByType<GameplayDiceEditPanelUI>(FindObjectsInactive.Include);
     }
@@ -557,6 +591,7 @@ public class GameplayDiceEditController : MonoBehaviour
             case ConsumableEffectId.ApplyFaceEnchant:
                 return 2;
             case ConsumableEffectId.CopyPasteFace:
+            case ConsumableEffectId.SetRolledFace:
                 return 1;
             default:
                 return 1;
