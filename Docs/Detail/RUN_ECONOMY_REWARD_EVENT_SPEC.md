@@ -148,6 +148,7 @@ Flow sau khi thắng combat:
 ```text
 Combat kết thúc
 → player nhận Base Gold chắc chắn
+→ nếu là Elite: player nhận thêm Ore chắc chắn
 → mở reward gacha
 → hiện số card theo loại encounter
 → player chọn số card được phép
@@ -158,9 +159,30 @@ Combat kết thúc
 Điểm rất quan trọng:
 
 - `Base Gold` luôn nhận sau combat.
+- `Ore` không nằm trong reward gacha thông thường.
+- `Ore` là reward track riêng, hiện dùng cho `Forge` để đổi `whole-die color / màu dice`.
+- `Elite` luôn cho `Ore` chắc chắn, không roll random như reward card.
 - `Extra Gold` nếu xuất hiện trong reward card là **bonus Gold**, không thay thế Base Gold.
 - Reward card là phần lựa chọn thêm, không phải toàn bộ phần thưởng.
 - Reward sau combat phục vụ build shaping, không chỉ là loot nhiều cho vui.
+
+### 5A.0A Elite Ore reward
+
+`Ore` là tài nguyên progression riêng cho `Forge`.
+
+Rule hiện tại:
+
+- `Ore` không rơi random từ reward gacha
+- thắng `Elite` thì luôn nhận `Ore`
+- `Combat thường` không mặc định cho `Ore`
+- `Ore` được mang về `Forge` để player đổi `whole-die color / màu dice`
+
+Nói ngắn:
+
+```text
+Combat thường -> Gold + reward gacha
+Elite -> Gold + Ore + reward gacha
+```
 
 ### 5A.1 Bảng mode reward hiện tại
 
@@ -209,7 +231,7 @@ Reward dùng để làm gì được quyết định bởi `Purpose`.
 |---|---|---|
 | `Common` | Xám | Extra Gold, skill cơ bản |
 | `Uncommon` | Xanh | Tất cả consumable, skill tốt hơn, passive bắt đầu xuất hiện |
-| `Rare` | Vàng | Skill/passive mạnh, Whole-die Color material |
+| `Rare` | Vàng | Skill/passive mạnh |
 | `Special` | Đỏ | Skill/passive cực mạnh, run-defining reward |
 
 Rule:
@@ -217,7 +239,6 @@ Rule:
 - Skill có thể xuất hiện từ `Common → Special`.
 - Passive chỉ xuất hiện từ `Uncommon → Special`.
 - Tất cả consumable đều là `Uncommon`.
-- Whole-die Color material là `Rare`.
 - Combat thường không có `Special`.
 - Boss không có `Common`.
 
@@ -260,7 +281,7 @@ Bảng Purpose hiện tại:
 | `Economy` | Extra Gold | Lấy thêm tiền ngoài Base Gold |
 | `Skill` | Skill từ Common đến Special | Thêm/thay hành động combat |
 | `Passive` | Passive từ Uncommon đến Special | Đổi engine / hướng build |
-| `Edit Dice` | Zodiac, Whole-die Color material | Chỉnh dice, chỉnh mặt, enchant, đổi màu/tag dice |
+| `Edit Dice` | Zodiac | Chỉnh dice, chỉnh mặt, enchant |
 | `Combat Aid` | Seal | Hỗ trợ combat trực tiếp: damage, status, cứu nguy |
 | `Utility Support` | Rune | Hỗ trợ đa dụng: Focus, reroll, cleanse, utility |
 
@@ -439,7 +460,7 @@ Không đưa các thứ sau vào reward gacha sau combat hiện tại:
 
 ```text
 Boss Intel
-Basic Ore
+Ore
 Shard
 Forge Dust
 Forge Material purpose riêng
@@ -452,8 +473,8 @@ Secret Reward bucket
 Lý do:
 
 - Boss Intel thuộc hệ event/clue/shop intel, không phải card gacha thường.
-- Basic Ore / Shard / Forge Dust bị bỏ vì việc chỉnh dice là vai trò của Zodiac.
-- Whole-die Color material vẫn tồn tại, nhưng thuộc `Edit Dice`.
+- `Ore` là reward track riêng từ `Elite`, không phải card reward ngẫu nhiên.
+- `Shard / Forge Dust` bị bỏ vì việc chỉnh dice là vai trò của Zodiac.
 - Không mở thêm quá nhiều bucket khi reward loop chưa cần.
 
 ### 5A.9 Reward sau combat và loadout
@@ -462,7 +483,8 @@ Khi player nhận reward thật:
 
 - `Skill`: nếu còn slot thì có thể equip; nếu full slot thì phải thay/bỏ/bán theo loadout rule.
 - `Passive`: vì chỉ có 1 passive slot, mỗi passive reward là quyết định lớn.
-- `Edit Dice`: Zodiac có thể vào consumable slot hoặc dùng theo context; Whole-die Color cần Forge để sử dụng.
+- `Edit Dice`: Zodiac có thể vào consumable slot hoặc dùng theo context.
+- `Ore`: không đi vào loadout; đây là tài nguyên mang sang `Forge` để đổi `whole-die color / màu dice`.
 - `Combat Aid`: Seal đi vào consumable slot.
 - `Utility Support`: Rune đi vào consumable slot.
 - `Economy`: cộng Gold ngay.
@@ -708,7 +730,7 @@ Skill
 Passive
 Consumable
 Edit Dice
-Whole-die Color material
+Ore
 Gold
 Boss Intel
 ```
@@ -722,7 +744,7 @@ Pay 25 Gold
 → nhận 1 Zodiac
 
 Pay 8 HP
-→ nhận Whole-die Color material
+→ nhận 1 Ore
 
 Leave
 → không có gì
@@ -1126,7 +1148,6 @@ Tác dụng:
 
 ```text
 tăng chance Rare
-có thể xuất hiện Whole-die Color material
 Gold cao hơn
 cargo tốt hơn
 ```
@@ -1141,7 +1162,6 @@ Modifier: Rare Cache
 Reward:
 +25 Gold
 1 cargo roll với chance Rare cao hơn
-5-10% Whole-die Color material
 ```
 
 Rare Cache không nên xuất hiện quá thường xuyên.  

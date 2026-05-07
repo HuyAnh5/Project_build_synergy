@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+using System.Collections.Generic;
+using UnityEngine;
 using DG.Tweening;
 using TMPro;
 
@@ -11,11 +12,16 @@ public class DiceSpinnerGeneric : MonoBehaviour
     public const int MinFaceValue = 1;
     public const int MaxFaceValue = 99;
 
+    private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
+    private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
+
     public Transform pivot;
     public DiceFace[] faces;
 
     [Header("Whole-Die Tag")]
     public DiceWholeDieTag wholeDieTag = DiceWholeDieTag.None;
+    [SerializeField] private Renderer[] wholeDieRenderers;
+    [SerializeField] private Color patinaColor = new Color(0.42f, 0.78f, 0.67f, 1f);
 
     [Header("TextMeshPro")]
     public TMP_Text valueText;
@@ -50,6 +56,12 @@ public class DiceSpinnerGeneric : MonoBehaviour
     private Tween _tween;
     private bool _doubleValueActiveForTurn;
     private int[] _doubleValueOriginalFaceValues;
+    private string[] _facePreviewTexts;
+    private bool[] _facePreviewBlink;
+    private Tween[] _facePreviewTweens;
+    private Color[] _faceBaseColors;
+    private Material[][] _wholeDieMaterialInstances;
+    private Color[][] _wholeDieOriginalColors;
 
     public int LastRolledValue { get; private set; }
     public int LastFaceIndex { get; private set; } = -1;
@@ -62,13 +74,19 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     private void Awake()
     {
-        if (pivot == null) pivot = transform;
+        if (pivot == null)
+            pivot = transform;
+
+        EnsureWholeDieMaterialInstances();
+        ApplyWholeDieVisuals();
+        RefreshAllFaceValueTexts();
         RefreshDisplayedState();
     }
 
     private void Update()
     {
-        if (!enableSpaceKey) return;
+        if (!enableSpaceKey)
+            return;
 
 #if ENABLE_INPUT_SYSTEM
         Keyboard kb = Keyboard.current;
@@ -82,7 +100,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     public int RollRandomFace()
     {
-        if (!ValidateFaces()) return 0;
+        if (!ValidateFaces())
+            return 0;
 
         int idx = Random.Range(0, faces.Length);
         RollToFaceIndex(idx);
@@ -101,7 +120,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     public void RollToFaceIndex(int faceIndex)
     {
-        if (!ValidateFaces()) return;
+        if (!ValidateFaces())
+            return;
 
         faceIndex = Mathf.Clamp(faceIndex, 0, faces.Length - 1);
 
@@ -289,6 +309,7 @@ public class DiceSpinnerGeneric : MonoBehaviour
         _doubleValueActiveForTurn = true;
         if (LastFaceIndex >= 0 && LastFaceIndex < faces.Length)
             LastRolledValue = faces[LastFaceIndex].value;
+        RefreshAllFaceValueTexts();
         RefreshDisplayedState();
     }
 
@@ -309,6 +330,7 @@ public class DiceSpinnerGeneric : MonoBehaviour
         _doubleValueOriginalFaceValues = null;
         if (LastFaceIndex >= 0 && LastFaceIndex < faces.Length)
             LastRolledValue = faces[LastFaceIndex].value;
+        RefreshAllFaceValueTexts();
         RefreshDisplayedState();
     }
 
@@ -328,9 +350,14 @@ public class DiceSpinnerGeneric : MonoBehaviour
             return;
 
         if (other.faces != null)
+        {
+            TMP_Text[] existingFaceTexts = ExtractFaceTextBindings();
             faces = (DiceFace[])other.faces.Clone();
+            RestoreFaceTextBindings(existingFaceTexts);
+        }
 
         wholeDieTag = other.wholeDieTag;
+        ApplyWholeDieVisuals();
 
         if (copyRotation && pivot != null && other.pivot != null)
             pivot.localRotation = other.pivot.localRotation;
@@ -342,6 +369,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
             ? (int[])other._doubleValueOriginalFaceValues.Clone()
             : null;
         IsRolling = false;
+        ClearAllFacePreviews();
+        RefreshAllFaceValueTexts();
         RefreshDisplayedState();
     }
 
@@ -353,6 +382,7 @@ public class DiceSpinnerGeneric : MonoBehaviour
     public void SetWholeDieTag(DiceWholeDieTag tag)
     {
         wholeDieTag = tag;
+        ApplyWholeDieVisuals();
         RefreshDisplayedState();
     }
 
@@ -409,6 +439,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
         face.enchant = enchant;
         faces[faceIndex] = face;
 
+        RefreshFaceValueText(faceIndex);
+
         if (faceIndex == LastFaceIndex)
             RefreshDisplayedState();
 
@@ -431,6 +463,7 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
         face.value = clampedValue;
         faces[faceIndex] = face;
+        RefreshFaceValueText(faceIndex);
 
         if (faceIndex == LastFaceIndex)
         {
@@ -450,7 +483,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
             if (DiceFaceEnchantUtility.SuppressesCritBonus(currentEnchant))
                 return normalText;
 
-            if (!showAddedValueInRollState) return critText;
+            if (!showAddedValueInRollState)
+                return critText;
             int added = GetCritDisplayAddedValue(LastRolledValue);
             return $"{critText}: +{added}";
         }
@@ -467,7 +501,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     public int GetMinFaceValue()
     {
-        if (!ValidateFaces()) return 1;
+        if (!ValidateFaces())
+            return 1;
 
         int min = int.MaxValue;
         for (int i = 0; i < faces.Length; i++)
@@ -478,7 +513,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     public int GetMaxFaceValue()
     {
-        if (!ValidateFaces()) return 6;
+        if (!ValidateFaces())
+            return 6;
 
         int max = int.MinValue;
         for (int i = 0; i < faces.Length; i++)
@@ -495,17 +531,20 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     public bool IsCritValue(int value)
     {
-        if (!ValidateFaces()) return false;
+        if (!ValidateFaces())
+            return false;
         return value == GetMaxFaceValue();
     }
 
     public bool IsFailValue(int value)
     {
-        if (!ValidateFaces()) return false;
+        if (!ValidateFaces())
+            return false;
 
         int min = GetMinFaceValue();
         int max = GetMaxFaceValue();
-        if (min == max) return false;
+        if (min == max)
+            return false;
 
         return value == min && value != max;
     }
@@ -525,11 +564,54 @@ public class DiceSpinnerGeneric : MonoBehaviour
         if (rollStateText != null)
             rollStateText.text = GetRollStateLabel();
 
+        RefreshAllFaceValueTexts();
+
         if (valueText != null && LastFaceIndex >= 0 && LastFaceIndex < faces.Length && !IsRolling)
             valueText.text = LastRolledValue.ToString();
 
         if (enchantText != null)
             enchantText.text = GetCurrentFaceDebugLabel();
+    }
+
+    public void SetFacePreviewValue(int faceIndex, int previewValue, bool blink = true)
+    {
+        SetFacePreviewText(faceIndex, ClampFaceValue(previewValue).ToString(), blink);
+    }
+
+    public void SetFacePreviewText(int faceIndex, string previewText, bool blink = true)
+    {
+        if (faces == null || faceIndex < 0 || faceIndex >= faces.Length)
+            return;
+
+        EnsureFacePreviewState();
+        _facePreviewTexts[faceIndex] = previewText;
+        _facePreviewBlink[faceIndex] = blink;
+        RefreshFaceValueText(faceIndex);
+    }
+
+    public void ClearFacePreview(int faceIndex)
+    {
+        if (faces == null || faceIndex < 0 || faceIndex >= faces.Length)
+            return;
+
+        EnsureFacePreviewState();
+        _facePreviewTexts[faceIndex] = null;
+        _facePreviewBlink[faceIndex] = false;
+        RefreshFaceValueText(faceIndex);
+    }
+
+    public void ClearAllFacePreviews()
+    {
+        if (_facePreviewTexts == null && _facePreviewTweens == null)
+            return;
+
+        EnsureFacePreviewState();
+        for (int i = 0; i < faces.Length; i++)
+        {
+            _facePreviewTexts[i] = null;
+            _facePreviewBlink[i] = false;
+            RefreshFaceValueText(i);
+        }
     }
 
     public string GetFaceDebugLabel(int faceIndex)
@@ -555,7 +637,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     private bool ValidateFaces()
     {
-        if (pivot == null) pivot = transform;
+        if (pivot == null)
+            pivot = transform;
 
         if (faces == null || faces.Length == 0)
         {
@@ -566,6 +649,289 @@ public class DiceSpinnerGeneric : MonoBehaviour
         return true;
     }
 
+    private void OnValidate()
+    {
+        if (pivot == null)
+            pivot = transform;
+
+        if (wholeDieRenderers == null || wholeDieRenderers.Length == 0)
+            AutoCollectWholeDieRenderers();
+
+        if (Application.isPlaying)
+        {
+            EnsureWholeDieMaterialInstances();
+            ApplyWholeDieVisuals();
+        }
+
+        RefreshAllFaceValueTexts();
+        RefreshDisplayedState();
+    }
+
+    private void OnDestroy()
+    {
+        ReleaseWholeDieMaterialInstances();
+    }
+
+    private void RefreshAllFaceValueTexts()
+    {
+        if (faces == null)
+            return;
+
+        for (int i = 0; i < faces.Length; i++)
+            RefreshFaceValueText(i);
+    }
+
+    private void RefreshFaceValueText(int faceIndex)
+    {
+        if (faces == null || faceIndex < 0 || faceIndex >= faces.Length)
+            return;
+
+        TMP_Text faceText = faces[faceIndex].faceValueText3D;
+        if (faceText == null)
+            return;
+
+        EnsureFacePreviewState();
+        CacheFaceBaseColor(faceIndex, faceText);
+
+        string previewText = _facePreviewTexts != null && faceIndex < _facePreviewTexts.Length
+            ? _facePreviewTexts[faceIndex]
+            : null;
+
+        faceText.text = string.IsNullOrEmpty(previewText)
+            ? faces[faceIndex].value.ToString()
+            : previewText;
+
+        bool shouldBlink = _facePreviewBlink != null &&
+                           faceIndex < _facePreviewBlink.Length &&
+                           _facePreviewBlink[faceIndex] &&
+                           !string.IsNullOrEmpty(previewText);
+        ApplyFaceBlink(faceIndex, faceText, shouldBlink);
+    }
+
+    private void EnsureFacePreviewState()
+    {
+        int faceCount = faces != null ? faces.Length : 0;
+        if (faceCount <= 0)
+            return;
+
+        if (_facePreviewTexts == null || _facePreviewTexts.Length != faceCount)
+            _facePreviewTexts = new string[faceCount];
+        if (_facePreviewBlink == null || _facePreviewBlink.Length != faceCount)
+            _facePreviewBlink = new bool[faceCount];
+        if (_facePreviewTweens == null || _facePreviewTweens.Length != faceCount)
+            _facePreviewTweens = new Tween[faceCount];
+        if (_faceBaseColors == null || _faceBaseColors.Length != faceCount)
+            _faceBaseColors = new Color[faceCount];
+    }
+
+    private void CacheFaceBaseColor(int faceIndex, TMP_Text faceText)
+    {
+        if (_faceBaseColors == null || faceIndex < 0 || faceIndex >= _faceBaseColors.Length || faceText == null)
+            return;
+
+        if (_facePreviewTweens != null &&
+            faceIndex < _facePreviewTweens.Length &&
+            _facePreviewTweens[faceIndex] != null &&
+            _facePreviewTweens[faceIndex].IsActive())
+        {
+            return;
+        }
+
+        _faceBaseColors[faceIndex] = faceText.color;
+    }
+
+    private void ApplyFaceBlink(int faceIndex, TMP_Text faceText, bool shouldBlink)
+    {
+        if (_facePreviewTweens == null || faceIndex < 0 || faceIndex >= _facePreviewTweens.Length || faceText == null)
+            return;
+
+        _facePreviewTweens[faceIndex]?.Kill();
+        _facePreviewTweens[faceIndex] = null;
+
+        Color baseColor = (_faceBaseColors != null && faceIndex < _faceBaseColors.Length)
+            ? _faceBaseColors[faceIndex]
+            : faceText.color;
+
+        faceText.color = baseColor;
+
+        if (!shouldBlink)
+            return;
+
+        float baseAlpha = Mathf.Clamp01(baseColor.a);
+        faceText.alpha = baseAlpha;
+        _facePreviewTweens[faceIndex] = faceText
+            .DOFade(Mathf.Max(0.3f, baseAlpha * 0.4f), 0.8f)
+            .SetEase(Ease.InOutSine)
+            .SetLoops(-1, LoopType.Yoyo)
+            .SetUpdate(true);
+    }
+
+    private TMP_Text[] ExtractFaceTextBindings()
+    {
+        if (faces == null || faces.Length == 0)
+            return null;
+
+        TMP_Text[] bindings = new TMP_Text[faces.Length];
+        for (int i = 0; i < faces.Length; i++)
+            bindings[i] = faces[i].faceValueText3D;
+        return bindings;
+    }
+
+    private void RestoreFaceTextBindings(TMP_Text[] bindings)
+    {
+        if (bindings == null || faces == null)
+            return;
+
+        int count = Mathf.Min(bindings.Length, faces.Length);
+        for (int i = 0; i < count; i++)
+        {
+            DiceFace face = faces[i];
+            face.faceValueText3D = bindings[i];
+            faces[i] = face;
+        }
+    }
+
+    private void EnsureWholeDieMaterialInstances()
+    {
+        AutoCollectWholeDieRenderers();
+
+        if (wholeDieRenderers == null || wholeDieRenderers.Length == 0)
+            return;
+
+        if (_wholeDieMaterialInstances != null &&
+            _wholeDieOriginalColors != null &&
+            _wholeDieMaterialInstances.Length == wholeDieRenderers.Length &&
+            _wholeDieOriginalColors.Length == wholeDieRenderers.Length)
+        {
+            return;
+        }
+
+        ReleaseWholeDieMaterialInstances();
+
+        _wholeDieMaterialInstances = new Material[wholeDieRenderers.Length][];
+        _wholeDieOriginalColors = new Color[wholeDieRenderers.Length][];
+
+        for (int rendererIndex = 0; rendererIndex < wholeDieRenderers.Length; rendererIndex++)
+        {
+            Renderer renderer = wholeDieRenderers[rendererIndex];
+            if (renderer == null)
+                continue;
+
+            Material[] materials = renderer.materials;
+            _wholeDieMaterialInstances[rendererIndex] = materials;
+            _wholeDieOriginalColors[rendererIndex] = new Color[materials.Length];
+
+            for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                _wholeDieOriginalColors[rendererIndex][materialIndex] = GetMaterialColor(materials[materialIndex]);
+        }
+    }
+
+    private void ApplyWholeDieVisuals()
+    {
+        EnsureWholeDieMaterialInstances();
+
+        if (_wholeDieMaterialInstances == null || _wholeDieOriginalColors == null)
+            return;
+
+        for (int rendererIndex = 0; rendererIndex < _wholeDieMaterialInstances.Length; rendererIndex++)
+        {
+            Material[] materials = _wholeDieMaterialInstances[rendererIndex];
+            Color[] originalColors = rendererIndex < _wholeDieOriginalColors.Length ? _wholeDieOriginalColors[rendererIndex] : null;
+            if (materials == null)
+                continue;
+
+            for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+            {
+                Material material = materials[materialIndex];
+                if (material == null)
+                    continue;
+
+                Color targetColor = originalColors != null && materialIndex < originalColors.Length
+                    ? originalColors[materialIndex]
+                    : Color.white;
+
+                switch (wholeDieTag)
+                {
+                    case DiceWholeDieTag.Patina:
+                        targetColor = patinaColor;
+                        break;
+                }
+
+                SetMaterialColor(material, targetColor);
+            }
+        }
+    }
+
+    private void AutoCollectWholeDieRenderers()
+    {
+        if (wholeDieRenderers != null && wholeDieRenderers.Length > 0)
+            return;
+
+        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+        List<Renderer> filtered = new List<Renderer>(renderers.Length);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null)
+                continue;
+            if (renderer.GetComponent<TMP_Text>() != null)
+                continue;
+
+            filtered.Add(renderer);
+        }
+
+        wholeDieRenderers = filtered.ToArray();
+    }
+
+    private void ReleaseWholeDieMaterialInstances()
+    {
+        if (_wholeDieMaterialInstances == null)
+            return;
+
+        for (int rendererIndex = 0; rendererIndex < _wholeDieMaterialInstances.Length; rendererIndex++)
+        {
+            Material[] materials = _wholeDieMaterialInstances[rendererIndex];
+            if (materials == null)
+                continue;
+
+            for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+            {
+                Material material = materials[materialIndex];
+                if (material == null)
+                    continue;
+
+                if (Application.isPlaying)
+                    Destroy(material);
+                else
+                    DestroyImmediate(material);
+            }
+        }
+
+        _wholeDieMaterialInstances = null;
+        _wholeDieOriginalColors = null;
+    }
+
+    private static Color GetMaterialColor(Material material)
+    {
+        if (material == null)
+            return Color.white;
+        if (material.HasProperty(BaseColorPropertyId))
+            return material.GetColor(BaseColorPropertyId);
+        if (material.HasProperty(ColorPropertyId))
+            return material.GetColor(ColorPropertyId);
+        return Color.white;
+    }
+
+    private static void SetMaterialColor(Material material, Color color)
+    {
+        if (material == null)
+            return;
+        if (material.HasProperty(BaseColorPropertyId))
+            material.SetColor(BaseColorPropertyId, color);
+        if (material.HasProperty(ColorPropertyId))
+            material.SetColor(ColorPropertyId, color);
+    }
+
     private static Vector3 NormalizeEuler(Vector3 e)
     {
         return new Vector3(Norm(e.x), Norm(e.y), Norm(e.z));
@@ -573,7 +939,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
         static float Norm(float a)
         {
             a %= 360f;
-            if (a < 0f) a += 360f;
+            if (a < 0f)
+                a += 360f;
             return a;
         }
     }

@@ -211,8 +211,98 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &401708842
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 3726697021767390608, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: m_Name
+      value: Pivot_D8
+      objectReference: {fileID: 0}
+    - target: {fileID: 4134805224854751960, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: faces.Array.data[5].localEuler.y
+      value: -178.9
+      objectReference: {fileID: 0}
+    - target: {fileID: 4134805224854751960, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: faces.Array.data[6].localEuler.z
+      value: 90
+      objectReference: {fileID: 0}
+    - target: {fileID: 4316808728159653016, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -2.42205
+      objectReference: {fileID: 0}
+    - target: {fileID: 4316808728159653016, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4316808728159653016, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 1.01617
+      objectReference: {fileID: 0}
+    - target: {fileID: 4316808728159653016, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 0.875747
+      objectReference: {fileID: 0}
+    - target: {fileID: 4316808728159653016, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0.48277044
+      objectReference: {fileID: 0}
+    - target: {fileID: 4316808728159653016, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4316808728159653016, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4316808728159653016, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 57.733
+      objectReference: {fileID: 0}
+    - target: {fileID: 4316808728159653016, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4316808728159653016, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 3863559704960666045, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+    - targetCorrespondingSourceObject: {fileID: 1007530508273800218, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+    - targetCorrespondingSourceObject: {fileID: 6316851584950729180, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+    - targetCorrespondingSourceObject: {fileID: 2923395518305083888, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+    - targetCorrespondingSourceObject: {fileID: 6598504258986306760, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+    - targetCorrespondingSourceObject: {fileID: 9029713769067933971, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+    - targetCorrespondingSourceObject: {fileID: 5421333232433805981, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+    - targetCorrespondingSourceObject: {fileID: 8497116293916857254, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 0}
+  m_SourcePrefab: {fileID: 100100000, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
   - {fileID: 305911053}
+  - {fileID: 401708842}

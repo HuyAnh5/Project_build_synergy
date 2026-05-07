@@ -82,7 +82,8 @@ Rule hiển thị:
 - có thể quay lại nếu đường đã mở
 - là lò rèn dice
 - hiện dùng để forge `whole-die tag / màu` cho dice
-- mỗi lần forge tốn `gem` theo đúng loại màu / tag muốn gắn, ví dụ `Patina`
+- dùng `Ore` để forge `whole-die color / màu dice`
+- `Ore` hiện rơi chắc chắn từ `Elite`, rồi được mang về `Forge` để dùng
 
 `Hub / Forge` không phải là shop thu nhỏ.
 Nó là:
@@ -321,7 +322,7 @@ Forge không dùng logic nhập hàng như shop.
 Rule hiện tại:
 
 - Forge không refresh inventory theo Boss Preparation.
-- Forge là nơi player đem quặng / gem / material tới để enchant hoặc chỉnh dice.
+- Forge là nơi player đem `Ore` tới để đổi `whole-die color / màu dice`, và là node xử lý progression ở cấp viên dice.
 - Giá trị của Forge đến từ tài nguyên player mang tới, không đến từ việc Forge tự đổi hàng.
 
 Ý nghĩa thiết kế:

@@ -23,12 +23,27 @@
 
 Row **không phải** lớp cộng/trừ damage mặc định.
 
+Row tự thân **không có thưởng/phạt nội tại**.
+Nó chỉ là:
+
+- điều kiện để dùng skill nào
+- điều kiện để target ai là hợp lệ
+- combat state để skill/passive/content khác đọc nếu muốn
+
 Không có rule nền kiểu:
 
 - front row luôn tăng damage
 - back row luôn giảm damage nhận
 - front row luôn tank hơn bằng modifier ẩn
 - back row luôn yếu hơn bằng modifier ẩn
+
+Mọi payoff kiểu:
+
+- đang ở `Front Row` thì `+ Added Value`
+- đang ở `Back Row` thì nhận Guard
+- đổi row thì proc effect
+
+đều phải đến từ `skill / passive / relic / content` viết rõ ra, không phải từ bản thân row.
 
 Rule này áp dụng **đối xứng cho cả 2 phe**:
 
@@ -59,6 +74,19 @@ Row system nên được đọc qua **2 lớp riêng**:
 ---
 
 ## 3. Rule target chuẩn
+
+### 3.0 Rule dùng skill theo row
+
+- Bắt đầu mỗi combat, player luôn ở `Front Row`.
+- `Strike / Melee` chỉ dùng được khi caster đang ở `Front Row`.
+- Nếu caster đang ở `Back Row`, caster không được dùng `Strike / Melee`.
+- `Range` dùng được ở cả `Front Row` lẫn `Back Row`.
+
+Nói ngắn:
+
+- `Front Row` mở quyền dùng melee
+- `Back Row` không tự có penalty khác ngoài việc không dùng được melee
+- `Range` không bị khóa bởi row của caster
 
 ### 3.1 Strike
 
@@ -183,6 +211,69 @@ Không có chuyện:
 - row chỉ là rule để player target enemy,
 - hoặc row chỉ là rule của enemy formation mà không áp lại cho player team.
 
+### 6.3 Rule di chuyển row
+
+Row không phải free toggle.
+Một unit chỉ đổi row theo 3 nhóm rule:
+
+1. **Dùng skill có effect đổi row**
+2. **Bị skill của unit khác cưỡng ép đổi row**
+3. **Auto formation shift** khi front row của phe đó trống hết
+
+#### 6.3.1 Player side
+
+- Player chỉ được đổi row thông qua skill.
+- Ngoại lệ duy nhất là khi player đang ở `Back Row` và toàn bộ frontline/ally phía trước chết hết, player sẽ tự được đẩy lên `Front Row`.
+- Nếu player đang ở `Back Row`, skill `Range + move to Front` vẫn dùng bình thường vì nó là `Range`.
+
+#### 6.3.2 Enemy voluntary move
+
+Nếu enemy **tự muốn** đổi row theo AI của chính nó, dù là:
+
+- tiến lên `Front Row`
+- hay lùi xuống `Back Row`
+
+thì đều phải **tốn 1 turn riêng**.
+
+Turn đó intent phải hiển thị rõ là:
+
+- đang chuẩn bị lên `Front Row`
+- hoặc đang chuẩn bị xuống `Back Row`
+
+Đến đúng turn của nó thì enemy mới thực hiện hành động đổi row.
+Turn move này không tự kèm thêm đòn đánh khác, trừ khi việc đổi row là effect đã được viết sẵn trong skill.
+
+Ví dụ:
+
+- enemy đang ở `Back Row` nhưng build/intent là melee thì intent hiển thị là sẽ tiến lên `Front Row`
+- enemy đang bị đẩy lên `Front Row` do formation shift nhưng muốn lùi lại, thì nó cũng phải báo intent trước rồi tới turn của nó mới lùi xuống
+
+#### 6.3.3 Auto formation shift
+
+Nếu toàn bộ unit sống ở `Front Row` của một phe chết hết:
+
+- các unit còn sống ở `Back Row` được đẩy lên `Front Row` ngay lập tức
+- việc đẩy lên này **không tốn turn**
+- đây là rule sửa formation tự động, không phải action
+
+Ví dụ:
+
+- có `3 enemy`: `1` đứa ở `Front Row`, `2` đứa ở `Back Row`
+- đứa ở front chết
+- `2` đứa ở back được đẩy lên `Front Row` ngay
+- sau đó, nếu một đứa muốn lùi xuống lại `Back Row`, nó vẫn phải hiện intent rồi tốn đúng `1 turn` để lùi
+
+#### 6.3.4 Điều kiện hợp lệ để lùi xuống Back Row
+
+Một unit chỉ được tự lùi xuống `Back Row` nếu sau khi lùi:
+
+- phe của nó vẫn còn ít nhất `1` unit khác đứng ở `Front Row`
+
+Nói ngắn:
+
+- không được để cả phe chủ động bỏ trống `Front Row`
+- `Back Row` chỉ tồn tại khi phía trước vẫn còn ít nhất một người che chắn hợp lệ
+
 ---
 
 ## 7. Row có thể được đọc bởi content
@@ -208,8 +299,9 @@ Ví dụ các kiểu đọc hợp lệ:
 
 Nói cách khác:
 
-- row không chỉ dùng để chặn target,
-- row còn là một trục condition / state cho content.
+- row không tự sinh payoff,
+- row chỉ cung cấp state vị trí để content đọc,
+- payoff thật sự phải đến từ content viết rõ.
 
 ---
 
@@ -242,6 +334,7 @@ Vì vậy:
 ## 9. Runtime / implementation guardrail
 
 - Không hardcode row thành damage multiplier mặc định.
+- Không tự gắn bonus/phạt nội tại vào `Front Row / Back Row` nếu content không viết rõ.
 - Không biến player row thành free stance toggle nếu không có skill/passive/effect cho phép.
 - Không để vị trí attacker tự quyết định quyền đánh xuyên row.
 - Không gộp row logic vào lane logic.
@@ -255,9 +348,12 @@ Vì vậy:
 
 1. Row là lớp vị trí và quyền target, không phải damage modifier nền.
 2. Rule này áp dụng đối xứng cho cả player team và enemy team.
-3. `Strike` luôn bị front row chặn.
-4. `Range` target tự do front hoặc back.
-5. `Strike AoE` quét row ngoài cùng còn đang chặn.
+3. Bản thân row không có thưởng/phạt nội tại; mọi bonus theo row phải đến từ content.
+4. `Strike / Melee` chỉ dùng được từ `Front Row` và luôn bị front row chặn.
+5. `Range` dùng được ở mọi row và target tự do front hoặc back.
+6. `Strike AoE` quét row ngoài cùng còn đang chặn.
+7. Auto formation shift khi front row chết hết là ngay lập tức, không tốn turn.
+8. Voluntary reposition lên/xuống row theo AI đều tốn 1 turn riêng, trừ khi đến từ skill/effect cưỡng ép.
 6. `Range AoE` chọn tự do 1 row để quét.
 7. `Cross-row` là ngoại lệ hiếm có chủ đích.
 8. Vị trí của attacker không tự mở quyền đánh xuyên row.
