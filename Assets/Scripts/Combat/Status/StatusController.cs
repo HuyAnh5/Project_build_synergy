@@ -10,6 +10,7 @@ public class StatusController : MonoBehaviour
         public int turnsRemaining;
     }
 
+    [Header("Core Status")]
     // Burn: total visible stacks + longest remaining batch duration for debug/back-compat
     public int burnStacks;
     public int burnTurns;
@@ -31,13 +32,13 @@ public class StatusController : MonoBehaviour
     // Stagger: mở sau khi Guard bị phá, hit direct kế tiếp mới ăn x1.2
     public bool staggered;
 
-    // Named content hooks already committed in spec.
+    [Header("Named Runtime Hooks")]
     public int emberWeaponTurns;
     public int emberWeaponBonusDamage = 1;
     public bool emberWeaponBurnEqualsDamage = true;
-    public bool emberWeaponBurnOnCritOnly;
-    public int cinderbrandTurns;
-    public int cinderbrandBonusPerBurn = 1;
+    [HideInInspector] public bool emberWeaponBurnOnCritOnly;
+    [HideInInspector] public int cinderbrandTurns;
+    [HideInInspector] public int cinderbrandBonusPerBurn = 1;
 
     // -------------------- NEW: Buff/Debuff/Ailment layer (non-breaking) --------------------
 
@@ -45,9 +46,9 @@ public class StatusController : MonoBehaviour
     private readonly List<StatusActiveBuffDebuff> _active = new List<StatusActiveBuffDebuff>(8);
     private readonly List<StatusPendingAilment> _pendingAilments = new List<StatusPendingAilment>(4);
 
-    [SerializeField] private bool _hasAilment;
-    [SerializeField] private AilmentType _ailmentType;
-    [SerializeField] private int _ailmentTurnsLeft;
+    [HideInInspector, SerializeField] private bool _hasAilment;
+    [HideInInspector, SerializeField] private AilmentType _ailmentType;
+    [HideInInspector, SerializeField] private int _ailmentTurnsLeft;
 
     [Header("Debug")]
     [Tooltip("When ON: any SkillBuffDebuffSO ailment will apply 100% regardless of dice/chance calculator.")]

@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bdd3439a07d594846848beae8787decc, type: 3}
+  m_Name: CombatLabPrototypeConfig_Prototype
+  m_EditorClassIdentifier: Assembly-CSharp::CombatLabPrototypeConfigSO
+  enemies:
+  - enabled: 1
+    prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
+    row: 0
+    orderInRow: 0
+  - enabled: 1
+    prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
+    row: 0
+    orderInRow: 0
+  - enabled: 1
+    prefab: {fileID: 3343973332019958161, guid: dc54dd17b8c3f6841be18416536e9200, type: 3}
+    row: 1
+    orderInRow: 0
+  d4Prefab: {fileID: 3696089616036826389, guid: 650ae2f331cdc1848bf2007cff33bdf1, type: 3}
+  d8Prefab: {fileID: 4134805224854751960, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+  skillPairs:
+  - label: 
+    skillA: {fileID: 11400000, guid: dd8a7af4c0d3462bbed18e7712ad8990, type: 2}
+    skillB: {fileID: 11400000, guid: 6201df6fa5db4498bdd5158dc14ccf72, type: 2}
+  - label: 
+    skillA: {fileID: 11400000, guid: 1536d6a89f7747e69f13c80ca82d9551, type: 2}
+    skillB: {fileID: 11400000, guid: 1f1edc4a92a94f099b0bd4fffccc2a07, type: 2}
+  - label: 
+    skillA: {fileID: 11400000, guid: e388693c7dfaf5246aac7a84e3f6424d, type: 2}
+    skillB: {fileID: 11400000, guid: 843dec42c43d45a3ac5561044366d0ee, type: 2}
+  consumables:
+  - {fileID: 11400000, guid: daac03b175d89f44aaadeed13907ac6f, type: 2}
+  - {fileID: 11400000, guid: 123a834a9b634a04ca2a16991d3daebc, type: 2}
+  - {fileID: 11400000, guid: c1df92299cc33994484c0126b6320ea5, type: 2}
+  - {fileID: 11400000, guid: 31217922bea208b458ea0470a6e71265, type: 2}
+  - {fileID: 11400000, guid: 6f0ec1d6ddf84fd5a7148f10d6a2e1a4, type: 2}

@@ -38,6 +38,7 @@ public class SkillRuntime
     // Attack
     public float dieMultiplier;
     public int flatDamage;
+    public int ownerFlatDamageBonus;
     public BaseEffectValueMode baseDamageValueMode;
 
     // Sunder bonus
@@ -56,6 +57,11 @@ public class SkillRuntime
     // Burn spender
     public bool consumesBurn;
     public int burnDamagePerStack;
+    public bool gainIceRewardOnFrozenOrChilledHit;
+    public int iceRewardFocus;
+    public int iceRewardGuard;
+    public bool triggerLightningMarkShock;
+    public int lightningMarkShockDamage;
     public bool fireUseXFormula;
     public bool fireApplyBurnFromResolvedValue;
     public bool fireGrantBonusBurnOnOddBase;
@@ -146,6 +152,7 @@ public class SkillRuntime
 
             dieMultiplier = s.dieMultiplier,
             flatDamage = s.flatDamage,
+            ownerFlatDamageBonus = 0,
             baseDamageValueMode = s.baseDamageValueMode,
 
             sunderBonusIfTargetHasGuard = s.sunderBonusIfTargetHasGuard,
@@ -160,6 +167,11 @@ public class SkillRuntime
 
             consumesBurn = s.consumesBurn,
             burnDamagePerStack = s.burnDamagePerStack,
+            gainIceRewardOnFrozenOrChilledHit = s.gainIceRewardOnFrozenOrChilledHit,
+            iceRewardFocus = s.iceRewardFocus,
+            iceRewardGuard = s.iceRewardGuard,
+            triggerLightningMarkShock = s.triggerLightningMarkShock,
+            lightningMarkShockDamage = s.lightningMarkShockDamage,
             fireUseXFormula = s.fireModules != null && s.fireModules.useXFormula,
             fireApplyBurnFromResolvedValue = s.fireModules != null && s.fireModules.applyBurnFromResolvedValue,
             fireGrantBonusBurnOnOddBase = s.fireModules != null && s.fireModules.grantBonusBurnOnOddBase,
@@ -219,6 +231,27 @@ public class SkillRuntime
             rt.hitAllEnemies = false;
             rt.hitAllAllies = false;
         }
+
+        return rt;
+    }
+
+    public static SkillRuntime FromBuffDebuff(SkillBuffDebuffSO s)
+    {
+        if (s == null) return null;
+
+        var rt = new SkillRuntime
+        {
+            sourceAsset = s,
+            useV2Targeting = true,
+            targetRuleV2 = s.target,
+            kind = SkillKind.Utility,
+            target = SkillTargetRuleUtility.IsEnemySideTarget(s.target) ? TargetRule.Enemy : TargetRule.Self,
+            element = ElementType.Neutral,
+            range = RangeType.Ranged,
+            slotsRequired = Mathf.Clamp(s.slotsRequired, 1, 3),
+            focusCost = Mathf.Max(0, s.focusCost),
+            focusGainOnCast = s.focusGainOnCast
+        };
 
         return rt;
     }

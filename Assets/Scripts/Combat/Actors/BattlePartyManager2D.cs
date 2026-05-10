@@ -233,6 +233,7 @@ public class BattlePartyManager2D : MonoBehaviour
 
     public void EnsureWorldUIForAll()
     {
+        if (Player != null) EnsureWorldUIFor(Player);
         foreach (var a in _allies) EnsureWorldUIFor(a);
         foreach (var e in _enemies) EnsureWorldUIFor(e);
     }
@@ -241,7 +242,6 @@ public class BattlePartyManager2D : MonoBehaviour
     {
         if (!worldUiPrefab) return;
         if (!actor) return;
-        if (actor.isPlayer) return;
 
         if (_uiMap.TryGetValue(actor, out var existing) && existing) return;
 

@@ -48,6 +48,9 @@ public static class SkillRuntimeEvaluator
 
         rt.conditionMet = met;
 
+        if (met)
+            ApplyDamageOverrides(ref rt, skill.whenConditionIsMet);
+
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.NoName) && skill.hasCondition)
         {
             rt.focusCost = met ? 3 : 0;
@@ -69,8 +72,18 @@ public static class SkillRuntimeEvaluator
         }
 
         rt.localResolvedValues = GatherResolvedDiceForScope(diceRig, owner, start0, span, rt.element);
+        ApplyOwnerCombatBonuses(rt, owner);
 
         return rt;
+    }
+
+    private static void ApplyOwnerCombatBonuses(SkillRuntime rt, CombatActor owner)
+    {
+        if (rt == null || owner == null || owner.status == null)
+            return;
+
+        if (rt.coreAction == CoreAction.BasicStrike && owner.status.emberWeaponTurns > 0)
+            rt.ownerFlatDamageBonus = Mathf.Max(0, owner.status.emberWeaponBonusDamage);
     }
 
     private static SkillConditionContext BuildConditionContext(SkillConditionScope scope, CombatActor owner, DiceSlotRig diceRig, int start0, int span, ElementType skillElement, CombatActor target)

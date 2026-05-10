@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using UnityEngine;
 using Sirenix.OdinInspector;
@@ -722,7 +722,7 @@ public class DiceSlotRig : MonoBehaviour
             LastRollInfos[i] = default;
     }
 
-    private DiceSpinnerGeneric GetDice(int slot0)
+    public DiceSpinnerGeneric GetDice(int slot0)
     {
         EnsureSlots();
         if (slot0 < 0 || slot0 >= slots.Length) return null;
@@ -785,5 +785,138 @@ public class DiceSlotRig : MonoBehaviour
 
         if (LastRollInfos == null || LastRollInfos.Length != 3)
             LastRollInfos = new RollInfo[3];
+    }
+
+    // ---------------------------
+    // Dice Consume Preview
+    // ---------------------------
+
+    private bool _consumePreviewActive;
+    private int _consumePreviewCount;
+    private bool _consumePreviewInvalid; // true = thiếu dice
+    private CombatHUD _cachedHud;
+
+    // Cache all DiceDraggableUI instances once per show/clear cycle
+    private DiceDraggableUI[] _cachedDiceUIs;
+
+    private DiceDraggableUI FindDiceUI(DiceSpinnerGeneric die)
+    {
+        if (die == null) return null;
+        if (_cachedDiceUIs == null)
+            _cachedDiceUIs = UnityEngine.Object.FindObjectsOfType<DiceDraggableUI>(true);
+        for (int i = 0; i < _cachedDiceUIs.Length; i++)
+        {
+            if (_cachedDiceUIs[i] != null && _cachedDiceUIs[i].dice == die)
+                return _cachedDiceUIs[i];
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Hiển thị preview dice sẽ bị consume khi hover/drag skill.
+    /// diceCount = số dice skill cần (slotsRequired).
+    /// spentDice = set dice đã dùng trong turn này, để bỏ qua khi đếm available.
+    /// </summary>
+    public void ShowConsumePreview(int diceCount, System.Collections.Generic.HashSet<DiceSpinnerGeneric> spentDice = null)
+    {
+        EnsureSlots();
+        _consumePreviewCount = Mathf.Max(0, diceCount);
+        _cachedDiceUIs = UnityEngine.Object.FindObjectsOfType<DiceDraggableUI>(true);
+
+        // Đếm dice available (active + chưa spent)
+        int available = 0;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (!IsSlotActive(i)) continue;
+            DiceSpinnerGeneric die = GetDice(i);
+            if (die == null) continue;
+            if (spentDice != null && spentDice.Contains(die)) continue;
+            available++;
+        }
+
+        _consumePreviewInvalid = _consumePreviewCount > available;
+        _consumePreviewActive = true;
+    }
+
+    /// <summary>
+    /// Tắt preview dice consume, trả visual về bình thường.
+    /// </summary>
+    public void ClearConsumePreview()
+    {
+        if (!_consumePreviewActive && _cachedDiceUIs == null)
+            return;
+
+        _consumePreviewActive = false;
+        _consumePreviewCount = 0;
+        _consumePreviewInvalid = false;
+
+        // Restore tất cả DiceDraggableUI về trạng thái bình thường
+        EnsureSlots();
+        for (int i = 0; i < slots.Length; i++)
+        {
+            DiceSpinnerGeneric die = GetDice(i);
+            if (die == null) continue;
+            DiceDraggableUI ui = FindDiceUI(die);
+            if (ui != null)
+                ui.ClearPreviewTint();
+        }
+
+        _cachedDiceUIs = null;
+    }
+
+    /// <summary>
+    /// Gọi mỗi frame khi preview đang active.
+    /// Cập nhật visual nhấp nháy cho các dice sẽ bị consume.
+    /// </summary>
+    public void UpdateConsumePreviewVisuals(System.Collections.Generic.HashSet<DiceSpinnerGeneric> spentDice = null)
+    {
+        if (!_consumePreviewActive)
+            return;
+
+        if (_cachedHud == null)
+            _cachedHud = FindObjectOfType<CombatHUD>(true);
+
+        float blinkSpeed = (_cachedHud != null) ? _cachedHud.consumePreviewBlinkSpeed : 3f;
+        float minAlpha = (_cachedHud != null) ? _cachedHud.consumePreviewMinAlpha : 0.5f;
+        float invalidMinAlpha = (_cachedHud != null) ? _cachedHud.consumePreviewInvalidMinAlpha : 0.6f;
+
+        EnsureSlots();
+        float t = Mathf.PingPong(Time.time * blinkSpeed, 1f);
+
+        int consumed = 0;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (!IsSlotActive(i)) continue;
+            DiceSpinnerGeneric die = GetDice(i);
+            if (die == null) continue;
+
+            DiceDraggableUI ui = FindDiceUI(die);
+            if (ui == null) continue;
+
+            if (_consumePreviewInvalid)
+            {
+                // Thiếu dice: tất cả dice đỏ nhẹ nhấp nháy, ẩn outline để hiện khối màu đỏ đồng nhất
+                float alpha = Mathf.Lerp(invalidMinAlpha, 1f, t);
+                ui.SetPreviewTint(new Color(1f, 0.3f, 0.3f, alpha), true);
+                continue;
+            }
+
+            // Dice đã spent rồi thì skip (nó đã dim 50%)
+            if (spentDice != null && spentDice.Contains(die))
+                continue;
+
+            if (consumed < _consumePreviewCount)
+            {
+                // Dice sẽ bị consume: vàng nhấp nháy
+                float alpha = Mathf.Lerp(minAlpha, 1f, t);
+                ui.SetPreviewTint(new Color(1f, 0.85f, 0.2f, alpha));
+                consumed++;
+            }
+            else
+            {
+                // Dice không bị consume: bình thường
+                ui.ClearPreviewTint();
+            }
+        }
     }
 }

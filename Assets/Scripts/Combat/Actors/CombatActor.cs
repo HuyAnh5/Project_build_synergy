@@ -1,4 +1,7 @@
-﻿using UnityEngine;
+using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public class CombatActor : MonoBehaviour
 {
@@ -9,32 +12,127 @@ public class CombatActor : MonoBehaviour
     public TeamSide team = TeamSide.Enemy;
     public RowTag row = RowTag.Front;
 
-    [Tooltip("Player thường dùng HUD riêng trên Canvas, không cần world-ui.")]
+    [Tooltip("Player usually uses its own HUD, but can still expose world UI.")]
     public bool isPlayer = false;
 
     [Header("Stats")]
     public int maxHP = 30;
     public int hp = 30;
-
     public int maxFocus = 9;
     public int focus = 2;
 
-    [Tooltip("Focus khởi đầu mỗi battle (prototype). Nếu muốn focus persist thì đừng gọi ResetForBattle hoặc đổi rule.")]
+    [Tooltip("Battle start focus for non-player actors.")]
     public int startingFocus = 2;
 
     public int guardPool = 0;
+
+    private bool _deathStateApplied;
 
     [Header("Refs")]
     public Transform firePoint;
     public StatusController status;
 
-    [Tooltip("Điểm gắn world-ui. Nếu để trống sẽ dùng transform của actor.")]
+    [Tooltip("World UI anchor. If empty, one is auto-created at the actor visual center.")]
     public Transform uiAnchor;
+    public bool autoSetupUiAnchor = true;
+    public string uiAnchorName = "UIAnchor";
 
     private void Awake()
     {
         if (!status) status = GetComponent<StatusController>();
-        if (!uiAnchor) uiAnchor = transform;
+        EnsureUiAnchor(alignExistingAnchorToVisualCenter: true);
+    }
+
+    private void OnValidate()
+    {
+        EnsureUiAnchor(alignExistingAnchorToVisualCenter: false);
+    }
+
+    [ContextMenu("Align UI Anchor To Visual Center")]
+    public void AlignUiAnchorToVisualCenter()
+    {
+        EnsureUiAnchor(alignExistingAnchorToVisualCenter: true);
+    }
+
+    private void EnsureUiAnchor(bool alignExistingAnchorToVisualCenter)
+    {
+        if (!autoSetupUiAnchor)
+        {
+            if (!uiAnchor) uiAnchor = transform;
+            return;
+        }
+
+        if (!CanMutateHierarchyInEditor())
+        {
+            if (!uiAnchor)
+                uiAnchor = transform;
+            return;
+        }
+
+        bool createdAnchor = false;
+        if (uiAnchor == null)
+        {
+            Transform existing = transform.Find(uiAnchorName);
+            if (existing != null)
+                uiAnchor = existing;
+        }
+
+        if (uiAnchor == null)
+        {
+            GameObject go = new GameObject(uiAnchorName);
+            uiAnchor = go.transform;
+            uiAnchor.SetParent(transform, false);
+            createdAnchor = true;
+        }
+
+        if (createdAnchor || alignExistingAnchorToVisualCenter)
+        {
+            uiAnchor.localRotation = Quaternion.identity;
+            uiAnchor.localScale = Vector3.one;
+            uiAnchor.localPosition = GetVisualCenterLocalPosition();
+        }
+    }
+
+    private Vector3 GetVisualCenterLocalPosition()
+    {
+        Renderer[] renderers = GetComponentsInChildren<Renderer>(true);
+        bool hasBounds = false;
+        Bounds combined = default;
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null)
+                continue;
+            if (!renderer.enabled)
+                continue;
+            if (renderer.transform == uiAnchor)
+                continue;
+            if (renderer is ParticleSystemRenderer)
+                continue;
+
+            if (!hasBounds)
+            {
+                combined = renderer.bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                combined.Encapsulate(renderer.bounds);
+            }
+        }
+
+        Vector3 worldCenter = hasBounds ? combined.center : transform.position;
+        return transform.InverseTransformPoint(worldCenter);
+    }
+
+    private bool CanMutateHierarchyInEditor()
+    {
+#if UNITY_EDITOR
+        if (!Application.isPlaying && EditorUtility.IsPersistent(this) && !PrefabUtility.IsPartOfPrefabInstance(this))
+            return false;
+#endif
+        return true;
     }
 
     public bool TrySpendFocus(int amount)
@@ -92,6 +190,8 @@ public class CombatActor : MonoBehaviour
             r.hpLost = before - hp;
         }
 
+        HandleLifeStateChanged();
+
         return r;
     }
 
@@ -106,7 +206,10 @@ public class CombatActor : MonoBehaviour
             remaining -= blocked;
         }
 
-        if (remaining > 0) hp = Mathf.Max(0, hp - remaining);
+        if (remaining > 0)
+            hp = Mathf.Max(0, hp - remaining);
+
+        HandleLifeStateChanged();
     }
 
     public int Heal(int amount)
@@ -118,30 +221,58 @@ public class CombatActor : MonoBehaviour
         int healed = hp - before;
         if (healed <= 0) return 0;
 
-        // Spawn popup xanh trên chính target được heal
         var pop = Object.FindObjectOfType<DamagePopupSystem>();
         if (pop != null)
-        {
             pop.SpawnHeal(this, this, healed);
-        }
 
         return healed;
     }
 
     public void ResetForBattle(bool resetHp)
     {
-        if (resetHp) hp = maxHP;
+        _deathStateApplied = false;
+        if (!gameObject.activeSelf)
+            gameObject.SetActive(true);
+
+        if (resetHp)
+            hp = maxHP;
 
         int battleStartFocus = isPlayer ? 2 : startingFocus;
         focus = Mathf.Clamp(battleStartFocus, 0, maxFocus);
         guardPool = 0;
 
-        if (status) status.ClearAll();
+        if (status)
+            status.ClearAll();
+
         PassiveSystem passiveSystem = GetComponent<PassiveSystem>();
-        if (passiveSystem != null) passiveSystem.OnCombatStarted();
+        if (passiveSystem != null)
+            passiveSystem.OnCombatStarted();
+
         SkillCombatState skillCombatState = GetComponent<SkillCombatState>();
-        if (skillCombatState != null) skillCombatState.ResetForBattle();
+        if (skillCombatState != null)
+            skillCombatState.ResetForBattle();
     }
 
     public bool IsDead => hp <= 0;
+
+    private void HandleLifeStateChanged()
+    {
+        bool dead = hp <= 0;
+        if (!dead)
+        {
+            _deathStateApplied = false;
+            return;
+        }
+
+        if (_deathStateApplied)
+            return;
+
+        _deathStateApplied = true;
+
+        BattlePartyManager2D party = Object.FindFirstObjectByType<BattlePartyManager2D>(FindObjectsInactive.Include);
+        if (party != null)
+            party.LayoutAll();
+
+        gameObject.SetActive(false);
+    }
 }

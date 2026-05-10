@@ -98,7 +98,7 @@ public static class ConsumableRuntimeUtility
             $"Copied face {sourceFaceIndex} from {sourceDie.name} to face {targetFaceIndex} on {targetDie.name}.");
     }
 
-    public static bool CanUseInCombat(ConsumableDataSO data, CombatActor user, CombatActor target, RunInventoryManager inventory, DiceSpinnerGeneric targetDie = null)
+    public static bool CanUseInCombat(ConsumableDataSO data, CombatActor user, CombatActor target, RunInventoryManager inventory, DiceSpinnerGeneric targetDie = null, TurnManager turnManager = null)
     {
         if (data == null)
             return false;
@@ -124,14 +124,16 @@ public static class ConsumableRuntimeUtility
             case ConsumableEffectId.DoubleValue:
                 return targetDie != null;
             case ConsumableEffectId.DiceReroll:
-                return targetDie != null;
+                return CanRerollAvailableDie(targetDie, turnManager);
+            case ConsumableEffectId.ReloadDice:
+                return CanReloadSpentDie(targetDie, turnManager);
 
             default:
                 return false;
         }
     }
 
-    public static ConsumableUseResult TryUseInCombat(ConsumableDataSO data, CombatActor user, CombatActor target, RunInventoryManager inventory, DiceSpinnerGeneric targetDie = null)
+    public static ConsumableUseResult TryUseInCombat(ConsumableDataSO data, CombatActor user, CombatActor target, RunInventoryManager inventory, DiceSpinnerGeneric targetDie = null, TurnManager turnManager = null)
     {
         if (data == null)
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingConsumable, "Consumable is empty.");
@@ -157,7 +159,9 @@ public static class ConsumableRuntimeUtility
             case ConsumableEffectId.DoubleValue:
                 return TryDoubleValue(targetDie);
             case ConsumableEffectId.DiceReroll:
-                return TryRerollDie(targetDie);
+                return TryRerollDie(targetDie, turnManager);
+            case ConsumableEffectId.ReloadDice:
+                return TryReloadDie(targetDie, turnManager);
             default:
                 return ConsumableUseResult.Fail(ConsumableUseFailure.UnsupportedEffect, "This combat consumable is not implemented yet.");
         }
@@ -285,12 +289,84 @@ public static class ConsumableRuntimeUtility
         return ConsumableUseResult.Ok($"{targetDie.name} face values are doubled for this turn.");
     }
 
-    private static ConsumableUseResult TryRerollDie(DiceSpinnerGeneric targetDie)
+    private static bool CanRerollAvailableDie(DiceSpinnerGeneric targetDie, TurnManager turnManager)
+    {
+        if (targetDie == null)
+            return false;
+
+        turnManager ??= Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+        if (!HasCompletedInitialRoll(turnManager))
+            return false;
+
+        return !turnManager.IsDieSpentThisTurn(targetDie);
+    }
+
+    private static ConsumableUseResult TryRerollDie(DiceSpinnerGeneric targetDie, TurnManager turnManager)
+    {
+        if (targetDie == null)
+            return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Select a die first.");
+        if (!CanRerollAvailableDie(targetDie, turnManager))
+        {
+            turnManager ??= Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+            if (turnManager == null || turnManager.diceRig == null)
+                return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Dice Reroll is missing the active turn manager.");
+            if (!turnManager.diceRig.HasRolledThisTurn || turnManager.diceRig.IsRolling)
+                return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Dice Reroll only works after the initial roll is complete.");
+            if (turnManager.IsDieSpentThisTurn(targetDie))
+                return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Dice Reroll only works on available dice.");
+            return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Dice Reroll could not validate the selected die.");
+        }
+
+        targetDie.RollRandomFace();
+        return ConsumableUseResult.Ok($"{targetDie.name} rerolled.");
+    }
+
+    private static bool CanReloadSpentDie(DiceSpinnerGeneric targetDie, TurnManager turnManager)
+    {
+        if (targetDie == null)
+            return false;
+
+        turnManager ??= Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+        if (!HasCompletedInitialRoll(turnManager))
+            return false;
+
+        return turnManager.IsDieSpentThisTurn(targetDie);
+    }
+
+    private static ConsumableUseResult TryReloadDie(DiceSpinnerGeneric targetDie, TurnManager turnManager)
     {
         if (targetDie == null)
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Select a die first.");
 
+        turnManager ??= Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+        if (turnManager == null || turnManager.diceRig == null)
+            return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Reload Dice is missing the active turn manager.");
+        if (!turnManager.diceRig.HasRolledThisTurn || turnManager.diceRig.IsRolling)
+            return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Reload Dice only works after the initial roll is complete.");
+        if (!turnManager.IsDieSpentThisTurn(targetDie))
+            return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Reload Dice only works on a die already used this turn.");
+
+        turnManager.RestoreDieToAvailableThisTurn(targetDie);
+        targetDie.onRollComplete += HandleReloadRollComplete;
         targetDie.RollRandomFace();
-        return ConsumableUseResult.Ok($"{targetDie.name} rerolled.");
+        return ConsumableUseResult.Ok($"{targetDie.name} reloaded and returned to available dice.");
+
+        void HandleReloadRollComplete(DiceSpinnerGeneric rolledDie)
+        {
+            if (rolledDie != targetDie)
+                return;
+
+            targetDie.onRollComplete -= HandleReloadRollComplete;
+            if (turnManager != null)
+                turnManager.RefreshPlanningAfterDiceValueReorder();
+        }
+    }
+
+    private static bool HasCompletedInitialRoll(TurnManager turnManager)
+    {
+        if (turnManager == null || turnManager.diceRig == null)
+            return false;
+
+        return turnManager.diceRig.HasRolledThisTurn && !turnManager.diceRig.IsRolling;
     }
 }

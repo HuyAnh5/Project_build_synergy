@@ -43,6 +43,7 @@ public class DamagePopupSystem : MonoBehaviour
     public Color hpColor = Color.white;
     public Color guardColor = new Color(0.3f, 0.75f, 1f, 1f);
     public Color healColor = new Color(0.25f, 1f, 0.35f, 1f);
+    public Color focusGainColor = new Color(0.22f, 0.74f, 1f, 1f);
 
     [Header("Debug")]
     public bool logIfSpawnFails = true;
@@ -138,6 +139,15 @@ public class DamagePopupSystem : MonoBehaviour
         SpawnHpArc(healer, target, a.ToString(), healColor);
     }
 
+    public void SpawnFocusGain(CombatActor source, CombatActor target, int amount)
+    {
+        if (target == null) return;
+        int a = Mathf.Max(0, amount);
+        if (a <= 0) return;
+
+        SpawnGuardSCurve(source, target, a.ToString(), focusGainColor);
+    }
+
     // ======================
     // INTERNAL (ANIM)
     // ======================
@@ -225,6 +235,11 @@ public class DamagePopupSystem : MonoBehaviour
     /// </summary>
     private void SpawnGuardSCurve(CombatActor source, CombatActor target, string text)
     {
+        SpawnGuardSCurve(source, target, text, guardColor);
+    }
+
+    private void SpawnGuardSCurve(CombatActor source, CombatActor target, string text, Color color)
+    {
         if (popupPrefab == null)
         {
             if (logIfSpawnFails) Debug.LogWarning("[DamagePopupSystem] popupPrefab is NULL.", this);
@@ -243,7 +258,7 @@ public class DamagePopupSystem : MonoBehaviour
 
         t.gameObject.SetActive(true);
         t.text = text;
-        t.color = guardColor;
+        t.color = color;
 
         Vector3 start = GetCenter(target);
         t.transform.position = start;

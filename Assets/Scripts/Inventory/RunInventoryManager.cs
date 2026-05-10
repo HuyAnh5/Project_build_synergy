@@ -388,7 +388,7 @@ public class RunInventoryManager : MonoBehaviour
     {
         EnsureSizes();
         if (index < 0 || index >= ConsumableCapacity) return 0;
-        return consumableSlots[index].asset != null ? Mathf.Max(0, consumableSlots[index].charges) : 0;
+        return consumableSlots[index].asset != null ? 1 : 0;
     }
 
     public int GetConsumableCount()
@@ -411,9 +411,7 @@ public class RunInventoryManager : MonoBehaviour
         if (index < 0 || index >= ConsumableCapacity) return false;
         if (asset == null) return false;
 
-        int resolvedCharges = charges > 0 ? charges : asset.GetStartingCharges();
-        consumableSlots[index] = new ConsumableSlot { asset = asset, charges = Mathf.Max(0, resolvedCharges) };
-        if (consumableSlots[index].charges <= 0) consumableSlots[index] = default;
+        consumableSlots[index] = new ConsumableSlot { asset = asset, charges = 1 };
         CompactConsumables();
         InventoryChanged?.Invoke();
         return true;
@@ -492,8 +490,7 @@ public class RunInventoryManager : MonoBehaviour
         ConsumableSlot slot = consumableSlots[index];
         if (slot.asset == null) return false;
 
-        slot.charges -= amount;
-        if (slot.charges <= 0) slot = default;
+        slot = default;
 
         consumableSlots[index] = slot;
         CompactConsumables();
@@ -662,7 +659,7 @@ public class RunInventoryManager : MonoBehaviour
         for (int i = 0; i < snapshot.Length; i++)
         {
             ConsumableSlot slot = consumableSlots[i];
-            snapshot[i] = new RunConsumableSlotState(slot.asset, slot.asset != null ? slot.charges : 0);
+            snapshot[i] = new RunConsumableSlotState(slot.asset, slot.asset != null ? 1 : 0);
         }
 
         return snapshot;
@@ -717,7 +714,7 @@ public class RunInventoryManager : MonoBehaviour
             consumableSlots[i] = new ConsumableSlot
             {
                 asset = slots[i].Asset,
-                charges = slots[i].Charges
+                charges = slots[i].Asset != null ? 1 : 0
             };
         }
 
@@ -746,7 +743,7 @@ public class RunInventoryManager : MonoBehaviour
         List<ConsumableSlot> ordered = new List<ConsumableSlot>(consumableSlots.Length);
         for (int i = 0; i < consumableSlots.Length; i++)
         {
-            if (consumableSlots[i].asset != null && consumableSlots[i].charges > 0)
+            if (consumableSlots[i].asset != null)
                 ordered.Add(consumableSlots[i]);
         }
 

@@ -2,6 +2,9 @@ using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
 using TMPro;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -14,6 +17,7 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     private static readonly int BaseColorPropertyId = Shader.PropertyToID("_BaseColor");
     private static readonly int ColorPropertyId = Shader.PropertyToID("_Color");
+    private const string FeedbackOutlineShaderName = "Hidden/BuildSynergy/DieFeedbackOutlineURP";
 
     public Transform pivot;
     public DiceFace[] faces;
@@ -23,21 +27,33 @@ public class DiceSpinnerGeneric : MonoBehaviour
     [SerializeField] private Renderer[] wholeDieRenderers;
     [SerializeField] private Color patinaColor = new Color(0.42f, 0.78f, 0.67f, 1f);
 
-    [Header("TextMeshPro")]
-    public TMP_Text valueText;
-    public TMP_Text enchantText;
-    public string rollingText = "...";
-    public bool showResultAtStart = false;
+    [Header("Combat Feedback")]
+    [SerializeField, HideInInspector] private bool enableRollResultOutline = true;
+    [SerializeField, HideInInspector] private Color critOutlineColor = new Color(1f, 0.82f, 0.15f, 1f);
+    [SerializeField, HideInInspector] private Color failOutlineColor = new Color(1f, 0.15f, 0.15f, 1f);
+    [SerializeField, HideInInspector] private float outlineScaleMultiplier = 1.08f;
+    [SerializeField, HideInInspector] private float failShakeDuration = 0.16f;
+    [SerializeField, HideInInspector] private Vector3 failShakeStrength = new Vector3(0.035f, 0.035f, 0.035f);
+    [SerializeField, HideInInspector] private int failShakeVibrato = 22;
+    [SerializeField, HideInInspector, Range(0f, 1f)] private float failShakeElasticity = 0.75f;
 
-    [Header("Roll State Text (optional)")]
-    [Tooltip("Optional small label shown after roll, for example CRIT / FAIL.")]
-    public TMP_Text rollStateText;
-    public bool clearStateWhileRolling = true;
-    public string critText = "CRIT";
-    public string failText = "FAIL";
-    public string normalText = "";
-    [Tooltip("Debug/helper display. Example: CRIT: +1 or FAIL: -1.")]
-    public bool showAddedValueInRollState = true;
+    [HideInInspector] public TMP_Text valueText;
+    [HideInInspector] public TMP_Text enchantText;
+    [HideInInspector] public string rollingText = "...";
+    [HideInInspector] public bool showResultAtStart = false;
+
+    [Header("Crit Fail Popup")]
+    [HideInInspector] public TMP_Text rollStateText;
+    [HideInInspector] public bool clearStateWhileRolling = true;
+    [HideInInspector] public string critText = "CRIT";
+    [HideInInspector] public string failText = "FAIL";
+    [HideInInspector] public string normalText = "";
+    [HideInInspector] public bool showAddedValueInRollState = true;
+    [SerializeField] private bool animateCritFailPopup = true;
+    [SerializeField] private Color rollStatePopupColor = Color.white;
+    [SerializeField, Min(18f)] private float rollStatePopupFontSize = 70f;
+    [SerializeField, Min(0f)] private float rollStatePopupRiseDistance = 26f;
+    [SerializeField, Min(0.05f)] private float rollStatePopupDuration = 0.6f;
 
     [Header("Input")]
     public bool enableSpaceKey = true;
@@ -62,6 +78,17 @@ public class DiceSpinnerGeneric : MonoBehaviour
     private Color[] _faceBaseColors;
     private Material[][] _wholeDieMaterialInstances;
     private Color[][] _wholeDieOriginalColors;
+    private GameObject[] _feedbackOutlineObjects;
+    private Renderer[] _feedbackOutlineRenderers;
+    private Material[] _feedbackOutlineMaterials;
+    private Tween _feedbackShakeTween;
+    private Tween _rollStatePopupTween;
+    private Vector3 _pivotBaseLocalPosition;
+    private TMP_Text _rollStatePopupInstance;
+    private Canvas _rollStatePopupCanvas;
+    private DiceDraggableUI _cachedDiceDraggableUi;
+    private bool _feedbackCrit;
+    private bool _feedbackFail;
 
     public int LastRolledValue { get; private set; }
     public int LastFaceIndex { get; private set; } = -1;
@@ -76,9 +103,12 @@ public class DiceSpinnerGeneric : MonoBehaviour
     {
         if (pivot == null)
             pivot = transform;
+        _pivotBaseLocalPosition = pivot.localPosition;
+        AutoWireTextReferences();
 
         EnsureWholeDieMaterialInstances();
         ApplyWholeDieVisuals();
+        ApplyFeedbackOutlineVisuals();
         RefreshAllFaceValueTexts();
         RefreshDisplayedState();
     }
@@ -128,18 +158,7 @@ public class DiceSpinnerGeneric : MonoBehaviour
         LastFaceIndex = faceIndex;
         LastRolledValue = faces[faceIndex].value;
 
-        if (valueText != null)
-        {
-            valueText.text = rollingText;
-            if (showResultAtStart)
-                valueText.text = LastRolledValue.ToString();
-        }
-
-        if (enchantText != null)
-            enchantText.text = showResultAtStart ? GetCurrentFaceDebugLabel() : string.Empty;
-
-        if (rollStateText != null && clearStateWhileRolling)
-            rollStateText.text = string.Empty;
+        ClearRollStatePopupVisuals(clearText: true);
 
         Vector3 targetEuler = NormalizeEuler(faces[faceIndex].localEuler);
 
@@ -165,10 +184,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
         {
             IsRolling = false;
 
-            if (valueText != null && !showResultAtStart)
-                valueText.text = LastRolledValue.ToString();
-
             RefreshDisplayedState();
+            PlayRollStatePopupIfNeeded();
             onRollComplete?.Invoke(this);
         });
 
@@ -476,6 +493,9 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     public string GetRollStateLabel()
     {
+        if (animateCritFailPopup && Application.isPlaying)
+            return normalText;
+
         DiceFaceEnchantKind currentEnchant = GetCurrentFaceEnchant();
 
         if (LastRollIsCrit)
@@ -561,16 +581,22 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     public void RefreshDisplayedState()
     {
-        if (rollStateText != null)
-            rollStateText.text = GetRollStateLabel();
-
         RefreshAllFaceValueTexts();
+    }
 
-        if (valueText != null && LastFaceIndex >= 0 && LastFaceIndex < faces.Length && !IsRolling)
-            valueText.text = LastRolledValue.ToString();
+    public void SetCombatRollFeedback(bool crit, bool fail)
+    {
+        bool failTriggered = !_feedbackFail && fail;
+        if (_feedbackCrit == crit && _feedbackFail == fail)
+            return;
 
-        if (enchantText != null)
-            enchantText.text = GetCurrentFaceDebugLabel();
+        _feedbackCrit = crit;
+        _feedbackFail = fail;
+        ApplyWholeDieVisuals();
+        ApplyFeedbackOutlineVisuals();
+
+        if (failTriggered)
+            PlayFailFeedbackShake();
     }
 
     public void SetFacePreviewValue(int faceIndex, int previewValue, bool blink = true)
@@ -639,6 +665,8 @@ public class DiceSpinnerGeneric : MonoBehaviour
     {
         if (pivot == null)
             pivot = transform;
+        _pivotBaseLocalPosition = pivot.localPosition;
+        AutoWireTextReferences();
 
         if (faces == null || faces.Length == 0)
         {
@@ -653,11 +681,13 @@ public class DiceSpinnerGeneric : MonoBehaviour
     {
         if (pivot == null)
             pivot = transform;
+        _pivotBaseLocalPosition = pivot.localPosition;
+        AutoWireTextReferences();
 
         if (wholeDieRenderers == null || wholeDieRenderers.Length == 0)
             AutoCollectWholeDieRenderers();
 
-        if (Application.isPlaying)
+        if (CanUseWholeDieMaterialInstances())
         {
             EnsureWholeDieMaterialInstances();
             ApplyWholeDieVisuals();
@@ -669,6 +699,16 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     private void OnDestroy()
     {
+        _feedbackShakeTween?.Kill();
+        _rollStatePopupTween?.Kill();
+        if (_rollStatePopupInstance != null)
+        {
+            if (Application.isPlaying)
+                Destroy(_rollStatePopupInstance.gameObject);
+            else
+                DestroyImmediate(_rollStatePopupInstance.gameObject);
+        }
+        ReleaseFeedbackOutlineRenderers();
         ReleaseWholeDieMaterialInstances();
     }
 
@@ -793,6 +833,9 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
     private void EnsureWholeDieMaterialInstances()
     {
+        if (!CanUseWholeDieMaterialInstances())
+            return;
+
         AutoCollectWholeDieRenderers();
 
         if (wholeDieRenderers == null || wholeDieRenderers.Length == 0)
@@ -818,6 +861,9 @@ public class DiceSpinnerGeneric : MonoBehaviour
                 continue;
 
             Material[] materials = renderer.materials;
+            if (materials == null)
+                continue;
+
             _wholeDieMaterialInstances[rendererIndex] = materials;
             _wholeDieOriginalColors[rendererIndex] = new Color[materials.Length];
 
@@ -859,6 +905,82 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
                 SetMaterialColor(material, targetColor);
             }
+        }
+    }
+
+    private void EnsureFeedbackOutlineRenderers()
+    {
+        if (!Application.isPlaying || !enableRollResultOutline)
+            return;
+
+        AutoCollectWholeDieRenderers();
+        if (wholeDieRenderers == null || wholeDieRenderers.Length == 0)
+            return;
+
+        if (_feedbackOutlineRenderers != null &&
+            _feedbackOutlineObjects != null &&
+            _feedbackOutlineMaterials != null &&
+            _feedbackOutlineRenderers.Length == wholeDieRenderers.Length &&
+            _feedbackOutlineObjects.Length == wholeDieRenderers.Length &&
+            _feedbackOutlineMaterials.Length == wholeDieRenderers.Length)
+        {
+            return;
+        }
+
+        ReleaseFeedbackOutlineRenderers();
+
+        Shader outlineShader = Shader.Find(FeedbackOutlineShaderName);
+        if (outlineShader == null)
+            return;
+
+        _feedbackOutlineObjects = new GameObject[wholeDieRenderers.Length];
+        _feedbackOutlineRenderers = new Renderer[wholeDieRenderers.Length];
+        _feedbackOutlineMaterials = new Material[wholeDieRenderers.Length];
+
+        for (int rendererIndex = 0; rendererIndex < wholeDieRenderers.Length; rendererIndex++)
+        {
+            Renderer sourceRenderer = wholeDieRenderers[rendererIndex];
+            if (sourceRenderer == null)
+                continue;
+
+            GameObject outlineGo = TryCreateOutlineRenderer(sourceRenderer, outlineShader, out Renderer outlineRenderer, out Material outlineMaterial);
+            if (outlineGo == null || outlineRenderer == null || outlineMaterial == null)
+                continue;
+
+            _feedbackOutlineObjects[rendererIndex] = outlineGo;
+            _feedbackOutlineRenderers[rendererIndex] = outlineRenderer;
+            _feedbackOutlineMaterials[rendererIndex] = outlineMaterial;
+        }
+    }
+
+    private void ApplyFeedbackOutlineVisuals()
+    {
+        EnsureFeedbackOutlineRenderers();
+        if (_feedbackOutlineRenderers == null || _feedbackOutlineMaterials == null)
+            return;
+
+        bool showOutline = enableRollResultOutline && (_feedbackCrit || _feedbackFail);
+        Color outlineColor = _feedbackFail ? failOutlineColor : critOutlineColor;
+
+        for (int rendererIndex = 0; rendererIndex < _feedbackOutlineRenderers.Length; rendererIndex++)
+        {
+            Renderer outlineRenderer = _feedbackOutlineRenderers[rendererIndex];
+            Material outlineMaterial = rendererIndex < _feedbackOutlineMaterials.Length ? _feedbackOutlineMaterials[rendererIndex] : null;
+            GameObject outlineGo = rendererIndex < _feedbackOutlineObjects.Length ? _feedbackOutlineObjects[rendererIndex] : null;
+            Renderer sourceRenderer = wholeDieRenderers != null && rendererIndex < wholeDieRenderers.Length ? wholeDieRenderers[rendererIndex] : null;
+
+            if (outlineRenderer == null || outlineMaterial == null || outlineGo == null)
+                continue;
+
+            bool active = showOutline && sourceRenderer != null && sourceRenderer.enabled && sourceRenderer.gameObject.activeInHierarchy;
+            if (outlineGo.activeSelf != active)
+                outlineGo.SetActive(active);
+
+            if (!active)
+                continue;
+
+            outlineGo.transform.localScale = Vector3.one * Mathf.Max(1.001f, outlineScaleMultiplier);
+            SetMaterialColor(outlineMaterial, outlineColor);
         }
     }
 
@@ -911,6 +1033,276 @@ public class DiceSpinnerGeneric : MonoBehaviour
         _wholeDieOriginalColors = null;
     }
 
+    private void ReleaseFeedbackOutlineRenderers()
+    {
+        if (_feedbackOutlineMaterials != null)
+        {
+            for (int i = 0; i < _feedbackOutlineMaterials.Length; i++)
+            {
+                Material material = _feedbackOutlineMaterials[i];
+                if (material == null)
+                    continue;
+
+                if (Application.isPlaying)
+                    Destroy(material);
+                else
+                    DestroyImmediate(material);
+            }
+        }
+
+        if (_feedbackOutlineObjects != null)
+        {
+            for (int i = 0; i < _feedbackOutlineObjects.Length; i++)
+            {
+                GameObject outlineGo = _feedbackOutlineObjects[i];
+                if (outlineGo == null)
+                    continue;
+
+                if (Application.isPlaying)
+                    Destroy(outlineGo);
+                else
+                    DestroyImmediate(outlineGo);
+            }
+        }
+
+        _feedbackOutlineObjects = null;
+        _feedbackOutlineRenderers = null;
+        _feedbackOutlineMaterials = null;
+    }
+
+    private bool CanUseWholeDieMaterialInstances()
+    {
+        if (!Application.isPlaying)
+            return false;
+
+#if UNITY_EDITOR
+        if (EditorUtility.IsPersistent(this) && !PrefabUtility.IsPartOfPrefabInstance(this))
+            return false;
+#endif
+        return true;
+    }
+
+    private void PlayRollStatePopupIfNeeded()
+    {
+        if (!Application.isPlaying || !animateCritFailPopup)
+            return;
+
+        string label = null;
+        if (LastRollIsCrit)
+            label = critText;
+        else if (LastRollIsFail)
+            label = failText;
+
+        if (string.IsNullOrWhiteSpace(label))
+            return;
+
+        TMP_Text popup = GetOrCreateRollStatePopupInstance();
+        if (popup == null)
+            return;
+
+        _rollStatePopupTween?.Kill();
+
+        PositionRollStatePopup(popup);
+        popup.gameObject.SetActive(true);
+        popup.text = label;
+        Color popupColor = rollStatePopupColor;
+        popupColor.a = 1f;
+        popup.color = popupColor;
+
+        Sequence seq = DOTween.Sequence();
+        if (popup.rectTransform != null)
+        {
+            Vector2 start = popup.rectTransform.anchoredPosition;
+            seq.Append(popup.rectTransform.DOAnchorPosY(start.y + rollStatePopupRiseDistance, Mathf.Max(0.01f, rollStatePopupDuration)).SetEase(Ease.OutQuad));
+        }
+        else
+        {
+            Vector3 start = popup.transform.position;
+            seq.Append(popup.transform.DOMoveY(start.y + rollStatePopupRiseDistance, Mathf.Max(0.01f, rollStatePopupDuration)).SetEase(Ease.OutQuad));
+        }
+
+        seq.Join(popup.DOFade(0f, Mathf.Max(0.01f, rollStatePopupDuration)).SetEase(Ease.OutQuad));
+        seq.SetUpdate(true);
+        seq.OnComplete(() =>
+        {
+            ClearRollStatePopupVisuals(clearText: true);
+            _rollStatePopupTween = null;
+        });
+        _rollStatePopupTween = seq;
+    }
+
+    private void ClearRollStatePopupVisuals(bool clearText)
+    {
+        _rollStatePopupTween?.Kill();
+        _rollStatePopupTween = null;
+
+        if (_rollStatePopupInstance == null)
+            return;
+
+        if (clearText)
+            _rollStatePopupInstance.text = string.Empty;
+
+        _rollStatePopupInstance.gameObject.SetActive(false);
+    }
+
+    private TMP_Text GetOrCreateRollStatePopupInstance()
+    {
+        Canvas popupCanvas = ResolveRollStatePopupCanvas();
+        Transform popupParent = popupCanvas != null ? popupCanvas.transform : transform;
+        if (popupParent == null)
+            return null;
+
+        bool needsRecreate =
+            _rollStatePopupInstance == null ||
+            _rollStatePopupCanvas != popupCanvas ||
+            _rollStatePopupInstance.transform.parent != popupParent;
+
+        if (!needsRecreate)
+            return _rollStatePopupInstance;
+
+        if (_rollStatePopupInstance != null)
+        {
+            if (Application.isPlaying)
+                Destroy(_rollStatePopupInstance.gameObject);
+            else
+                DestroyImmediate(_rollStatePopupInstance.gameObject);
+        }
+
+        _rollStatePopupCanvas = popupCanvas;
+        GameObject popupGo = new GameObject("CritFailPopup", typeof(RectTransform), typeof(TextMeshProUGUI));
+        popupGo.layer = gameObject.layer;
+        popupGo.transform.SetParent(popupParent, false);
+        _rollStatePopupInstance = popupGo.GetComponent<TextMeshProUGUI>();
+        _rollStatePopupInstance.raycastTarget = false;
+        _rollStatePopupInstance.text = string.Empty;
+        _rollStatePopupInstance.enableAutoSizing = false;
+        _rollStatePopupInstance.fontSize = Mathf.Max(18f, rollStatePopupFontSize);
+        _rollStatePopupInstance.enableWordWrapping = false;
+        _rollStatePopupInstance.overflowMode = TextOverflowModes.Overflow;
+        _rollStatePopupInstance.alignment = TextAlignmentOptions.Center;
+        _rollStatePopupInstance.color = rollStatePopupColor;
+        if (TMP_Settings.defaultFontAsset != null)
+            _rollStatePopupInstance.font = TMP_Settings.defaultFontAsset;
+        RectTransform popupRect = _rollStatePopupInstance.rectTransform;
+        popupRect.anchorMin = new Vector2(0.5f, 0.5f);
+        popupRect.anchorMax = new Vector2(0.5f, 0.5f);
+        popupRect.pivot = new Vector2(0.5f, 0.5f);
+        popupRect.sizeDelta = new Vector2(240f, Mathf.Max(56f, rollStatePopupFontSize * 1.4f));
+        _rollStatePopupInstance.transform.localScale = Vector3.one;
+        _rollStatePopupInstance.gameObject.SetActive(false);
+        return _rollStatePopupInstance;
+    }
+
+    private Canvas ResolveRollStatePopupCanvas()
+    {
+        if (_rollStatePopupCanvas != null && !_rollStatePopupCanvas.transform.IsChildOf(pivot))
+            return _rollStatePopupCanvas;
+
+        RectTransform anchor = GetCritFailPopupAnchor();
+        Canvas sourceCanvas = anchor != null ? anchor.GetComponentInParent<Canvas>() : null;
+        if (sourceCanvas != null && sourceCanvas.rootCanvas != null && !sourceCanvas.rootCanvas.transform.IsChildOf(pivot))
+            return sourceCanvas.rootCanvas;
+
+        Canvas[] canvases = FindObjectsOfType<Canvas>(true);
+        Canvas fallback = sourceCanvas != null ? sourceCanvas.rootCanvas : null;
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            Canvas canvas = canvases[i];
+            if (canvas == null || !canvas.isRootCanvas)
+                continue;
+
+            if (pivot != null && canvas.transform.IsChildOf(pivot))
+                continue;
+
+            if (canvas.renderMode == RenderMode.ScreenSpaceOverlay || canvas.renderMode == RenderMode.ScreenSpaceCamera)
+                return canvas;
+
+            if (fallback == null)
+                fallback = canvas;
+        }
+
+        return fallback;
+    }
+
+    private void PositionRollStatePopup(TMP_Text popup)
+    {
+        RectTransform sourceAnchor = GetCritFailPopupAnchor();
+        if (popup == null || sourceAnchor == null)
+            return;
+
+        RectTransform popupRect = popup.rectTransform;
+        RectTransform sourceRect = sourceAnchor;
+        if (popupRect == null || sourceRect == null)
+        {
+            popup.transform.position = sourceAnchor.position;
+            return;
+        }
+
+        Canvas popupCanvas = _rollStatePopupCanvas != null ? _rollStatePopupCanvas : popup.canvas;
+        RectTransform popupCanvasRect = popupCanvas != null ? popupCanvas.transform as RectTransform : null;
+        if (popupCanvasRect == null)
+        {
+            popup.transform.position = sourceAnchor.position;
+            return;
+        }
+
+        popupRect.anchorMin = new Vector2(0.5f, 0.5f);
+        popupRect.anchorMax = new Vector2(0.5f, 0.5f);
+        popupRect.pivot = sourceRect.pivot;
+
+        Camera sourceCamera = GetCanvasEventCamera(sourceRect.GetComponentInParent<Canvas>());
+        Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(sourceCamera, sourceRect.position);
+        Camera popupCamera = GetCanvasEventCamera(popupCanvas);
+        if (RectTransformUtility.ScreenPointToLocalPointInRectangle(popupCanvasRect, screenPoint, popupCamera, out Vector2 localPoint))
+            popupRect.anchoredPosition = localPoint;
+        else
+            popup.transform.position = sourceAnchor.position;
+    }
+
+    private static Camera GetCanvasEventCamera(Canvas canvas)
+    {
+        if (canvas == null)
+            return null;
+
+        if (canvas.renderMode == RenderMode.ScreenSpaceOverlay)
+            return null;
+
+        return canvas.worldCamera;
+    }
+
+    private void AutoWireTextReferences()
+    {
+        valueText = null;
+        enchantText = null;
+        rollStateText = null;
+    }
+
+    private RectTransform GetCritFailPopupAnchor()
+    {
+        DiceDraggableUI diceUi = GetDiceDraggableUi();
+        if (diceUi != null)
+            return diceUi.GetCritFailPopupAnchor();
+        return null;
+    }
+
+    private DiceDraggableUI GetDiceDraggableUi()
+    {
+        if (_cachedDiceDraggableUi != null && _cachedDiceDraggableUi.dice == this)
+            return _cachedDiceDraggableUi;
+
+        DiceDraggableUI[] allDiceUi = FindObjectsOfType<DiceDraggableUI>(true);
+        for (int i = 0; i < allDiceUi.Length; i++)
+        {
+            DiceDraggableUI candidate = allDiceUi[i];
+            if (candidate != null && candidate.dice == this)
+            {
+                _cachedDiceDraggableUi = candidate;
+                return candidate;
+            }
+        }
+
+        return null;
+    }
     private static Color GetMaterialColor(Material material)
     {
         if (material == null)
@@ -930,6 +1322,136 @@ public class DiceSpinnerGeneric : MonoBehaviour
             material.SetColor(BaseColorPropertyId, color);
         if (material.HasProperty(ColorPropertyId))
             material.SetColor(ColorPropertyId, color);
+    }
+
+    private void PlayFailFeedbackShake()
+    {
+        if (!Application.isPlaying || pivot == null)
+            return;
+
+        _feedbackShakeTween?.Kill();
+        pivot.localPosition = _pivotBaseLocalPosition;
+        _feedbackShakeTween = pivot.DOPunchPosition(
+                failShakeStrength,
+                Mathf.Max(0.01f, failShakeDuration),
+                Mathf.Max(1, failShakeVibrato),
+                Mathf.Clamp01(failShakeElasticity),
+                snapping: false)
+            .SetUpdate(true)
+            .OnComplete(() =>
+            {
+                if (pivot != null)
+                    pivot.localPosition = _pivotBaseLocalPosition;
+                _feedbackShakeTween = null;
+            });
+    }
+
+    private GameObject TryCreateOutlineRenderer(Renderer sourceRenderer, Shader outlineShader, out Renderer outlineRenderer, out Material outlineMaterial)
+    {
+        outlineRenderer = null;
+        outlineMaterial = null;
+
+        if (sourceRenderer == null || outlineShader == null)
+            return null;
+
+        int materialCount = sourceRenderer.sharedMaterials != null && sourceRenderer.sharedMaterials.Length > 0
+            ? sourceRenderer.sharedMaterials.Length
+            : 1;
+
+        Material sharedOutlineMaterial = new Material(outlineShader)
+        {
+            name = $"{sourceRenderer.name}_FeedbackOutline",
+            hideFlags = HideFlags.HideAndDontSave
+        };
+
+        if (sourceRenderer is MeshRenderer meshRenderer)
+        {
+            MeshFilter sourceFilter = meshRenderer.GetComponent<MeshFilter>();
+            if (sourceFilter == null || sourceFilter.sharedMesh == null)
+            {
+                if (Application.isPlaying)
+                    Destroy(sharedOutlineMaterial);
+                else
+                    DestroyImmediate(sharedOutlineMaterial);
+                return null;
+            }
+
+            GameObject outlineGo = new GameObject($"{sourceRenderer.name}__FeedbackOutline", typeof(Transform), typeof(MeshFilter), typeof(MeshRenderer));
+            outlineGo.hideFlags = HideFlags.HideAndDontSave;
+            outlineGo.layer = sourceRenderer.gameObject.layer;
+            outlineGo.transform.SetParent(sourceRenderer.transform, false);
+            outlineGo.transform.localPosition = Vector3.zero;
+            outlineGo.transform.localRotation = Quaternion.identity;
+            outlineGo.transform.localScale = Vector3.one * Mathf.Max(1.001f, outlineScaleMultiplier);
+
+            MeshFilter outlineFilter = outlineGo.GetComponent<MeshFilter>();
+            outlineFilter.sharedMesh = sourceFilter.sharedMesh;
+
+            MeshRenderer createdRenderer = outlineGo.GetComponent<MeshRenderer>();
+            createdRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            createdRenderer.receiveShadows = false;
+            createdRenderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            createdRenderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            createdRenderer.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+
+            Material[] materials = new Material[materialCount];
+            for (int i = 0; i < materials.Length; i++)
+                materials[i] = sharedOutlineMaterial;
+            createdRenderer.sharedMaterials = materials;
+            createdRenderer.enabled = false;
+
+            outlineRenderer = createdRenderer;
+            outlineMaterial = sharedOutlineMaterial;
+            return outlineGo;
+        }
+
+        if (sourceRenderer is SkinnedMeshRenderer skinnedRenderer)
+        {
+            if (skinnedRenderer.sharedMesh == null)
+            {
+                if (Application.isPlaying)
+                    Destroy(sharedOutlineMaterial);
+                else
+                    DestroyImmediate(sharedOutlineMaterial);
+                return null;
+            }
+
+            GameObject outlineGo = new GameObject($"{sourceRenderer.name}__FeedbackOutline", typeof(Transform), typeof(SkinnedMeshRenderer));
+            outlineGo.hideFlags = HideFlags.HideAndDontSave;
+            outlineGo.layer = sourceRenderer.gameObject.layer;
+            outlineGo.transform.SetParent(sourceRenderer.transform, false);
+            outlineGo.transform.localPosition = Vector3.zero;
+            outlineGo.transform.localRotation = Quaternion.identity;
+            outlineGo.transform.localScale = Vector3.one * Mathf.Max(1.001f, outlineScaleMultiplier);
+
+            SkinnedMeshRenderer createdRenderer = outlineGo.GetComponent<SkinnedMeshRenderer>();
+            createdRenderer.sharedMesh = skinnedRenderer.sharedMesh;
+            createdRenderer.rootBone = skinnedRenderer.rootBone;
+            createdRenderer.bones = skinnedRenderer.bones;
+            createdRenderer.updateWhenOffscreen = true;
+            createdRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            createdRenderer.receiveShadows = false;
+            createdRenderer.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
+            createdRenderer.reflectionProbeUsage = UnityEngine.Rendering.ReflectionProbeUsage.Off;
+            createdRenderer.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
+
+            Material[] materials = new Material[materialCount];
+            for (int i = 0; i < materials.Length; i++)
+                materials[i] = sharedOutlineMaterial;
+            createdRenderer.sharedMaterials = materials;
+            createdRenderer.enabled = false;
+
+            outlineRenderer = createdRenderer;
+            outlineMaterial = sharedOutlineMaterial;
+            return outlineGo;
+        }
+
+        if (Application.isPlaying)
+            Destroy(sharedOutlineMaterial);
+        else
+            DestroyImmediate(sharedOutlineMaterial);
+
+        return null;
     }
 
     private static Vector3 NormalizeEuler(Vector3 e)

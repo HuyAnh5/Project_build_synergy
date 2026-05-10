@@ -237,6 +237,7 @@ public class GameplayDiceEditController : MonoBehaviour
         else
             HandleStandardFaceSelection(logicalFaceIndex);
 
+        RefreshInspectDiePreview();
         RefreshAllHighlights();
         panelUi?.Refresh();
     }
@@ -324,7 +325,9 @@ public class GameplayDiceEditController : MonoBehaviour
         }
 
         if (sourceDie != null && die != null)
+
             sourceDie.CopyRuntimeStateFrom(die, copyRotation: _activeConsumable.effectId == ConsumableEffectId.SetRolledFace);
+
 
         runInventory.TryConsumeConsumableCharge(_pendingConsumableSlot, 1);
         if (sourceDie != null)
@@ -509,6 +512,7 @@ public class GameplayDiceEditController : MonoBehaviour
         cloneSpinner.onRollComplete = null;
 
         cloneSpinner.CopyRuntimeStateFrom(_sourceInteractable.Spinner, copyRotation: true);
+        cloneSpinner.ClearAllFacePreviews();
 
         GameplayDiceEditInteractable interactable = _inspectCloneInstance.GetComponent<GameplayDiceEditInteractable>();
         if (interactable == null)
@@ -577,6 +581,52 @@ public class GameplayDiceEditController : MonoBehaviour
             _copySourceFaceIndex = logicalFaceIndex;
         else if (_copyTargetFaceIndex < 0)
             _copyTargetFaceIndex = logicalFaceIndex;
+    }
+
+    private void RefreshInspectDiePreview()
+    {
+        DiceSpinnerGeneric inspectDie = _activeInteractable != null ? _activeInteractable.Spinner : null;
+        if (inspectDie == null)
+            return;
+
+        inspectDie.ClearAllFacePreviews();
+
+        if (_activeConsumable == null)
+        {
+            inspectDie.RefreshDisplayedState();
+            return;
+        }
+
+        if (IsCopyPasteFaceMode())
+        {
+            if (_copySourceFaceIndex >= 0)
+            {
+                DiceFace sourceFace = inspectDie.GetFace(_copySourceFaceIndex);
+                inspectDie.SetFacePreviewValue(_copySourceFaceIndex, sourceFace.value, blink: true);
+            }
+
+            if (_copySourceFaceIndex >= 0 && _copyTargetFaceIndex >= 0)
+            {
+                DiceFace sourceFace = inspectDie.GetFace(_copySourceFaceIndex);
+                inspectDie.SetFacePreviewValue(_copyTargetFaceIndex, sourceFace.value, blink: true);
+            }
+
+            inspectDie.RefreshDisplayedState();
+            return;
+        }
+
+        if (_activeConsumable.effectId == ConsumableEffectId.AdjustBaseValue)
+        {
+            for (int i = 0; i < _selectedLogicalFaceIndices.Count; i++)
+            {
+                int faceIndex = _selectedLogicalFaceIndices[i];
+                DiceFace face = inspectDie.GetFace(faceIndex);
+                int previewValue = DiceSpinnerGeneric.ClampFaceValue(face.value + _activeConsumable.valueA);
+                inspectDie.SetFacePreviewValue(faceIndex, previewValue, blink: true);
+            }
+        }
+
+        inspectDie.RefreshDisplayedState();
     }
 
     private int GetSandboxFaceSelectionLimit()

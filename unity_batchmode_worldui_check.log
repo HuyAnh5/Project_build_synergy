@@ -1,0 +1,20 @@
+[Licensing::Module] Trying to connect to existing licensing client channel...
+Built from '6000.2/staging' branch; Version is '6000.2.15f1 (0707b6d1e918) revision 460726'; Using compiler version '194234433'; Build Type 'Release'
+OS: 'Windows 11  (10.0.26200) 64bit Professional' Language: 'en' Physical Memory: 32557 MB
+BatchMode: 1, IsHumanControllingUs: 0, StartBugReporterOnCrash: 0, Is64bit: 1
+Date: 2026-05-08T16:07:16Z
+[Licensing::IpcConnector] Connection to channel LicenseClient-huyan refused
+[Licensing::Module] Successfully launched the LicensingClient (PId: 22960)
+
+COMMAND LINE ARGUMENTS:
+C:\Program Files\Unity\Hub\Editor\6000.2.15f1\Editor\Unity.exe
+-batchmode
+-nographics
+-projectPath
+C:\Users\huyan\Desktop\GameProject\Project_build_synergy
+-quit
+-logFile
+C:\Users\huyan\Desktop\GameProject\Project_build_synergy\unity_batchmode_worldui_check.log
+Successfully changed project path to: C:\Users\huyan\Desktop\GameProject\Project_build_synergy
+C:/Users/huyan/Desktop/GameProject/Project_build_synergy
+Exiting without the bug reporter. Application will terminate with return code 1

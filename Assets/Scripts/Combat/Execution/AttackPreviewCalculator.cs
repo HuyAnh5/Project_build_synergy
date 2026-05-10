@@ -41,11 +41,19 @@ public static class AttackPreviewCalculator
         bool targetHasGuard = target != null && target.guardPool > 0;
         int dmg = preview.baseDamage;
 
-        if (IsBasicStrike(rt) && caster != null && caster.status != null && caster.status.emberWeaponTurns > 0)
+        if (IsBasicStrike(rt))
         {
-            int emberBonus = Mathf.Max(0, caster.status.emberWeaponBonusDamage);
-            preview.bonusDamage += emberBonus;
-            dmg += emberBonus;
+            int emberBonus = 0;
+            if (caster != null && caster.status != null)
+                emberBonus = caster.status.emberWeaponTurns > 0 ? Mathf.Max(0, caster.status.emberWeaponBonusDamage) : 0;
+            else
+                emberBonus = Mathf.Max(0, rt.ownerFlatDamageBonus);
+
+            if (emberBonus > 0)
+            {
+                preview.bonusDamage += emberBonus;
+                dmg += emberBonus;
+            }
         }
 
         ApplyBehaviorPreviewBonuses(rt, caster, target, ref preview, ref dmg);

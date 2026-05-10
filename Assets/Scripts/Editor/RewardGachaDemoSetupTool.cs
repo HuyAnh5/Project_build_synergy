@@ -18,7 +18,7 @@ public static class RewardGachaDemoSetupTool
     private const string PatinaOrePath = OreFolder + "/Ore_Patina.asset";
     private const string SkillDatabasePath = "Assets/Scripts/Skills/SkillDatabase_SpecBacked.asset";
 
-    [MenuItem("Tools/Build Synergy/Create Reward Gacha Demo Scene")]
+    [MenuItem("Tools/Build Synergy/Legacy/Create Reward Gacha Demo Scene")]
     public static void CreateRewardGachaDemoScene()
     {
         Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -32,7 +32,7 @@ public static class RewardGachaDemoSetupTool
         AssetDatabase.Refresh();
     }
 
-    [MenuItem("Tools/Build Synergy/Setup Reward Gacha Demo In Current Scene")]
+    [MenuItem("Tools/Build Synergy/Legacy/Setup Reward Gacha Demo In Current Scene")]
     public static void SetupRewardGachaDemoInCurrentScene()
     {
         Canvas canvas = FindOrCreateCanvas();

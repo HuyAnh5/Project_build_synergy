@@ -268,7 +268,7 @@ internal static class StatusStateUtility
 
         List<StatusController.BurnBatchState> burnBatches = owner.GetBurnBatches();
         int totalStacks = 0;
-        int maxTurns = 0;
+        int nextExpiryTurns = 0;
 
         for (int i = burnBatches.Count - 1; i >= 0; i--)
         {
@@ -280,10 +280,10 @@ internal static class StatusStateUtility
             }
 
             totalStacks += batch.stacks;
-            if (batch.turnsRemaining > maxTurns)
-                maxTurns = batch.turnsRemaining;
+            if (nextExpiryTurns <= 0 || batch.turnsRemaining < nextExpiryTurns)
+                nextExpiryTurns = batch.turnsRemaining;
         }
 
-        owner.SyncBurnDisplay(totalStacks, maxTurns);
+        owner.SyncBurnDisplay(totalStacks, nextExpiryTurns);
     }
 }

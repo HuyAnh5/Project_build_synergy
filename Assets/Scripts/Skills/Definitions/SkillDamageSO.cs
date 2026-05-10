@@ -462,6 +462,39 @@ public class SkillDamageSO : ScriptableObject
     public int burnDamagePerStack = 2;
 
     [TabGroup("Tabs", "Effects")]
+    [BoxGroup("Tabs/Effects/Frozen Or Chilled Reward (Ice)")]
+    [ShowIf(nameof(ShowIceRewardSection))]
+    [LabelText("Reward On Frozen/Chilled Hit")]
+    public bool gainIceRewardOnFrozenOrChilledHit = true;
+
+    [TabGroup("Tabs", "Effects")]
+    [BoxGroup("Tabs/Effects/Frozen Or Chilled Reward (Ice)")]
+    [ShowIf("@ShowIceRewardSection && gainIceRewardOnFrozenOrChilledHit")]
+    [Min(0)]
+    [LabelText("Focus Gain")]
+    public int iceRewardFocus = 1;
+
+    [TabGroup("Tabs", "Effects")]
+    [BoxGroup("Tabs/Effects/Frozen Or Chilled Reward (Ice)")]
+    [ShowIf("@ShowIceRewardSection && gainIceRewardOnFrozenOrChilledHit")]
+    [Min(0)]
+    [LabelText("Guard Gain")]
+    public int iceRewardGuard = 3;
+
+    [TabGroup("Tabs", "Effects")]
+    [BoxGroup("Tabs/Effects/Mark Shock (Lightning)")]
+    [ShowIf(nameof(ShowLightningMarkShockSection))]
+    [LabelText("Shock On Mark Hit")]
+    public bool triggerLightningMarkShock = true;
+
+    [TabGroup("Tabs", "Effects")]
+    [BoxGroup("Tabs/Effects/Mark Shock (Lightning)")]
+    [ShowIf("@ShowLightningMarkShockSection && triggerLightningMarkShock")]
+    [Min(0)]
+    [LabelText("Shock Damage")]
+    public int lightningMarkShockDamage = 3;
+
+    [TabGroup("Tabs", "Effects")]
     [BoxGroup("Tabs/Effects/Fire Modules")]
     [HideInInspector]
     public FireAttackModuleData fireModules = new FireAttackModuleData();
@@ -681,6 +714,8 @@ public class SkillDamageSO : ScriptableObject
     private bool ShowMarkStatusSection => ShowElementEffectSection && element == ElementTag.Lightning;
     private bool ShowBleedStatusSection => false;
     private bool ShowBurnSpenderSection => kind == SkillKind.Attack && element == ElementTag.Fire;
+    private bool ShowIceRewardSection => kind == SkillKind.Attack && element == ElementTag.Ice;
+    private bool ShowLightningMarkShockSection => kind == SkillKind.Attack && element == ElementTag.Lightning;
     private bool ShowExactSingleValueInput =>
         exactConditionMode == SkillExactConditionMode.DieEqualsX;
     private bool ShowExactPatternInput =>

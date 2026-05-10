@@ -4,15 +4,21 @@ using UnityEngine.UI;
 
 public sealed class SkillTooltipUI : MonoBehaviour
 {
+    private const float DefaultMinContentWidth = 170f;
+    private const float DefaultMaxContentWidth = 320f;
+
     private static SkillTooltipUI _instance;
 
     private RectTransform _root;
     private TMP_Text _title;
     private TMP_Text _body;
+    private LayoutElement _titleLayout;
+    private LayoutElement _bodyLayout;
     private Canvas _canvas;
     private RectTransform _canvasRect;
     private Camera _uiCamera;
     private ISkillTooltipSource _currentSource;
+    private SkillTooltipLayout _layout;
 
     public static void Show(Canvas canvas, RectTransform target, ScriptableObject asset, SkillRuntime runtime = null)
         => ShowInternal(canvas, target, asset, runtime, null);
@@ -83,7 +89,15 @@ public sealed class SkillTooltipUI : MonoBehaviour
             return _instance;
         }
 
-        GameObject go = new GameObject("SkillTooltip", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter), typeof(SkillTooltipUI));
+        SkillTooltipUI existing = canvas != null ? canvas.GetComponentInChildren<SkillTooltipUI>(true) : null;
+        if (existing != null)
+        {
+            _instance = existing;
+            _instance.InitializeFromExisting(canvas);
+            return _instance;
+        }
+
+        GameObject go = new GameObject("SkillTooltip", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter), typeof(SkillTooltipUI), typeof(SkillTooltipLayout));
         _instance = go.GetComponent<SkillTooltipUI>();
         _instance.Initialize(canvas);
         return _instance;
@@ -108,6 +122,7 @@ public sealed class SkillTooltipUI : MonoBehaviour
     private void Initialize(Canvas canvas)
     {
         _root = transform as RectTransform;
+        _layout = GetComponent<SkillTooltipLayout>();
         Image image = GetComponent<Image>();
         image.color = new Color(0.075f, 0.085f, 0.11f, 0.97f);
         image.raycastTarget = false;
@@ -122,16 +137,45 @@ public sealed class SkillTooltipUI : MonoBehaviour
         layout.childForceExpandHeight = false;
 
         ContentSizeFitter fitter = GetComponent<ContentSizeFitter>();
-        fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
         fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         _title = CreateText("Title", 19f, FontStyles.Bold);
         _body = CreateText("Body", 14f, FontStyles.Normal);
         _body.color = new Color(0.91f, 0.93f, 0.96f, 1f);
+        _titleLayout = _title.GetComponent<LayoutElement>();
+        _bodyLayout = _body.GetComponent<LayoutElement>();
 
         _root.pivot = new Vector2(0f, 1f);
         _root.anchorMin = _root.anchorMax = new Vector2(0.5f, 0.5f);
-        _root.sizeDelta = new Vector2(330f, 120f);
+        _root.sizeDelta = new Vector2(220f, 120f);
+
+        BindCanvas(canvas);
+        _root.gameObject.SetActive(false);
+    }
+
+    private void InitializeFromExisting(Canvas canvas)
+    {
+        _layout = GetComponent<SkillTooltipLayout>();
+        _root = transform as RectTransform;
+        _title = _layout != null ? _layout.TitleText : GetComponentInChildren<TMP_Text>(true);
+        _body = _layout != null ? _layout.BodyText : null;
+
+        if (_body == null)
+        {
+            TMP_Text[] texts = GetComponentsInChildren<TMP_Text>(true);
+            if (texts.Length > 1)
+                _body = texts[1];
+        }
+
+        _titleLayout = EnsureLayoutElement(_title);
+        _bodyLayout = EnsureLayoutElement(_body);
+
+        if (_layout != null && _layout.ContentSizeFitter != null)
+        {
+            _layout.ContentSizeFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+            _layout.ContentSizeFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        }
 
         BindCanvas(canvas);
         _root.gameObject.SetActive(false);
@@ -152,7 +196,7 @@ public sealed class SkillTooltipUI : MonoBehaviour
         text.raycastTarget = false;
 
         LayoutElement layout = go.GetComponent<LayoutElement>();
-        layout.preferredWidth = 306f;
+        layout.preferredWidth = 196f;
 
         return text;
     }
@@ -182,8 +226,46 @@ public sealed class SkillTooltipUI : MonoBehaviour
         _root.gameObject.SetActive(true);
         _root.SetAsLastSibling();
 
+        ApplyDynamicSizing();
         LayoutRebuilder.ForceRebuildLayoutImmediate(_root);
         PositionNear(target);
+    }
+
+    private void ApplyDynamicSizing()
+    {
+        if (_root == null || _title == null || _body == null)
+            return;
+
+        float minContentWidth = _layout != null ? _layout.MinContentWidth : DefaultMinContentWidth;
+        float maxContentWidth = _layout != null ? _layout.MaxContentWidth : DefaultMaxContentWidth;
+        float titlePreferred = _title.GetPreferredValues(_title.text ?? string.Empty, maxContentWidth, 0f).x;
+        float bodyPreferred = _body.GetPreferredValues(_body.text ?? string.Empty, maxContentWidth, 0f).x;
+        float contentWidth = Mathf.Clamp(Mathf.Max(titlePreferred, bodyPreferred), minContentWidth, maxContentWidth);
+
+        if (_titleLayout != null)
+            _titleLayout.preferredWidth = contentWidth;
+        if (_bodyLayout != null)
+            _bodyLayout.preferredWidth = contentWidth;
+
+        float horizontalPadding = 0f;
+        if (_layout != null && _layout.VerticalLayout != null)
+            horizontalPadding = _layout.VerticalLayout.padding.left + _layout.VerticalLayout.padding.right;
+        else if (TryGetComponent(out VerticalLayoutGroup layoutGroup))
+            horizontalPadding = layoutGroup.padding.left + layoutGroup.padding.right;
+
+        _root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, contentWidth + horizontalPadding);
+    }
+
+    private static LayoutElement EnsureLayoutElement(TMP_Text text)
+    {
+        if (text == null)
+            return null;
+
+        LayoutElement layout = text.GetComponent<LayoutElement>();
+        if (layout == null)
+            layout = text.gameObject.AddComponent<LayoutElement>();
+
+        return layout;
     }
 
     private void PositionNear(RectTransform target)

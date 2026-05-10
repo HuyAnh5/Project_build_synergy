@@ -44,7 +44,8 @@ public enum ConsumableEffectId
     Cleanse,
     CopyPasteFace,
     DoubleValue,
-    SetRolledFace
+    SetRolledFace,
+    ReloadDice
 }
 
 [CreateAssetMenu(menuName = "Game/Consumable/Data", fileName = "Consumable_")]
@@ -119,7 +120,7 @@ public class ConsumableDataSO : ScriptableObject
 
     public int GetStartingCharges()
     {
-        return Mathf.Max(1, charges);
+        return 1;
     }
 
     private bool UsesFaceEnchant()

@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
@@ -53,9 +53,7 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
     // Unequip by clicking the slot icon (not the skill icon)
     public void OnPointerClick(PointerEventData eventData)
     {
-        if (!turn || !turn.CanInteractWithSkills) return;
-        if (!iconPreview || iconPreview.sprite == null) return;
-        turn.ClearSlot(slotIndex);
+        // Removed: Skills are fixed during combat now, cannot be cleared by clicking.
     }
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -122,7 +120,9 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
         bool droppedOnSlot = hitGo != null && hitGo.GetComponentInParent<ActionSlotDrop>() != null;
 
         if (!droppedOnSlot)
-            turn.ClearSlot(slotIndex);
+        {
+            // Removed: Skills are fixed during combat now, cannot be cleared by dragging away.
+        }
     }
 
     private void CreateGhost()

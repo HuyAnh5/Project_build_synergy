@@ -104,6 +104,7 @@ public class DiceEquipUIManager : MonoBehaviour
 
     private void LateUpdate()
     {
+        RefreshCombatDiceRuntimeState(false);
         SyncWorldSlotRootsToUI(false);
         WasDropConsumedThisFrame = false;
     }
@@ -306,6 +307,21 @@ public class DiceEquipUIManager : MonoBehaviour
         ClearDiceSelection(instant);
     }
 
+    public void PlayInvalidFeedbackForDice(IEnumerable<DiceSpinnerGeneric> diceBuffer)
+    {
+        if (diceBuffer == null)
+            return;
+
+        foreach (DiceSpinnerGeneric die in diceBuffer)
+        {
+            if (die == null)
+                continue;
+
+            if (_uiByDice.TryGetValue(die, out DiceDraggableUI diceUi) && diceUi != null)
+                diceUi.PlayInvalidSelectionFeedback();
+        }
+    }
+
     private void CommitDrag(int insertIndex)
     {
         if (_draggingDice == null || _dragSourceIndex < 0)
@@ -406,6 +422,7 @@ public class DiceEquipUIManager : MonoBehaviour
         RebuildUiOrderFromDiceList();
         UpdateEquippedArray();
         ApplyUiActiveStates();
+        RefreshCombatDiceRuntimeState(instant);
         RefreshDiceSelectionVisuals(instant);
         RebindCombatLaneIndices();
         RebindWorldSlotOwners();
@@ -553,6 +570,7 @@ public class DiceEquipUIManager : MonoBehaviour
     private void RefreshVisualState(bool instant)
     {
         ApplyUiActiveStates();
+        RefreshCombatDiceRuntimeState(instant);
         RefreshDiceSelectionVisuals(instant);
         RebindCombatLaneIndices();
         RebindWorldSlotOwners();
@@ -734,6 +752,30 @@ public class DiceEquipUIManager : MonoBehaviour
     private void RebindWorldSlotOwners()
     {
         DiceEquipWorldSyncUtility.RebindWorldSlotOwnersFromCurrentOrder(equipped, _worldSlotOwners, _worldSlotRoots, diceRig);
+    }
+
+    private void RefreshCombatDiceRuntimeState(bool instant)
+    {
+        RefreshTurnManagerRef();
+
+        bool canShowRollState = turnManager != null &&
+                                turnManager.diceRig != null &&
+                                turnManager.diceRig.HasRolledThisTurn &&
+                                !turnManager.diceRig.IsRolling;
+
+        foreach (KeyValuePair<DiceSpinnerGeneric, DiceDraggableUI> pair in _uiByDice)
+        {
+            DiceSpinnerGeneric die = pair.Key;
+            DiceDraggableUI diceUi = pair.Value;
+            if (die == null || diceUi == null)
+                continue;
+
+            bool spent = canShowRollState && turnManager.IsDieSpentThisTurn(die);
+            bool crit = canShowRollState && die.LastRollIsCrit;
+            bool fail = canShowRollState && die.LastRollIsFail;
+            die.SetCombatRollFeedback(crit, fail);
+            diceUi.SetCombatVisualState(spent, crit, fail, instant);
+        }
     }
 
     private void SyncWorldSlotRootsToUI(bool instant)

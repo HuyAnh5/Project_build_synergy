@@ -11,7 +11,7 @@ public static class GameplayDiceEditSceneSetupTool
     private const string PanelRootName = "GameplayDiceEditPanel";
     private const string AnchorName = "GameplayDiceEditInspectAnchor";
 
-    [MenuItem("Tools/Build Synergy/Setup Gameplay Dice Edit Panel")]
+    [MenuItem("Tools/Build Synergy/Legacy/Setup Gameplay Dice Edit Panel")]
     public static void SetupGameplayDiceEditPanel()
     {
         Canvas canvas = FindOrCreateCanvas();

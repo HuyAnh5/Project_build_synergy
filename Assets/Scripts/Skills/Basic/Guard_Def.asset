@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 10911, guid: 0000000000000000f000000000000000, type: 0}
   displayName: Basic Guard
-  description: 
+  description: Gain "1 Guard".
   spec:
     rarity: 0
     specState: 0
     buildRole: 1
     implementationCoverage: 0
-    normalizedText: 
-    designIntent: 
+    normalizedText: Gain "1 Guard".
+    designIntent: Fallback guard action that always gives a valid defense action.
   behaviorFamily: 0
   fireBehaviorId: 0
   iceBehaviorId: 0

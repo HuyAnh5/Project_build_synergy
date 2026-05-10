@@ -5,14 +5,14 @@ using UnityEngine;
 
 public static class DiceFaceHighlightMetadataSetupTool
 {
-    [MenuItem("Tools/Build Synergy/Generate Dice Face Highlight Metadata/For Selected Dice")]
+    [MenuItem("Tools/Build Synergy/Legacy/Generate Dice Face Highlight Metadata/For Selected Dice")]
     public static void GenerateForSelectedDice()
     {
         DiceSpinnerGeneric[] dice = Selection.GetFiltered<DiceSpinnerGeneric>(SelectionMode.Editable | SelectionMode.ExcludePrefab);
         GenerateMetadata(dice);
     }
 
-    [MenuItem("Tools/Build Synergy/Generate Dice Face Highlight Metadata/For All Dice In Scene")]
+    [MenuItem("Tools/Build Synergy/Legacy/Generate Dice Face Highlight Metadata/For All Dice In Scene")]
     public static void GenerateForSceneDice()
     {
         DiceSpinnerGeneric[] dice = Object.FindObjectsByType<DiceSpinnerGeneric>(FindObjectsInactive.Include, FindObjectsSortMode.None);

@@ -11,10 +11,12 @@ internal static class StatusNamedSkillUtility
         {
             if (skill.fireModules.grantEmberWeapon)
             {
-                owner.emberWeaponTurns = Mathf.Max(owner.emberWeaponTurns, Mathf.Max(1, skill.fireModules.emberWeaponTurns));
-                owner.emberWeaponBonusDamage = Mathf.Max(owner.emberWeaponBonusDamage, Mathf.Max(0, skill.fireModules.basicAttackBonusDamage));
-                owner.emberWeaponBurnEqualsDamage = owner.emberWeaponBurnEqualsDamage || skill.fireModules.basicAttackAppliesBurnEqualDamage;
-                owner.emberWeaponBurnOnCritOnly = owner.emberWeaponBurnOnCritOnly || skill.fireModules.basicAttackBurnOnCritOnly;
+                ApplyEmberWeapon(
+                    owner,
+                    skill.fireModules.emberWeaponTurns,
+                    skill.fireModules.basicAttackBonusDamage,
+                    skill.fireModules.basicAttackAppliesBurnEqualDamage,
+                    skill.fireModules.basicAttackBurnOnCritOnly);
                 return true;
             }
 
@@ -28,10 +30,7 @@ internal static class StatusNamedSkillUtility
 
         if (skill.behaviorId == BuffBehaviorId.Fire_EmberWeapon)
         {
-            owner.emberWeaponTurns = Mathf.Max(owner.emberWeaponTurns, 3);
-            owner.emberWeaponBonusDamage = Mathf.Max(owner.emberWeaponBonusDamage, 1);
-            owner.emberWeaponBurnEqualsDamage = true;
-            owner.emberWeaponBurnOnCritOnly = true;
+            ApplyEmberWeapon(owner, turns: 3, bonusDamage: 1, burnEqualsDamage: true, burnOnCritOnly: false);
             return true;
         }
 
@@ -45,5 +44,13 @@ internal static class StatusNamedSkillUtility
         }
 
         return false;
+    }
+
+    private static void ApplyEmberWeapon(StatusController owner, int turns, int bonusDamage, bool burnEqualsDamage, bool burnOnCritOnly)
+    {
+        owner.emberWeaponTurns = Mathf.Max(owner.emberWeaponTurns, Mathf.Max(1, turns));
+        owner.emberWeaponBonusDamage = Mathf.Max(0, bonusDamage);
+        owner.emberWeaponBurnEqualsDamage = burnEqualsDamage;
+        owner.emberWeaponBurnOnCritOnly = burnEqualsDamage && burnOnCritOnly;
     }
 }

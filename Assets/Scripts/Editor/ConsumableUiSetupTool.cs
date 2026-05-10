@@ -8,8 +8,9 @@ using UnityEngine.UI;
 public static class ConsumableUiSetupTool
 {
     private const string RootName = "ConsumableHudRoot";
+    private const string SlotPrefabPath = "Assets/Prefabs/UI/Combat/ConsumableSlotCard.prefab";
 
-    [MenuItem("Tools/Build Synergy/Setup Consumable HUD")]
+    [MenuItem("Tools/Build Synergy/Legacy/Setup Consumable HUD")]
     public static void SetupConsumableHud()
     {
         Canvas canvas = FindOrCreateCanvas();
@@ -26,6 +27,9 @@ public static class ConsumableUiSetupTool
         ConsumableBarUIManager manager = root.GetComponent<ConsumableBarUIManager>();
         if (manager == null)
             manager = Undo.AddComponent<ConsumableBarUIManager>(root);
+
+        RectTransform slotPrefab = CreateOrUpdateConsumableSlotPrefab();
+        manager.slotTemplatePrefab = slotPrefab;
 
         RectTransform dragLayer = BuildOrGetDragLayer(canvas.transform);
 
@@ -88,6 +92,17 @@ public static class ConsumableUiSetupTool
         Selection.activeGameObject = root;
     }
 
+    [MenuItem("Tools/Build Synergy/Legacy/Create Consumable Slot Prefab")]
+    public static void CreateConsumableSlotPrefabMenu()
+    {
+        RectTransform prefab = CreateOrUpdateConsumableSlotPrefab();
+        if (prefab != null)
+        {
+            Selection.activeObject = prefab.gameObject;
+            EditorGUIUtility.PingObject(prefab.gameObject);
+        }
+    }
+
     private static ConsumableBarUIManager.ConsumableSlotView BuildOrGetSlot(Transform parent, int index, ConsumableBarUIManager manager)
     {
         GameObject slotGo = FindOrCreateChild(parent, $"Slot{index + 1}", typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement), typeof(ConsumableSlotInteractionProxy));
@@ -129,6 +144,12 @@ public static class ConsumableUiSetupTool
 
         TMP_Text titleText = GetOrCreateText(slotGo.transform, "Title", string.Empty, 14, FontStyles.Bold, TextAlignmentOptions.Center);
         TMP_Text chargesText = GetOrCreateText(slotGo.transform, "Charges", string.Empty, 13, FontStyles.Normal, TextAlignmentOptions.Center);
+        RectTransform actionAnchor = BuildOrGetPresentationAnchor(slotGo.transform, "ActionAnchor", new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(0f, 0.5f), new Vector2(56f, -22f));
+        RectTransform tooltipAnchor = BuildOrGetPresentationAnchor(slotGo.transform, "TooltipAnchor", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0.5f, 1f), new Vector2(0f, -8f));
+        RectTransform localActionPanel = BuildOrGetLocalActionPanel(slotGo.transform, out Button localUseButton, out TMP_Text localUseLabel, out Button localSellButton, out TMP_Text localSellLabel);
+        RectTransform localTooltip = BuildOrGetLocalTooltip(slotGo.transform, out TMP_Text localTooltipTitle, out TMP_Text localTooltipBody);
+        localActionPanel.gameObject.SetActive(false);
+        localTooltip.gameObject.SetActive(false);
 
         return new ConsumableBarUIManager.ConsumableSlotView
         {
@@ -138,7 +159,17 @@ public static class ConsumableUiSetupTool
             icon = icon,
             titleText = titleText,
             chargesText = chargesText,
-            interactionProxy = proxy
+            interactionProxy = proxy,
+            actionAnchor = actionAnchor,
+            tooltipAnchor = tooltipAnchor,
+            localActionPanelRoot = localActionPanel,
+            localUseButton = localUseButton,
+            localUseButtonText = localUseLabel,
+            localSellButton = localSellButton,
+            localSellButtonText = localSellLabel,
+            localTooltipRoot = localTooltip,
+            localTooltipTitleText = localTooltipTitle,
+            localTooltipBodyText = localTooltipBody
         };
     }
 
@@ -163,13 +194,13 @@ public static class ConsumableUiSetupTool
         layout.childForceExpandHeight = false;
         layout.childForceExpandWidth = true;
 
-        useButton = BuildOrGetActionButton(panelGo.transform, "UseButton", "USE", new Color(0.73f, 0.18f, 0.18f, 1f), out useLabel);
-        sellButton = BuildOrGetActionButton(panelGo.transform, "SellButton", "SELL", new Color(0.17f, 0.7f, 0.54f, 1f), out sellLabel);
+        useButton = BuildOrGetActionButton(panelGo.transform, "UseButton", "UseLabel", "USE", new Color(0.73f, 0.18f, 0.18f, 1f), out useLabel);
+        sellButton = BuildOrGetActionButton(panelGo.transform, "SellButton", "SellLabel", "SELL", new Color(0.17f, 0.7f, 0.54f, 1f), out sellLabel);
         panelGo.SetActive(false);
         return panelRt;
     }
 
-    private static Button BuildOrGetActionButton(Transform parent, string name, string labelText, Color color, out TMP_Text label)
+    private static Button BuildOrGetActionButton(Transform parent, string name, string labelName, string labelText, Color color, out TMP_Text label)
     {
         GameObject buttonGo = FindOrCreateChild(parent, name, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
         LayoutElement layout = buttonGo.GetComponent<LayoutElement>();
@@ -182,7 +213,7 @@ public static class ConsumableUiSetupTool
         Button button = buttonGo.GetComponent<Button>();
         button.targetGraphic = image;
 
-        label = GetOrCreateText(buttonGo.transform, "Label", labelText, 18, FontStyles.Bold, TextAlignmentOptions.Center);
+        label = GetOrCreateText(buttonGo.transform, labelName, labelText, 18, FontStyles.Bold, TextAlignmentOptions.Center);
         RectTransform labelRt = label.rectTransform;
         labelRt.anchorMin = Vector2.zero;
         labelRt.anchorMax = Vector2.one;
@@ -194,7 +225,7 @@ public static class ConsumableUiSetupTool
 
     private static RectTransform BuildOrGetTooltip(Transform parent, out TMP_Text title, out TMP_Text body)
     {
-        GameObject tooltipGo = FindOrCreateChild(parent, "Tooltip", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup));
+        GameObject tooltipGo = FindOrCreateChild(parent, "Tooltip", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
         RectTransform tooltipRt = tooltipGo.GetComponent<RectTransform>();
         tooltipRt.anchorMin = new Vector2(0.5f, 0f);
         tooltipRt.anchorMax = new Vector2(0.5f, 0f);
@@ -220,6 +251,119 @@ public static class ConsumableUiSetupTool
         body.raycastTarget = false;
         tooltipGo.SetActive(false);
         return tooltipRt;
+    }
+
+    private static RectTransform BuildOrGetLocalActionPanel(Transform parent, out Button useButton, out TMP_Text useLabel, out Button sellButton, out TMP_Text sellLabel)
+    {
+        GameObject panelGo = FindOrCreateChild(parent, "LocalActionPanel", typeof(RectTransform), typeof(Image));
+        RectTransform panelRt = panelGo.GetComponent<RectTransform>();
+        panelRt.anchorMin = new Vector2(1f, 1f);
+        panelRt.anchorMax = new Vector2(1f, 1f);
+        panelRt.pivot = new Vector2(0f, 0.5f);
+        panelRt.anchoredPosition = new Vector2(56f, -22f);
+        panelRt.sizeDelta = new Vector2(96f, 96f);
+
+        Image panelImage = panelGo.GetComponent<Image>();
+        panelImage.color = new Color(0.08f, 0.09f, 0.12f, 0.94f);
+
+        VerticalLayoutGroup layout = panelGo.GetComponent<VerticalLayoutGroup>();
+        if (layout == null)
+            layout = Undo.AddComponent<VerticalLayoutGroup>(panelGo);
+        layout.padding = new RectOffset(6, 6, 6, 6);
+        layout.spacing = 6f;
+        layout.childAlignment = TextAnchor.UpperCenter;
+        layout.childControlHeight = false;
+        layout.childControlWidth = true;
+        layout.childForceExpandHeight = false;
+        layout.childForceExpandWidth = true;
+
+        useButton = BuildOrGetActionButton(panelGo.transform, "UseButton", "UseLabel", "USE", new Color(0.73f, 0.18f, 0.18f, 1f), out useLabel);
+        sellButton = BuildOrGetActionButton(panelGo.transform, "SellButton", "SellLabel", "SELL", new Color(0.17f, 0.7f, 0.54f, 1f), out sellLabel);
+        return panelRt;
+    }
+
+    private static RectTransform BuildOrGetLocalTooltip(Transform parent, out TMP_Text title, out TMP_Text body)
+    {
+        GameObject tooltipGo = FindOrCreateChild(parent, "LocalTooltip", typeof(RectTransform), typeof(Image), typeof(ContentSizeFitter));
+        RectTransform tooltipRt = tooltipGo.GetComponent<RectTransform>();
+        tooltipRt.anchorMin = new Vector2(0.5f, 0f);
+        tooltipRt.anchorMax = new Vector2(0.5f, 0f);
+        tooltipRt.pivot = new Vector2(0.5f, 1f);
+        tooltipRt.anchoredPosition = new Vector2(0f, -8f);
+        tooltipRt.sizeDelta = new Vector2(240f, 0f);
+
+        Image tooltipImage = tooltipGo.GetComponent<Image>();
+        tooltipImage.color = new Color(0.08f, 0.1f, 0.14f, 0.95f);
+        tooltipImage.raycastTarget = false;
+
+        VerticalLayoutGroup layout = tooltipGo.GetComponent<VerticalLayoutGroup>();
+        if (layout == null)
+            layout = Undo.AddComponent<VerticalLayoutGroup>(tooltipGo);
+        layout.padding = new RectOffset(10, 10, 10, 10);
+        layout.spacing = 6f;
+        layout.childAlignment = TextAnchor.UpperLeft;
+        layout.childControlWidth = true;
+        layout.childControlHeight = true;
+        layout.childForceExpandWidth = true;
+        layout.childForceExpandHeight = false;
+
+        ContentSizeFitter tooltipFitter = tooltipGo.GetComponent<ContentSizeFitter>();
+        tooltipFitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        tooltipFitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        title = GetOrCreateText(tooltipGo.transform, "TooltipTitle", "Consumable", 18, FontStyles.Bold, TextAlignmentOptions.TopLeft);
+        body = GetOrCreateText(tooltipGo.transform, "TooltipBody", "Description", 15, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        title.raycastTarget = false;
+        body.raycastTarget = false;
+        return tooltipRt;
+    }
+
+    private static RectTransform BuildOrGetPresentationAnchor(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Vector2 pivot, Vector2 anchoredPosition)
+    {
+        GameObject anchorGo = FindOrCreateChild(parent, name, typeof(RectTransform));
+        RectTransform anchorRt = anchorGo.GetComponent<RectTransform>();
+        anchorRt.anchorMin = anchorMin;
+        anchorRt.anchorMax = anchorMax;
+        anchorRt.pivot = pivot;
+        anchorRt.anchoredPosition = anchoredPosition;
+        anchorRt.sizeDelta = Vector2.zero;
+        return anchorRt;
+    }
+
+    private static RectTransform CreateOrUpdateConsumableSlotPrefab()
+    {
+        GameObject tempRoot = new GameObject("ConsumableSlotPrefabTemp", typeof(RectTransform));
+        try
+        {
+            ConsumableBarUIManager.ConsumableSlotView slotView = BuildOrGetSlot(tempRoot.transform, 0, null);
+            if (slotView == null || slotView.root == null)
+                return null;
+
+            slotView.root.name = "ConsumableSlotCard";
+
+            string directory = System.IO.Path.GetDirectoryName(SlotPrefabPath).Replace("\\", "/");
+            if (!AssetDatabase.IsValidFolder(directory))
+            {
+                string[] parts = directory.Split('/');
+                string current = parts[0];
+                for (int i = 1; i < parts.Length; i++)
+                {
+                    string next = $"{current}/{parts[i]}";
+                    if (!AssetDatabase.IsValidFolder(next))
+                        AssetDatabase.CreateFolder(current, parts[i]);
+                    current = next;
+                }
+            }
+
+            GameObject prefab = PrefabUtility.SaveAsPrefabAsset(slotView.root.gameObject, SlotPrefabPath);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            return prefab != null ? prefab.GetComponent<RectTransform>() : null;
+        }
+        finally
+        {
+            Object.DestroyImmediate(tempRoot);
+        }
     }
 
     private static RectTransform BuildOrGetDragLayer(Transform parent)

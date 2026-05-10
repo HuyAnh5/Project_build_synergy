@@ -11,7 +11,7 @@ using UnityEngine.InputSystem.UI;
 
 public static class MapPrototypeSetupTool
 {
-    [MenuItem("Tools/Build Synergy/Setup Map Prototype Demo")]
+    [MenuItem("Tools/Build Synergy/Legacy/Setup Map Prototype Demo")]
     public static void SetupMapPrototypeDemo()
     {
         Canvas canvas = Object.FindObjectOfType<Canvas>();

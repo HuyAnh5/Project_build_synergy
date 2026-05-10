@@ -440,6 +440,17 @@ MonoBehaviour:
     enchant: 0
     faceValueText3D: {fileID: 6840852454439765507}
   wholeDieTag: 0
+  wholeDieRenderers:
+  - {fileID: 200562687553547878}
+  patinaColor: {r: 0.42, g: 0.78, b: 0.67, a: 1}
+  enableRollResultOutline: 1
+  critOutlineColor: {r: 1, g: 0.82, b: 0.15, a: 1}
+  failOutlineColor: {r: 1, g: 0.15, b: 0.15, a: 1}
+  outlineScaleMultiplier: 1.08
+  failShakeDuration: 0.16
+  failShakeStrength: {x: 0.035, y: 0.035, z: 0.035}
+  failShakeVibrato: 22
+  failShakeElasticity: 0.75
   valueText: {fileID: 0}
   enchantText: {fileID: 0}
   rollingText: "\u2026"
@@ -450,6 +461,11 @@ MonoBehaviour:
   failText: FAIL
   normalText: 
   showAddedValueInRollState: 1
+  animateCritFailPopup: 1
+  rollStatePopupColor: {r: 1, g: 1, b: 1, a: 1}
+  rollStatePopupFontSize: 50
+  rollStatePopupRiseDistance: 26
+  rollStatePopupDuration: 0.6
   enableSpaceKey: 0
   rollKey: 32
   accelTime: 0.1
@@ -1635,6 +1651,11 @@ PrefabInstance:
       addedObject: {fileID: 4991573166703723795}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: d6fe6d39ed3b7224494b841e90b0af4f, type: 3}
+--- !u!23 &200562687553547878 stripped
+MeshRenderer:
+  m_CorrespondingSourceObject: {fileID: -7511558181221131132, guid: d6fe6d39ed3b7224494b841e90b0af4f, type: 3}
+  m_PrefabInstance: {fileID: 1515776913643221730}
+  m_PrefabAsset: {fileID: 0}
 --- !u!4 &1334092910551651593 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: d6fe6d39ed3b7224494b841e90b0af4f, type: 3}

@@ -1,603 +1,409 @@
-# Combat Lab Random Loadout Prototype — Logic Spec
+# Combat Lab Random Loadout Prototype - Logic Spec
 
-> Bản này chỉ mô tả **logic thiết kế và flow vận hành**.  
-> Không viết code, không pseudocode, không class C#.  
-> File dùng để đưa cho Codex/dev hiểu cần tạo hệ thống gì.
-
----
-
-## 1. Mục tiêu của prototype
-
-Prototype này là một **Combat Lab** để test gameplay combat nhanh.
-
-Mỗi lần bắt đầu lại hoặc làm mới combat, player sẽ nhận một bộ setup mới gồm:
-
-1. **Dice**
-2. **Skill**
-3. **Consumable**
-
-Không có reward, không có shop, không có map, không có passive random.
-
-Mục tiêu là để người chơi nhìn vào bộ dice / skill / consumable hiện tại rồi tự tìm cách đánh tốt nhất trong một combat ngắn.
+> File nay mo ta logic cua Combat Lab prototype.
+> Day la file rule cho prototype test combat, khong phai rule cua ca game.
+> Neu prototype va game core khac nhau, prototype chi duoc override trong pham vi lab nay.
 
 ---
 
-## 2. Scope hiện tại
+## 1. Muc tieu
 
-### Có trong prototype
+Combat Lab dung de:
 
-- 1 player.
-- 3 enemy.
-- Player có 3 dice.
-- Player có một số skill được random từ pool đã chọn.
-- Player có 3 consumable.
-- Mỗi lần refresh combat sẽ random lại dice / skill / consumable.
-- Dice có thể trùng loại.
-- Skill chỉ random từ danh sách được cho phép.
-- Consumable chỉ random từ danh sách được cho phép.
-- Trong 3 consumable luôn chắc chắn có consumable `Adjust Face +`.
+- reset combat nhanh;
+- test encounter cu the;
+- test 4 skill slot trong nhieu setup;
+- test dice-driven combat voi random co kiem soat;
+- de debug combat ma khong can map/shop/run progression.
 
-### Không có trong prototype
-
-- Không reward sau combat.
-- Không shop.
-- Không map.
-- Không event.
-- Không run progression.
-- Không unlock.
-- Không passive random.
-- Không relic.
-- Không inventory dài hạn.
-- Không cần build progression qua nhiều trận.
+Moi lan `Reset Game`, prototype phai tao 1 combat moi sach.
 
 ---
 
-## 3. Nguyên tắc source dữ liệu
+## 2. Rule da chot
 
-Toàn bộ dữ liệu dùng để random phải được điền trong **một ScriptableObject config duy nhất**.
+1. Co `Reset Game`.
+2. Enemy het HP thi bi tat khoi combat.
+3. Player het HP thi bi tat khoi combat, icon player bien mat, khoa moi thu tru `Reset Game`.
+4. Enemy roster va row duoc author bang `1 ScriptableObject config`.
+5. 4 skill slot cua player duoc random bang cach chon **2 skill pair**.
+6. Dice duoc random prefab giua `d4` va `d8`.
+7. Moi mat dice duoc random gia tri, nhung gia tri spawn ban dau khong vuot qua so mat cua dice do.
+8. Consumable duoc dua thang vao, khong random.
 
-ScriptableObject này là nơi designer/dev thả vào:
+---
 
-- dice prefab pool;
-- skill pool;
-- consumable pool;
-- consumable chắc chắn xuất hiện;
-- số lượng skill cần random;
-- số lượng consumable cần random;
-- các rule cho phép trùng hay không.
+## 3. Skill random rule
 
-Không được random từ dữ liệu nằm rải rác ở scene, object khác, prefab khác hoặc tự quét toàn bộ project.
+Prototype nay khong dung rule `6 skill -> 3 pair -> lay 3 skill` nua.
 
-Nói ngắn:
+Rule moi:
+
+- Player co `4 owned skill slot`.
+- Designer author tung `skill pair`, moi pair chi co `2 skill`.
+- Moi lan reset, he thong random `2 pair khac nhau`.
+- Tong `4 skill` cua 2 pair do duoc dua vao 4 slot.
+
+Vi du cac pair hop le:
+
+- `Fire Pair = Ignite / Fire Slash`
+- `Ice Pair = Deep Freeze / Shatter`
+- `Lightning Pair = Spark Brand / Static Conduit`
+
+Tu do he thong co the random thanh:
 
 ```text
-Random cái gì thì chỉ được lấy từ ScriptableObject config đó.
+Fire + Ice
+Fire + Lightning
+Lightning + Ice
+```
+
+Noi ngan:
+
+```text
+Inspector chi author tung pair 2 skill.
+Moi reset = random 2 pair khac nhau -> thanh 4 skill.
 ```
 
 ---
 
-## 4. ScriptableObject config cần chứa những nhóm dữ liệu nào
+## 4. Dice random rule
 
-ScriptableObject config cần có ít nhất 3 nhóm chính.
+### 4.1 Loai dice
 
-### 4.1 Dice Pool
+Prototype chi random giua:
 
-Đây là danh sách các dice prefab mà hệ thống được phép chọn cho player.
+- `d4`
+- `d8`
 
-Ví dụ designer có thể thả vào:
+Moi lan reset, player co 3 dice.
 
-- d4 prefab;
-- d6 prefab;
-- d8 prefab;
-- d12 prefab;
-- d20 prefab;
-- custom dice prefab nếu có.
-
-Mỗi lần refresh, hệ thống chọn 3 dice từ danh sách này.
-
-### 4.2 Skill Pool
-
-Đây là danh sách các skill được phép xuất hiện trong prototype.
-
-Skill random chỉ được lấy từ danh sách này.
-
-Nếu một skill không nằm trong danh sách này thì tuyệt đối không được random ra, dù skill đó có tồn tại trong project.
-
-### 4.3 Consumable Pool
-
-Đây là danh sách consumable được phép random.
-
-Ngoài ra config cần chỉ định một consumable bắt buộc xuất hiện, hiện tại là:
+3 dice nay co the trung nhau tu do:
 
 ```text
-Adjust Face +
-```
-
-Mỗi lần refresh, player nhận 3 consumable:
-
-- 1 slot chắc chắn là `Adjust Face +`;
-- các slot còn lại random từ consumable pool.
-
----
-
-## 5. Dice random logic
-
-### 5.1 Mỗi lần refresh chọn 3 dice
-
-Khi combat được làm mới, player luôn nhận đúng 3 dice.
-
-3 dice này được chọn ngẫu nhiên từ Dice Pool trong ScriptableObject config.
-
-### 5.2 Dice có thể trùng loại
-
-Không giới hạn việc trùng dice.
-
-Các trường hợp sau đều hợp lệ:
-
-```text
+d4 / d4 / d4
 d8 / d8 / d8
-d6 / d6 / d20
-d4 / d12 / d12
+d4 / d8 / d8
+d4 / d4 / d8
 ```
 
-Không cần ép mỗi dice phải khác nhau.
+Khong can ep khac nhau.
 
-Không cần ép phải có đủ small / medium / large dice.
+### 4.2 Gia tri mat luc spawn
 
-### 5.3 Dice prefab chỉ là template
+Sau khi random prefab, tung mat cua runtime die duoc random lai gia tri.
 
-Dice prefab được thả vào config chỉ là nguồn để tạo dice runtime cho player.
+Rule spawn:
 
-Khi random, hệ thống phải tạo bản dice runtime riêng cho combat hiện tại.
+- `d4`: moi mat chi duoc random trong `1..4`
+- `d8`: moi mat chi duoc random trong `1..8`
 
-Không được làm thay đổi dữ liệu gốc của prefab.
-
-Lý do:
-
-- mỗi lần refresh cần dice mới;
-- prefab gốc phải giữ nguyên;
-- tránh việc test nhiều lần làm hỏng dữ liệu asset.
-
-### 5.4 Random Base Value cho từng mặt
-
-Sau khi chọn dice, từng mặt của dice đó sẽ được random Base Value.
-
-Rule:
+Vi du hop le:
 
 ```text
-Base Value ban đầu của mỗi mặt phải nằm trong khoảng 1 đến số mặt của dice đó.
+d4 = [1, 4, 2, 2]
+d8 = [8, 1, 3, 8, 5, 2, 7, 4]
 ```
 
-Ví dụ:
+Vi du khong hop le luc spawn:
 
 ```text
-d4: mỗi mặt random từ 1 đến 4
-d6: mỗi mặt random từ 1 đến 6
-d8: mỗi mặt random từ 1 đến 8
-d12: mỗi mặt random từ 1 đến 12
-d20: mỗi mặt random từ 1 đến 20
+d4 = [1, 5, 2, 2]
+d8 = [8, 9, 3, 8, 5, 2, 7, 4]
 ```
 
-Ví dụ d6 hợp lệ:
+### 4.3 Day chi la rule spawn cua prototype
+
+Rule `khong vuot qua so mat` chi dung luc prototype random setup ban dau.
+
+Rule nay **khong override core game rule**.
+
+Nghia la sau khi vao combat:
+
+- consumable `Adjust Face +`
+- hoac logic khac cua game
+
+van duoc phep day gia tri mat len cao hon so mat, toi da `99`, theo rule chinh cua game.
+
+Noi ngan:
 
 ```text
-d6 = [2, 1, 5, 4, 4, 2]
-```
-
-Ví dụ d6 không hợp lệ ở lúc spawn ban đầu:
-
-```text
-d6 = [2, 1, 7, 4, 4, 2]
-```
-
-Vì d6 không được random ra Base Value 7 lúc khởi tạo.
-
-### 5.5 Mặt dice được phép trùng value
-
-Không cần ép các mặt phải khác nhau.
-
-Ví dụ hợp lệ:
-
-```text
-d6 = [4, 4, 4, 1, 6, 2]
-d8 = [1, 1, 1, 7, 2, 6, 6, 8]
-```
-
-Việc nhiều mặt trùng nhau là hợp lệ vì nó tạo identity riêng cho dice.
-
----
-
-## 6. Skill random logic
-
-### 6.1 Skill chỉ lấy từ pool được bật
-
-Mỗi lần refresh, hệ thống random skill từ Skill Pool trong ScriptableObject config.
-
-Không random toàn bộ skill trong project.
-
-Không lấy skill ngoài danh sách được chọn.
-
-### 6.2 Số lượng skill
-
-Prototype nên dùng số lượng skill được config quy định.
-
-Mặc định nên là 4 skill, vì combat hiện tại xoay quanh 4 skill slot.
-
-Nếu sau này muốn test ít hơn hoặc nhiều hơn, chỉnh trong config.
-
-### 6.3 Có nên cho trùng skill không
-
-Mặc định nên không cho trùng skill trong cùng một setup.
-
-Ví dụ không nên xảy ra ở mặc định:
-
-```text
-Fire Slash / Fire Slash / Fire Slash / Hellfire
-```
-
-Nếu sau này muốn test duplicate skill, có thể thêm option trong config.
-
-Nhưng prototype đầu nên để mỗi skill xuất hiện tối đa một lần trong một setup.
-
-### 6.4 Không random passive
-
-Bản này không đụng vào passive.
-
-Player chỉ cần đọc 3 thứ:
-
-```text
-Dice
-Skill
-Consumable
-```
-
-Passive không nằm trong random setup của prototype này.
-
----
-
-## 7. Consumable random logic
-
-### 7.1 Player luôn có 3 consumable
-
-Mỗi lần refresh, player nhận 3 consumable.
-
-Trong đó chắc chắn có:
-
-```text
-Adjust Face +
-```
-
-Các consumable còn lại random từ Consumable Pool trong ScriptableObject config.
-
-### 7.2 Guaranteed consumable
-
-`Adjust Face +` không được tìm bằng tên string trong logic.
-
-Nó phải là một object được thả trực tiếp vào field “Guaranteed Consumable” trong ScriptableObject config.
-
-Như vậy nếu sau này đổi tên item, logic vẫn đúng.
-
-### 7.3 Có nên cho trùng consumable không
-
-Mặc định nên không cho trùng consumable.
-
-Ví dụ không nên xảy ra ở mặc định:
-
-```text
-Adjust Face+ / Adjust Face+ / Restore Focus
-```
-
-Vì `Adjust Face +` đã là consumable chắc chắn có, pool random còn lại không nên lặp lại nó nếu duplicate bị tắt.
-
-Nếu sau này muốn test duplicate consumable, có thể thêm option trong config.
-
----
-
-## 8. Logic của Adjust Face +
-
-Consumable `Adjust Face +` là item bắt buộc xuất hiện trong mọi setup.
-
-Logic prototype:
-
-```text
-Chọn tối đa 3 mặt trên cùng 1 dice.
-Mỗi mặt được chọn nhận +1 Base Value.
-```
-
-Trong prototype hiện tại, sau khi tăng, Base Value nên bị giới hạn bởi số mặt của dice.
-
-Ví dụ d6:
-
-```text
-d6 = [2, 1, 5, 4, 4, 2]
-```
-
-Nếu dùng `Adjust Face +` lên ba mặt:
-
-```text
-1 -> 2
-5 -> 6
-4 -> 5
-```
-
-Kết quả:
-
-```text
-d6 = [2, 2, 6, 5, 4, 2]
-```
-
-Nếu một mặt d6 đang là 6:
-
-```text
-6 + 1 = 6
-```
-
-Trong prototype đầu, không cho thành 7 để tránh người chơi mới thắc mắc vì sao d6 có mặt 7.
-
-Sau này nếu muốn đi sâu vào dice customization, có thể mở rule cho dice edit vượt quá số mặt. Nhưng bản prototype combat đầu chưa cần.
-
----
-
-## 9. Flow refresh setup
-
-Mỗi lần bấm refresh hoặc bắt đầu lại combat:
-
-1. Xóa setup runtime hiện tại của player.
-2. Random 3 dice từ Dice Pool.
-3. Tạo bản runtime cho từng dice.
-4. Random Base Value cho từng mặt của từng dice.
-5. Gắn 3 dice đó vào player.
-6. Random skill từ Skill Pool.
-7. Gắn skill vào skill slot của player.
-8. Thêm `Adjust Face +` vào consumable slot.
-9. Random các consumable còn lại từ Consumable Pool.
-10. Gắn consumable vào player.
-11. Refresh UI.
-12. Bắt đầu hoặc reset combat với setup mới.
-
-Flow này chỉ xử lý dice / skill / consumable.
-
-Không xử lý passive, reward, shop, map hoặc run progression.
-
----
-
-## 10. UI cần đọc được gì
-
-Prototype không cần UI đẹp, nhưng phải đọc rõ.
-
-Player phải luôn thấy 3 nhóm:
-
-```text
-Dice
-Skill
-Consumable
-```
-
-### 10.1 Dice UI
-
-Mỗi dice cần cho player đọc được:
-
-- dice đó là loại gì;
-- các Base Value trên mặt dice;
-- kết quả roll hiện tại;
-- dice còn dùng được hay đã bị consume;
-- nếu có hover skill, dice nào sẽ bị skill đó consume.
-
-Ví dụ hiển thị debug hợp lệ:
-
-```text
-Dice 1: d8 [2, 8, 1, 4, 4, 7, 3, 6]
-Rolled: 7
-State: Ready
-```
-
-### 10.2 Skill UI
-
-Mỗi skill cần cho player đọc được:
-
-- tên skill;
-- số dice cần consume;
-- Focus cost;
-- target hợp lệ;
-- preview skill sẽ consume dice nào nếu cast ngay.
-
-Ví dụ:
-
-```text
-Hellfire
-Cost: 3 dice / 2 Focus
-Target: Enemy
-Will consume: Dice 1, Dice 2, Dice 3
-```
-
-### 10.3 Consumable UI
-
-Mỗi consumable cần cho player đọc được:
-
-- tên consumable;
-- dùng vào đối tượng nào;
-- điều kiện nào để nút Use sáng;
-- vì sao chưa dùng được nếu thiếu target.
-
-Ví dụ:
-
-```text
-Adjust Face +
-Select up to 3 faces on 1 dice.
-Use available only after valid face selection.
+spawn prototype: d4 toi da 4, d8 toi da 8
+sau do trong runtime game: van co the len 99
 ```
 
 ---
 
-## 11. Enemy scope
+## 5. Consumable rule
 
-Prototype hiện tại chỉ cần 3 enemy.
+Consumable trong prototype:
 
-Enemy có thể cố định trong scene hoặc spawn từ một encounter đơn giản.
+- khong random;
+- duoc author san trong config;
+- giu thu tu slot theo config neu UI can thu tu.
 
-Không cần random enemy nếu chưa cần.
-
-Mục tiêu của enemy trong bản này là tạo áp lực để player dùng dice / skill / consumable, không phải test full encounter system.
-
-Gợi ý 3 enemy đơn giản:
+Vi du:
 
 ```text
-1. Bruiser
-- đánh rõ
-- ép player phòng thủ hoặc giết nhanh
-
-2. Guard enemy
-- có Guard hoặc tự tạo Guard
-- dạy sequencing / Stagger / anti-Guard
-
-3. Caster
-- setup big move hoặc áp status nhẹ
-- ép player chọn target ưu tiên
+Slot 1 = Adjust Face +
+Slot 2 = Restore Focus
+Slot 3 = Final Verdict
 ```
 
-Nếu chưa có đủ hệ enemy, chỉ cần 3 enemy cố định với HP / damage / intent đơn giản.
+Moi lan reset player nhan dung cac item do.
 
 ---
 
-## 12. Guardrail quan trọng
+## 6. ScriptableObject config can chua gi
 
-### 12.1 Không lấy random source ngoài config
+Config prototype can chua it nhat 4 nhom:
 
-Mọi thứ random phải đến từ ScriptableObject config.
+### 6.1 Enemy entries
 
-Không lấy dữ liệu từ:
+Moi entry can co:
 
-- scene list riêng;
-- hardcode trong randomizer;
-- search toàn project;
-- Resources load toàn bộ asset;
-- prefab tự khai báo pool riêng.
+- enemy prefab nao;
+- enemy nay o `Front Row` hay `Back Row`;
+- order trong row neu can;
+- co bat/tat entry nay hay khong.
 
-### 12.2 Không mutate prefab gốc
+### 6.2 Dice prefab pool
 
-Dice prefab gốc không bị thay đổi Base Value trong quá trình refresh.
+Config can tham chieu:
 
-Chỉ runtime dice instance mới được random mặt.
+- `d4 prefab`
+- `d8 prefab`
 
-### 12.3 Không random passive
+Prototype random 3 slot dice tu 2 prefab nay.
 
-Passive không thuộc prototype này.
+### 6.3 Skill pair list
 
-Nếu scene hiện tại cần passive để không lỗi, giữ passive mặc định hoặc để trống, nhưng không random.
+Config can chua danh sach `skill pair`.
 
-### 12.4 Không thêm reward trá hình
+Moi pair chi co:
 
-Không có reward sau combat.
+- `skillA`
+- `skillB`
 
-Không có màn chọn item sau combat.
+Vi du:
 
-Không có shop mini.
+- `Fire Pair = Ignite / Fire Slash`
+- `Ice Pair = Deep Freeze / Shatter`
+- `Lightning Pair = Spark Brand / Static Conduit`
 
-Không có map mini.
+Moi lan reset:
 
-Prototype chỉ là combat setup random.
+- random 2 pair khac nhau;
+- lay tong 4 skill cua 2 pair do;
+- co the shuffle thu tu 4 skill truoc khi gan vao slot.
 
-### 12.5 UI không là source of truth
+### 6.4 Fixed consumables
 
-UI chỉ hiển thị setup hiện tại.
-
-Gameplay logic phải đọc từ runtime player loadout, không đọc từ text UI.
-
----
-
-## 13. Test checklist
-
-### Dice
-
-- Refresh tạo đúng 3 dice.
-- 3 dice có thể trùng loại.
-- d8 / d8 / d8 có thể xuất hiện nếu d8 nằm trong Dice Pool.
-- Mỗi dice random Base Value mới cho từng mặt.
-- d6 không có Base Value ban đầu lớn hơn 6.
-- d8 không có Base Value ban đầu lớn hơn 8.
-- Các mặt được phép trùng value.
-- Prefab gốc không bị thay đổi sau nhiều lần refresh.
-
-### Skill
-
-- Skill chỉ random từ Skill Pool trong config.
-- Không lấy skill ngoài config.
-- Số skill đúng theo config.
-- Mặc định không trùng skill nếu duplicate bị tắt.
-- Không random passive.
-
-### Consumable
-
-- Player luôn có 3 consumable.
-- Luôn có `Adjust Face +`.
-- Các consumable còn lại lấy từ Consumable Pool.
-- Mặc định không trùng consumable nếu duplicate bị tắt.
-- `Adjust Face +` tăng đúng tối đa 3 mặt trên cùng 1 dice.
-- `Adjust Face +` không làm d6 vượt quá 6 trong prototype v1.
-
-### Scope
-
-- Không reward.
-- Không shop.
-- Không map.
-- Không event.
-- Không run progression.
-- Không passive random.
-
-### UI
-
-- UI có 3 nhóm rõ: Dice / Skill / Consumable.
-- Sau refresh UI update đúng.
-- Player đọc được dice đang có.
-- Player đọc được skill đang có.
-- Player đọc được consumable đang có.
-- Khi hover skill, player biết skill sẽ consume dice nào.
+Config chua danh sach consumable co dinh de dua vao player.
 
 ---
 
-## 14. Definition of Done
+## 7. Reset Game rule
 
-Bản này hoàn thành khi:
+`Reset Game` trong prototype nay duoc hieu la:
 
 ```text
-Bấm Refresh
-→ player nhận 3 dice random từ config
-→ dice có thể trùng loại
-→ từng mặt dice có Base Value random hợp lệ theo số mặt
-→ player nhận skill random từ config
-→ player nhận 3 consumable từ config
-→ luôn có Adjust Face +
-→ không random passive
-→ UI hiển thị rõ Dice / Skill / Consumable
-→ combat có thể bắt đầu với setup đó
+tao lai 1 combat moi sach
 ```
 
-Nếu đạt những điều trên thì prototype random setup đã đủ cho mục tiêu combat lab.
+Moi lan reset phai:
+
+1. clear combat cu;
+2. spawn lai player/enemy;
+3. doc lai config encounter;
+4. random lai 2 skill pair;
+5. random lai 3 dice prefab tu d4/d8;
+6. random lai gia tri mat cua tung die;
+7. gan lai consumable co dinh;
+8. reset HP, Guard, status, intent, UI.
+
+Prototype co the implement reset bang full scene reload neu cach do giup state sach va on dinh hon.
 
 ---
 
-## 15. Tóm tắt ngắn
+## 8. Death handling
 
-Prototype này chỉ cần một hệ random setup đơn giản:
+### 8.1 Enemy death
+
+Khi enemy HP ve `0` hoac thap hon:
+
+- enemy bi xem la dead ngay;
+- enemy bi tat khoi combat runtime;
+- khong con target duoc;
+- khong con intent;
+- khong con tick turn;
+- world icon/UI cua no cung bien mat.
+
+### 8.2 Player death
+
+Khi player HP ve `0` hoac thap hon:
+
+- player bi xem la dead ngay;
+- actor player bi tat khoi combat runtime;
+- icon player bien mat;
+- lock moi input combat;
+- khong duoc roll;
+- khong duoc cast skill;
+- khong duoc dung consumable;
+- chi con `Reset Game` duoc dung.
+
+---
+
+## 9. Pham vi prototype
+
+### Co trong prototype
+
+- 1 player
+- toi da 3 enemy
+- enemy roster co dinh theo config
+- row enemy co dinh theo config
+- 4 owned skill slot random theo 2 pair
+- 3 dice random giua d4/d8
+- gia tri mat dice random theo rule prototype
+- consumable co dinh
+- reset nhanh
+
+### Khong co trong prototype
+
+- map
+- shop
+- reward
+- unlock
+- passive random
+- progression qua nhieu tran
+- dice pool rong hon d4/d8
+- random consumable
+
+---
+
+## 10. Ban chot thuc dung
+
+Ban prototype tot nhat cho nhu cau hien tai la:
+
+1. `1 config SO` author enemy + row + skill preset + consumable + d4/d8 refs.
+2. `1 reset button` de vao tran moi ngay.
+3. `4 skill slot` random theo `2 skill pair`.
+4. `3 dice` random giua `d4` va `d8`.
+5. Moi mat dice random dung theo tran `1..4` hoac `1..8` luc spawn.
+6. Sau khi vao tran, consumable `+1` va logic core van duoc day mat dice len toi `99`.
+7. Enemy/player chet thi bien mat khoi combat runtime.
+8. Player chet thi khoa moi thu tru `Reset Game`.
+
+---
+
+## 11. Removal Note
+
+Section nay ton tai de sau nay nhin lai se biet:
+
+- prototype dang nam o dau;
+- file nao la file prototype thuan;
+- file nao da bi patch vao core;
+- muon go prototype thi phai xoa gi.
+
+### 11.1 File prototype thuan
+
+Day la cac file chi phuc vu Combat Lab prototype.
+Neu sau nay bo tinh nang nay, day la nhom file uu tien xoa truoc:
+
+- [CombatLabPrototypeConfigSO.cs](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Assets/Scripts/Prototype/CombatLab/CombatLabPrototypeConfigSO.cs:1)
+- [CombatLabPrototypeController.cs](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Assets/Scripts/Prototype/CombatLab/CombatLabPrototypeController.cs:1)
+- [COMBAT_LAB_RANDOM_LOADOUT_LOGIC_SPEC.md](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Docs/COMBAT_LAB_RANDOM_LOADOUT_LOGIC_SPEC.md:1)
+
+Neu scene test co:
+
+- `CombatLabPrototypeRoot`
+- nut `Reset Game`
+- asset `CombatLabPrototypeConfig`
+
+thi cac object/asset do cung la phan prototype va co the xoa cung dot nay.
+
+### 11.2 File core da bi patch
+
+De prototype nay chay dung, mot so file core da duoc sua them.
+Xoa thu muc `Prototype/CombatLab` la chua du de go sach hoan toan.
+
+Day la cac file core da bi patch:
+
+- [CombatActor.cs](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Assets/Scripts/Combat/Actors/CombatActor.cs:1)
+- [TurnManager.cs](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Assets/Scripts/Combat/Turn/TurnManager.cs:1)
+- [ActorWorldUI.cs](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Assets/Scripts/UI/Combat/ActorWorldUI.cs:1)
+- [ConsumableBarUIManager.cs](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Assets/Scripts/UI/Combat/ConsumableBarUIManager.cs:1)
+
+### 11.3 Cac patch core dang lam gi
+
+#### CombatActor.cs
+
+Dang co patch cho:
+
+- detect actor chet;
+- tat actor runtime khi HP <= 0;
+- reset lai death state khi vao tran moi.
+
+Neu bo prototype va muon quay lai behavior cu, can go logic death-transition da them o file nay.
+
+#### TurnManager.cs
+
+Dang co patch cho:
+
+- `ArePlayerCommandsLocked`;
+- lock input khi player chet;
+- chan roll / continue / target click khi defeat;
+- them defeat handling rieng;
+- method `SetPlayerInteractionLocked`.
+
+Neu bo prototype, can go nhom logic lock/defeat nay neu game core khong can no.
+
+#### ActorWorldUI.cs
+
+Dang co patch cho:
+
+- tu tat world UI khi actor da chet hoac actor runtime da bi disable.
+
+Neu bo prototype, can go check nay neu muon world UI quay lai behavior cu.
+
+#### ConsumableBarUIManager.cs
+
+Dang co patch cho:
+
+- khoa click/drag/use/sell consumable khi player da chet;
+- tu refresh UI khi combat interaction bi khoa;
+- helper `IsInteractionLocked`.
+
+Neu bo prototype, can go nhom lock nay neu consumable UI cua game core khong can behavior do.
+
+### 11.4 Thu tu go prototype de it loi nhat
+
+Neu sau nay muon xoa Combat Lab prototype, thu tu an toan nen la:
+
+1. xoa scene test / button reset / asset config prototype;
+2. xoa 2 file trong `Assets/Scripts/Prototype/CombatLab`;
+3. xoa file spec prototype trong `Docs`;
+4. revert patch trong 4 file core:
+   - `CombatActor.cs`
+   - `TurnManager.cs`
+   - `ActorWorldUI.cs`
+   - `ConsumableBarUIManager.cs`
+5. compile lai va test:
+   - death flow
+   - combat input
+   - consumable UI
+   - actor world UI
+
+### 11.5 Ket luan removal
+
+Noi ngan:
 
 ```text
-Một ScriptableObject config
-→ chứa Dice Pool
-→ chứa Skill Pool
-→ chứa Consumable Pool
-→ chứa Guaranteed Consumable
+Xoa prototype nhanh:
+- Prototype/CombatLab/*
+- scene/asset/button test
+
+Xoa prototype sach 100%:
+- xoa nhom tren
+- revert 4 file core da patch
 ```
-
-Mỗi lần refresh:
-
-```text
-Random 3 dice
-Random face value cho dice
-Random skill
-Random 3 consumable
-Luôn có Adjust Face +
-Hiển thị Dice / Skill / Consumable
-Bắt đầu combat
-```
-
-Không làm gì ngoài scope đó.

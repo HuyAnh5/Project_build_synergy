@@ -11,7 +11,7 @@ public static class DiceBalatroRowSetupTool
     private const string RowName = "DiceRow";
     private const string DragLayerName = "DiceDragLayer";
 
-    [MenuItem("Tools/Build Synergy/Setup Balatro Dice Row")]
+    [MenuItem("Tools/Build Synergy/Legacy/Setup Balatro Dice Row")]
     public static void SetupBalatroDiceRow()
     {
         Canvas canvas = FindOrCreateCanvas();

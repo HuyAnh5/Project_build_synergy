@@ -19,6 +19,16 @@ public class ConsumableBarUIManager : MonoBehaviour
         public TMP_Text titleText;
         public TMP_Text chargesText;
         public ConsumableSlotInteractionProxy interactionProxy;
+        public RectTransform actionAnchor;
+        public RectTransform tooltipAnchor;
+        public RectTransform localActionPanelRoot;
+        public Button localUseButton;
+        public TMP_Text localUseButtonText;
+        public Button localSellButton;
+        public TMP_Text localSellButtonText;
+        public RectTransform localTooltipRoot;
+        public TMP_Text localTooltipTitleText;
+        public TMP_Text localTooltipBodyText;
     }
 
     [Header("Runtime Links")]
@@ -32,6 +42,7 @@ public class ConsumableBarUIManager : MonoBehaviour
 
     [Header("Consumable Row")]
     public RectTransform layoutContainer;
+    public RectTransform slotTemplatePrefab;
     public ConsumableSlotView[] slots = new ConsumableSlotView[RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY];
     public Vector2 cardSize = new Vector2(96f, 128f);
     public float relaxedSpacing = 112f;
@@ -52,8 +63,11 @@ public class ConsumableBarUIManager : MonoBehaviour
     public TMP_Text tooltipBodyText;
 
     [Header("Visual")]
+    public bool useExactManualAnchors = true;
     public Vector2 actionPanelOffset = new Vector2(10f, 0f);
     public Vector2 tooltipOffset = new Vector2(0f, -10f);
+    public Vector2 actionPanelStableOffset = new Vector2(0f, -18f);
+    public Vector2 tooltipStableOffset = new Vector2(0f, -32f);
     public Color selectedColor = new Color(0.33f, 0.55f, 0.98f, 1f);
     public Color targetingColor = new Color(0.98f, 0.78f, 0.22f, 1f);
     public Color normalColor = new Color(0.16f, 0.19f, 0.25f, 0.96f);
@@ -87,6 +101,7 @@ public class ConsumableBarUIManager : MonoBehaviour
     private Tween _dragScaleTween;
     private bool _suppressInventoryRefresh;
     private bool _dragRegistered;
+    private bool _lastInteractionLocked;
 
     private void Awake()
     {
@@ -105,6 +120,29 @@ public class ConsumableBarUIManager : MonoBehaviour
 
     private void Start()
     {
+        RefreshAll();
+        _lastInteractionLocked = IsInteractionLocked();
+    }
+
+    private void Update()
+    {
+        bool locked = IsInteractionLocked();
+        if (locked == _lastInteractionLocked)
+        {
+            RefreshFloatingPresentation();
+            return;
+        }
+
+        _lastInteractionLocked = locked;
+        if (locked)
+        {
+            _selectedSlot = -1;
+            _pendingTargetSlot = -1;
+            _pendingTargetActor = null;
+            _hoveredSlot = -1;
+            ClearLatchedDiceTarget();
+        }
+
         RefreshAll();
     }
 
@@ -133,23 +171,26 @@ public class ConsumableBarUIManager : MonoBehaviour
         if (UiDragState.IsDragging)
         {
             _hoveredSlot = -1;
-            RefreshTooltip();
+            RefreshFloatingPresentation();
             return;
         }
 
         _hoveredSlot = index;
-        RefreshTooltip();
+        RefreshFloatingPresentation();
     }
 
     public void HandleSlotHoverExit(int index)
     {
         if (_hoveredSlot == index)
             _hoveredSlot = -1;
-        RefreshTooltip();
+        RefreshFloatingPresentation();
     }
 
     public void HandleSlotClicked(int index)
     {
+        if (IsInteractionLocked())
+            return;
+
         if (_dragSlot >= 0)
             return;
 
@@ -186,6 +227,9 @@ public class ConsumableBarUIManager : MonoBehaviour
 
     public void HandleSlotBeginDrag(int index, PointerEventData eventData)
     {
+        if (IsInteractionLocked())
+            return;
+
         if (runInventory == null || index < 0 || runInventory.GetConsumable(index) == null)
             return;
 
@@ -227,8 +271,7 @@ public class ConsumableBarUIManager : MonoBehaviour
 
         _dragScaleTween = _dragRect.DOScale(dragScale, 0.12f).SetEase(Ease.OutBack).SetUpdate(true);
         RefreshRowLayout(false);
-        RefreshActionPanel();
-        RefreshTooltip();
+        RefreshFloatingPresentation();
     }
 
     public void HandleSlotDrag(int index, PointerEventData eventData)
@@ -326,6 +369,14 @@ public class ConsumableBarUIManager : MonoBehaviour
         RefreshSlots();
         RefreshActionPanel();
         RefreshTooltip();
+        RefreshPresentationLayers();
+    }
+
+    private void RefreshFloatingPresentation()
+    {
+        RefreshActionPanel();
+        RefreshTooltip();
+        RefreshPresentationLayers();
     }
 
     [ContextMenu("Rebind UI")]
@@ -425,7 +476,6 @@ public class ConsumableBarUIManager : MonoBehaviour
 
             bool showSlot = i < visibleCount;
             ConsumableDataSO data = showSlot && runInventory != null ? runInventory.GetConsumable(i) : null;
-            int charges = showSlot && runInventory != null ? runInventory.GetConsumableCharges(i) : 0;
             bool selected = i == _selectedSlot && data != null;
             bool targeting = i == _pendingTargetSlot && data != null;
 
@@ -443,13 +493,13 @@ public class ConsumableBarUIManager : MonoBehaviour
                 slot.titleText.text = data != null ? data.displayName : string.Empty;
 
             if (slot.chargesText != null)
-                slot.chargesText.text = data != null && charges > 1 ? $"x{charges}" : string.Empty;
+                slot.chargesText.text = string.Empty;
 
             if (slot.background != null)
                 slot.background.color = data == null ? emptyColor : (targeting ? targetingColor : (selected ? selectedColor : normalColor));
 
             if (slot.button != null)
-                slot.button.interactable = data != null;
+                slot.button.interactable = data != null && !IsInteractionLocked();
 
             if (slot.root != null && data != null && i != _dragSlot)
                 SetSlotCanvasAlpha(i, 1f);
@@ -458,20 +508,53 @@ public class ConsumableBarUIManager : MonoBehaviour
         RefreshRowLayout(false);
     }
 
+    private void RefreshPresentationLayers()
+    {
+        RestoreBaseSlotSiblingOrder();
+
+        RectTransform root = transform as RectTransform;
+        if (root != null)
+            root.SetAsLastSibling();
+
+        BringSlotToFront(_pendingTargetSlot);
+        BringSlotToFront(_selectedSlot);
+
+        if (_dragRect != null)
+            _dragRect.SetAsLastSibling();
+
+        RectTransform activeActionPanel = GetActiveActionPanelRoot();
+        if (activeActionPanel != null && activeActionPanel.gameObject.activeSelf)
+            activeActionPanel.SetAsLastSibling();
+
+        RectTransform activeTooltip = GetActiveTooltipRoot();
+        if (activeTooltip != null && activeTooltip.gameObject.activeSelf)
+            activeTooltip.SetAsLastSibling();
+    }
+
     private void RefreshActionPanel()
     {
-        if (actionPanelRoot == null)
-            return;
+        HideAllActionPanels();
 
-        bool show = runInventory != null && _selectedSlot >= 0 && runInventory.GetConsumable(_selectedSlot) != null;
-        actionPanelRoot.gameObject.SetActive(show);
+        bool show = !IsInteractionLocked() && runInventory != null && _selectedSlot >= 0 && runInventory.GetConsumable(_selectedSlot) != null;
         if (!show)
             return;
 
         ConsumableSlotView slot = GetSlot(_selectedSlot);
-        RectTransform visualTarget = GetSlotVisualTarget(slot);
-        if (visualTarget != null)
-            PositionPanelAtSlotRight(actionPanelRoot, visualTarget, actionPanelOffset);
+        RectTransform activePanelRoot = slot != null && slot.localActionPanelRoot != null ? slot.localActionPanelRoot : actionPanelRoot;
+        Button activeUseButton = slot != null && slot.localUseButton != null ? slot.localUseButton : useButton;
+        TMP_Text activeUseLabel = slot != null && slot.localUseButtonText != null ? slot.localUseButtonText : useButtonText;
+        Button activeSellButton = slot != null && slot.localSellButton != null ? slot.localSellButton : sellButton;
+        TMP_Text activeSellLabel = slot != null && slot.localSellButtonText != null ? slot.localSellButtonText : sellButtonText;
+        if (activePanelRoot == null)
+            return;
+
+        activePanelRoot.gameObject.SetActive(true);
+        if (activePanelRoot == actionPanelRoot)
+        {
+            RectTransform actionAnchor = GetSlotActionAnchor(slot);
+            if (actionAnchor != null)
+                PositionPanelAtAnchor(activePanelRoot, actionAnchor, GetPresentationOffset(isTooltip: false));
+        }
 
         ConsumableDataSO data = runInventory.GetConsumable(_selectedSlot);
         CombatActor user = ResolveUser();
@@ -489,8 +572,8 @@ public class ConsumableBarUIManager : MonoBehaviour
 
         bool targeting = _pendingTargetSlot == _selectedSlot;
         string useLabel = targeting ? "CANCEL" : "USE";
-        RefreshActionButton(useButton, useButtonText, useLabel, canUse || NeedsManualTargetSelection(data) || targeting, enabledUseButtonColor);
-        RefreshActionButton(sellButton, sellButtonText, "SELL", true, enabledSellButtonColor);
+        RefreshActionButton(activeUseButton, activeUseLabel, useLabel, canUse || NeedsManualTargetSelection(data) || targeting, enabledUseButtonColor);
+        RefreshActionButton(activeSellButton, activeSellLabel, "SELL", true, enabledSellButtonColor);
     }
 
     private void RefreshActionButton(Button button, TMP_Text label, string text, bool enabled, Color enabledColor)
@@ -509,46 +592,56 @@ public class ConsumableBarUIManager : MonoBehaviour
 
     private void RefreshTooltip()
     {
-        if (tooltipRoot == null)
-            return;
+        HideAllTooltips();
 
         if (UiDragState.IsDragging)
         {
-            tooltipRoot.gameObject.SetActive(false);
             return;
         }
 
         int tooltipSlot = _hoveredSlot;
         bool show = runInventory != null && tooltipSlot >= 0 && runInventory.GetConsumable(tooltipSlot) != null;
-        tooltipRoot.gameObject.SetActive(show);
         if (!show)
             return;
 
         ConsumableSlotView slot = GetSlot(tooltipSlot);
         ConsumableDataSO data = runInventory.GetConsumable(tooltipSlot);
-        int charges = runInventory.GetConsumableCharges(tooltipSlot);
+        RectTransform activeTooltipRoot = slot != null && slot.localTooltipRoot != null ? slot.localTooltipRoot : tooltipRoot;
+        TMP_Text activeTooltipTitle = slot != null && slot.localTooltipTitleText != null ? slot.localTooltipTitleText : tooltipTitleText;
+        TMP_Text activeTooltipBody = slot != null && slot.localTooltipBodyText != null ? slot.localTooltipBodyText : tooltipBodyText;
+        if (activeTooltipRoot == null)
+            return;
 
-        RectTransform visualTarget = GetSlotVisualTarget(slot);
-        if (visualTarget != null)
-            PositionTooltipBelowSlot(tooltipRoot, visualTarget, tooltipOffset);
+        activeTooltipRoot.gameObject.SetActive(true);
+        if (activeTooltipRoot == tooltipRoot)
+        {
+            RectTransform tooltipAnchor = GetSlotTooltipAnchor(slot);
+            if (tooltipAnchor != null)
+                PositionTooltipAtAnchor(activeTooltipRoot, tooltipAnchor, GetPresentationOffset(isTooltip: true));
+        }
 
-        if (tooltipTitleText != null)
-            tooltipTitleText.text = data.displayName;
+        if (activeTooltipTitle != null)
+            activeTooltipTitle.text = data.displayName;
 
-        if (tooltipBodyText != null)
-            tooltipBodyText.text = BuildTooltipBody(data, charges);
+        if (activeTooltipBody != null)
+            activeTooltipBody.text = BuildTooltipBody(data);
+
+        EnsureTooltipAutoSize(activeTooltipRoot, activeTooltipTitle, activeTooltipBody);
     }
 
-    private string BuildTooltipBody(ConsumableDataSO data, int charges)
+    private string BuildTooltipBody(ConsumableDataSO data)
     {
         if (data == null)
             return string.Empty;
 
-        return $"{data.description}\nCharges: {charges}\n{data.useContext} | {data.targetKind}";
+        return $"{data.description}\n{data.useContext} | {data.targetKind}";
     }
 
     private void UseSelectedConsumable()
     {
+        if (IsInteractionLocked())
+            return;
+
         if (runInventory == null || _selectedSlot < 0)
             return;
 
@@ -598,6 +691,9 @@ public class ConsumableBarUIManager : MonoBehaviour
 
     private void SellSelectedConsumable()
     {
+        if (IsInteractionLocked())
+            return;
+
         if (runInventory == null || _selectedSlot < 0)
             return;
 
@@ -666,8 +762,55 @@ public class ConsumableBarUIManager : MonoBehaviour
             return;
 
         _hoveredSlot = -1;
+        HideAllTooltips();
+    }
+
+    private void HideAllActionPanels()
+    {
+        if (actionPanelRoot != null)
+            actionPanelRoot.gameObject.SetActive(false);
+
+        if (slots == null)
+            return;
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i]?.localActionPanelRoot != null)
+                slots[i].localActionPanelRoot.gameObject.SetActive(false);
+        }
+    }
+
+    private void HideAllTooltips()
+    {
         if (tooltipRoot != null)
             tooltipRoot.gameObject.SetActive(false);
+
+        if (slots == null)
+            return;
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i]?.localTooltipRoot != null)
+                slots[i].localTooltipRoot.gameObject.SetActive(false);
+        }
+    }
+
+    private RectTransform GetActiveActionPanelRoot()
+    {
+        ConsumableSlotView slot = GetSlot(_selectedSlot);
+        if (slot != null && slot.localActionPanelRoot != null && slot.localActionPanelRoot.gameObject.activeSelf)
+            return slot.localActionPanelRoot;
+
+        return actionPanelRoot != null && actionPanelRoot.gameObject.activeSelf ? actionPanelRoot : null;
+    }
+
+    private RectTransform GetActiveTooltipRoot()
+    {
+        ConsumableSlotView slot = GetSlot(_hoveredSlot);
+        if (slot != null && slot.localTooltipRoot != null && slot.localTooltipRoot.gameObject.activeSelf)
+            return slot.localTooltipRoot;
+
+        return tooltipRoot != null && tooltipRoot.gameObject.activeSelf ? tooltipRoot : null;
     }
 
     private RectTransform GetSlotVisualTarget(ConsumableSlotView slot)
@@ -675,10 +818,23 @@ public class ConsumableBarUIManager : MonoBehaviour
         if (slot == null)
             return null;
 
-        if (slot.icon != null)
-            return slot.icon.rectTransform;
-
         return slot.root;
+    }
+
+    private RectTransform GetSlotActionAnchor(ConsumableSlotView slot)
+    {
+        if (slot == null)
+            return null;
+
+        return slot.actionAnchor != null ? slot.actionAnchor : slot.root;
+    }
+
+    private RectTransform GetSlotTooltipAnchor(ConsumableSlotView slot)
+    {
+        if (slot == null)
+            return null;
+
+        return slot.tooltipAnchor != null ? slot.tooltipAnchor : slot.root;
     }
 
     private void EnsureSlotViews()
@@ -702,7 +858,9 @@ public class ConsumableBarUIManager : MonoBehaviour
         else if (slots.Length < capacity)
             Array.Resize(ref slots, capacity);
 
-        ConsumableSlotView template = FindFirstUsableSlotView();
+        ConsumableSlotView template = slotTemplatePrefab != null
+            ? BuildSlotViewFromRoot(slotTemplatePrefab)
+            : FindFirstUsableSlotView();
         for (int i = 0; i < capacity; i++)
         {
             if (slots[i] == null || slots[i].root == null)
@@ -746,7 +904,17 @@ public class ConsumableBarUIManager : MonoBehaviour
             icon = FindChildComponent<Image>(root, "Icon"),
             titleText = FindChildComponent<TMP_Text>(root, "Title"),
             chargesText = FindChildComponent<TMP_Text>(root, "Charges"),
-            interactionProxy = root.GetComponent<ConsumableSlotInteractionProxy>()
+            interactionProxy = root.GetComponent<ConsumableSlotInteractionProxy>(),
+            actionAnchor = FindChildComponent<RectTransform>(root, "ActionAnchor"),
+            tooltipAnchor = FindChildComponent<RectTransform>(root, "TooltipAnchor"),
+            localActionPanelRoot = FindChildComponent<RectTransform>(root, "LocalActionPanel"),
+            localUseButton = FindChildComponent<Button>(root, "UseButton"),
+            localUseButtonText = FindChildComponent<TMP_Text>(root, "UseLabel"),
+            localSellButton = FindChildComponent<Button>(root, "SellButton"),
+            localSellButtonText = FindChildComponent<TMP_Text>(root, "SellLabel"),
+            localTooltipRoot = FindChildComponent<RectTransform>(root, "LocalTooltip"),
+            localTooltipTitleText = FindChildComponent<TMP_Text>(root, "TooltipTitle"),
+            localTooltipBodyText = FindChildComponent<TMP_Text>(root, "TooltipBody")
         };
     }
 
@@ -755,15 +923,24 @@ public class ConsumableBarUIManager : MonoBehaviour
         if (root == null)
             return null;
 
-        Transform direct = root.Find(childName);
-        if (direct != null && direct.TryGetComponent(out T directComponent))
-            return directComponent;
+        Transform match = FindDescendantByName(root, childName);
+        return match != null && match.TryGetComponent(out T component) ? component : null;
+    }
 
-        T[] components = root.GetComponentsInChildren<T>(true);
-        for (int i = 0; i < components.Length; i++)
+    private static Transform FindDescendantByName(Transform root, string childName)
+    {
+        if (root == null || string.IsNullOrEmpty(childName))
+            return null;
+
+        for (int i = 0; i < root.childCount; i++)
         {
-            if (components[i] != null && components[i].transform != root)
-                return components[i];
+            Transform child = root.GetChild(i);
+            if (child.name == childName)
+                return child;
+
+            Transform nested = FindDescendantByName(child, childName);
+            if (nested != null)
+                return nested;
         }
 
         return null;
@@ -793,8 +970,70 @@ public class ConsumableBarUIManager : MonoBehaviour
         slot.interactionProxy.manager = this;
         slot.interactionProxy.slotIndex = index;
 
+        EnsurePresentationAnchors(slot);
+
         if (slot.button != null && slot.background != null)
             slot.button.targetGraphic = slot.background;
+
+        if (slot.localUseButton != null)
+        {
+            slot.localUseButton.onClick.RemoveAllListeners();
+            slot.localUseButton.onClick.AddListener(UseSelectedConsumable);
+        }
+
+        if (slot.localSellButton != null)
+        {
+            slot.localSellButton.onClick.RemoveAllListeners();
+            slot.localSellButton.onClick.AddListener(SellSelectedConsumable);
+        }
+    }
+
+    private void EnsurePresentationAnchors(ConsumableSlotView slot)
+    {
+        if (slot == null || slot.root == null)
+            return;
+
+        if (slot.actionAnchor == null)
+        {
+            Transform existing = slot.root.Find("ActionAnchor");
+            if (existing != null)
+            {
+                slot.actionAnchor = existing as RectTransform;
+            }
+            else
+            {
+                GameObject go = new GameObject("ActionAnchor", typeof(RectTransform));
+                RectTransform rect = go.GetComponent<RectTransform>();
+                rect.SetParent(slot.root, false);
+                rect.anchorMin = new Vector2(1f, 1f);
+                rect.anchorMax = new Vector2(1f, 1f);
+                rect.pivot = new Vector2(0f, 0.5f);
+                rect.anchoredPosition = new Vector2(cardSize.x * 0.5f + 8f, -22f);
+                rect.sizeDelta = Vector2.zero;
+                slot.actionAnchor = rect;
+            }
+        }
+
+        if (slot.tooltipAnchor == null)
+        {
+            Transform existing = slot.root.Find("TooltipAnchor");
+            if (existing != null)
+            {
+                slot.tooltipAnchor = existing as RectTransform;
+            }
+            else
+            {
+                GameObject go = new GameObject("TooltipAnchor", typeof(RectTransform));
+                RectTransform rect = go.GetComponent<RectTransform>();
+                rect.SetParent(slot.root, false);
+                rect.anchorMin = new Vector2(0.5f, 0f);
+                rect.anchorMax = new Vector2(0.5f, 0f);
+                rect.pivot = new Vector2(0.5f, 1f);
+                rect.anchoredPosition = new Vector2(0f, -8f);
+                rect.sizeDelta = Vector2.zero;
+                slot.tooltipAnchor = rect;
+            }
+        }
     }
 
     private static void DisableAutoLayout(RectTransform container)
@@ -831,6 +1070,41 @@ public class ConsumableBarUIManager : MonoBehaviour
             SnapViewToAnchor(slot.root, container, GetPositionForIndex(i, displayed.Count), instant);
             slot.root.SetSiblingIndex(Mathf.Min(i, container.childCount - 1));
         }
+    }
+
+    private void RestoreBaseSlotSiblingOrder()
+    {
+        RectTransform container = GetLayoutContainer();
+        if (container == null || slots == null)
+            return;
+
+        int count = runInventory != null ? runInventory.GetConsumableCount() : 0;
+        if (count <= 0)
+            return;
+
+        List<ConsumableSlotView> displayed = BuildDisplayedOrder(count);
+        int siblingIndex = 0;
+        for (int i = 0; i < displayed.Count; i++)
+        {
+            ConsumableSlotView slot = displayed[i];
+            if (slot == null || slot.root == null || slot.root == _dragRect || !slot.root.gameObject.activeSelf)
+                continue;
+
+            if (slot.root.parent != container)
+                slot.root.SetParent(container, worldPositionStays: true);
+
+            slot.root.SetSiblingIndex(Mathf.Min(siblingIndex, container.childCount - 1));
+            siblingIndex++;
+        }
+    }
+
+    private void BringSlotToFront(int index)
+    {
+        ConsumableSlotView slot = GetSlot(index);
+        if (slot == null || slot.root == null || slot.root == _dragRect || !slot.root.gameObject.activeSelf)
+            return;
+
+        slot.root.SetAsLastSibling();
     }
 
     private List<ConsumableSlotView> BuildDisplayedOrder(int count)
@@ -1067,42 +1341,100 @@ public class ConsumableBarUIManager : MonoBehaviour
         group.alpha = alpha;
     }
 
-    private void PositionPanelAtSlotRight(RectTransform panel, RectTransform slotRoot, Vector2 offset)
+    private void PositionPanelAtAnchor(RectTransform panel, RectTransform anchor, Vector2 offset)
     {
-        if (panel == null || slotRoot == null)
-            return;
-
-        RectTransform parentRect = panel.parent as RectTransform;
-        if (parentRect == null)
-        {
-            panel.position = slotRoot.position + (Vector3)offset;
-            return;
-        }
-
-        Vector3[] corners = new Vector3[4];
-        slotRoot.GetWorldCorners(corners);
-        Vector3 rightMidWorld = (corners[2] + corners[3]) * 0.5f;
-        Vector2 localPoint = parentRect.InverseTransformPoint(rightMidWorld);
-        panel.anchoredPosition = localPoint + offset;
+        PositionPresentationAtAnchor(panel, anchor, offset);
     }
 
-    private void PositionTooltipBelowSlot(RectTransform tooltip, RectTransform slotRoot, Vector2 offset)
+    private void PositionTooltipAtAnchor(RectTransform tooltip, RectTransform anchor, Vector2 offset)
     {
-        if (tooltip == null || slotRoot == null)
+        PositionPresentationAtAnchor(tooltip, anchor, offset);
+    }
+
+    private static void PositionPresentationAtAnchor(RectTransform presentation, RectTransform anchor, Vector2 offset)
+    {
+        if (presentation == null || anchor == null)
             return;
 
-        RectTransform parentRect = tooltip.parent as RectTransform;
-        if (parentRect == null)
+        RectTransform anchorParent = anchor.parent as RectTransform;
+        if (anchorParent == null)
         {
-            tooltip.position = slotRoot.position + (Vector3)offset;
+            presentation.position = anchor.position + (Vector3)offset;
             return;
         }
 
-        Vector3[] corners = new Vector3[4];
-        slotRoot.GetWorldCorners(corners);
-        Vector3 bottomMidWorld = (corners[0] + corners[3]) * 0.5f;
-        Vector2 localPoint = parentRect.InverseTransformPoint(bottomMidWorld);
-        tooltip.anchoredPosition = localPoint + offset;
+        if (presentation.parent != anchorParent)
+            presentation.SetParent(anchorParent, worldPositionStays: false);
+
+        EnsureIgnoreLayout(presentation);
+        presentation.anchorMin = anchor.anchorMin;
+        presentation.anchorMax = anchor.anchorMax;
+        presentation.anchoredPosition = anchor.anchoredPosition + offset;
+        presentation.localScale = Vector3.one;
+    }
+
+    private static void EnsureIgnoreLayout(RectTransform rect)
+    {
+        if (rect == null)
+            return;
+
+        LayoutElement layoutElement = rect.GetComponent<LayoutElement>();
+        if (layoutElement == null)
+            layoutElement = rect.gameObject.AddComponent<LayoutElement>();
+
+        layoutElement.ignoreLayout = true;
+    }
+
+    private static void EnsureTooltipAutoSize(RectTransform tooltip, TMP_Text title, TMP_Text body)
+    {
+        if (tooltip == null)
+            return;
+
+        VerticalLayoutGroup layout = tooltip.GetComponent<VerticalLayoutGroup>();
+        if (layout != null)
+        {
+            layout.childControlHeight = true;
+            layout.childForceExpandHeight = false;
+        }
+
+        ContentSizeFitter fitter = tooltip.GetComponent<ContentSizeFitter>();
+        if (fitter == null)
+            fitter = tooltip.gameObject.AddComponent<ContentSizeFitter>();
+
+        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
+        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+        EnsureTooltipTextLayout(title);
+        EnsureTooltipTextLayout(body);
+
+        LayoutRebuilder.ForceRebuildLayoutImmediate(tooltip);
+    }
+
+    private static void EnsureTooltipTextLayout(TMP_Text text)
+    {
+        if (text == null)
+            return;
+
+        text.enableWordWrapping = true;
+        text.overflowMode = TextOverflowModes.Overflow;
+
+        LayoutElement layout = text.GetComponent<LayoutElement>();
+        if (layout == null)
+            layout = text.gameObject.AddComponent<LayoutElement>();
+
+        layout.ignoreLayout = false;
+        layout.flexibleHeight = 0f;
+        layout.preferredHeight = -1f;
+    }
+
+    private Vector2 GetPresentationOffset(bool isTooltip)
+    {
+        if (useExactManualAnchors)
+            return Vector2.zero;
+
+        return isTooltip
+            ? tooltipOffset + tooltipStableOffset
+            : actionPanelOffset + actionPanelStableOffset;
     }
 
     private bool NeedsManualTargetSelection(ConsumableDataSO data)
@@ -1123,6 +1455,9 @@ public class ConsumableBarUIManager : MonoBehaviour
 
     private bool CanUseFromActionPanel(ConsumableDataSO data, CombatActor user, CombatActor target, DiceSpinnerGeneric targetDie, DiceSpinnerGeneric selectedCombatDie)
     {
+        if (IsInteractionLocked())
+            return false;
+
         if (data == null)
             return false;
 
@@ -1133,9 +1468,28 @@ public class ConsumableBarUIManager : MonoBehaviour
             return diceEditController.CanOpenPanelForDie(_selectedSlot, data, selectedCombatDie);
 
         if (data.effectId == ConsumableEffectId.DiceReroll)
-            return GetSelectedDiceCount() > 0;
+            return CanUseDiceRerollSelection(data, user, target);
 
-        return ConsumableRuntimeUtility.CanUseInCombat(data, user, target, runInventory, targetDie);
+        return ConsumableRuntimeUtility.CanUseInCombat(data, user, target, runInventory, targetDie, turnManager);
+    }
+
+    private bool CanUseDiceRerollSelection(ConsumableDataSO data, CombatActor user, CombatActor target)
+    {
+        if (data == null || diceEquipUiManager == null)
+            return false;
+
+        List<DiceSpinnerGeneric> selectedDice = new List<DiceSpinnerGeneric>();
+        diceEquipUiManager.GetSelectedDice(selectedDice);
+        if (selectedDice.Count <= 0)
+            return false;
+
+        for (int i = 0; i < selectedDice.Count; i++)
+        {
+            if (!ConsumableRuntimeUtility.CanUseInCombat(data, user, target, runInventory, selectedDice[i], turnManager))
+                return false;
+        }
+
+        return true;
     }
 
     private void SubscribeDiceEditController()
@@ -1241,36 +1595,51 @@ public class ConsumableBarUIManager : MonoBehaviour
     {
         if (data != null && data.effectId == ConsumableEffectId.DiceReroll)
         {
+            if (!CanUseDiceRerollSelection(data, user, target))
+                return;
+
             List<DiceSpinnerGeneric> selectedDice = new List<DiceSpinnerGeneric>();
             if (diceEquipUiManager != null)
                 diceEquipUiManager.GetSelectedDice(selectedDice);
 
-            bool rerolledAny = false;
+            int pendingRerolls = 0;
             for (int i = 0; i < selectedDice.Count; i++)
             {
-                ConsumableUseResult rerollResult = ConsumableRuntimeUtility.TryUseInCombat(data, user, target, runInventory, selectedDice[i]);
-                if (!rerollResult.success)
+                DiceSpinnerGeneric die = selectedDice[i];
+                if (die == null)
                     continue;
 
-                rerolledAny = true;
+                pendingRerolls++;
+                die.onRollComplete += HandleRerollRollComplete;
+                die.RollRandomFace();
             }
-
-            if (!rerolledAny)
-                return;
 
             ClearLatchedDiceTarget();
             SyncInventoryDiceLayoutFromRig();
-            if (turnManager != null && turnManager.diceRig != null)
-                turnManager.diceRig.RefreshRollInfoCache();
-            diceEquipUiManager?.ClearSelectedDice();
 
             runInventory.TryConsumeConsumableCharge(slotIndex, 1);
-            if (runInventory.GetConsumable(slotIndex) != data)
-                _selectedSlot = -1;
+            HandleConsumableUseSuccess(slotIndex, data);
             return;
+
+            void HandleRerollRollComplete(DiceSpinnerGeneric rolledDie)
+            {
+                if (rolledDie == null)
+                    return;
+
+                rolledDie.onRollComplete -= HandleRerollRollComplete;
+                pendingRerolls = Mathf.Max(0, pendingRerolls - 1);
+                if (pendingRerolls > 0)
+                    return;
+
+                if (turnManager != null && turnManager.diceRig != null)
+                {
+                    turnManager.diceRig.RefreshRollInfoCache();
+                    turnManager.RefreshPlanningAfterDiceValueReorder();
+                }
+            }
         }
 
-        ConsumableUseResult result = ConsumableRuntimeUtility.TryUseInCombat(data, user, target, runInventory, targetDie);
+        ConsumableUseResult result = ConsumableRuntimeUtility.TryUseInCombat(data, user, target, runInventory, targetDie, turnManager);
         Debug.Log($"[ConsumableBarUI] {result.message}", this);
 
         if (!result.success)
@@ -1292,12 +1661,25 @@ public class ConsumableBarUIManager : MonoBehaviour
             turnManager.diceRig.RefreshRollInfoCache();
         if (targetDie != null)
             targetDie.RefreshDisplayedState();
-        if (data != null && data.UsesDiceSelection())
-            diceEquipUiManager?.ClearSelectedDice();
 
         runInventory.TryConsumeConsumableCharge(slotIndex, 1);
-        if (runInventory.GetConsumable(slotIndex) != data)
-            _selectedSlot = -1;
+        HandleConsumableUseSuccess(slotIndex, data);
+    }
+
+    private void HandleConsumableUseSuccess(int slotIndex, ConsumableDataSO data)
+    {
+        bool shouldClearDiceSelection = data != null &&
+                                        (data.family == ConsumableFamily.Zodiac || data.UsesDiceSelection());
+
+        if (shouldClearDiceSelection)
+            diceEquipUiManager?.ClearSelectedDice(instant: true);
+
+        _selectedSlot = -1;
+        _pendingTargetSlot = -1;
+        _pendingTargetActor = null;
+        _hoveredSlot = -1;
+        ClearLatchedDiceTarget();
+        RefreshAll();
     }
 
     private void ClearLatchedDiceTarget()
@@ -1317,5 +1699,14 @@ public class ConsumableBarUIManager : MonoBehaviour
             layout[i] = turnManager.diceRig.slots[i] != null ? turnManager.diceRig.slots[i].dice : null;
 
         runInventory.SetDiceLayout(layout, notifyChanged: false);
+    }
+
+    private bool IsInteractionLocked()
+    {
+        CombatActor user = ResolveUser();
+        if (user == null || user.IsDead)
+            return true;
+
+        return turnManager != null && turnManager.ArePlayerCommandsLocked;
     }
 }

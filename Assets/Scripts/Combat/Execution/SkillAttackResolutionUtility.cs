@@ -3,8 +3,6 @@ using UnityEngine;
 
 internal static class SkillAttackResolutionUtility
 {
-    private const int LightningMarkShockDamage = 3;
-
     public static int ApplyAttackToTargets(
         SkillRuntime rt,
         CombatActor caster,
@@ -66,12 +64,13 @@ internal static class SkillAttackResolutionUtility
 
         bool triggerMarkPayoff = AttackPreviewCalculator.CanUseMarkPayoff(rt, target);
         int lightningShockDamage = 0;
-        if (triggerMarkPayoff && rt.element == ElementType.Lightning)
+        if (triggerMarkPayoff && rt.element == ElementType.Lightning && rt.triggerLightningMarkShock)
         {
             float shockMul = 1f;
             if (ps != null)
                 shockMul += Mathf.Max(0f, ps.GetLightningVsMarkMultiplierAdd());
-            lightningShockDamage = Mathf.FloorToInt(LightningMarkShockDamage * shockMul);
+            int baseShockDamage = Mathf.Max(0, rt.lightningMarkShockDamage);
+            lightningShockDamage = Mathf.FloorToInt(baseShockDamage * shockMul);
         }
 
         if (rt.element == ElementType.Fire && rt.consumesBurn && target.status != null && target.status.burnStacks > 0)
@@ -92,7 +91,7 @@ internal static class SkillAttackResolutionUtility
 
         if (info.isDamage &&
             rt.element == ElementType.Ice &&
-            !SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.Shatter) &&
+            rt.gainIceRewardOnFrozenOrChilledHit &&
             target.status != null &&
             caster != null)
         {
@@ -100,7 +99,17 @@ internal static class SkillAttackResolutionUtility
             bool isChilled = target.status.chilledTurns > 0;
             if (isFrozen || isChilled)
             {
-                caster.AddGuard(3);
+                int guardReward = Mathf.Max(0, rt.iceRewardGuard);
+                if (guardReward > 0)
+                    caster.AddGuard(guardReward);
+
+                int focusReward = Mathf.Max(0, rt.iceRewardFocus);
+                if (focusReward > 0)
+                {
+                    if (ps != null)
+                        focusReward += ps.GetFreezeBreakFocusBonusAdd();
+                    caster.GainFocus(focusReward);
+                }
             }
         }
 

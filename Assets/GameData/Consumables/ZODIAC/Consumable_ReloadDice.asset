@@ -12,13 +12,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4b92963ff6d82d49a8b2e6eb254de8c, type: 3}
   m_Name: Consumable_ReloadDice
   m_EditorClassIdentifier: Assembly-CSharp::ConsumableDataSO
-  icon: {fileID: 0}
+  icon: {fileID: -8939101552625722761, guid: 422d8f3fa3ef44841b1b50e7af231af9, type: 3}
   displayName: Reload Dice
-  description: Select 1 die that was already used this turn. Use it to reroll that die and return it to the available dice row for this turn.
+  description: Select 1 die that was already used this turn. Use it to reroll that
+    die and return it to the available dice row for this turn.
   family: 0
   useContext: 2
   targetKind: 2
-  effectId: 0
+  effectId: 18
   charges: 1
   valueA: 0
   minSelectedDice: 1

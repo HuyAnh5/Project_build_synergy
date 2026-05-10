@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4b92963ff6d82d49a8b2e6eb254de8c, type: 3}
   m_Name: Consumable_DiceReroll
   m_EditorClassIdentifier: Assembly-CSharp::ConsumableDataSO
-  icon: {fileID: 0}
+  icon: {fileID: 1192862653530567456, guid: 5a0d3fd8e60fcda41b083875f9a9dffd, type: 3}
   displayName: Dice Reroll
   description: Select 1 or more dice, then reroll all selected dice.
   family: 0

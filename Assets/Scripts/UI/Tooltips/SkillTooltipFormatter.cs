@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
@@ -51,61 +52,229 @@ public static class SkillTooltipFormatter
     private static string BuildDamageBody(SkillDamageSO skill, SkillRuntime runtime)
     {
         SkillRuntime view = runtime ?? SkillRuntime.FromDamage(skill);
-        StringBuilder sb = new StringBuilder(320);
-        AppendMeta(
-            sb,
-            Mathf.Max(0, view.focusCost),
-            Mathf.Clamp(view.slotsRequired, 1, 3),
-            view.targetRuleV2,
-            FormatElement(view.element),
-            BuildDamageTags(view));
+        StringBuilder sb = new StringBuilder(160);
+        string targeting = SkillUiMetadataUtility.BuildTargetingSummary(skill, view);
+        if (!string.IsNullOrWhiteSpace(targeting))
+            sb.Append(ColorLabel("Targeting")).Append(": ").Append(targeting);
 
-        List<string> rules = new List<string>();
-        if (!string.IsNullOrWhiteSpace(skill.description))
-            rules.Add(ColorQuotedAddedValues(skill.description.Trim()));
+        string description = BuildRuntimeDamageDescription(skill, view);
+        if (string.IsNullOrWhiteSpace(description))
+            description = skill.description ?? string.Empty;
 
-        AppendDamageRules(rules, view);
+        if (!string.IsNullOrWhiteSpace(description))
+        {
+            if (sb.Length > 0)
+                sb.Append("\n\n");
+            sb.Append(ColorQuotedAddedValues(description.Trim()));
+        }
 
-        AppendRules(sb, rules);
-        AppendAddedValueHint(sb, rules);
         return sb.ToString();
     }
 
     private static string BuildBuffDebuffBody(SkillBuffDebuffSO skill, SkillRuntime runtime)
     {
-        StringBuilder sb = new StringBuilder(320);
+        StringBuilder sb = new StringBuilder(160);
         SkillRuntime view = runtime ?? BuildBuffRuntime(skill);
-        AppendMeta(
-            sb,
-            Mathf.Max(0, view != null ? view.focusCost : skill.focusCost),
-            Mathf.Clamp(view != null ? view.slotsRequired : skill.slotsRequired, 1, 3),
-            view != null ? view.targetRuleV2 : skill.target,
-            InferBuffElement(skill),
-            BuildBuffTags(skill));
-
-        List<string> rules = new List<string>();
-        AppendBuffFireModuleRules(rules, skill);
-        AppendBuffEffectRules(rules, skill, view);
-        AppendAilmentRules(rules, skill);
+        string targeting = SkillUiMetadataUtility.BuildTargetingSummary(skill, view);
+        if (!string.IsNullOrWhiteSpace(targeting))
+            sb.Append(ColorLabel("Targeting")).Append(": ").Append(targeting);
 
         if (!string.IsNullOrWhiteSpace(skill.description))
-            rules.Insert(0, ColorQuotedAddedValues(skill.description.Trim()));
+        {
+            if (sb.Length > 0)
+                sb.Append("\n\n");
+            sb.Append(ColorQuotedAddedValues(skill.description.Trim()));
+        }
 
-        AppendRules(sb, rules);
-        AppendAddedValueHint(sb, rules);
         return sb.ToString();
     }
 
     private static string BuildPassiveBody(SkillPassiveSO passive)
     {
-        StringBuilder sb = new StringBuilder(220);
-        sb.Append(ColorLabel("Type")).Append(": Passive");
-        if (passive.spec != null && passive.spec.rarity != ContentRarity.Pending)
-            sb.Append("   ").Append(ColorLabel("Rarity")).Append(": ").Append(passive.spec.rarity);
+        return string.IsNullOrWhiteSpace(passive.description)
+            ? string.Empty
+            : ColorQuotedAddedValues(passive.description.Trim());
+    }
 
-        if (!string.IsNullOrWhiteSpace(passive.description))
-            sb.Append("\n\n").Append(ColorQuotedAddedValues(passive.description.Trim()));
-        return sb.ToString();
+    private static string BuildRuntimeDamageDescription(SkillDamageSO skill, SkillRuntime runtime)
+    {
+        if (skill == null)
+            return string.Empty;
+
+        if (runtime == null)
+            return skill.description ?? string.Empty;
+
+        string title = GetTitle(skill);
+        if (skill.coreAction == CoreAction.BasicStrike)
+            return $"Deal \"{GetPreviewDamage(runtime)} damage\". Gain {runtime.focusGainOnCast} Focus.";
+
+        if (skill.coreAction == CoreAction.BasicGuard)
+            return $"Gain \"{GetPreviewGuard(runtime)} Guard\".";
+
+        string description;
+        switch (title)
+        {
+            case "Ignite":
+                description = $"Apply \"{GetPreviewBurn(runtime)} Burn\". If Base Value is odd, apply +{GetIgniteOddBurnBonus(runtime)} Burn.";
+                break;
+
+            case "Fire Slash":
+                description = runtime.conditionMet && runtime.applyBurn
+                    ? $"Deal \"{GetPreviewDamage(runtime)} damage\". If die Odd, apply \"{GetPreviewBurn(runtime)} Burn\"."
+                    : $"Deal \"{GetPreviewDamage(runtime)} damage\". If die Odd, apply 1 Burn.";
+                break;
+
+            case "Shatter Guard":
+                description = $"Deal \"{GetPreviewDamage(runtime)} damage\". If die Fail, gain \"{GetPreviewGuardGainFromFlat(runtime, 4)} Guard\".";
+                break;
+
+            case "Static Conduit":
+                description = $"Deal \"{GetPreviewDamage(runtime)} damage\". If target had Mark before hit, apply Mark to all other enemies in the same row.";
+                break;
+            default:
+                description = skill.description ?? string.Empty;
+                break;
+        }
+
+        return AppendElementInteractionText(description, runtime);
+    }
+
+    private static int GetPreviewDamage(SkillRuntime rt)
+    {
+        if (rt == null || rt.kind != SkillKind.Attack)
+            return 0;
+
+        return AttackPreviewCalculator.BuildAttackPreview(rt, null, null, GetResolvedValueSum(rt)).finalDamage;
+    }
+
+    private static int GetPreviewGuard(SkillRuntime rt)
+    {
+        if (rt == null || rt.kind != SkillKind.Guard)
+            return 0;
+
+        if (rt.guardValueMode == BaseEffectValueMode.Flat && rt.guardFlat > 0)
+            return SkillOutputValueUtility.AddActionAddedValue(rt.guardFlat, rt);
+
+        return SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, 0);
+    }
+
+    private static int GetPreviewBurn(SkillRuntime rt)
+    {
+        if (rt == null || !rt.applyBurn)
+            return 0;
+
+        int burn;
+        if (rt.baseBurnValueMode == BaseEffectValueMode.X || rt.fireApplyBurnFromResolvedValue)
+        {
+            burn = SkillOutputValueUtility.ResolveXValue(GetResolvedValueSum(rt), rt);
+        }
+        else
+        {
+            burn = SkillOutputValueUtility.AddActionAddedValue(rt.burnAddStacks, rt);
+        }
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.Ignite) &&
+            SkillBehaviorRuntimeUtility.TryGetSingleBaseValue(rt, out int baseValue) &&
+            (baseValue % 2) != 0)
+        {
+            burn += GetIgniteOddBurnBonus(rt);
+        }
+
+        return burn;
+    }
+
+    private static int GetPreviewGuardGainFromFlat(SkillRuntime rt, int baseGuard)
+    {
+        return rt == null ? 0 : SkillOutputValueUtility.AddActionAddedValue(baseGuard, rt);
+    }
+
+    private static int GetResolvedValueSum(SkillRuntime rt)
+    {
+        if (rt == null || rt.localResolvedValues == null)
+            return 0;
+
+        int total = 0;
+        for (int i = 0; i < rt.localResolvedValues.Count; i++)
+            total += Mathf.Max(0, rt.localResolvedValues[i]);
+        return Mathf.Max(0, total);
+    }
+
+    private static int GetIgniteOddBurnBonus(SkillRuntime rt)
+    {
+        if (rt == null)
+            return 2;
+
+        if (rt.fireOddBaseBonusBurn > 0)
+            return rt.fireOddBaseBonusBurn;
+
+        return 2;
+    }
+
+    private static string AppendElementInteractionText(string description, SkillRuntime rt)
+    {
+        if (rt == null)
+            return description ?? string.Empty;
+
+        string result = (description ?? string.Empty).Trim();
+
+        bool hasBurnConsumeText = ContainsText(result, "Consume") && ContainsText(result, "Burn");
+        if (rt.consumesBurn && !hasBurnConsumeText)
+        {
+            result = AppendSentence(
+                result,
+                $"Consume Burn: +\"{Mathf.Max(0, AttackPreviewCalculator.GetBurnConsumeDamagePerStack(rt))} damage\" per Burn.");
+        }
+
+        if (rt.element == ElementType.Ice &&
+            rt.gainIceRewardOnFrozenOrChilledHit &&
+            !ContainsText(result, "Frozen/Chilled"))
+        {
+            List<string> rewards = new List<string>(2);
+            if (rt.iceRewardFocus > 0)
+                rewards.Add($"\"{rt.iceRewardFocus} Focus\"");
+            if (rt.iceRewardGuard > 0)
+                rewards.Add($"\"{rt.iceRewardGuard} Guard\"");
+
+            if (rewards.Count > 0)
+            {
+                string rewardText = rewards.Count == 2
+                    ? rewards[0] + " and " + rewards[1]
+                    : rewards[0];
+                result = AppendSentence(result, $"If target is Frozen/Chilled, gain {rewardText}.");
+            }
+        }
+
+        if (rt.element == ElementType.Lightning &&
+            rt.triggerLightningMarkShock &&
+            rt.group != DamageGroup.Effect &&
+            !ContainsText(result, "Lightning damage") &&
+            !ContainsText(result, "Mark before hit"))
+        {
+            result = AppendSentence(
+                result,
+                $"If target had Mark before hit, deal \"{Mathf.Max(0, rt.lightningMarkShockDamage)} Lightning damage\" to all enemies.");
+        }
+
+        return result;
+    }
+
+    private static string AppendSentence(string description, string sentence)
+    {
+        if (string.IsNullOrWhiteSpace(sentence))
+            return description ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(description))
+            return sentence.Trim();
+
+        return description.TrimEnd() + " " + sentence.Trim();
+    }
+
+    private static bool ContainsText(string text, string value)
+    {
+        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(value))
+            return false;
+
+        return text.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static void AppendMeta(StringBuilder sb, int focusCost, int slotsRequired, SkillTargetRule target, string element, string tags)

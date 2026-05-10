@@ -1,4 +1,4 @@
-﻿using DG.Tweening;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -38,30 +38,7 @@ public class ActionSlotDrop : MonoBehaviour, IDropHandler
 
     public void OnDrop(PointerEventData eventData)
     {
-        if (!turn || !turn.CanInteractWithSkills) return;
-
-        var drag = eventData.pointerDrag;
-        if (!drag) return;
-
-        var d = drag.GetComponent<DraggableSkillIcon>();
-        if (!d) return;
-
-        // Reject passive (equip-only)
-        if (d.IsPassive) return;
-
-        bool ok = false;
-
-        // ✅ NEW: read from unified API instead of fields
-        var asset = d.GetSkillAsset();
-        if (asset == null) return;
-
-        if (asset is SkillDamageSO dmg) ok = turn.TryAssignSkillToSlot(slotIndex, dmg);
-        else if (asset is SkillBuffDebuffSO bd) ok = turn.TryAssignSkillToSlot(slotIndex, bd);
-
-        if (!ok) return;
-
-        transform.DOKill();
-        transform.DOPunchScale(Vector3.one * 0.12f, 0.18f, 8, 0.8f);
+        // Removed: We no longer drag skills into skill slots.
     }
 
     // ----------------------

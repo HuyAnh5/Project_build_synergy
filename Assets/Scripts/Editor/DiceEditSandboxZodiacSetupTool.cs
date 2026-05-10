@@ -9,7 +9,7 @@ public static class DiceEditSandboxZodiacSetupTool
 {
     private const string RootName = "SampleSceneZodiacPanel";
 
-    [MenuItem("Tools/Build Synergy/Setup SampleScene Zodiac Panel")]
+    [MenuItem("Tools/Build Synergy/Legacy/Setup SampleScene Zodiac Panel")]
     public static void SetupSampleSceneZodiacPanel()
     {
         Canvas canvas = FindOrCreateCanvas();

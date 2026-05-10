@@ -12,9 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4b92963ff6d82d49a8b2e6eb254de8c, type: 3}
   m_Name: Consumable_SetRolledFace
   m_EditorClassIdentifier: Assembly-CSharp::ConsumableDataSO
-  icon: {fileID: 0}
+  icon: {fileID: -8939101552625722761, guid: 422d8f3fa3ef44841b1b50e7af231af9, type: 3}
   displayName: Set Rolled Face
-  description: Pick 1 face on one die. After use, that die shows that face as its current rolled result.
+  description: Pick 1 face on one die. After use, that die shows that face as its
+    current rolled result.
   family: 0
   useContext: 2
   targetKind: 3
