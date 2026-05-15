@@ -169,11 +169,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 120
+      value: 149.07
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 120
+      value: 149.07
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1758,11 +1758,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 120
+      value: 149.07
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 120
+      value: 149.07
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1826,7 +1826,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1590337842771806100, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 1686402809361232522, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_text
@@ -1842,7 +1842,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6328402409658192891, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_IsActive
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 6788731014475196657, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_Sprite
@@ -2449,11 +2449,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 120
+      value: 149.07
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 120
+      value: 149.07
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_LocalPosition.x
@@ -3410,11 +3410,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 120
+      value: 137.31
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 120
+      value: 137.31
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_LocalPosition.x
@@ -3492,6 +3492,14 @@ PrefabInstance:
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 10911, guid: 0000000000000000f000000000000000, type: 0}
+    - target: {fileID: 6856741738107525419, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 4.800003
+      objectReference: {fileID: 0}
+    - target: {fileID: 6856741738107525419, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 10.700001
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -5370,6 +5378,7 @@ MonoBehaviour:
   lockPlanningUIUntilRolled: 1
   phase: 0
   delayBetweenEnemyAttacks: 0.5
+  autoRollOnPlayerTurnStart: 1
   logPhase: 0
   toggleLogKey: 291
 --- !u!114 &733054729
@@ -5385,6 +5394,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SkillExecutor
   delayBetweenActions: 0.25
+  delayedSecondaryDamageStep: 0.2
   projectileMaxWaitSeconds: 2.5
   meleeLungeDistanceX: 1.3
   meleeLungeTime: 0.1
@@ -5923,8 +5933,10 @@ MonoBehaviour:
   bodyText: {fileID: 1934610736}
   verticalLayout: {fileID: 801903712}
   contentSizeFitter: {fileID: 801903711}
-  minContentWidth: 170
-  maxContentWidth: 320
+  minContentWidth: 1
+  maxContentWidth: 15
+  minContentHeight: 0
+  maxContentHeight: 0
 --- !u!114 &801903710
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6963,7 +6975,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &917100462
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7715,18 +7727,18 @@ MonoBehaviour:
     skillAsset: {fileID: 11400000, guid: f89babf2570fdea4bb41463ec889e897, type: 2}
   ownedSlots:
   - uiIcon: {fileID: 96852640}
-    skillAsset: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
+    skillAsset: {fileID: 11400000, guid: e388693c7dfaf5246aac7a84e3f6424d, type: 2}
   - uiIcon: {fileID: 1446803103}
-    skillAsset: {fileID: 11400000, guid: 6201df6fa5db4498bdd5158dc14ccf72, type: 2}
+    skillAsset: {fileID: 11400000, guid: 843dec42c43d45a3ac5561044366d0ee, type: 2}
   - uiIcon: {fileID: 1850621293}
-    skillAsset: {fileID: 11400000, guid: 1536d6a89f7747e69f13c80ca82d9551, type: 2}
+    skillAsset: {fileID: 11400000, guid: aad4f70b5c176e4ec1f5d2e03c4d5404, type: 2}
   - uiIcon: {fileID: 1736254959}
-    skillAsset: {fileID: 11400000, guid: 1f1edc4a92a94f099b0bd4fffccc2a07, type: 2}
+    skillAsset: {fileID: 11400000, guid: bbe5081c6d287f5fd206e3f14d5e6505, type: 2}
   consumableCapacity: 5
   consumableSlots:
-  - asset: {fileID: 11400000, guid: c1df92299cc33994484c0126b6320ea5, type: 2}
+  - asset: {fileID: 11400000, guid: 31217922bea208b458ea0470a6e71265, type: 2}
     charges: 0
-  - asset: {fileID: 11400000, guid: 123a834a9b634a04ca2a16991d3daebc, type: 2}
+  - asset: {fileID: 11400000, guid: 31217922bea208b458ea0470a6e71265, type: 2}
     charges: 0
   - asset: {fileID: 0}
     charges: 0
@@ -7929,11 +7941,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 120
+      value: 137.31
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 120
+      value: 137.31
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_LocalPosition.x
@@ -8011,6 +8023,14 @@ PrefabInstance:
       propertyPath: m_Sprite
       value: 
       objectReference: {fileID: 10911, guid: 0000000000000000f000000000000000, type: 0}
+    - target: {fileID: 6856741738107525419, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 4.800003
+      objectReference: {fileID: 0}
+    - target: {fileID: 6856741738107525419, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 10.700001
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -8156,7 +8176,7 @@ MonoBehaviour:
   layoutContainer: {fileID: 1110585573}
   spacing: 190
   rowY: 0
-  diceUiSize: {x: 100, y: 100}
+  diceUiSize: {x: 150, y: 150}
   autoCreateMissingUi: 1
   itemSnapDuration: 0.18
   itemEase: 27
@@ -9247,11 +9267,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 120
+      value: 149.07
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 120
+      value: 149.07
       objectReference: {fileID: 0}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_LocalPosition.x
@@ -10994,8 +11014,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 19
-  m_fontSizeBase: 19
+  m_fontSize: 30
+  m_fontSizeBase: 30
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -11884,17 +11904,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DiceSlotRig
   slots:
-  - active: 0
+  - active: 1
     dice: {fileID: 0}
     diceRoot: {fileID: 0}
     slotRoot: {fileID: 0}
   - active: 1
-    dice: {fileID: 8067042561129760585, guid: 7aaf560a33ab25e4db411166973d2730, type: 3}
-    diceRoot: {fileID: 6020151888812719758, guid: 7aaf560a33ab25e4db411166973d2730, type: 3}
+    dice: {fileID: 0}
+    diceRoot: {fileID: 0}
     slotRoot: {fileID: 0}
   - active: 1
-    dice: {fileID: 4134805224854751960, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
-    diceRoot: {fileID: 3726697021767390608, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+    dice: {fileID: 0}
+    diceRoot: {fileID: 0}
     slotRoot: {fileID: 0}
   disableDiceSelfInput: 1
   enableDebugRollHotkeys: 0
@@ -11903,6 +11923,7 @@ MonoBehaviour:
   debugRollSlot1Key: 97
   debugRollSlot2Key: 115
   debugRollSlot3Key: 100
+  sequentialRollSlotDelay: 0
 --- !u!1 &1516507823
 GameObject:
   m_ObjectHideFlags: 0
@@ -15109,8 +15130,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 14
-  m_fontSizeBase: 14
+  m_fontSize: 25
+  m_fontSizeBase: 25
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -16280,7 +16301,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 1, y: 0}
   m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: 739.99994, y: -444}
+  m_AnchoredPosition: {x: 784.99994, y: -474}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 1, y: 0}
 --- !u!114 &2091747849

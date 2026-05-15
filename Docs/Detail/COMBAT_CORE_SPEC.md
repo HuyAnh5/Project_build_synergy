@@ -1,9 +1,13 @@
 # COMBAT_CORE_SPEC.md
 
-> Tài liệu này là **source of truth cho vòng combat cốt lõi**. Nó mô tả nhịp lượt, quy tắc dice, Focus, damage/Guard/Stagger, lane order và nguyên tắc resolve số trong combat.  
-> File này không liệt kê full content skill/passive; phần đó nằm ở `SKILLS_PASSIVES_SPEC.md`.  
+> Tài liệu này là **source of truth cho vòng combat cốt lõi**. Nó mô tả nhịp lượt, quy tắc dice, AP, damage/Guard/Stagger, dice sequencing và nguyên tắc resolve số trong combat.  
+> File này không liệt kê full content skill/relic; phần đó nằm ở `SKILLS_PASSIVES_SPEC.md`.  
 > Khi có mâu thuẫn giữa trực giác cá nhân và file này, ưu tiên file này.
 
+
+> **CURRENT SOURCE UPDATE:** Bản này đã nhập các rule hiện tại từ các draft cũ. Không dùng file `archived combat change draft` làm source nữa. Resource hiện tại là **AP**. Combat flow hiện tại là **Player Phase**: dice tự roll đầu phase → player reorder → click/drag skill vào target để cast ngay → dice chuyển used state → End Phase → Enemy Phase.
+
+---
 ---
 
 ## 1. Mục tiêu của hệ thống
@@ -11,34 +15,41 @@
 Combat của game phải tạo ra cảm giác:
 
 - mỗi lượt ngắn nhưng có ý nghĩa,
-- xúc xắc là trung tâm thật sự của quyết định,
-- sequencing và lane order là sức mạnh,
-- player phải chọn giữa setup, payoff, defense, economy,
+- dice là trung tâm thật sự của quyết định,
+- player phải đọc thứ tự dice hiện tại và reorder để quyết định skill tiếp theo sẽ dùng dice nào,
+- player phải chọn giữa setup, payoff, defense và economy,
 - độ sâu đến từ quyết định và tương tác hệ thống, không đến từ tính nhẩm quá nhiều lớp modifier.
 
-Combat loop runtime hiện tại phải luôn giữ được tinh thần:
+Combat loop runtime hiện tại:
 
-**Roll Dice → Reorder nếu cần → Drag skill vào target để cast ngay → End Turn → Enemy Turn**
+```text
+Player Phase: dice tự roll đầu phase -> reorder nếu cần -> click/drag skill vào target để cast ngay -> dice chuyển used state
+End Phase
+Enemy Phase
+Lặp lại
+```
 
----
+Không còn flow:
+
+- một phase roll riêng tách khỏi Player Phase; dice roll là hành vi đầu Player Phase. Skill hợp lệ được cast và resolve ngay khi player click/drag vào target.
 
 ## 2. Phạm vi file này
 
 File này bao gồm:
 
 - dice system,
-- Focus economy trong combat,
+- AP economy trong combat,
 - Basic actions,
-- turn flow 5 phase,
+- turn flow 3 phase,
 - damage / Guard / Stagger,
 - skill tag nền,
-- lane mapping / reorder / pair identity,
+- dice reorder / consume order / die identity,
 - tooltip / preview direction ở cấp combat,
 - edge cases cốt lõi của combat.
 
 File này không đi sâu vào:
 
-- full content skill/passive pool,
+- full content skill/relic pool,
 - relic pool cụ thể,
 - run economy ngoài combat,
 - implementation / class code.
@@ -54,81 +65,81 @@ Phần này không thay thế rule chi tiết ở các section sau; nó là bả
 
 ### 3.1 Flow của một combat encounter
 
-**Combat Start**  
-→ Initialize encounter, load player loadout, enemy roster, passive state và temporary combat state  
-→ Hiển thị enemy intent / encounter information  
-→ Giao tài nguyên khởi đầu theo current combat rule  
-→ Chuyển sang `PlayerTurnStart`
-
-**PlayerTurnStart**  
-→ Resolve mọi effect “start of turn” trên player  
-→ +1 Focus theo current rule  
-→ Refresh các cờ temporary theo current turn timing  
-→ Chuyển sang `Roll`
-
-**Roll**  
-→ Roll tất cả active dice  
-→ Với từng die: xác định rolled face, Base Value, Added Value liên quan, Crit / Normal / Fail  
-→ Preserve toàn bộ die-local context cho runtime consume và execution  
+**Combat Start**
+→ Initialize encounter, load player loadout, relic collection, dice state, enemy roster và temporary combat state
+→ Hiển thị enemy intent / encounter information
+→ Giao AP khởi đầu theo current combat rule
 → Chuyển sang `PlayerPhase`
 
-**PlayerPhase**  
-→ Player có thể reorder dice nếu muốn  
-→ Player kéo skill icon vào target hợp lệ để cast ngay  
-→ Hệ thống kiểm tra: đủ span, đủ contiguous consume window, đủ Focus, target hợp lệ, condition / passive modifier hiện hành  
-→ Nếu invalid: reject cast và giữ player ở `PlayerPhase`  
-→ Nếu valid: consume các dice đầu tiên còn lại theo thứ tự hiện tại  
-→ Resolve skill ngay sau khi cast hợp lệ  
-→ Cập nhật state spent / die-local context cho các cast tiếp theo trong cùng lượt  
-→ Khi player không muốn cast thêm: bấm `End Turn` → chuyển sang `PlayerTurnEnd`
+**PlayerPhase**
+→ Resolve start-of-player-phase effects trên player / relic / status
+→ +1 AP theo current rule
+→ Refresh dice used state nếu không có rule đặc biệt ngăn refresh
+→ Dice tự roll ngay đầu phase
+→ Với từng die: xác định rolled face, Base Value, Added Value liên quan, Crit / Normal / Fail
+→ Player có thể reorder dice nếu muốn
+→ Player bấm chọn skill rồi chọn target, hoặc kéo skill icon vào target hợp lệ
+→ Hệ thống kiểm tra: đủ AP, đủ dice available theo slot cost, target hợp lệ, condition / relic / modifier hiện hành
+→ Nếu invalid: reject cast và giữ player ở `PlayerPhase`
+→ Nếu valid: consume các dice available đầu tiên theo thứ tự hiện tại
+→ Resolve skill ngay sau khi cast hợp lệ
+→ Dice đã dùng chuyển sang **used state**: hạ nhẹ trục Y và đổi background; dice vẫn nhìn thấy nhưng không còn available
+→ Player có thể tiếp tục cast nếu còn tài nguyên
+→ Khi player không muốn cast thêm: bấm `End Turn` → chuyển sang `EndPhase`
 
-**PlayerTurnEnd**  
-→ Resolve end-of-player-turn effects  
-→ Update state cần mang sang enemy turn  
-→ Chuyển sang `EnemyTurnStart`
+**EndPhase**
+→ Resolve end-of-player-phase effects
+→ Cleanup state cần chuyển sang enemy
+→ Chuyển sang `EnemyPhase`
 
-**EnemyTurnStart → EnemyTurnEnd**  
-→ Resolve start-of-turn effects của enemy  
-→ Chọn và execute enemy actions theo intent / pattern / condition  
-→ Resolve death / status / ailment / Guard checks trong quá trình action chạy  
-→ Resolve end-of-turn effects của enemy  
-→ Check victory / defeat  
-→ Nếu combat tiếp tục: quay lại `PlayerTurnStart`; nếu không: chuyển sang `CombatEnd`
+**EnemyPhase**
+→ Enemy hành động theo intent / pattern / condition
+→ Resolve death / status / ailment / Guard checks trong quá trình action chạy
+→ Resolve end-of-enemy-phase effects
+→ Check victory / defeat
+→ Nếu combat tiếp tục: quay lại `PlayerPhase`; nếu không: chuyển sang `CombatEnd`
 
-### 3.2 Flow của một player turn
+### 3.2 Flow của một player phase
 
-`Start Turn`  
-→ Gain / refresh tài nguyên đầu lượt  
-→ `Roll` active dice  
-→ `PlayerPhase`: player đọc roll, reorder nếu cần, cân giữa setup / payoff / defense / economy  
-→ `Drag skill vào target` để cast ngay  
-→ `Validation`: hệ thống check span, Focus, target rule, conflict với state spent hiện tại  
-→ `Consume dice` theo thứ tự hiện tại  
-→ `Resolve` ngay sau khi cast hợp lệ  
-→ `End Turn`
+`PlayerPhase Start`
+→ Gain / refresh AP đầu phase
+→ Dice tự roll
+→ Player đọc roll, reorder nếu cần, cân giữa setup / payoff / defense / economy
+→ `Click hoặc drag skill vào target` để cast ngay
+→ `Validation`: hệ thống check AP, dice available, target rule, condition và modifier
+→ `Consume dice`: theo thứ tự hiện tại từ trái sang phải
+→ `Resolve`: skill resolve ngay sau khi cast hợp lệ
+→ Dice đã dùng chuyển used state
+→ Player có thể tiếp tục cast
+→ `End Turn` để sang `EndPhase`
 
 ### 3.3 Flow của một die
 
-`Roll Die`  
-→ Xác định mặt được roll  
-→ Gán rolled number thành Base Value  
-→ Xác định Crit / Normal / Fail từ chính die đó  
-→ Tính Added Value liên quan nhưng **không thay đổi identity của Base Value**  
-→ Lưu die-local context để dùng cho planning, preview và execution
+`Roll Die`
+→ Xác định mặt được roll
+→ Gán rolled number thành Base Value
+→ Xác định Crit / Normal / Fail từ chính die đó
+→ Tính Added Value liên quan nhưng **không thay đổi identity của Base Value**
+→ Lưu die-local context để dùng cho preview, validation và cast resolution
 
-### 3.4 Flow gán skill vào slot
+### 3.4 Flow dùng skill trực tiếp
 
-`Player chọn skill`  
-→ Hệ thống đọc slot cost, Focus cost, target rule, tag, element, special condition  
-→ `Player chọn slot / nhóm slot`  
-→ Hệ thống check: slot trống hay không, span đủ hay không, contiguous hay không, current modifier có làm đổi cost / slot size hay không  
-→ `Check tài nguyên`  
-→ Đủ Focus và hợp lệ thì cho skill vào planned queue; không đủ thì reject và giữ nguyên Planning
+`Player chọn skill`
+→ hệ thống đọc slot cost, AP cost, target rule, tag, element, blue value, special condition
+→ player chọn target bằng click hoặc drag/drop
+→ hệ thống xác định dice sẽ bị consume theo thứ tự hiện tại
+→ check đủ AP, đủ dice available và target hợp lệ
+→ nếu hợp lệ: cast ngay, resolve skill, chuyển dice đã dùng sang used state
+→ nếu không hợp lệ: reject cast và báo lý do invalid qua UI/tooltip
+
+Không còn:
+
+- xếp skill vào một hàng hành động trước khi resolve. Skill hợp lệ cast ngay tại thời điểm player click/drag vào target.
 
 ### 3.5 Flow resolve damage
 
 `Action có target hợp lệ`  
-→ Build final action context từ skill definition + die-local data + passive + attacker state + target state  
+→ Build final action context từ skill definition + die-local data + relic + attacker state + target state  
 → Check pre-damage legality  
 → Resolve raw output  
 → Resolve Guard interaction / bypass / anti-Guard nếu có  
@@ -145,37 +156,34 @@ Phần này không thay thế rule chi tiết ở các section sau; nó là bả
 Trong combat, player hiện có:
 
 - **4 skill slot**,
-- **1 passive slot**,
+- **Relic collection**: nhiều relic có thể được nhặt trong run và hiển thị dạng icon ở góc trên UI,
 - **1 đến 3 dice**,
 - **Basic Attack**,
-- **Basic Guard**.
+- **Basic Guard**,
+- **Consumables** thuộc 3 nhóm: **Fate / Seal / Rune**.
 
-Rule rất quan trọng ở cấp action economy:
+Rule quan trọng:
 
-- mỗi skill chỉ chiếm **1 loadout slot** khi mang vào combat,
-- nhưng trong **Planning phase**, skill có thể chiếm **1 / 2 / 3 dice** tùy slot cost của chính skill đó,
-- skill nhiều dice là đánh đổi trực tiếp với số action groups còn lại trong turn.
+- mỗi skill chiếm **1 loadout slot** khi mang vào combat,
+- nhưng khi cast, skill có thể consume **1 / 2 / 3 dice** tùy slot cost,
+- dice cost quyết định action economy trong turn,
+- skill nhiều dice là đánh đổi trực tiếp với số action còn lại trong turn.
 
-Ví dụ: `Hellfire` chỉ chiếm **1 slot loadout**, nhưng khi assign sẽ chiếm **3 dice**, nên turn đó gần như tiêu toàn bộ action economy cho một payoff lớn.
-
-Đầu run bắt đầu với **1 dice**.  
-Tối đa trong combat là **3 dice**, đồng nghĩa tối đa khoảng **3 action groups** mỗi lượt.
-
-### 4.2 Focus economy
+### 4.2 AP economy
 
 Current locked rules:
 
-- **Max Focus = 9**
-- **Start combat = 2 Focus**
-- **Đầu mỗi lượt = +1 Focus**
-- **Không được nợ Focus**
-- Vì vậy **turn 1 thực tế = 3 Focus**
+- **Max AP = 9**
+- **Start combat = 2 AP**
+- **Đầu mỗi Player Phase = +1 AP**
+- **Không được nợ AP**
+- Vì vậy **turn 1 thực tế = 3 AP**
 
 Ý nghĩa thiết kế:
 
-- Focus phải thiếu vừa đủ để buộc player lựa chọn.
+- AP phải thiếu vừa đủ để buộc player lựa chọn.
 - Player phải có cảm giác có thể “xoay lượt” bằng sequencing tốt, build tốt hoặc basic action hợp lý.
-- Focus không được trở thành cái khóa khiến combat chết cứng.
+- AP không được trở thành cái khóa khiến combat chết cứng.
 
 ### 4.3 Basic actions
 
@@ -183,35 +191,35 @@ Basic actions luôn có sẵn và **không chiếm 4 skill slot chính**.
 
 #### Basic Attack
 
-- **0 Focus**
-- **4 damage gốc**
-- cho **+1 Focus**
+- **Tag mặc định:** `None`
+- **Element mặc định:** `None`
+- **0 AP**
+- gây blue value **`"4 damage"`** nếu data skill đánh dấu số này là blue value
+- cho **+1 AP**
 
 Rule resolve:
 
-- Basic Attack vẫn nhận **Added Value** như các action gây damage khác.
-- Vì Basic Attack không mang tag `Physical`, Crit của nó dùng hệ số **Crit thường = +20% Base Value** để tạo Added Value.
-- Ví dụ: d20 crit ở mặt 20 -> `floor(20 x 0.2) = +4 Added Value` -> Basic Attack gây `4 + 4 = 8 damage`.
-- Ví dụ: d8 crit ở mặt 8 -> `floor(8 x 0.2) = +1 Added Value` -> Basic Attack gây `4 + 1 = 5 damage`.
-- Nếu die là Fail, Basic Attack chỉ còn `floor(4 / 2) = 2 damage`; Fail không đọc Added Value và không đổi Base Value.
+- Basic Attack mặc định không phải Physical và không có element/tag hệ.
+- Skill hoặc relic có thể đổi tag/element của Basic Attack nếu text ghi rõ.
+- Nếu Basic Attack đang ở trạng thái không tag, Crit dùng hệ số thường.
+- Nếu skill/relic biến Basic Attack thành Physical, Fire, Ice... thì nó đọc rule của tag/element được cấp theo text đó.
 
 #### Basic Guard
 
-- **0 Focus**
-- tạo Guard bằng **Base Value** của die dùng cho action đó
+- **Tag mặc định:** `None`
+- **Element mặc định:** `None`
+- **0 AP**
+- tạo Guard theo blue value / Base Value tùy data hiện tại của Basic Guard
 
-Vai trò thiết kế:
+Rule resolve:
 
-- là anchor của economy,
-- luôn cho player một lựa chọn hợp lệ khi roll xấu,
-- giúp build mạnh vẫn còn lý do đọc và dùng action nền,
-- ngăn cảm giác “không làm được gì”.
-
----
+- Basic Guard mặc định không phải Neutral/Guard tag cứng.
+- Skill hoặc relic có thể đổi tag/element/cách scale của Basic Guard nếu text ghi rõ.
+- Basic Guard là anchor phòng thủ và vẫn phải là lựa chọn có ý nghĩa khi roll xấu.
 
 ## 5. Dice system — current locked rules
 
-Đây là phần quan trọng nhất của toàn bộ combat. Mọi skill logic, passive logic, preview, tooltip và hướng build đều phải tôn trọng phần này.
+Đây là phần quan trọng nhất của toàn bộ combat. Mọi skill logic, relic logic, preview, tooltip và hướng build đều phải tôn trọng phần này.
 
 ### 5.1 Dice không chỉ là damage source
 
@@ -222,53 +230,55 @@ Dice có thể là:
 - có thể được custom trong run,
 - có thể ảnh hưởng tới crit/fail, exact value, parity, threshold, highest/lowest.
 
-Dice không phải “mana ngẫu nhiên”.  
+Dice không phải “resource ngẫu nhiên” hay AP ngẫu nhiên.  
 Dice là **identity engine** của combat.
 
-### 5.2 Base Value và Added Value
+### 5.2 Base Value, Added Value và Blue Value
 
 Current locked rules:
 
-- **Base Value** = mặt thật roll ra
-- **Added Value** = phần cộng thêm vào output cuối
-- **Mọi condition phải đọc từ Base Value**
-- Added Value **không đổi bản chất** của die
-- Với phần lớn skill gây damage chuẩn, damage cuối được hiểu là: **damage gốc của skill + tổng Added Value áp dụng cho action đó**
-- Với skill dùng `X`, mặc định hiện tại: **`X = Base Value + Added Value`**, trừ khi text skill ghi rõ công thức khác
-- `Added Value` từ current direction không chỉ là bonus damage; nó là **lớp thưởng chung của toàn hệ thống**
-- Nghĩa là nếu skill tạo ra một **output số học** như damage, Burn, Bleed, Guard hoặc payoff từ combat history / board state, output cuối mặc định đều tiếp tục cộng `Total Added Value` trừ khi text skill ghi rõ ngược lại
-- Rule chuẩn hóa từ current direction: nếu skill có **fixed output**, output cuối mặc định luôn là `fixed output + Added Value`, bất kể đó là `Attack`, `Guard` hay output số học khác
-- Nếu text skill ghi `lowest base` / `highest base`, phần chọn giá trị vẫn đọc từ **Base Value**
-- Nếu đó là **single-output skill**, output cuối vẫn cộng `Total Added Value`
-- Nếu đó là **split-role / multi-branch skill**, mỗi output branch chỉ được dùng `Added Value` của **đúng die source** mà branch đó chọn
+- **Base Value** = mặt thật roll ra.
+- **Added Value** = phần cộng thêm vào output cuối, nhưng không đổi bản chất của Base Value.
+- **Số thường** trong skill text = fixed / rule number, không bị dice, Crit, Fail, vị trí, Added Value hoặc modifier tác động.
+- **Số xanh / blue value** = output được phép nhận Added Value và modifier hợp lệ.
+- Skill chỉ nhận Added Value trên những output được đánh dấu là blue value.
+- Không còn rule “mọi output số học mặc định cộng Added Value”.
+- Không còn rule “Added Value mặc định cộng vào output đầu tiên”.
 
-Rule cộng dồn theo số slot:
+Ví dụ:
 
-- Skill **1 slot** cộng Added Value của **1 die** đang gắn cho skill đó.
-- Skill **2 slot** cộng **tổng Added Value của cả 2 die** trong local group của skill đó.
-- Skill **3 slot** cộng **tổng Added Value của cả 3 die** trong local group của skill đó.
-- Ví dụ: skill 2 slot có `5 damage gốc`, gắn vào `d10 crit` và `d20 crit`, không phải `Physical` -> damage cuối là `5 + floor(10 x 0.2) + floor(20 x 0.2) = 5 + 2 + 4 = 11`.
-- Nếu chính skill 2 slot đó là `Physical` -> damage cuối là `5 + floor(10 x 0.5) + floor(20 x 0.5) = 5 + 5 + 10 = 20`.
-- Skill 3 slot cũng theo đúng rule cộng dồn này với cả 3 die trong nhóm.
+```text
+Deal 4 damage.
+```
 
-Nguồn sinh Added Value hiện tại:
+`4` là số thường nếu không được đánh dấu blue value; nó không scale theo dice.
 
-- Dice có thể mang / sinh Added Value từ:
-  - **Crit** của chính die đó trong action hiện tại
-  - **enchant / consumable / dice customization** đã gắn sẵn lên mặt dice theo spec progression
-- Ngoài dice, Added Value cũng có thể đến từ **skill / passive / relic / modifier condition** ghi rõ trong text.
-- Fail không tự sinh Added Value âm và không xóa Added Value đã có.
+```text
+Deal "4 damage".
+```
 
-Các condition phải đọc theo Base Value gồm:
+`"4"` là blue value; nó có thể nhận Added Value từ Crit, dice face, condition, relic, skill buff hoặc modifier hợp lệ.
+
+Blue value có thể là:
+
+- damage,
+- Guard,
+- Burn,
+- Bleed,
+- AP,
+- heal,
+- status amount,
+- hoặc output số học khác nếu skill data đánh dấu nó là blue.
+
+Condition vẫn phải đọc từ **Base Value** trừ khi text ghi rõ ngoại lệ:
 
 - chẵn / lẻ,
 - crit / fail,
 - `<= 3`,
-- `>= ngưỡng`,
 - exact value,
 - highest / lowest.
 
-Không được để hệ condition đọc từ số đã cộng modifier xong. Nếu làm vậy, dice sẽ mất identity.
+Fail không phải là “Added Value âm”. Fail là penalty / modifier lên output hợp lệ theo rule của skill.
 
 ### 5.3 Local die context
 
@@ -309,7 +319,7 @@ Rule áp dụng với skill nhiều slot:
 - Nếu action không phải `Physical`, mỗi die Crit đóng góp Added Value theo hệ số `+20% Base` của chính nó.
 - Nếu local group có **ít nhất 1 Fail**, action đó chỉ ăn **1 lần** fail penalty: `damage gốc / 2`.
 - `2 Fail` hoặc `3 Fail` trong cùng một action **không stack thêm** fail penalty.
-- Fail không làm mất Added Value do die Crit khác hoặc do passive/skill đã cấp cho action đó.
+- Fail không làm mất Added Value do die Crit khác hoặc do relic/skill đã cấp cho action đó.
 
 ### 5.5 Trường hợp nhiều mặt cùng max / min
 
@@ -337,7 +347,7 @@ Current locked rules:
 Pipeline nguồn thiết kế hiện tại:
 
 ```text
-baseValue -> critAddedValue -> passiveSkillConditionalAddedValue -> totalAddedValue -> finalActionOutput
+baseValue -> critAddedValue -> relicSkillConditionalAddedValue -> totalAddedValue -> finalActionOutput
 ```
 
 `DiceSlotRig` là source of truth chính cho dice math trong code, nhưng ở cấp design điều quan trọng là:
@@ -362,7 +372,7 @@ Rule hiện tại cần khóa rõ:
 
 - Với skill `X damage`, mặc định `X = Base Value + Added Value`.
 - Với skill damage chuẩn không dùng `X`, mặc định output là `damage gốc + Added Value`.
-- Về sau có thể tồn tại skill hoặc passive cho thêm Added Value nếu đạt điều kiện; các bonus này vẫn chỉ cộng vào output cuối, không đổi bản chất Base Value của die.
+- Về sau có thể tồn tại skill hoặc relic cho thêm Added Value nếu đạt điều kiện; các bonus này vẫn chỉ cộng vào output cuối, không đổi bản chất Base Value của die.
 - Nếu skill chiếm 2 hoặc 3 slot, `Added Value` ở đây mặc định là **tổng Added Value của toàn bộ dice trong local group**, cộng với mọi bonus Added Value khác mà action đó đang nhận.
 - Một số skill có thể đọc từ **combat history** thay vì Base Value, ví dụ: `damage gốc = số kẻ địch đã từng bị Freeze trong combat này`; khi resolve, output cuối của chúng vẫn tiếp tục cộng Added Value nếu action đó đang có.
 
@@ -388,7 +398,7 @@ Sheet công thức chuẩn hiện tại:
 - `Skill 2 slot` -> `Total Added Value = Added Value die 1 + Added Value die 2`
 - `Skill 3 slot` -> `Total Added Value = Added Value die 1 + Added Value die 2 + Added Value die 3`
 - `Dice sources of Added Value` -> `Crit`, `enchant`, `consumable`, `dice customization`
-- `Non-dice sources of Added Value` -> `skill`, `passive`, `relic`, `modifier` ghi rõ
+- `Non-dice sources of Added Value` -> `skill`, `relic`, `relic`, `modifier` ghi rõ
 - `Burn apply` -> mỗi lần apply tạo `1 Burn batch`, mỗi batch sống `3 turn`
 - `Visible Burn` -> tổng mọi batch Burn còn sống
 - `Burn expire` -> batch nào hết hạn thì chỉ batch đó biến mất
@@ -416,22 +426,21 @@ Dice customization phải ảnh hưởng thật đến:
 - lựa chọn xây build trong run,
 - hướng unlock / progression dài hạn.
 
-### 5.10 Reorder trong Planning
+### 5.10 Reorder trong Player Phase
 
 Current locked rules:
 
-- Player có thể kéo cặp **dice + skill** về bất kỳ vị trí nào trong **Planning phase**.
-- Reorder ảnh hưởng cả:
-  - **dice assignment**
-  - **thứ tự execute**
-- Khi bấm sang Execute phase, reorder bị khóa.
+- Player có thể reorder dice trong **Player Phase** trước khi cast.
+- Reorder quyết định skill tiếp theo sẽ consume dice nào.
+- Skill consume dice available từ trái sang phải theo thứ tự hiện tại.
+- Sau khi một skill cast hợp lệ, các dice đã consume chuyển sang used state và không còn available cho cast tiếp theo.
 
 Ví dụ đúng tinh thần:
 
-- roll được die rất cao,
-- kéo nó xuống cuối,
-- dùng 1–2 lane trước để setup Mark / phá Guard / áp trạng thái,
-- dùng lane cuối làm finisher.
+- roll được một die rất cao,
+- kéo nó về vị trí mà skill payoff sắp dùng,
+- dùng skill đầu để setup Mark / phá Guard / áp trạng thái,
+- dùng skill sau để payoff bằng dice đã được đặt đúng thứ tự.
 
 ### 5.11 Ý nghĩa thiết kế của dice
 
@@ -442,7 +451,7 @@ Dice quyết định:
 - thứ tự finisher,
 - hướng build,
 - nhịp economy,
-- và cả cách passive tương tác.
+- và cả cách relic tương tác.
 
 Bất kỳ hệ mới nào thêm vào cũng phải tôn trọng vai trò trung tâm của dice.
 
@@ -450,90 +459,59 @@ Bất kỳ hệ mới nào thêm vào cũng phải tôn trọng vai trò trung t
 
 ## 6. Turn flow — current locked flow
 
-### 6.1 Tổng quan 5 phase
+### 6.1 Tổng quan 3 phase
 
-Flow hiện tại đã chốt như sau:
+Combat turn hiện tại chỉ cần đọc qua 3 phase chính:
 
-1. **Start Phase**
-2. **Roll Phase**
-3. **Planning Phase**
-4. **Execution Phase**
-5. **Enemy / End Phase**
+```text
+Player Phase -> End Phase -> Enemy Phase
+```
 
-### 6.2 Start Phase
+Dice tự roll ở đầu **Player Phase**. Không còn `Player Phase start` riêng.
 
-Ở đầu lượt:
+### 6.2 Player Phase
 
-- player nhận **+1 Focus**,
-- passive đầu lượt xử lý,
-- enemy chốt / giữ intent cho turn hiện tại.
+Trong Player Phase:
 
-Mục tiêu của phase này là mở lượt mới rõ ràng, tránh nhập nhằng giữa cleanup turn cũ và quyền hành động turn mới.
+1. start-of-player-phase effect resolve,
+2. player nhận AP đầu phase,
+3. dice được refresh nếu hợp lệ,
+4. dice tự roll,
+5. player reorder dice nếu muốn,
+6. player click hoặc drag skill vào target để cast ngay,
+7. dice bị consume theo slot cost, đọc từ trái sang phải theo thứ tự hiện tại,
+8. dice đã dùng chuyển sang used state: hạ nhẹ trục Y và đổi background,
+9. player có thể cast thêm nếu còn AP/dice,
+10. player bấm End Turn để sang End Phase.
 
-### 6.3 Roll Phase
+### 6.3 End Phase
 
-- roll toàn bộ dice hiện đang equip cho lượt đó,
-- giá trị roll sẽ quyết định không chỉ damage mà còn điều kiện, payoff, parity, crit/fail, exact value,
-- UI phải chuyển người chơi sang mode đọc tình huống.
+End Phase là cleanup của lượt player:
 
-### 6.4 Planning Phase
+- resolve end-of-player-phase effect,
+- dọn preview / temporary state,
+- khóa input player,
+- chuyển sang Enemy Phase.
 
-Player có thể:
+### 6.4 Enemy Phase
 
-- kéo dice vào skill slot,
-- quyết định die nào cho skill nào,
-- reorder các cặp hành động,
-- chọn setup trước hay nổ trước,
-- cân giữa payoff, defense, economy.
+Enemy Phase:
 
-Planning là nơi chiến thuật thật sự diễn ra.
+- enemy resolve intent,
+- enemy action chạy theo pattern / condition,
+- status / death / stagger / guard được update,
+- nếu combat chưa kết thúc thì quay lại Player Phase.
 
-Planning phase cũng là thời điểm hợp lệ để player dùng các consumable can thiệp dice nếu consumable đó được phép dùng trong combat.
+### 6.5 Rule lock quan trọng
 
-Rule:
-- flow chọn target là **state-based**, không khóa cứng thứ tự thao tác
-- player có thể select consumable trước hoặc chọn target trước tùy context
-- action **Use** chỉ hợp lệ khi target requirement của effect đã được thỏa
-- nếu consumable chỉnh die làm thay đổi Base / Added / face / enchant của die đang roll, thay đổi đó phải cập nhật vào resolved dice state theo đúng source of truth
-- nếu consumable được dùng trước khi lock plan, planning / preview phải phản ánh state mới
+Rule hiện tại:
 
-### 6.5 Execution Phase
+- Dice tự roll đầu Player Phase.
+- Player có thể reorder dice trong Player Phase.
+- Player click/drag skill vào target để cast ngay nếu hợp lệ.
+- Skill consume dice theo thứ tự hiện tại từ trái sang phải.
+- Reorder phục vụ sequencing: quyết định skill tiếp theo sẽ consume dice nào.
 
-- Skill resolve **từ trái sang phải** theo lane hiện tại.
-- Khi vào Execute phase thì **khóa reorder** và **khóa skill đã đưa vào turn hiện tại**.
-- Execute **không khóa dice edit** nếu consumable hiện hành cho phép can thiệp dice.
-- Trong Execute, mọi edit dice phải cập nhật ngay:
-  - Base / Added nếu effect tác động vào đó
-  - rolled face / face data nếu effect tác động vào đó
-  - Crit / Fail
-  - highest / lowest
-  - exact-value access liên quan
-- Kết quả đã resolve trước đó **không bị viết lại**; thay đổi chỉ ảnh hưởng phần còn lại chưa resolve.
-- Thứ tự resolve là một phần của sức mạnh build, không phải chỉ là chi tiết trình diễn.
-
-### 6.6 Enemy / End Phase
-### 6.6 Enemy / End Phase
-
-- enemy hành động,
-- status tick / cleanup diễn ra,
-- Guard của player biến mất cuối lượt nếu không có rule giữ Guard,
-- chuẩn bị chuyển sang Start Phase tiếp theo.
-
-### 6.7 Các rule lock cực kỳ quan trọng
-
-Không được tự ý phá các nguyên tắc sau nếu không có bug cụ thể:
-
-- Planning mới cho reorder,
-- Execute đọc lane hiện tại, không đọc identity cũ,
-- phase transition phải rõ ràng,
-- khi vào Execute thì **reorder** và **skill assignment của turn hiện tại** đã bị khóa,
-- dice-edit consumable trong combat được phép tồn tại ở cả Planning và Execute nếu spec của effect cho phép,
-- trong Execute, dice mutation không được retroactive viết lại action đã resolve,
-- UI và logic phải cùng truyền đi một thông điệp:
-  - **line hành động đã khóa**
-  - nhưng **dice state vẫn có thể mutate** nếu consumable hợp lệ
-
-## 7. Core combat rules — current locked rules
 ## 7. Core combat rules — current locked rules
 
 ### 7.1 Damage và Guard
@@ -593,62 +571,54 @@ Không được ngầm buff Sunder vì “cảm giác phải mạnh”.
 
 Ở cấp combat core, người chơi luôn cần đọc được tối thiểu:
 
-- lane hiện tại,
-- die đang gắn vào lane nào,
-- skill nào sẽ resolve trước,
+- thứ tự dice hiện tại,
+- dice nào còn available / dice nào đã used,
+- skill nào đang được chọn hoặc kéo,
+- target nào hợp lệ,
 - mục tiêu nào có Guard,
 - mục tiêu nào đang Stagger,
-- player còn bao nhiêu Focus,
-- action đã lock hay chưa.
+- player còn bao nhiêu AP,
+- cast hiện tại hợp lệ hay bị chặn vì thiếu AP / thiếu dice / target sai.
 
 ---
 
-## 8. Lane mapping / reorder / pair identity rule
+---
+
+## 8. Dice reorder / consume order / die identity rule
 
 Đây là section rất quan trọng và phải giữ riêng.
 
 ### 8.1 Rule cốt lõi đã chốt
 
-Phải phân biệt rõ hai lớp identity:
+Player không gán die thủ công vào từng skill. Thay vào đó, player reorder hàng dice để quyết định skill tiếp theo sẽ dùng dice nào.
 
-- **`1 / 2 / 3`** = identity gốc / pair identity ban đầu
-- **`A / B / C`** = vị trí lane thực thi hiện tại sau reorder
+Rule consume hiện tại:
 
-Quy tắc thực thi đúng:
+- skill 1 slot consume 1 dice available đầu tiên,
+- skill 2 slot consume 2 dice available đầu tiên,
+- skill 3 slot consume 3 dice available đầu tiên,
+- đọc từ trái sang phải theo thứ tự dice hiện tại,
+- dice đã used vẫn hiện trên UI nhưng không còn available cho cast tiếp theo.
 
-`Lane order` ở đây phải được hiểu là **thứ tự resolve của cặp dice + skill trong turn**, không phải vị trí hình học của enemy. Đây là trục sequencing thật của combat, ví dụ: buff đòn sau, phá Guard trước rồi finisher sau.
+### 8.2 Ý nghĩa thiết kế
 
-- Player có thể kéo pair từ vị trí gốc sang lane khác trong Planning.
-- Khi Execute bắt đầu, game phải đọc theo **lane hiện tại** (`A/B/C`), không đọc theo “pair ban đầu từng là số 1/2/3”.
-- Effect resolve trái sang phải theo lane thực thi.
+Reorder tồn tại để player làm sequencing như:
 
-### 8.2 Những phần đang được xem là ổn
+- đặt dice tốt cho payoff sau,
+- dùng dice thấp cho setup trước,
+- giữ dice crit / exact / parity phù hợp cho skill quan trọng,
+- quyết định dùng skill nào trước để còn đúng dice cho skill sau.
 
-- Kéo cả cặp `dice + skill` như một đơn vị trong planning
-- Reorder tác động cả assignment và execution order
-- Lock plan rồi mới execute
-- Lane order là một phần gameplay thật
+Nếu dice order mất giá trị chiến thuật, combat sẽ mất nhiều chiều sâu.
 
 ### 8.3 Điều cấm kỵ khi sửa
 
 Không được:
 
-- để UI nhìn như đã reorder nhưng logic vẫn resolve theo vị trí gốc,
-- để preview / execute đọc khác lane,
-- để một pair “vừa ở lane mới vừa giữ logic lane cũ”,
-- để sau khi lock plan mà vẫn đổi được order ngầm.
-
-### 8.4 Ghi nhớ thực dụng
-
-Lane order tồn tại để player làm sequencing như:
-
-- phá Guard trước,
-- setup status sau,
-- finisher cuối,
-
-hoặc một thứ tự ngược lại tùy build. Nếu lane order mất giá trị chiến thuật, combat sẽ mất rất nhiều chiều sâu.
-
----
+- để preview highlight dice khác với dice thực sự bị consume,
+- để UI reorder nhưng logic vẫn đọc thứ tự cũ,
+- để used dice bị consume lại khi chưa được refresh,
+- để consumable refresh dice nhưng UI không cập nhật available state.
 
 ## 9. Tooltip / preview / runtime number direction
 
@@ -694,11 +664,12 @@ Readable Complexity là pillar thật, không phải phần trang trí.
 - Die custom mạnh vẫn phải giữ rule Crit/Fail đúng như spec.
 - Exact value phải tiếp tục đọc từ Base Value, không từ resolved value đã cộng thêm.
 
-### 10.2 Turn / lane edge cases
+### 10.2 Turn / reorder edge cases
 
-- Reorder chỉ hợp lệ trong Planning.
-- Sau khi lock, UI và logic đều phải coi order đã cố định.
-- Execute phải đọc lane hiện tại, không đọc slot origin.
+- Dice tự roll đầu Player Phase.
+- Reorder hợp lệ trong Player Phase trước mỗi cast nếu dice còn movable theo UI rule.
+- Preview và cast phải đọc cùng một dice order hiện tại.
+- Used dice không được tính là available cho skill tiếp theo nếu chưa được refresh.
 
 ### 10.3 Damage edge cases
 
@@ -708,7 +679,7 @@ Readable Complexity là pillar thật, không phải phần trang trí.
 
 ### 10.4 Economy edge cases
 
-- Player không được nợ Focus.
+- Player không được nợ AP.
 - Basic Attack / Basic Guard luôn phải là fallback hợp lệ.
 - Build mạnh về late run vẫn không nên xóa hoàn toàn vai trò chiến thuật của basic actions.
 
@@ -730,24 +701,10 @@ Nhưng những vùng sau phải được xem là **locked current spec**:
 - local die context,
 - Crit/Fail logic,
 - floor + minimum damage,
-- turn flow 5 phase,
+- turn flow 3 phase,
 - Damage / Guard / Stagger,
-- lane mapping `1/2/3` vs `A/B/C`,
-- reorder chỉ trong Planning,
+- dice reorder / consume order,
+- used dice visual state,
 - tooltip static ngoài combat / resolved trong combat.
 
 ---
-
-## Runtime Transition Note (2026-04)
-
-- File nay da duoc cap nhat theo runtime combat hien tai.
-- Flow runtime hien tai:
-  - `Roll Dice`
-  - `Reorder neu can`
-  - `Drag skill icon tu skill slot vao target enemy / self-cast de cast truc tiep`
-  - `Bam End Turn`
-  - `Enemy Turn`
-- Roll dice van giu nguyen.
-- Dice da dung hien tai van dang duoc bieu dien bang state spent / dim 50%, chua consume bien mat that.
-- Passive loadout runtime hien tai chi con `1 passive slot`.
-- Neu can huong thay doi tiep theo, xem [COMBAT_CHANGES_2026.md](/C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Docs/Detail/COMBAT_CHANGES_2026.md).

@@ -19,7 +19,6 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
 
     public void OnPointerClick(PointerEventData eventData)
     {
-        // Nếu đang có skill được click-to-select → cast vào target này
         DraggableSkillIcon selected = UiDragState.SelectedSkill;
         if (selected != null && _actor != null && turn != null)
         {
@@ -32,15 +31,11 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
                     UiDragState.DeselectSkill();
                     return;
                 }
-                else
-                {
-                    // Target không hợp lệ — vẫn giữ selected, shake feedback nhẹ
-                    return;
-                }
+
+                return;
             }
         }
 
-        // Consumable click handler
         if (_actor)
         {
             ConsumableBarUIManager consumableUi = FindObjectOfType<ConsumableBarUIManager>(true);
@@ -48,103 +43,86 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
                 return;
         }
 
-        if (!turn || !_actor) return;
+        if (!turn || !_actor)
+            return;
+
         turn.OnTargetClicked(_actor);
     }
 
     public void OnDrop(PointerEventData eventData)
     {
-        if (!turn) return;
-        if (eventData == null || eventData.pointerDrag == null) return;
+        if (!turn || eventData == null || eventData.pointerDrag == null)
+            return;
 
         DraggableSkillIcon drag = eventData.pointerDrag.GetComponent<DraggableSkillIcon>();
-        if (drag == null) return;
+        if (drag == null)
+            return;
 
         ScriptableObject asset = drag.GetSkillAsset();
-        if (asset == null) return;
+        if (asset == null)
+            return;
 
-        bool accepted = false;
-        if (_actor != null)
-            accepted = turn.TryCastDraggedSkillToTarget(asset, _actor);
-
+        bool accepted = _actor != null && turn.TryCastDraggedSkillToTarget(asset, _actor);
         if (accepted)
             drag.NotifyDropAccepted();
     }
 
     public void OnPointerEnter(PointerEventData eventData)
     {
-        if (_actor == null || turn == null) return;
+        if (_actor == null || turn == null)
+            return;
 
         DraggableSkillIcon skillSource = null;
-
-        // Ưu tiên: Đang drag skill vào target này
         if (UiDragState.IsDragging && eventData.pointerDrag != null)
-        {
             skillSource = eventData.pointerDrag.GetComponent<DraggableSkillIcon>();
-        }
-
-        // Fallback: Click-to-select
         if (skillSource == null)
             skillSource = UiDragState.SelectedSkill;
-
-        if (skillSource == null) return;
+        if (skillSource == null)
+            return;
 
         SkillRuntime rt = GetSelectedRuntime(skillSource);
-        if (rt == null) return;
+        if (rt == null)
+            return;
 
-        // Kiểm tra target chính có hợp lệ không
         if (!TurnManagerTargetingUtility.IsValidTargetForPendingSkill(rt, _actor, turn.player, turn.party, turn.enemy))
             return;
 
         int dieValue = skillSource.GetPublicPreviewDieValue(rt);
+        TargetPreviewBuilder.ActionPreviewBundle bundle =
+            TargetPreviewBuilder.BuildActionBundle(rt, turn.player, _actor, dieValue, turn.party, turn.enemy);
+        if (!bundle.valid)
+            return;
 
-        // --- Hỗ trợ AoE / Multi-target preview ---
-        IReadOnlyList<CombatActor> aoeTargets = TurnManagerCombatUtility.ResolveAoeTargets(rt, turn.player, _actor, turn.party, turn.enemy);
-        
-        if (aoeTargets != null && aoeTargets.Count > 0)
-        {
-            // Tối ưu: Lấy danh sách UI một lần
-            ActorWorldUI[] allUIs = FindObjectsOfType<ActorWorldUI>(true);
-
-            // Hiển thị preview cho TẤT CẢ mục tiêu trong vùng ảnh hưởng
-            foreach (CombatActor targetActor in aoeTargets)
-            {
-                ActorWorldUI targetUI = FindUIForActor(targetActor, allUIs);
-                if (targetUI != null)
-                {
-                    TargetPreviewData preview = TargetPreviewBuilder.Build(rt, turn.player, targetActor, dieValue);
-                    if (preview.valid)
-                        targetUI.ShowTargetPreview(preview);
-                }
-            }
-        }
-        else
-        {
-            // Single target preview (default)
-            ActorWorldUI ui = GetWorldUI();
-            if (ui != null)
-            {
-                TargetPreviewData preview = TargetPreviewBuilder.Build(rt, turn.player, _actor, dieValue);
-                if (preview.valid)
-                    ui.ShowTargetPreview(preview);
-            }
-        }
+        ActorWorldUI[] allUIs = FindObjectsOfType<ActorWorldUI>(true);
+        ClearAllPreviews(allUIs);
+        ShowBundlePreviews(bundle, allUIs);
+        ShowHudFocusPreview(skillSource.GetSkillAsset(), bundle.totalSelfFocusGain);
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
-        // Clear preview cho toàn bộ UI trong scene để đảm bảo không bị sót preview AoE
         ActorWorldUI[] allUIs = FindObjectsOfType<ActorWorldUI>(true);
-        foreach (ActorWorldUI ui in allUIs)
+        ClearAllPreviews(allUIs);
+
+        ScriptableObject asset = null;
+        if (UiDragState.IsDragging && eventData != null && eventData.pointerDrag != null)
         {
-            ui.ClearTargetPreview();
+            DraggableSkillIcon drag = eventData.pointerDrag.GetComponent<DraggableSkillIcon>();
+            if (drag != null)
+                asset = drag.GetSkillAsset();
         }
+
+        if (asset == null && UiDragState.SelectedSkill != null)
+            asset = UiDragState.SelectedSkill.GetSkillAsset();
+
+        RestoreHudFocusBaseline(asset);
     }
 
     private ActorWorldUI GetWorldUI()
     {
-        if (_worldUI != null) return _worldUI;
-        // Fallback: tìm UI khớp actor
+        if (_worldUI != null)
+            return _worldUI;
+
         ActorWorldUI[] allUIs = FindObjectsOfType<ActorWorldUI>(true);
         return FindUIForActor(_actor, allUIs);
     }
@@ -152,7 +130,8 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
     private SkillRuntime GetSelectedRuntime(DraggableSkillIcon selected)
     {
         ScriptableObject asset = selected.GetSkillAsset();
-        if (asset == null || asset is SkillPassiveSO) return null;
+        if (asset == null || asset is SkillPassiveSO)
+            return null;
 
         SkillRuntime rt = null;
         if (turn != null)
@@ -169,12 +148,74 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
 
     private ActorWorldUI FindUIForActor(CombatActor targetActor, ActorWorldUI[] allUIs)
     {
-        if (targetActor == null || allUIs == null) return null;
-        
+        if (targetActor == null || allUIs == null)
+            return null;
+
         for (int i = 0; i < allUIs.Length; i++)
         {
-            if (allUIs[i].actor == targetActor) return allUIs[i];
+            if (allUIs[i] != null && allUIs[i].actor == targetActor)
+                return allUIs[i];
         }
+
         return null;
+    }
+
+    private void ShowBundlePreviews(TargetPreviewBuilder.ActionPreviewBundle bundle, ActorWorldUI[] allUIs)
+    {
+        if (bundle.targetPreviews == null || allUIs == null)
+            return;
+
+        foreach (KeyValuePair<CombatActor, TargetPreviewData> kvp in bundle.targetPreviews)
+        {
+            if (kvp.Key == null || !kvp.Value.valid)
+                continue;
+
+            ActorWorldUI ui = FindUIForActor(kvp.Key, allUIs);
+            if (ui != null)
+                ui.ShowTargetPreview(kvp.Value);
+        }
+    }
+
+    private static void ClearAllPreviews(ActorWorldUI[] allUIs)
+    {
+        if (allUIs == null)
+            return;
+
+        for (int i = 0; i < allUIs.Length; i++)
+        {
+            if (allUIs[i] != null)
+                allUIs[i].ClearTargetPreview();
+        }
+    }
+
+    private void ShowHudFocusPreview(ScriptableObject asset, int focusGain)
+    {
+        if (turn == null || turn.player == null || asset == null)
+            return;
+        if (!SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out _))
+            return;
+
+        CombatHUD hud = FindObjectOfType<CombatHUD>(true);
+        if (hud == null)
+            return;
+
+        bool isInvalid = turn.player.focus < focusCost;
+        hud.ShowFocusPreview(focusCost, Mathf.Max(0, focusGain), isInvalid);
+    }
+
+    private void RestoreHudFocusBaseline(ScriptableObject asset)
+    {
+        CombatHUD hud = FindObjectOfType<CombatHUD>(true);
+        if (hud == null)
+            return;
+
+        if (turn == null || turn.player == null || asset == null || !SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out _))
+        {
+            hud.ClearFocusPreview();
+            return;
+        }
+
+        bool isInvalid = turn.player.focus < focusCost;
+        hud.ShowFocusPreview(focusCost, 0, isInvalid);
     }
 }

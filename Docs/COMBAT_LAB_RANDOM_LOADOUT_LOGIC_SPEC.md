@@ -4,6 +4,10 @@
 > Day la file rule cho prototype test combat, khong phai rule cua ca game.
 > Neu prototype va game core khac nhau, prototype chi duoc override trong pham vi lab nay.
 
+
+> **CURRENT SOURCE UPDATE:** Bản này đã nhập các rule hiện tại từ các draft cũ. Không dùng file `archived combat change draft` làm source nữa. Resource hiện tại là **AP**. Combat flow hiện tại là **Player Phase**: dice tự roll đầu phase → player reorder → click/drag skill vào target để cast ngay → dice chuyển used state → End Phase → Enemy Phase.
+
+---
 ---
 
 ## 1. Muc tieu
@@ -146,7 +150,7 @@ Vi du:
 
 ```text
 Slot 1 = Adjust Face +
-Slot 2 = Restore Focus
+Slot 2 = Restore AP
 Slot 3 = Final Verdict
 ```
 
@@ -274,7 +278,7 @@ Khi player HP ve `0` hoac thap hon:
 - shop
 - reward
 - unlock
-- passive random
+- relic random
 - progression qua nhieu tran
 - dice pool rong hon d4/d8
 - random consumable
@@ -330,9 +334,9 @@ Xoa thu muc `Prototype/CombatLab` la chua du de go sach hoan toan.
 Day la cac file core da bi patch:
 
 - [CombatActor.cs](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Assets/Scripts/Combat/Actors/CombatActor.cs:1)
-- [TurnManager.cs](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Assets/Scripts/Combat/Turn/TurnManager.cs:1)
+- [TurnAPger.cs](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Assets/Scripts/Combat/Turn/TurnAPger.cs:1)
 - [ActorWorldUI.cs](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Assets/Scripts/UI/Combat/ActorWorldUI.cs:1)
-- [ConsumableBarUIManager.cs](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Assets/Scripts/UI/Combat/ConsumableBarUIManager.cs:1)
+- [ConsumableBarUIAPger.cs](C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Assets/Scripts/UI/Combat/ConsumableBarUIAPger.cs:1)
 
 ### 11.3 Cac patch core dang lam gi
 
@@ -346,7 +350,7 @@ Dang co patch cho:
 
 Neu bo prototype va muon quay lai behavior cu, can go logic death-transition da them o file nay.
 
-#### TurnManager.cs
+#### TurnAPger.cs
 
 Dang co patch cho:
 
@@ -366,7 +370,7 @@ Dang co patch cho:
 
 Neu bo prototype, can go check nay neu muon world UI quay lai behavior cu.
 
-#### ConsumableBarUIManager.cs
+#### ConsumableBarUIAPger.cs
 
 Dang co patch cho:
 
@@ -385,9 +389,9 @@ Neu sau nay muon xoa Combat Lab prototype, thu tu an toan nen la:
 3. xoa file spec prototype trong `Docs`;
 4. revert patch trong 4 file core:
    - `CombatActor.cs`
-   - `TurnManager.cs`
+   - `TurnAPger.cs`
    - `ActorWorldUI.cs`
-   - `ConsumableBarUIManager.cs`
+   - `ConsumableBarUIAPger.cs`
 5. compile lai va test:
    - death flow
    - combat input

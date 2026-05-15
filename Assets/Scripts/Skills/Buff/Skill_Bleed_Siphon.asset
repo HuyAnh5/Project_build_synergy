@@ -17,14 +17,14 @@ MonoBehaviour:
   description: Consume all Bleed on one target. For every 5 Bleed consumed, create
     1 random Consumable, up to 3.
   spec:
-    rarity: 0
+    rarity: 2
     specState: 0
     buildRole: 6
-    implementationCoverage: 0
+    implementationCoverage: 2
     normalizedText: Consume all Bleed on one target. Every 5 Bleed consumed creates
       1 random Consumable, up to 3.
     designIntent: Bleed-to-resource conversion engine.
-  behaviorId: 0
+  behaviorId: 20
   identity: 0
   target: 1
   applyDelayTurns: 0

@@ -3,6 +3,10 @@
 > Tài liệu này mô tả **enemy intent**, **encounter pressure**, **boss philosophy** và vai trò của hidden boss / endless escalation**.  
 > Mục tiêu của file là khóa hướng tạo áp lực lên player mà không làm game đi lệch khỏi build fantasy.
 
+
+> **CURRENT SOURCE UPDATE:** Bản này đã nhập các rule hiện tại từ các draft cũ. Không dùng file `archived combat change draft` làm source nữa. Resource hiện tại là **AP**. Combat flow hiện tại là **Player Phase**: dice tự roll đầu phase → player reorder → click/drag skill vào target để cast ngay → dice chuyển used state → End Phase → Enemy Phase.
+
+---
 ---
 
 ## 1. Mục tiêu của hệ thống
@@ -72,11 +76,24 @@ Enemy phải có **intent rõ ràng** theo tinh thần Slay the Spire:
 - combat có nhịp dự đoán / phản ứng,
 - sequencing phòng thủ / control / payoff có cơ sở.
 
+### 3.1b Deterministic debuff qua intent
+
+Enemy debuff lên player có thể có xác suất 100% nếu hành động đó đã được telegraph rõ bằng intent. Đây là tactical puzzle, không phải random punishment.
+
+Counterplay phải đến từ việc player đọc intent và phản ứng trước khi Enemy Phase resolve:
+
+- kill hoặc control enemy trước,
+- Guard / cleanse / dùng consumable,
+- reorder hoặc dùng dice bị ảnh hưởng trước,
+- chấp nhận tradeoff nếu muốn giữ tài nguyên cho payoff khác.
+
+Enemy debuff mạnh như khóa dice, che dice, giảm Base Value hoặc khóa Basic action phải readable và không nên xuất hiện như surprise effect không báo trước.
+
 ### 3.2 Enemy không dùng cùng economy với player
 
 Hướng hiện tại từ project context:
 
-- enemy **không dùng focus / dice** như player,
+- enemy **không dùng AP / dice** như player,
 - enemy được xây theo move set, pattern, weight và condition.
 
 ### 3.3 Move selection logic
@@ -178,6 +195,18 @@ Ví dụ triết lý đúng hướng:
 
 ---
 
+## 5A. Boss Preparation modifier ownership
+
+Boss Preparation clock thuộc map layer, nhưng **boss-specific modifier** thuộc file này.
+
+Rule ownership:
+
+- `MAP_STRUCTURE_AND_NAVIGATION_SPEC.md` giữ: node nào tăng Preparation, mốc Preparation, route/backtrack, Boss Intel ở map layer.
+- File này giữ: từng boss phản ứng thế nào với mốc Preparation.
+- `RUN_ECONOMY_REWARD_EVENT_SPEC.md` không giữ boss behavior cụ thể.
+
+Boss-specific modifier phải đánh vào nhịp hoặc mechanic riêng của boss, không biến boss thành stat wall chung.
+
 ## 6. Hidden boss và endless escalation
 
 ### 6.1 Endless mode
@@ -242,7 +271,7 @@ Nhưng các phần sau là direction rất mạnh / đã chốt ở mức triế
 - encounter pressure phải đọc được và phải có counterplay.
 
 
-## Runtime Update Note (2026-04-24 - Override)
+## Runtime Update Note (Archived)
 
 Phần note ngay phía trên là bản chèn tạm không dấu. Phần này ghi đè và phải được xem là cách hiểu đúng hiện tại.
 

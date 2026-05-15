@@ -13,8 +13,9 @@ public class CombatLabPrototypeController : MonoBehaviour
     [SerializeField] private bool shuffleSelectedSkillOrder = true;
 
     private readonly List<DiceSpinnerGeneric> _dicePrefabOptions = new List<DiceSpinnerGeneric>(2);
-    private readonly List<CombatLabPrototypeConfigSO.SkillPairEntry> _skillPairOptions = new List<CombatLabPrototypeConfigSO.SkillPairEntry>(6);
+    private readonly List<CombatLabPrototypeConfigSO.SkillPairEntry> _skillGroupOptions = new List<CombatLabPrototypeConfigSO.SkillPairEntry>(6);
     private readonly List<ScriptableObject> _selectedSkills = new List<ScriptableObject>(4);
+    private static string s_lastSelectedSkillGroupKey;
 
     private void Awake()
     {
@@ -93,26 +94,20 @@ public class CombatLabPrototypeController : MonoBehaviour
         for (int i = 0; i < RunInventoryManager.OWNED_SKILL_COUNT; i++)
             runInventory.SetSkill(RunInventoryManager.SkillSource.Owned, i, null);
 
-        BuildSkillPairOptions();
-        if (_skillPairOptions.Count < 2)
+        BuildSkillGroupOptions();
+        if (_skillGroupOptions.Count <= 0)
         {
-            Debug.LogWarning("[CombatLabPrototypeController] Need at least 2 valid skill pairs configured.", this);
+            Debug.LogWarning("[CombatLabPrototypeController] Need at least 1 valid 4-skill group configured.", this);
             return;
         }
 
-        int firstIndex = Random.Range(0, _skillPairOptions.Count);
-        int secondIndex = firstIndex;
-        while (secondIndex == firstIndex)
-            secondIndex = Random.Range(0, _skillPairOptions.Count);
-
-        CombatLabPrototypeConfigSO.SkillPairEntry firstPair = _skillPairOptions[firstIndex];
-        CombatLabPrototypeConfigSO.SkillPairEntry secondPair = _skillPairOptions[secondIndex];
+        CombatLabPrototypeConfigSO.SkillPairEntry group = PickRandomSkillGroup();
 
         _selectedSkills.Clear();
-        _selectedSkills.Add(firstPair.skillA);
-        _selectedSkills.Add(firstPair.skillB);
-        _selectedSkills.Add(secondPair.skillA);
-        _selectedSkills.Add(secondPair.skillB);
+        _selectedSkills.Add(group.skillA);
+        _selectedSkills.Add(group.skillB);
+        _selectedSkills.Add(group.skillC);
+        _selectedSkills.Add(group.skillD);
 
         if (shuffleSelectedSkillOrder)
             Shuffle(_selectedSkills);
@@ -196,26 +191,86 @@ public class CombatLabPrototypeController : MonoBehaviour
             _dicePrefabOptions.Add(config.d8Prefab);
     }
 
-    private void BuildSkillPairOptions()
+    private void BuildSkillGroupOptions()
     {
-        _skillPairOptions.Clear();
-        if (config == null || config.skillPairs == null)
+        _skillGroupOptions.Clear();
+        if (config == null || config.skillGroups == null)
             return;
 
-        for (int i = 0; i < config.skillPairs.Length; i++)
+        for (int i = 0; i < config.skillGroups.Length; i++)
         {
-            CombatLabPrototypeConfigSO.SkillPairEntry pair = config.skillPairs[i];
-            if (pair == null || !IsValidSkillPair(pair))
+            CombatLabPrototypeConfigSO.SkillPairEntry group = config.skillGroups[i];
+            if (group == null || !IsValidSkillGroup(group))
                 continue;
 
-            _skillPairOptions.Add(pair);
+            _skillGroupOptions.Add(group);
         }
     }
 
-    private static bool IsValidSkillPair(CombatLabPrototypeConfigSO.SkillPairEntry pair)
+    private static bool IsValidSkillGroup(CombatLabPrototypeConfigSO.SkillPairEntry group)
     {
-        return IsActiveSkill(pair.skillA) &&
-               IsActiveSkill(pair.skillB);
+        return IsActiveSkill(group.skillA) &&
+               IsActiveSkill(group.skillB) &&
+               IsActiveSkill(group.skillC) &&
+               IsActiveSkill(group.skillD);
+    }
+
+    private CombatLabPrototypeConfigSO.SkillPairEntry PickRandomSkillGroup()
+    {
+        if (_skillGroupOptions.Count <= 1)
+        {
+            CombatLabPrototypeConfigSO.SkillPairEntry onlyGroup = _skillGroupOptions[0];
+            s_lastSelectedSkillGroupKey = BuildSkillGroupKey(onlyGroup);
+            return onlyGroup;
+        }
+
+        int selectedIndex = Random.Range(0, _skillGroupOptions.Count);
+        string selectedKey = BuildSkillGroupKey(_skillGroupOptions[selectedIndex]);
+
+        if (!string.IsNullOrEmpty(s_lastSelectedSkillGroupKey) && selectedKey == s_lastSelectedSkillGroupKey)
+        {
+            int safety = 0;
+            while (selectedKey == s_lastSelectedSkillGroupKey && safety < 16)
+            {
+                selectedIndex = Random.Range(0, _skillGroupOptions.Count);
+                selectedKey = BuildSkillGroupKey(_skillGroupOptions[selectedIndex]);
+                safety++;
+            }
+
+            if (selectedKey == s_lastSelectedSkillGroupKey)
+            {
+                for (int i = 0; i < _skillGroupOptions.Count; i++)
+                {
+                    string candidateKey = BuildSkillGroupKey(_skillGroupOptions[i]);
+                    if (candidateKey == s_lastSelectedSkillGroupKey)
+                        continue;
+
+                    selectedIndex = i;
+                    selectedKey = candidateKey;
+                    break;
+                }
+            }
+        }
+
+        s_lastSelectedSkillGroupKey = selectedKey;
+        return _skillGroupOptions[selectedIndex];
+    }
+
+    private static string BuildSkillGroupKey(CombatLabPrototypeConfigSO.SkillPairEntry group)
+    {
+        if (group == null)
+            return string.Empty;
+
+        return string.Join("|",
+            GetSkillKey(group.skillA),
+            GetSkillKey(group.skillB),
+            GetSkillKey(group.skillC),
+            GetSkillKey(group.skillD));
+    }
+
+    private static string GetSkillKey(ScriptableObject skill)
+    {
+        return skill != null ? skill.name : "null";
     }
 
     private static bool IsActiveSkill(ScriptableObject asset)

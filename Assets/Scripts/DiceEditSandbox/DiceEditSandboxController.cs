@@ -1009,9 +1009,10 @@ public class DiceEditSandboxController : MonoBehaviour
             _lastUseMessage = copyResult.success ? $"Result: {copyResult.message}" : $"Cannot use: {copyResult.message}";
             if (copyResult.success)
             {
-                _copySourceDie?.RefreshDisplayedState();
-                if (_copyTargetDie != _copySourceDie)
-                    _copyTargetDie?.RefreshDisplayedState();
+                if (_copySourceDie != null)
+                    ConsumableRuntimeUtility.NotifyDiceStateChanged(_copySourceDie);
+                if (_copyTargetDie != null && _copyTargetDie != _copySourceDie)
+                    ConsumableRuntimeUtility.NotifyDiceStateChanged(_copyTargetDie);
                 ClearSandboxFaceSelection();
                 ForceClearAllHighlights();
                 DestroyAllHighlightObjectsGlobally();
@@ -1045,7 +1046,7 @@ public class DiceEditSandboxController : MonoBehaviour
                 ? $"Result: {string.Join(" | ", successMessages)}"
                 : "Result: no face changed.";
             if (die != null)
-                die.RefreshDisplayedState();
+                ConsumableRuntimeUtility.NotifyDiceStateChanged(die);
             ClearSandboxFaceSelection();
             ForceClearAllHighlights();
             DestroyAllHighlightObjectsGlobally();
@@ -1061,7 +1062,7 @@ public class DiceEditSandboxController : MonoBehaviour
         if (singleResult.success)
         {
             if (targetDie != null)
-                targetDie.RefreshDisplayedState();
+                ConsumableRuntimeUtility.NotifyDiceStateChanged(targetDie);
             ClearSandboxFaceSelection();
             ForceClearAllHighlights();
             DestroyAllHighlightObjectsGlobally();

@@ -205,6 +205,9 @@ Burn **không phải DoT chính**. Burn là **tài nguyên để consume**.
 - Burn có stack
 - Consume mặc định = **+2 damage mỗi stack Burn bị xóa**
 - Chỉ skill đặc biệt mới override baseline này
+- Rule trình bày/resolve:
+- Nếu action chỉ có đúng phần `consume Burn` và không có hit damage thường đi trước, thì `Burn consume` nổ **ngay lập tức** trong cùng action đó
+- Nếu action có `hit damage thường trước` rồi mới `consume Burn`, thì phần `consume` phải nổ ở **bước thứ hai**, sau khoảng **0.2s**, để player đọc rõ hit trước rồi mới detonate sau
 
 ### 8.3 Ice / Freeze / Chilled
 
@@ -220,6 +223,7 @@ Mark là weak point để direct-hit khai thác. Mark **không stack**.
 - **Non-Lightning hit vào Mark**: +3 direct damage lên chính mục tiêu đó
 - **Lightning hit vào Mark**: hit chính damage bình thường → proc **3 damage all enemies**
 - Shock phụ của Lightning: không cộng Added Value, không tiêu Mark, không proc Mark, không chain tiếp
+- Nếu có `hit damage thường` rồi mới tới shock/phần damage điện phụ, thì damage điện phụ **không resolve cùng lúc** với hit chính; nó phải chạy ở **bước kế tiếp** sau khoảng **0.2s**
 - AoE Lightning hit nhiều target có Mark → mỗi target tạo 1 shock proc, chạy tuần tự, cách nhau 0.2s
 
 ### 8.5 Bleed

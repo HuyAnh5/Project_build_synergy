@@ -3,7 +3,9 @@ public enum FireDamageBehaviorId
     None = 0,
     Ignite = 1,
     Hellfire = 2,
-    Cauterize = 3
+    Cauterize = 3,
+    FireSlash = 4,
+    BiteTheDust = 5
 }
 
 public enum IceDamageBehaviorId

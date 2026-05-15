@@ -31,6 +31,10 @@ public class TurnManager : MonoBehaviour
     [Header("Enemy Turn")]
     public float delayBetweenEnemyAttacks = 0.2f;
 
+    [Header("Player Roll")]
+    [Tooltip("Automatically rolls dice when the player turn begins.")]
+    public bool autoRollOnPlayerTurnStart = true;
+
     [Header("Debug")]
     public bool logPhase = true;
     public KeyCode toggleLogKey = KeyCode.F10;
@@ -53,6 +57,7 @@ public class TurnManager : MonoBehaviour
     private bool _victoryResolvedThisCombat;
     private bool _defeatResolvedThisCombat;
     private bool _externalPlayerInteractionLock;
+    private Coroutine _autoRollCoroutine;
 
     void Start()
     {
@@ -120,16 +125,6 @@ public class TurnManager : MonoBehaviour
 
     void Update()
     {
-        // Press Space to roll ONCE during Planning
-        if (phase == Phase.Planning && diceRig != null)
-        {
-            if (!ArePlayerCommandsLocked && !diceRig.HasRolledThisTurn && !diceRig.IsRolling && SpacePressedThisFrame())
-            {
-                diceRig.RollOnce();
-                RefreshPlanningInteractivity();
-            }
-        }
-
         if (Input.GetKeyDown(toggleLogKey))
         {
             logPhase = !logPhase;
@@ -145,7 +140,7 @@ public class TurnManager : MonoBehaviour
         if (ArePlayerCommandsLocked) return;
         if (diceRig.HasRolledThisTurn || diceRig.IsRolling) return;
 
-        diceRig.RollOnce();
+        diceRig.RollOnceSequential();
         RefreshPlanningInteractivity();
     }
 
@@ -675,12 +670,37 @@ public class TurnManager : MonoBehaviour
         RefreshPlanningInteractivity();
         LockPlanningUI(false);
 
+        if (_autoRollCoroutine != null)
+            StopCoroutine(_autoRollCoroutine);
+        _autoRollCoroutine = StartCoroutine(AutoRollPlayerTurnIfNeeded());
+
         // ✅ Ensure enemy has intent for THIS upcoming enemy turn (STS style)
         TurnManagerViewUtility.EnsureEnemyIntentsNow(TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, enemy), player);
     }
 
 
 
+
+    private IEnumerator AutoRollPlayerTurnIfNeeded()
+    {
+        yield return null;
+
+        if (!autoRollOnPlayerTurnStart)
+            yield break;
+        if (phase != Phase.Planning)
+            yield break;
+        if (diceRig == null)
+            yield break;
+        if (ArePlayerCommandsLocked)
+            yield break;
+        if (diceRig.HasRolledThisTurn || diceRig.IsRolling)
+            yield break;
+
+        // Turn-start auto roll uses the dedicated opening profile on the rig.
+        // Manual roll button and other rerolls still keep their normal timing path.
+        diceRig.RollOnceTurnStart();
+        RefreshPlanningInteractivity();
+    }
 
     // -------- helpers --------
     private bool IsSlotActive0(int i0) => diceRig == null || diceRig.IsSlotActive(i0);
@@ -776,16 +796,6 @@ public class TurnManager : MonoBehaviour
         return TurnManagerTargetingUtility.IsValidTargetForPendingSkill(rt, clicked, player, party, enemy);
     }
 
-
-    private static bool SpacePressedThisFrame()
-    {
-#if ENABLE_INPUT_SYSTEM
-        var kb = Keyboard.current;
-        return kb != null && kb.spaceKey.wasPressedThisFrame;
-#else
-        return Input.GetKeyDown(KeyCode.Space);
-#endif
-    }
 
     private void SetPhase(Phase newPhase)
     {

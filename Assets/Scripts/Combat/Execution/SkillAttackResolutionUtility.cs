@@ -49,8 +49,14 @@ internal static class SkillAttackResolutionUtility
         PassiveSystem ps = caster != null ? caster.GetComponent<PassiveSystem>() : null;
         bool hadGuardBeforeHit = target.guardPool > 0;
         bool targetHadBurnBeforeHit = target.status != null && target.status.burnStacks > 0;
+        int targetBurnStacksBeforeHit = target.status != null ? Mathf.Max(0, target.status.burnStacks) : 0;
         bool targetHadMarkBeforeHit = target.status != null && target.status.marked;
         SkillExecutor.AttackPreview preview = buildAttackPreview(rt, caster, target, dieValue);
+        int delayedBurnConsumeDamage = 0;
+        bool splitBurnConsumeStep = rt.element == ElementType.Fire &&
+                                    rt.consumesBurn &&
+                                    preview.primaryDamage > 0 &&
+                                    preview.burnConsumeDamage > 0;
 
         var info = new DamageInfo
         {
@@ -59,7 +65,7 @@ internal static class SkillAttackResolutionUtility
             bypassGuard = rt.bypassGuard,
             clearsGuard = rt.clearsGuard,
             canUseMarkMultiplier = rt.canUseMarkMultiplier,
-            isDamage = preview.finalDamage > 0
+            isDamage = (splitBurnConsumeStep ? preview.primaryDamage : preview.finalDamage) > 0
         };
 
         bool triggerMarkPayoff = AttackPreviewCalculator.CanUseMarkPayoff(rt, target);
@@ -76,6 +82,8 @@ internal static class SkillAttackResolutionUtility
         if (rt.element == ElementType.Fire && rt.consumesBurn && target.status != null && target.status.burnStacks > 0)
         {
             target.status.ConsumeAllBurn();
+            if (splitBurnConsumeStep)
+                delayedBurnConsumeDamage = preview.burnConsumeDamage;
         }
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.FatedSunder) && rt.conditionMet)
@@ -87,7 +95,8 @@ internal static class SkillAttackResolutionUtility
             Debug.Log($"[EXEC] ApplyAttack rt={rt.kind}/{rt.group}/{rt.element} die={dieValue} base={preview.baseDamage} bonus={preview.bonusDamage} finalDmg={preview.finalDamage} hadGuard={hadGuardBeforeHit} hasPassiveSystem={hasPS}", context);
         }
 
-        CombatActor.DamageResult dmgResult = target.TakeDamageDetailed(preview.finalDamage, bypassGuard: info.bypassGuard);
+        int immediateDamage = splitBurnConsumeStep ? preview.primaryDamage : preview.finalDamage;
+        CombatActor.DamageResult dmgResult = target.TakeDamageDetailed(immediateDamage, bypassGuard: info.bypassGuard);
 
         if (info.isDamage &&
             rt.element == ElementType.Ice &&
@@ -136,7 +145,7 @@ internal static class SkillAttackResolutionUtility
 
         ApplyStatusesAfterHit(rt, caster, target, dieValue, preview.finalDamage, targetHadBurnBeforeHit);
 
-        ApplyBehaviorAfterHit(rt, caster, target, dieValue, preview.finalDamage, targetHadMarkBeforeHit, preview, dmgResult);
+        ApplyBehaviorAfterHit(rt, caster, target, dieValue, preview.finalDamage, targetHadMarkBeforeHit, targetBurnStacksBeforeHit, preview, dmgResult);
         ApplyBounceIfNeeded(rt, caster, target, dieValue, preview.finalDamage, popups);
 
         ConsumeExecutionCarryIfNeeded(rt, caster);
@@ -149,7 +158,9 @@ internal static class SkillAttackResolutionUtility
             damageResult = dmgResult,
             lightningShockProcCount = lightningShockDamage > 0 ? 1 : 0,
             lightningShockDamage = lightningShockDamage,
-            consumedStagger = preview.consumesStagger
+            consumedStagger = preview.consumesStagger,
+            hadPrimaryDamageStep = preview.primaryDamage > 0,
+            delayedBurnConsumeDamage = delayedBurnConsumeDamage
         };
     }
 
@@ -163,7 +174,11 @@ internal static class SkillAttackResolutionUtility
         if (rt.applyBurn)
         {
             int burnStacks = rt.burnAddStacks;
-            if (rt.baseBurnValueMode == BaseEffectValueMode.X || (rt.element == ElementType.Fire && rt.fireApplyBurnFromResolvedValue))
+            if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.FireSlash))
+            {
+                burnStacks = rt.conditionMet ? Mathf.Max(0, rt.burnAddStacks) : 0;
+            }
+            else if (rt.baseBurnValueMode == BaseEffectValueMode.X || (rt.element == ElementType.Fire && rt.fireApplyBurnFromResolvedValue))
             {
                 burnStacks = SkillOutputValueUtility.ResolveXValue(dieValue, rt);
                 if (rt.fireGrantBonusBurnOnOddBase &&
@@ -173,19 +188,14 @@ internal static class SkillAttackResolutionUtility
                     burnStacks += Mathf.Max(0, rt.fireOddBaseBonusBurn);
                 }
             }
-            else if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.Ignite))
-            {
-                burnStacks = SkillOutputValueUtility.ResolveXValue(dieValue, rt);
-                if (SkillBehaviorRuntimeUtility.TryGetSingleBaseValue(rt, out int baseValue) && (baseValue % 2) != 0)
-                    burnStacks += 2;
-            }
             else
             {
                 burnStacks = SkillOutputValueUtility.AddActionAddedValue(burnStacks, rt);
             }
 
             burnStacks += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
-            target.status.ApplyBurn(burnStacks, rt.burnRefreshTurns);
+            if (burnStacks > 0)
+                target.status.ApplyBurn(burnStacks, rt.burnRefreshTurns);
         }
 
         if (IsBasicStrike(rt) && caster != null && caster.status != null && caster.status.emberWeaponTurns > 0)
@@ -229,12 +239,12 @@ internal static class SkillAttackResolutionUtility
 
         if (rt.applyMark) target.status.ApplyMark();
         if (rt.applyBleed &&
-            !SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.Lacerate) &&
             !SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.Hemorrhage))
         {
             int bleedStacks = SkillOutputValueUtility.AddActionAddedValue(rt.bleedTurns, rt);
             bleedStacks += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Bleed) : 0;
-            target.status.ApplyBleed(bleedStacks);
+            if (bleedStacks > 0)
+                target.status.ApplyBleed(bleedStacks);
         }
         if (rt.applyFreeze) target.status.TryApplyFreeze(rt.freezeChance);
 
@@ -261,6 +271,7 @@ internal static class SkillAttackResolutionUtility
         int dieValue,
         int finalDamage,
         bool targetHadMarkBeforeHit,
+        int targetBurnStacksBeforeHit,
         SkillExecutor.AttackPreview preview,
         CombatActor.DamageResult dmgResult)
     {
@@ -306,6 +317,14 @@ internal static class SkillAttackResolutionUtility
             return;
         }
 
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.BiteTheDust))
+        {
+            int heal = Mathf.FloorToInt(Mathf.Max(0, targetBurnStacksBeforeHit) / 5f) * 3;
+            if (heal > 0)
+                caster.Heal(heal);
+            return;
+        }
+
         if (rt.splitRoleEnabled)
         {
             ApplySplitRole(rt, caster, target, ps);
@@ -314,8 +333,8 @@ internal static class SkillAttackResolutionUtility
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.Shatter))
         {
-            if (finalDamage > 0)
-                caster.AddGuard(finalDamage);
+            if (rt.localFailAny)
+                caster.AddGuard(4);
             return;
         }
 
@@ -374,23 +393,12 @@ internal static class SkillAttackResolutionUtility
                 List<CombatActor> others = SkillBehaviorRuntimeUtility.GetOtherEnemiesInSameRow(caster, target);
                 for (int i = 0; i < others.Count; i++)
                 {
-                    if (others[i] != null && others[i].status != null)
-                        others[i].status.ApplyMark();
-                }
-            }
-            return;
-        }
+                    if (others[i] == null || others[i].status == null)
+                        continue;
 
-        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.Lacerate))
-        {
-            if (target != null && target.status != null)
-            {
-                int bleed = SkillOutputValueUtility.AddActionAddedValue(Mathf.Max(0, rt.bleedTurns), rt);
-                if (rt.localCritAny)
-                    bleed += SkillOutputValueUtility.AddActionAddedValue(Mathf.Max(0, rt.bleedTurns), rt);
-                bleed += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Bleed) : 0;
-                if (bleed > 0)
-                    target.status.ApplyBleed(bleed);
+                    others[i].status.ApplyMark();
+                    break;
+                }
             }
             return;
         }

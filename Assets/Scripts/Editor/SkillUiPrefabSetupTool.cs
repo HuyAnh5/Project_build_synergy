@@ -8,8 +8,9 @@ using UnityEngine.UI;
 public static class SkillUiPrefabSetupTool
 {
     private const string PrefabFolder = "Assets/Prefabs/UI";
+    private const string TooltipResourcesFolder = "Assets/Resources/UI";
     private const string SkillSlotPrefabPath = PrefabFolder + "/SkillSlotLayout.prefab";
-    private const string SkillTooltipPrefabPath = PrefabFolder + "/SkillTooltipLayout.prefab";
+    private const string SkillTooltipPrefabPath = TooltipResourcesFolder + "/SkillTooltipLayout.prefab";
     private const string UiAssetFolder = "Assets/GameData/UI";
     private const string IconLibraryAssetPath = UiAssetFolder + "/CombatUiIconLibrary.asset";
     private const string RuntimeRootName = "SkillUiRuntimeRoot";
@@ -22,6 +23,7 @@ public static class SkillUiPrefabSetupTool
     public static void CreatePrefabs()
     {
         Directory.CreateDirectory(PrefabFolder);
+        Directory.CreateDirectory(TooltipResourcesFolder);
         Directory.CreateDirectory(UiAssetFolder);
 
         SkillUiIconLibrarySO iconLibrary = EnsureIconLibraryAsset();
@@ -502,6 +504,8 @@ public static class SkillUiPrefabSetupTool
         so.FindProperty("contentSizeFitter").objectReferenceValue = fitter;
         so.FindProperty("minContentWidth").floatValue = 170f;
         so.FindProperty("maxContentWidth").floatValue = 320f;
+        so.FindProperty("minContentHeight").floatValue = 0f;
+        so.FindProperty("maxContentHeight").floatValue = 0f;
         so.ApplyModifiedPropertiesWithoutUndo();
 
         PrefabUtility.SaveAsPrefabAsset(root, SkillTooltipPrefabPath);
@@ -544,6 +548,9 @@ public static class SkillUiPrefabSetupTool
         GameObject textGo = CreateChild(parent, name, typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
         TMP_Text text = textGo.GetComponent<TMP_Text>();
         text.fontSize = size;
+        text.enableAutoSizing = true;
+        text.fontSizeMin = size - 3f;
+        text.fontSizeMax = size + 2f;
         text.fontStyle = style;
         text.color = Color.white;
         text.enableWordWrapping = true;

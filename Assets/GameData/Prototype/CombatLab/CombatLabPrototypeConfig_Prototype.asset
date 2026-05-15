@@ -27,19 +27,30 @@ MonoBehaviour:
     orderInRow: 0
   d4Prefab: {fileID: 3696089616036826389, guid: 650ae2f331cdc1848bf2007cff33bdf1, type: 3}
   d8Prefab: {fileID: 4134805224854751960, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
-  skillPairs:
+  skillGroups:
   - label: 
     skillA: {fileID: 11400000, guid: dd8a7af4c0d3462bbed18e7712ad8990, type: 2}
     skillB: {fileID: 11400000, guid: 6201df6fa5db4498bdd5158dc14ccf72, type: 2}
+    skillC: {fileID: 11400000, guid: 5ccc410763d74ec393e79c5d6d59f429, type: 2}
+    skillD: {fileID: 11400000, guid: 77a1c4d829e44d1b9c8a2a9fbf0e1101, type: 2}
   - label: 
-    skillA: {fileID: 11400000, guid: 1536d6a89f7747e69f13c80ca82d9551, type: 2}
-    skillB: {fileID: 11400000, guid: 1f1edc4a92a94f099b0bd4fffccc2a07, type: 2}
+    skillA: {fileID: 11400000, guid: 88b2d5e93af54c2ca9d3b0cf1a2b3202, type: 2}
+    skillB: {fileID: 11400000, guid: 1536d6a89f7747e69f13c80ca82d9551, type: 2}
+    skillC: {fileID: 11400000, guid: 99c3e6fa4b065d3db0e4c1df2b3c4303, type: 2}
+    skillD: {fileID: 11400000, guid: 1f1edc4a92a94f099b0bd4fffccc2a07, type: 2}
   - label: 
     skillA: {fileID: 11400000, guid: e388693c7dfaf5246aac7a84e3f6424d, type: 2}
     skillB: {fileID: 11400000, guid: 843dec42c43d45a3ac5561044366d0ee, type: 2}
-  consumables:
-  - {fileID: 11400000, guid: daac03b175d89f44aaadeed13907ac6f, type: 2}
-  - {fileID: 11400000, guid: 123a834a9b634a04ca2a16991d3daebc, type: 2}
-  - {fileID: 11400000, guid: c1df92299cc33994484c0126b6320ea5, type: 2}
-  - {fileID: 11400000, guid: 31217922bea208b458ea0470a6e71265, type: 2}
-  - {fileID: 11400000, guid: 6f0ec1d6ddf84fd5a7148f10d6a2e1a4, type: 2}
+    skillC: {fileID: 11400000, guid: aad4f70b5c176e4ec1f5d2e03c4d5404, type: 2}
+    skillD: {fileID: 11400000, guid: bbe5081c6d287f5fd206e3f14d5e6505, type: 2}
+  - label: 
+    skillA: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
+    skillB: {fileID: 11400000, guid: d0a72a3e8f4a917bf4280516f7087207, type: 2}
+    skillC: {fileID: 11400000, guid: ccf6192d7e39806ae317f405e6f76106, type: 2}
+    skillD: {fileID: 11400000, guid: e1b83b4f905ba28c0539162708198308, type: 2}
+  - label: 
+    skillA: {fileID: 11400000, guid: 03da5d61b27dc4ae275b38492a3ba50a, type: 2}
+    skillB: {fileID: 11400000, guid: 14eb6e72c38ed5bf386c495a3b4cb60b, type: 2}
+    skillC: {fileID: 11400000, guid: f2c94c50a16cb39d164a2738192a9409, type: 2}
+    skillD: {fileID: 11400000, guid: c58a812946cb403e98dcd3e35f6e1d48, type: 2}
+  consumables: []

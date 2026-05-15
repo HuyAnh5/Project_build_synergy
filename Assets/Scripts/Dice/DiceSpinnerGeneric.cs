@@ -138,6 +138,26 @@ public class DiceSpinnerGeneric : MonoBehaviour
         return faces[idx].value;
     }
 
+    public int RollRandomFaceWithTiming(float accelDuration, float totalDuration)
+    {
+        if (!ValidateFaces())
+            return 0;
+
+        int idx = Random.Range(0, faces.Length);
+        RollToFaceIndexWithTiming(idx, accelDuration, totalDuration);
+        return faces[idx].value;
+    }
+
+    public int RollRandomFaceTurnStart(float accelDuration, float baseTotalDuration, float tailDuration, int extraTailLoops, Vector3Int? sharedBaseLoops = null)
+    {
+        if (!ValidateFaces())
+            return 0;
+
+        int idx = Random.Range(0, faces.Length);
+        RollToFaceIndexTurnStartProfile(idx, accelDuration, baseTotalDuration, tailDuration, extraTailLoops, sharedBaseLoops);
+        return faces[idx].value;
+    }
+
     public int ShowRandomPresentationFace()
     {
         if (!ValidateFaces())
@@ -149,6 +169,11 @@ public class DiceSpinnerGeneric : MonoBehaviour
     }
 
     public void RollToFaceIndex(int faceIndex)
+    {
+        RollToFaceIndexWithTiming(faceIndex, accelTime, totalTime);
+    }
+
+    public void RollToFaceIndexWithTiming(int faceIndex, float accelDuration, float totalDuration)
     {
         if (!ValidateFaces())
             return;
@@ -173,12 +198,69 @@ public class DiceSpinnerGeneric : MonoBehaviour
 
         Vector3 endEuler = targetEuler + new Vector3(360f * lx, 360f * ly, 360f * lz);
 
-        float slowTime = Mathf.Max(0.01f, totalTime - accelTime);
+        float safeAccelTime = Mathf.Max(0.01f, accelDuration);
+        float safeTotalTime = Mathf.Max(safeAccelTime + 0.01f, totalDuration);
+        float slowTime = Mathf.Max(0.01f, safeTotalTime - safeAccelTime);
         Vector3 midEuler = Vector3.Lerp(startEuler, endEuler, accelPortion);
 
         Sequence seq = DOTween.Sequence();
-        seq.Append(pivot.DOLocalRotate(midEuler, accelTime, RotateMode.FastBeyond360).SetEase(Ease.InQuad));
+        seq.Append(pivot.DOLocalRotate(midEuler, safeAccelTime, RotateMode.FastBeyond360).SetEase(Ease.InQuad));
         seq.Append(pivot.DOLocalRotate(endEuler, slowTime, RotateMode.FastBeyond360).SetEase(Ease.OutQuart));
+
+        seq.OnComplete(() =>
+        {
+            IsRolling = false;
+
+            RefreshDisplayedState();
+            PlayRollStatePopupIfNeeded();
+            onRollComplete?.Invoke(this);
+        });
+
+        _tween = seq;
+    }
+
+    public void RollToFaceIndexTurnStartProfile(int faceIndex, float accelDuration, float baseTotalDuration, float tailDuration, int extraTailLoops, Vector3Int? sharedBaseLoops = null)
+    {
+        if (!ValidateFaces())
+            return;
+
+        faceIndex = Mathf.Clamp(faceIndex, 0, faces.Length - 1);
+
+        LastFaceIndex = faceIndex;
+        LastRolledValue = faces[faceIndex].value;
+
+        ClearRollStatePopupVisuals(clearText: true);
+
+        Vector3 targetEuler = NormalizeEuler(faces[faceIndex].localEuler);
+
+        _tween?.Kill();
+        IsRolling = true;
+
+        Vector3 startEuler = pivot.localEulerAngles;
+
+        Vector3Int loopProfile = sharedBaseLoops ?? new Vector3Int(
+            Random.Range(loopsMin.x, loopsMax.x + 1),
+            Random.Range(loopsMin.y, loopsMax.y + 1),
+            Random.Range(loopsMin.z, loopsMax.z + 1));
+
+        int lx = loopProfile.x;
+        int ly = loopProfile.y;
+        int lz = loopProfile.z;
+
+        Vector3 commonEndEuler = targetEuler + new Vector3(360f * lx, 360f * ly, 360f * lz);
+        Vector3 finalEndEuler = commonEndEuler + new Vector3(0f, 0f, 360f * Mathf.Max(0, extraTailLoops));
+
+        float safeAccelTime = Mathf.Max(0.01f, accelDuration);
+        float safeBaseTotalTime = Mathf.Max(safeAccelTime + 0.01f, baseTotalDuration);
+        float baseSlowTime = Mathf.Max(0.01f, safeBaseTotalTime - safeAccelTime);
+        float safeTailTime = Mathf.Max(0f, tailDuration);
+        Vector3 midEuler = Vector3.Lerp(startEuler, commonEndEuler, accelPortion);
+
+        Sequence seq = DOTween.Sequence();
+        seq.Append(pivot.DOLocalRotate(midEuler, safeAccelTime, RotateMode.FastBeyond360).SetEase(Ease.InQuad));
+        seq.Append(pivot.DOLocalRotate(commonEndEuler, baseSlowTime, RotateMode.FastBeyond360).SetEase(Ease.OutQuart));
+        if (safeTailTime > 0f && extraTailLoops > 0)
+            seq.Append(pivot.DOLocalRotate(finalEndEuler, safeTailTime, RotateMode.FastBeyond360).SetEase(Ease.OutQuart));
 
         seq.OnComplete(() =>
         {

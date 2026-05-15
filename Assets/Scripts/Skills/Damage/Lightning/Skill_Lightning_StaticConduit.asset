@@ -14,16 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 6453661803084663350, guid: b5de9fcfd196c1a47b1068ac12138a6c, type: 3}
   displayName: Static Conduit
-  description: Deal "4 damage". If the target has Mark, apply Mark to all other enemies
-    in its row.
+  description: Deal "3 damage". If target has Mark, apply Mark to another enemy
+    in the same row.
   spec:
     rarity: 0
     specState: 0
     buildRole: 0
     implementationCoverage: 1
-    normalizedText: Deal "4 damage". If target has Mark, apply Mark to all other
-      enemies in its row.
-    designIntent: Primary board-wide Mark spread tool.
+    normalizedText: Deal "3 damage". If target has Mark, apply Mark to another
+      enemy in the same row.
+    designIntent: Lightning row-spread tool.
   behaviorFamily: 3
   fireBehaviorId: 0
   iceBehaviorId: 0
@@ -124,7 +124,7 @@ MonoBehaviour:
   focusGainOnCast: 0
   baseDamageValueMode: 0
   dieMultiplier: 0
-  flatDamage: 4
+  flatDamage: 3
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
   guardValueMode: 1

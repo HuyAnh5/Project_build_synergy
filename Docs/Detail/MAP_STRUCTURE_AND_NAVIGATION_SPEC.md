@@ -1,9 +1,13 @@
 # MAP_STRUCTURE_AND_NAVIGATION_SPEC.md
 
 > Tài liệu này mô tả **map graph**, **node structure**, **navigation/backtrack**, **Boss Preparation trên map**, **Boss Intel ở map layer** và các rule di chuyển trong act.  
-> File này được tách từ `RUN_STRUCTURE_AND_ECONOMY_SPEC_UPDATED_EVENT_REWARD_V2.md` để `RUN_ECONOMY_REWARD_EVENT_SPEC.md` chỉ còn tập trung vào reward / event / economy / progression.  
+> File này là source hiện tại cho map / navigation. Run economy và reward nằm ở `RUN_ECONOMY_REWARD_EVENT_SPEC.md`.  
 > File này không đi sâu vào reward gacha, event package hay shop economy; phần đó nằm ở `RUN_ECONOMY_REWARD_EVENT_SPEC.md`.
 
+
+> **CURRENT SOURCE UPDATE:** File này chỉ giữ map graph, node, movement/backtrack, Boss Preparation clock và Boss Intel ở map layer. Reward/economy nằm ở `RUN_ECONOMY_REWARD_EVENT_SPEC.md`; boss-specific modifier nằm ở `ENEMIES_BOSSES_ENCOUNTERS_SPEC.md`.
+
+---
 ---
 
 ## 1. Map Structure Trong Act
@@ -193,6 +197,9 @@ Mốc Boss Preparation hiện tại:
 Boss Preparation nên được hiểu là **soft cost của việc lấy thêm value**, không phải phí di chuyển.
 
 #### 1.4A.1 Boss `Unprepared` state và Prepared Modifier
+
+Boss-specific Preparation modifier không nằm trong file này nữa. File này chỉ giữ mốc clock và ý nghĩa map-layer. Chi tiết Dragon/Knight/boss cụ thể thuộc `ENEMIES_BOSSES_ENCOUNTERS_SPEC.md`.
+
 
 Ở mốc `0–12 Boss Preparation`, boss không chỉ đơn giản là “không có modifier”.  
 Đây là trạng thái **Boss Unprepared**: player đến đủ sớm để bắt gặp boss khi nó chưa hoàn tất trạng thái chiến đấu.

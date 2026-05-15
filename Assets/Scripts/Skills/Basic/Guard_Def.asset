@@ -130,12 +130,17 @@ MonoBehaviour:
   sunderGuardDamageMultiplier: 2
   guardValueMode: 0
   legacyGuardDieMultiplier: 1
-  guardFlat: 1
+  guardFlat: 4
   bypassGuard: 0
   clearsGuard: 0
   canUseMarkMultiplier: 0
   consumesBurn: 0
   burnDamagePerStack: 2
+  gainIceRewardOnFrozenOrChilledHit: 1
+  iceRewardFocus: 1
+  iceRewardGuard: 3
+  triggerLightningMarkShock: 1
+  lightningMarkShockDamage: 3
   fireModules:
     useXFormula: 0
     applyBurnFromResolvedValue: 0

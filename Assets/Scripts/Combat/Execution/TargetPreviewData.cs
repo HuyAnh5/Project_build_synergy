@@ -39,9 +39,12 @@ public struct TargetPreviewData
     public int previewBleedAfter;
     public bool previewMarkedAfter;
     public bool previewFrozenAfter;
+    public bool willTriggerMarkShock;
 
     /// <summary>True nếu skill target self (Guard/Heal) — preview sẽ hiện khác.</summary>
     public bool isSelfTarget;
     /// <summary>Guard sẽ nhận thêm (cho Self target).</summary>
     public int selfGuardGain;
+    public int selfFocusGain;
+    public int selfHealGain;
 }

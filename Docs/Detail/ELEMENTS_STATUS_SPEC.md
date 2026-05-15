@@ -3,6 +3,10 @@
 > Tài liệu này là **source of truth cho 5 hệ chính, 4 status/effect cốt lõi và ailment system**.  
 > Nó mô tả identity, quy tắc kích hoạt, payoff, interaction, edge case và định hướng UX của từng hệ.
 
+
+> **CURRENT SOURCE UPDATE:** Bản này đã nhập các rule hiện tại từ các draft cũ. Không dùng file `archived combat change draft` làm source nữa. Resource hiện tại là **AP**. Combat flow hiện tại là **Player Phase**: dice tự roll đầu phase → player reorder → click/drag skill vào target để cast ngay → dice chuyển used state → End Phase → Enemy Phase.
+
+---
 ---
 
 ## 1. Mục tiêu của hệ thống
@@ -68,14 +72,14 @@ Phần này mô tả **đường đi logic chung của element / status engine**
 **Ice / Freeze / Chilled**  
 → Kiểm tra target đang Freeze / Chilled hay không  
 → Nếu hợp lệ: apply Freeze hoặc chuyển sang / khai thác Chilled window  
-→ Resolve payoff Guard / Focus / tempo theo rule cụ thể  
+→ Resolve payoff Guard / AP / tempo nếu skill text có ghi  
 → Update target state sau action
 
 **Lightning / Mark**  
 → Kiểm tra target có Mark hay không  
-→ Resolve direct-hit vào mục tiêu chính  
-→ Nếu direct-hit hợp lệ vào target có Mark: kích hoạt lan / propagation theo current rule  
-→ Remove / preserve Mark theo timing rule đã chốt
+→ Resolve hit/effect vào mục tiêu chính  
+→ Nếu skill text có payoff từ Mark: resolve payoff đó  
+→ Nếu hit / skill hợp lệ phá Mark: remove Mark; baseline hiện tại là 1 hit hợp lệ phá Mark
 
 **Bleed**  
 → Apply Bleed stack lên target hoặc đọc lượng Bleed hiện có  
@@ -93,13 +97,32 @@ Phần này mô tả **đường đi logic chung của element / status engine**
 → State mới được resolve ở đúng timing window của ailment đó
 
 
+
+## 3A. Current elemental payoff rule
+
+Element payoff hiện tại là **skill-text driven**.
+
+Không còn luật nền tự động kiểu:
+
+- Fire direct damage hit vào Burn thì mọi skill Fire đều tự consume Burn,
+- Ice direct damage hit vào Freeze/Chilled thì mọi skill Ice đều tự cho AP/Guard,
+- Lightning hit vào Mark thì mọi skill Lightning đều auto proc theo cùng một cách.
+
+Thay vào đó:
+
+- skill nào apply status thì ghi rõ,
+- skill nào consume / phá / khai thác status thì ghi rõ,
+- lượng damage / AP / Guard / payoff từ status là thông số của skill đó,
+- ở scope hiện tại, mỗi hệ chủ yếu tương tác với status của chính hệ đó,
+- cross-element reaction là future design space, chưa phải locked rule.
+
 ## 4. Bảng tóm tắt identity của 5 hệ
 
 | Hệ | Vai trò cốt lõi | Tài nguyên / điểm tựa | Kiểu payoff |
 |---|---|---|---|
 | Physical | Burst thẳng, anti-Guard, clean finish | Crit mạnh, hit trực diện | Damage rõ ràng, decisiveness |
 | Fire | Setup tài nguyên rồi nổ | Burn stack | Consume Burn để burst |
-| Ice | Tempo / control | Freeze, Chilled, Guard/Focus window | Bẻ nhịp combat, mở cửa payoff |
+| Ice | Tempo / control | Freeze, Chilled, Guard/AP window | Bẻ nhịp combat, mở cửa payoff |
 | Lightning | Board control / propagation | Mark | Direct-hit đúng mục tiêu rồi lan ra board |
 | Bleed | Áp lực dài hạn / chuyển hóa tài nguyên | Bleed stack | DoT thật + có thể đổi ra giá trị khác |
 
@@ -156,8 +179,10 @@ Burn là **resource để consume**.
 - Mỗi lần apply Burn tạo ra **một batch Burn riêng** tồn tại **3 turn**.
 - Tổng Burn hiển thị trên mục tiêu = **tổng mọi batch Burn còn sống**.
 - Khi một batch Burn hết hạn, **chỉ batch đó biến mất**; các batch Burn apply sau vẫn còn.
-- Consume baseline = **`+2 damage mỗi stack Burn bị xóa`**.
-- Chỉ skill đặc biệt mới được override con số baseline này.
+- Burn **không tự bị consume bởi mọi Fire hit**.
+- Chỉ skill ghi rõ `consume Burn` mới consume Burn.
+- Damage / payoff khi consume Burn do chính skill quyết định: có thể là `0`, `1`, `2`, `3` damage mỗi Burn hoặc một hiệu ứng khác.
+- Nếu skill không ghi consume Burn, Burn vẫn ở lại mục tiêu.
 
 Ví dụ đúng rule:
 
@@ -193,7 +218,7 @@ Nếu Fire chỉ còn là hệ gây DoT thụ động, nó sẽ mất bản sắ
 - UI chỉ cần hiển thị **tổng Burn stack**, không cần lộ tuổi thọ từng batch Burn ra cho player.
 - Burn tiêu qua skill direct-hit được tính vào direct-hit đó.
 - Burn consume không tự biến thành một effect riêng tách rời nếu text skill không nói vậy.
-- Các passive tăng stack Burn phải cộng vào logic apply, không được âm thầm đổi baseline consume nếu text không ghi.
+- Các relic tăng stack Burn phải cộng vào logic apply, không được âm thầm đổi baseline consume nếu text không ghi.
 - Khi consume Burn, skill consume toàn bộ Burn **đang còn sống tại thời điểm đó**.
 
 ---
@@ -214,8 +239,15 @@ Ice là hệ của:
 - **Freeze**: skip 1 turn
 - Hết Freeze → thành **Chilled**
 - **Chilled tồn tại 2 turn**
-- Đang Freeze hoặc Chilled thì **miễn Freeze mới**
-- Ice damage hit vào target đang Freeze / Chilled → player nhận **`+1 Focus +3 Guard`**
+- Đang Freeze hoặc Chilled thì miễn Freeze mới nếu skill không ghi ngoại lệ
+- Ice không còn auto payoff cố định khi hit target Freeze/Chilled
+- Skill nào cho `+AP`, `+Guard`, kéo dài Chilled hoặc khai thác Freeze/Chilled phải ghi rõ trong skill text
+
+Ví dụ:
+
+- một skill Ice có thể ghi: hit target Freeze/Chilled thì nhận `+1 AP`,
+- skill khác có thể ghi: hit target Freeze/Chilled thì nhận `+3 Guard`,
+- skill khác có thể không có payoff tài nguyên nào.
 
 ### 7.3 Identity gameplay
 
@@ -239,8 +271,8 @@ Transition `Freeze → Chilled` chính là nơi hệ này có chiều sâu.
 ### 7.5 Edge cases
 
 - Không áp Freeze mới nếu mục tiêu đã Freeze hoặc Chilled.
-- Hit Ice vào mục tiêu Freeze/Chilled mới cho reward `+1 Focus +3 Guard`.
-- Reward này là tài nguyên cho player, không phải damage bonus trực tiếp.
+- Ice không có reward nền cố định khi hit mục tiêu Freeze/Chilled.
+- Nếu một skill Ice cho `+AP`, `+Guard`, kéo dài Chilled hoặc khai thác Freeze/Chilled, effect đó phải được ghi rõ trong skill text.
 
 ---
 
@@ -260,30 +292,41 @@ Mark **không stack**.
 ### 8.2 Rule đã chốt cho Mark
 
 - Mark không stack.
-- Shock phụ của Lightning **không làm mất Mark**.
-
-### 8.3 Non-Lightning hit vào Mark
-
-Nếu direct-hit **không phải Lightning** đánh vào mục tiêu đang có Mark:
-
-- gây thêm **`+3 direct damage`** lên chính mục tiêu đó.
+- Mark không có thời hạn.
+- Mark không tự hết theo turn.
+- Mark tồn tại cho đến khi bị một hit / skill hợp lệ phá.
+- Baseline hiện tại: **1 hit hợp lệ phá Mark**, trừ khi skill / relic ghi rõ khác.
+- Shock phụ hoặc effect phụ không phá Mark nếu text không ghi rõ.
 
 Ý nghĩa:
 
-- Mark là một điểm yếu mà mọi build direct-hit có thể khai thác,
-- không khóa Mark chỉ cho Lightning.
+- Mark là weak point bền vững để player setup trước.
+- Player không bị ép dùng Mark ngay trong cùng turn.
+- Nhưng khi đã khai thác bằng hit hợp lệ, Mark thường bị phá để tránh payoff lặp vô hạn.
 
-### 8.4 Lightning hit vào Mark
+### 8.3 Hit vào Mark
 
-Nếu direct-hit **là Lightning** đánh vào mục tiêu có Mark:
+Mark payoff hiện tại phải nằm trong skill text.
 
-- hit chính gây damage bình thường,
-- sau đó proc **`3 damage all enemies`**.
+Baseline:
 
-Ý nghĩa:
+- Mark là weak point bền vững.
+- Một hit hợp lệ có thể phá Mark.
+- Hit / skill nào gây thêm damage, lan shock, tạo consumable hoặc hiệu ứng khác từ Mark phải ghi rõ trong text.
+- Không còn mặc định mọi non-Lightning hit vào Mark đều +3 damage.
 
-- Lightning không chỉ lấy thêm damage đơn mục tiêu,
-- Lightning biến Mark thành board-wide payoff.
+### 8.4 Lightning và Mark
+
+Lightning vẫn là hệ chính hiện tại dùng Mark để tạo board pressure / propagation, nhưng payoff phải được ghi rõ trong skill.
+
+Ví dụ skill Lightning có thể:
+
+- hit mục tiêu có Mark rồi gây shock all enemies,
+- spread Mark,
+- phá Mark để tạo AP / damage / utility,
+- giữ Mark nếu skill text nói rõ.
+
+Không có auto payoff nền áp cho mọi skill Lightning nếu text skill không ghi.
 
 ### 8.5 Rule của shock phụ Lightning
 
@@ -385,9 +428,20 @@ Nghĩa là:
 - enemy là bên chủ yếu dùng ailment lên player / combat state,
 - nếu trong code còn helper player → enemy thì không nên xem đó là gameplay ưu tiên.
 
+### 11.1b Player status và enemy dice debuff là 2 hệ riêng
+
+Player-inflicted status và enemy-inflicted debuff không dùng chung một rule dù có thể cùng flavor nguyên tố.
+
+- **Player → Enemy**: Burn / Freeze / Chilled / Mark là setup-payoff để player tạo lợi thế.
+- **Enemy → Player**: Fire / Freeze / Electric themed debuff là dice/action disruption, ví dụ Burn lên dice khiến dùng dice mất HP, Freeze khóa dice, Electric giảm Base Value của một dice tạm thời, Blind che dice, hoặc disable Basic action.
+
+Không được suy luận rằng vì Fire/Burn trên enemy hoạt động theo một cách thì Fire debuff lên player cũng phải giống hệt.
+
 ### 11.2 Rule chance hiện tại trong context
 
-- **enemy → player = 100% chance**
+- **enemy → player = deterministic / 100% nếu intent đã telegraph hành động đó**.
+- Đây không phải RNG punishment. Counterplay của player là đọc intent và lập kế hoạch: kill enemy trước, Guard, cleanse, dùng consumable, reorder dice, dùng dice bị ảnh hưởng trước, hoặc chấp nhận tradeoff.
+- Enemy debuff mạnh không nên xuất hiện như surprise effect không báo trước.
 
 ### 11.3 Ý nghĩa thiết kế
 
@@ -452,16 +506,16 @@ Các vùng sau chưa nên coi là khóa cứng ở cấp content implementation:
 
 Nhưng các vùng sau là **current locked rules**:
 
-- Burn là resource để consume, baseline `+2 mỗi stack`,
-- Freeze → Chilled, miễn Freeze khi đang Freeze/Chilled, Ice hit cho `+1 Focus +3 Guard`,
-- Mark không stack, non-Lightning direct-hit vào Mark = `+3 direct damage`, Lightning direct-hit vào Mark = `3 damage all enemies`,
+- Burn là resource để consume; damage/effect khi consume do từng skill quyết định,
+- Freeze → Chilled, miễn Freeze khi đang Freeze/Chilled, Ice payoff phải nằm trong skill text,
+- Mark không stack, không có thời hạn, tồn tại cho đến khi hit/skill hợp lệ phá; Mark payoff phải nằm trong skill text,
 - shock phụ không chain, không proc lại, không consume Mark,
 - Bleed đầu lượt, bypass Guard, giảm dần, current wording `-1 stack mỗi cuối lượt`,
-- ailment là enemy-side system với current context `100% chance` từ enemy lên player.
+- ailment là enemy-side system; enemy debuff có thể deterministic/100% vì được telegraph qua enemy intent.
 
-## Runtime Update Note (2026-04-24 - Override)
+## Runtime Update Note (Archived)
 
-Phần note ngay phía trên là bản chèn tạm không dấu. Phần này ghi đè và phải được xem là cách hiểu đúng hiện tại.
+Phần dưới đây là note runtime/implementation riêng cho ailment enemy-side. Nếu mâu thuẫn với các rule current locked phía trên, ưu tiên rule current locked.
 
 ### Enemy -> player dice ailment rules
 

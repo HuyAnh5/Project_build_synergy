@@ -14,16 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 1192862653530567456, guid: 5a0d3fd8e60fcda41b083875f9a9dffd, type: 3}
   displayName: Ignite
-  description: Apply "3 Burn". If die Crit, apply them 2 Burn.
+  description: Apply "3 Burn". If Crit, +2 Added Value.
   spec:
     rarity: 0
     specState: 0
     buildRole: 4
     implementationCoverage: 2
-    normalizedText: Apply "3 Burn". If die Crit, apply them 2 Burn.
-    designIntent: Fire setup skill for the combat-lab 6-skill set.
-  behaviorFamily: 0
-  fireBehaviorId: 0
+    normalizedText: Apply "3 Burn". If Crit, +2 Added Value.
+    designIntent: Fire setup skill with blue Burn output.
+  behaviorFamily: 1
+  fireBehaviorId: 1
   iceBehaviorId: 0
   lightningBehaviorId: 0
   bleedBehaviorId: 0
@@ -98,9 +98,9 @@ MonoBehaviour:
     overrideBurnSpender: 0
     consumesBurn: 0
     burnDamagePerStack: 2
-    overrideApplyStatus: 1
-    applyBurn: 1
-    burnAddStacks: 5
+    overrideApplyStatus: 0
+    applyBurn: 0
+    burnAddStacks: 2
     burnRefreshTurns: 3
     applyMark: 0
     applyBleed: 0
@@ -110,8 +110,8 @@ MonoBehaviour:
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
   conditionalOutcome:
-    enabled: 0
-    type: 0
+    enabled: 1
+    type: 4
     valueMode: 0
     flatValue: 2
     burnTurns: 3
@@ -121,7 +121,7 @@ MonoBehaviour:
     lowestOutcome: 0
     highestOutcome: 0
     burnTurns: 3
-  focusCost: 1
+  focusCost: 2
   focusGainOnCast: 0
   baseDamageValueMode: 0
   dieMultiplier: 0

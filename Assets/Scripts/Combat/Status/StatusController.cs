@@ -76,7 +76,7 @@ public class StatusController : MonoBehaviour
     {
         if (skill == null) return;
 
-        if (StatusNamedSkillUtility.TryApplyNamedSkillNow(this, skill, rolledValue))
+        if (StatusNamedSkillUtility.TryApplyNamedSkillNow(this, skill, applier, rolledValue))
             return;
 
         int delay = Mathf.Max(0, skill.applyDelayTurns);

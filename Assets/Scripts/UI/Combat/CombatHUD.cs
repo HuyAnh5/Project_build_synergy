@@ -56,12 +56,16 @@ public class CombatHUD : MonoBehaviour
     private bool _previewFocusInvalid;
     private Image _focusBarBackgroundImage;
     private Color _focusBarBackgroundOriginalColor;
+    private Color _playerFocusTextOriginalColor = Color.white;
 
     void Awake()
     {
         TryResolveRefs();
         HideLegacyPlayerStatTexts();
         EnsurePlayerFocusBarUi();
+
+        if (playerFocusText != null && !_previewFocusActive)
+            _playerFocusTextOriginalColor = playerFocusText.color;
     }
 
     void Update()
@@ -73,6 +77,9 @@ public class CombatHUD : MonoBehaviour
 
         HideLegacyPlayerStatTexts();
         EnsurePlayerFocusBarUi();
+
+        if (playerFocusText != null && !_previewFocusActive)
+            _playerFocusTextOriginalColor = playerFocusText.color;
 
         if (playerFocusText && (_lastFocus != player.focus || _lastMaxFocus != player.maxFocus))
         {
@@ -89,6 +96,12 @@ public class CombatHUD : MonoBehaviour
     public void SetupPlayerFocusBarUi()
     {
         EnsurePlayerFocusBarUi();
+        if (playerFocusText != null && player != null)
+        {
+            playerFocusText.text = player.focus.ToString();
+            playerFocusText.color = _playerFocusTextOriginalColor;
+        }
+
         RefreshPlayerFocusSegments();
     }
 
@@ -317,6 +330,12 @@ public class CombatHUD : MonoBehaviour
         if (_focusBarBackgroundImage != null)
             _focusBarBackgroundImage.color = _focusBarBackgroundOriginalColor;
 
+        if (playerFocusText != null && player != null)
+        {
+            playerFocusText.text = player.focus.ToString();
+            playerFocusText.color = _playerFocusTextOriginalColor;
+        }
+
         // Redraw segments bình thường
         RefreshPlayerFocusSegments();
     }
@@ -332,6 +351,38 @@ public class CombatHUD : MonoBehaviour
         // Tính alpha nhấp nháy: dao động 0.4 -> 1.0
         float t = Mathf.PingPong(Time.time * focusPreviewBlinkSpeed, 1f);
         float blinkAlpha = Mathf.Lerp(0.4f, 1f, t);
+        int previewFinalFocus = Mathf.Clamp(current - _previewFocusCost + _previewFocusGain, 0, player.maxFocus);
+
+        if (playerFocusText != null)
+        {
+            bool hasFocusChange = _previewFocusCost != 0 || _previewFocusGain != 0;
+            playerFocusText.text = hasFocusChange ? previewFinalFocus.ToString() : current.ToString();
+
+            if (hasFocusChange)
+            {
+                Color textColor;
+                if (_previewFocusInvalid)
+                {
+                    textColor = playerFocusInvalidColor;
+                }
+                else if (_previewFocusGain > _previewFocusCost)
+                {
+                    DamagePopupSystem popups = FindObjectOfType<DamagePopupSystem>();
+                    textColor = popups != null ? popups.focusGainColor : new Color(0.22f, 0.74f, 1f, 1f);
+                }
+                else
+                {
+                    textColor = playerFocusPreviewColor;
+                }
+
+                textColor.a = blinkAlpha;
+                playerFocusText.color = textColor;
+            }
+            else
+            {
+                playerFocusText.color = _playerFocusTextOriginalColor;
+            }
+        }
 
         // Segment nào sẽ bị tiêu: từ (current - cost) đến (current - 1)
         int previewStart = current - _previewFocusCost;

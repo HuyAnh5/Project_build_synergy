@@ -1,9 +1,14 @@
+
+
+> **CURRENT SOURCE UPDATE:** Bản này đã nhập các rule hiện tại từ các draft cũ. Không dùng file `archived combat change draft` làm source nữa. Resource hiện tại là **AP**. Combat flow hiện tại là **Player Phase**: dice tự roll đầu phase → player reorder → click/drag skill vào target để cast ngay → dice chuyển used state → End Phase → Enemy Phase.
+
+---
 ﻿# RUN_ECONOMY_REWARD_EVENT_SPEC.md
 
 > Tài liệu này mô tả **vòng run tổng thể**, **reward / shop / progression loop**, **resource flow ngoài combat** và ý nghĩa kinh tế của mỗi run.  
 > File này không đi sâu vào core combat rules; phần đó nằm ở `COMBAT_CORE_SPEC.md`.
 
-> **Split note:** File này là bản tách từ `RUN_STRUCTURE_AND_ECONOMY_SPEC_UPDATED_EVENT_REWARD_V2.md`.  
+> **Split note:** File này là source hiện tại cho run economy / reward / event. Map navigation nằm ở `MAP_STRUCTURE_AND_NAVIGATION_SPEC.md`.  
 > File này giữ phần **run economy / reward / event / shop / progression**.  
 > Phần **map graph / node / navigation / backtrack** đã được chuyển sang `MAP_STRUCTURE_AND_NAVIGATION_SPEC.md`.
 
@@ -54,7 +59,7 @@ Phần này mô tả **đường đi logic của một run**: player bắt đầ
 → Thắng thì chuyển sang reward / progression; thua thì kết thúc run theo current fail-state rule
 
 `Reward / Shop / Progression`  
-→ Player nhận lựa chọn mới: skill / passive / relic / dice / utility / unlock progress liên quan  
+→ Player nhận lựa chọn mới: skill / relic / relic / dice / utility / unlock progress liên quan  
 → Đánh giá món nào giúp build hiện tại rõ hơn  
 → Giữ, thay, bỏ qua hoặc commit sâu hơn vào một engine
 
@@ -90,7 +95,7 @@ Phần này mô tả **đường đi logic của một run**: player bắt đầ
 Combat hiện xoay quanh:
 
 - dice outcome,
-- Focus,
+- AP,
 - Guard,
 - status trên target,
 - lane order,
@@ -111,7 +116,7 @@ Ví dụ:
 
 Run progression phải cho người chơi cảm giác tăng trưởng theo ba trục:
 
-- **mở rộng công cụ**: skill, passive, relic,
+- **mở rộng công cụ**: skill, relic, relic,
 - **biến đổi công cụ**: customize dice,
 - **làm rõ build**: bỏ thứ không hợp, giữ thứ phục vụ engine đang hình thành.
 
@@ -230,14 +235,14 @@ Reward dùng để làm gì được quyết định bởi `Purpose`.
 | Rarity | Màu | Nội dung |
 |---|---|---|
 | `Common` | Xám | Extra Gold, skill cơ bản |
-| `Uncommon` | Xanh | Tất cả consumable, skill tốt hơn, passive bắt đầu xuất hiện |
-| `Rare` | Vàng | Skill/passive mạnh |
-| `Special` | Đỏ | Skill/passive cực mạnh, run-defining reward |
+| `Uncommon` | Xanh | Tất cả consumable, skill tốt hơn, relic bắt đầu xuất hiện |
+| `Rare` | Vàng | Skill/relic mạnh |
+| `Special` | Đỏ | Skill/relic cực mạnh, run-defining reward |
 
 Rule:
 
 - Skill có thể xuất hiện từ `Common → Special`.
-- Passive chỉ xuất hiện từ `Uncommon → Special`.
+- Relic chỉ xuất hiện từ `Uncommon → Special`.
 - Tất cả consumable đều là `Uncommon`.
 - Combat thường không có `Special`.
 - Boss không có `Common`.
@@ -280,29 +285,27 @@ Bảng Purpose hiện tại:
 |---|---|---|
 | `Economy` | Extra Gold | Lấy thêm tiền ngoài Base Gold |
 | `Skill` | Skill từ Common đến Special | Thêm/thay hành động combat |
-| `Passive` | Passive từ Uncommon đến Special | Đổi engine / hướng build |
-| `Edit Dice` | Zodiac | Chỉnh dice, chỉnh mặt, enchant |
+| `Relic` | Relic từ Uncommon đến Special | Đổi engine / hướng build |
+| `Edit Dice` | Fate | Chỉnh dice, chỉnh mặt, enchant |
 | `Combat Aid` | Seal | Hỗ trợ combat trực tiếp: damage, status, cứu nguy |
-| `Utility Support` | Rune | Hỗ trợ đa dụng: Focus, reroll, cleanse, utility |
+| `Utility Support` | Rune | Hỗ trợ đa dụng: AP, reroll, cleanse, utility |
 
 ### 5A.4 Consumable trong reward
-
-Tất cả consumable là `Uncommon`, nhưng không nằm chung một bể lớn.
 
 Consumable được chia theo Purpose:
 
 | Nhóm consumable | Purpose | Vai trò |
 |---|---|---|
-| `Zodiac` | Edit Dice | Chỉnh dice, chỉnh mặt, enchant, sculpt dice |
+| `Fate` | Dice / Roll Control | Reroll, reload dice, chọn mặt, chỉnh dice, enchant face, sculpt dice |
 | `Seal` | Combat Aid | Công cụ combat trực tiếp, status, damage, cứu nguy |
-| `Rune` | Utility Support | Utility đa dụng, Focus, reroll, cleanse, gold utility |
+| `Rune` | Utility Support | Utility đa dụng, AP, buff, cleanse, gold utility |
 
 Lý do không để consumable thành một pool khổng lồ:
 
 - player sẽ rất khó tìm đúng món mình cần,
 - reward screen khó đọc,
 - các tool khác vai trò bị trộn lẫn,
-- player không biết mình đang được offer “chỉnh dice”, “cứu combat” hay “utility”.
+- player không biết mình đang được offer “can thiệp dice”, “cứu combat” hay “utility”.
 
 Hướng đúng:
 
@@ -346,7 +349,7 @@ Skill / Skill / Utility Support
 ```
 
 ```text
-Edit Dice / Edit Dice / Combat Aid / Passive
+Edit Dice / Edit Dice / Combat Aid / Relic
 ```
 
 Ví dụ không hợp lệ:
@@ -474,7 +477,7 @@ Lý do:
 
 - Boss Intel thuộc hệ event/clue/shop intel, không phải card gacha thường.
 - `Ore` là reward track riêng từ `Elite`, không phải card reward ngẫu nhiên.
-- `Shard / Forge Dust` bị bỏ vì việc chỉnh dice là vai trò của Zodiac.
+- `Shard / Forge Dust` bị bỏ vì việc chỉnh dice là vai trò của Fate.
 - Không mở thêm quá nhiều bucket khi reward loop chưa cần.
 
 ### 5A.9 Reward sau combat và loadout
@@ -482,11 +485,11 @@ Lý do:
 Khi player nhận reward thật:
 
 - `Skill`: nếu còn slot thì có thể equip; nếu full slot thì phải thay/bỏ/bán theo loadout rule.
-- `Passive`: vì chỉ có 1 passive slot, mỗi passive reward là quyết định lớn.
-- `Edit Dice`: Zodiac có thể vào consumable slot hoặc dùng theo context.
-- `Ore`: không đi vào loadout; đây là tài nguyên mang sang `Forge` để đổi `whole-die color / màu dice`.
-- `Combat Aid`: Seal đi vào consumable slot.
-- `Utility Support`: Rune đi vào consumable slot.
+- `Relic`: thêm vào relic collection và hiển thị ở góc trên UI. Player có thể có nhiều relic.
+- `Fate`: vào consumable slot hoặc dùng theo context để can thiệp dice/roll/reload.
+- `Seal`: vào consumable slot như combat aid trực tiếp.
+- `Rune`: vào consumable slot như utility/resource/buff.
+- `Ore`: không đi vào loadout; đây là tài nguyên mang sang `Forge` để đổi whole-die color / màu dice nếu hệ này còn dùng.
 - `Economy`: cộng Gold ngay.
 
 Điểm cần giữ:
@@ -494,6 +497,7 @@ Khi player nhận reward thật:
 ```text
 Reward phải khiến player điêu khắc build.
 Không có inventory dự trữ lớn để gom mọi thứ rồi tối ưu sau.
+Relic có thể nhặt nhiều nên từng relic phải nhỏ/hẹp hơn passive cũ.
 ```
 
 ### 5A.10 Combat phát sinh từ Event vẫn dùng Reward Gacha
@@ -718,7 +722,7 @@ Gold
 HP
 Consumable
 Skill
-Passive
+Relic
 Dice state
 Boss Preparation / time
 ```
@@ -727,7 +731,7 @@ Tài nguyên có thể nhận:
 
 ```text
 Skill
-Passive
+Relic
 Consumable
 Edit Dice
 Ore
@@ -741,7 +745,7 @@ Ví dụ:
 Event: Old Dice Carver
 
 Pay 25 Gold
-→ nhận 1 Zodiac
+→ nhận 1 Fate
 
 Pay 8 HP
 → nhận 1 Ore
@@ -810,7 +814,7 @@ Nó có thể cho:
 ```text
 hồi HP nhỏ
 cleanse debuff
-nhận Guard/Focus cho combat sau
+nhận Guard/AP cho combat sau
 xóa một downside
 đổi một consumable xấu lấy một consumable khác
 ```
@@ -824,7 +828,7 @@ Pray
 → hồi 8 HP
 
 Meditate
-→ combat tiếp theo bắt đầu với +1 Focus
+→ combat tiếp theo bắt đầu với +1 AP
 
 Search shrine
 → nhận clue nhưng không hồi HP
@@ -1006,7 +1010,7 @@ mất HP
 combat sau enemy mạnh hơn
 nhận debuff tạm
 tăng Boss Preparation
-mất Focus đầu combat sau
+mất AP đầu combat sau
 một mặt dice bị bất lợi tạm thời
 ```
 
@@ -1019,7 +1023,7 @@ Modifier: Corrupted Loot
 
 Open
 → nhận Rare Skill
-→ combat tiếp theo player bắt đầu với -1 Focus
+→ combat tiếp theo player bắt đầu với -1 AP
 
 Purge then open
 → mất 10 Gold
@@ -1039,7 +1043,7 @@ Tác dụng có thể là:
 
 ```text
 hồi HP nhỏ
-combat sau +1 Focus
+combat sau +1 AP
 nhận consumable sạch
 xóa debuff nhẹ
 ```
@@ -1256,7 +1260,7 @@ Player chọn reward theo lựa chọn event.
 
 ```text
 Help the knight
-→ nhận Passive
+→ nhận Relic
 
 Rob the knight
 → nhận Gold + Combat Aid
@@ -1268,7 +1272,7 @@ Player trả cost để nhận reward.
 
 ```text
 Pay 20 Gold
-→ nhận 1 Zodiac
+→ nhận 1 Fate
 ```
 
 ## Risk package
@@ -1967,7 +1971,7 @@ Nguyên tắc cập nhật về sau:
 Hướng hiện tại từ source hiện tại:
 
 - skill slot có thể swap ngoài combat,
-- passive slot có thể swap ngoài combat,
+- relic collection có thể swap ngoài combat,
 - skill có thể mua ở shop,
 - hướng tổng thể của run là “điêu khắc build”, không phải chỉ tích item.
 
@@ -2045,7 +2049,7 @@ Tương tự:
 Mỗi run nên có cảm giác tiến qua các giai đoạn:
 
 1. **Khởi đầu đơn giản**: ít dice, ít slot meaningful, build còn mơ hồ.
-2. **Nhận tín hiệu hướng đi**: một vài skill / passive / relic hé lộ engine phù hợp.
+2. **Nhận tín hiệu hướng đi**: một vài skill / relic / relic hé lộ engine phù hợp.
 3. **Commit có chọn lọc**: player bỏ bớt thứ không hợp để làm đậm đúng hướng.
 4. **Engine rõ ràng**: đến late run, build có cá tính chiến thuật rõ rệt.
 5. **Kiểm tra cuối**: boss / endless ép build chứng minh giá trị thật.
@@ -2059,7 +2063,7 @@ Mỗi run nên có cảm giác tiến qua các giai đoạn:
 Theo current vision:
 
 - player mất toàn bộ tiến trình của run hiện tại,
-- gồm dice, skill, passive, relic, consumable và các tăng trưởng chỉ dành cho run đó,
+- gồm dice, skill, relic, consumable và các tăng trưởng chỉ dành cho run đó,
 - thứ được giữ lại là **unlock progress**.
 
 Ý nghĩa thiết kế:

@@ -1,0 +1,69 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39f7c47594403f4418d7f6d7b3d68fad, type: 3}
+  m_Name: Skill_Utility_FirstAid
+  m_EditorClassIdentifier: Assembly-CSharp::SkillBuffDebuffSO
+  icon: {fileID: 0}
+  displayName: First Aid
+  description: Heal 6 HP.
+  spec:
+    rarity: 0
+    specState: 0
+    buildRole: 1
+    implementationCoverage: 1
+    normalizedText: Heal 6 HP.
+    designIntent: Simple self-heal for preview and sustain testing.
+  behaviorId: 0
+  identity: 0
+  target: 0
+  applyDelayTurns: 0
+  slotsRequired: 1
+  focusCost: 1
+  focusGainOnCast: 0
+  _focusDelayedDelayWarning: 0
+  effects:
+  - id: 2
+    durationTurns: 0
+    compactParam: 6
+    parityEvenDelta: -2
+    parityOddDelta: -1
+    _slotCollapseHelp: 1
+    _healByDiceHelp: 1
+  fireModules:
+    grantEmberWeapon: 0
+    emberWeaponTurns: 3
+    basicAttackBonusDamage: 1
+    basicAttackAppliesBurnEqualDamage: 0
+    basicAttackBurnOnCritOnly: 1
+    applyConsumeBonusDebuff: 0
+    consumeBonusPerBurn: 1
+    consumeBonusDebuffTurns: 2
+  applyAilment: 0
+  ailment:
+    ailment: 0
+    durationTurns: 1
+    chanceTuningMultiplier: 1
+    breakOnDamage: 1
+    sleep_damageBonusOnWake: 0.5
+    sleep_healPercentOnTurnStart: 0.2
+    dizzy_damageReductionPercent: 0.25
+    dizzy_useAccuracyPenalty: 0
+    dizzy_accuracyReductionPercent: 0.3
+    confuse_selfHitChance: 0.5
+    fear_skipChance: 0.5
+    fear_fleeChance: 0.05
+    fear_damageReductionPercent: 0.25
+    forget_disableAdvancedSkills: 1
+    rage_damageBonusPercent: 0.3
+    despair_hpLossPercent: 0.1
+    despair_focusLoss: 1
+    brainwash_forcedBasicOnly: 1

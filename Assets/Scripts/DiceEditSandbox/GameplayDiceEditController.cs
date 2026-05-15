@@ -325,13 +325,12 @@ public class GameplayDiceEditController : MonoBehaviour
         }
 
         if (sourceDie != null && die != null)
-
             sourceDie.CopyRuntimeStateFrom(die, copyRotation: _activeConsumable.effectId == ConsumableEffectId.SetRolledFace);
+        if (sourceDie != null)
+            ConsumableRuntimeUtility.NotifyDiceStateChanged(sourceDie, turnManager);
 
 
         runInventory.TryConsumeConsumableCharge(_pendingConsumableSlot, 1);
-        if (sourceDie != null)
-            sourceDie.RefreshDisplayedState();
         diceEquipUiManager?.ClearSelectedDice();
 
         CancelAndClose();

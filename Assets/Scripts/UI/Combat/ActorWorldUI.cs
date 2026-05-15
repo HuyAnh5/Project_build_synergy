@@ -579,6 +579,10 @@ public class ActorWorldUI : MonoBehaviour
                 if (_previewData.previewBleedAfter > _previewData.currentBleed) isBlinking = true;
                 else if (_previewData.previewBleedAfter < _previewData.currentBleed) { isBlinking = true; isConsume = true; }
             }
+            else if (data.shortLabel == "MK")
+            {
+                isBlinking = _previewData.willTriggerMarkShock;
+            }
 
             if (isBlinking)
             {
@@ -590,6 +594,7 @@ public class ActorWorldUI : MonoBehaviour
                 }
                 else
                 {
+                    if (slot.iconImage != null && data.shortLabel == "MK") slot.iconImage.color = blinkColor;
                     if (slot.valueText != null) slot.valueText.color = blinkColor;
                 }
             }

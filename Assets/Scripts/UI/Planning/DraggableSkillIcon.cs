@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DG.Tweening;
 using Sirenix.OdinInspector;
 using TMPro;
@@ -901,6 +902,7 @@ public class DraggableSkillIcon : MonoBehaviour,
         // Raycast to find TargetClickable2D under cursor
         CombatActor hoveredActor = RaycastForActor(eventData);
         ActorWorldUI hoveredUI = null;
+        bool hoveringSelfZone = false;
 
         if (hoveredActor != null && _cachedActorWorldUIs != null)
         {
@@ -915,6 +917,24 @@ public class DraggableSkillIcon : MonoBehaviour,
         }
 
         // Same target as before — skip rebuild
+        hoveringSelfZone = hoveredActor == null &&
+                           IsSelfTargetSkill(GetSkillAsset()) &&
+                           selfCastZone != null &&
+                           selfCastZone.ContainsScreenPoint(eventData.position, _uiCam);
+
+        if (hoveringSelfZone && _cachedActorWorldUIs != null)
+        {
+            hoveredActor = turn.player;
+            foreach (ActorWorldUI ui in _cachedActorWorldUIs)
+            {
+                if (ui != null && ui.actor == turn.player)
+                {
+                    hoveredUI = ui;
+                    break;
+                }
+            }
+        }
+
         if (hoveredUI == _currentPreviewTarget && hoveredUI != null)
             return;
 
@@ -946,23 +966,68 @@ public class DraggableSkillIcon : MonoBehaviour,
         if (!TurnManagerTargetingUtility.IsValidTargetForPendingSkill(_cachedDragRuntime, hoveredActor, turn.player, turn.party, turn.enemy))
             return;
 
-        // Build preview data
         int dieValue = GetPreviewDieValue(_cachedDragRuntime);
-        TargetPreviewData previewData = TargetPreviewBuilder.Build(_cachedDragRuntime, turn.player, hoveredActor, dieValue);
+        TargetPreviewBuilder.ActionPreviewBundle bundle =
+            TargetPreviewBuilder.BuildActionBundle(_cachedDragRuntime, turn.player, hoveredActor, dieValue, turn.party, turn.enemy);
 
-        if (!previewData.valid)
+        if (!bundle.valid)
             return;
 
         _currentPreviewTarget = hoveredUI;
-        hoveredUI.ShowTargetPreview(previewData);
+        ShowActionPreviewBundle(bundle);
     }
 
     private void ClearTargetPreviewIfActive()
     {
-        if (_currentPreviewTarget != null)
+        if (_cachedActorWorldUIs != null)
         {
-            _currentPreviewTarget.ClearTargetPreview();
-            _currentPreviewTarget = null;
+            foreach (ActorWorldUI ui in _cachedActorWorldUIs)
+            {
+                if (ui != null)
+                    ui.ClearTargetPreview();
+            }
+        }
+
+        _currentPreviewTarget = null;
+
+        if (_resourcePreviewActive && turn != null && turn.player != null)
+        {
+            ScriptableObject asset = GetSkillAsset();
+            if (asset != null && SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out _))
+            {
+                CombatHUD hud = GetCachedHud();
+                if (hud != null)
+                    hud.ShowFocusPreview(focusCost, 0, turn.player.focus < focusCost);
+            }
+        }
+    }
+
+    private void ShowActionPreviewBundle(TargetPreviewBuilder.ActionPreviewBundle bundle)
+    {
+        if (_cachedActorWorldUIs == null || bundle.targetPreviews == null)
+            return;
+
+        foreach (KeyValuePair<CombatActor, TargetPreviewData> kvp in bundle.targetPreviews)
+        {
+            if (kvp.Key == null || !kvp.Value.valid)
+                continue;
+
+            foreach (ActorWorldUI ui in _cachedActorWorldUIs)
+            {
+                if (ui != null && ui.actor == kvp.Key)
+                {
+                    ui.ShowTargetPreview(kvp.Value);
+                    break;
+                }
+            }
+        }
+
+        CombatHUD hud = GetCachedHud();
+        ScriptableObject asset = GetSkillAsset();
+        if (hud != null && turn != null && turn.player != null && asset != null &&
+            SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out _))
+        {
+            hud.ShowFocusPreview(focusCost, Mathf.Max(0, bundle.totalSelfFocusGain), turn.player.focus < focusCost);
         }
     }
 

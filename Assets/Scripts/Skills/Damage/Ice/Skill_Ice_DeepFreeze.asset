@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: -8939101552625722761, guid: 422d8f3fa3ef44841b1b50e7af231af9, type: 3}
   displayName: Deep Freeze
-  description: Apply Freeze. Cannot target enemy already Freeze/Chilled.
+  description: Apply Freeze.
   spec:
     rarity: 0
     specState: 0
     buildRole: 4
     implementationCoverage: 1
-    normalizedText: Apply Freeze. Cannot target enemy already Freeze/Chilled.
-    designIntent: Ice control opener for the combat-lab 6-skill set.
+    normalizedText: Apply Freeze.
+    designIntent: Ice control opener.
   behaviorFamily: 0
   fireBehaviorId: 0
   iceBehaviorId: 0
@@ -118,7 +118,7 @@ MonoBehaviour:
     lowestOutcome: 0
     highestOutcome: 0
     burnTurns: 3
-  focusCost: 2
+  focusCost: 3
   focusGainOnCast: 0
   baseDamageValueMode: 0
   dieMultiplier: 0

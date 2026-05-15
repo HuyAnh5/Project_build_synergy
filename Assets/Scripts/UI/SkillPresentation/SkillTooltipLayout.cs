@@ -12,6 +12,8 @@ public class SkillTooltipLayout : MonoBehaviour
     [SerializeField] private ContentSizeFitter contentSizeFitter;
     [SerializeField] private float minContentWidth = 170f;
     [SerializeField] private float maxContentWidth = 320f;
+    [SerializeField] private float minContentHeight = 0f;
+    [SerializeField] private float maxContentHeight = 0f;
 
     public RectTransform RectTransform => transform as RectTransform;
     public Image Background => background;
@@ -21,4 +23,6 @@ public class SkillTooltipLayout : MonoBehaviour
     public ContentSizeFitter ContentSizeFitter => contentSizeFitter;
     public float MinContentWidth => minContentWidth > 0f ? minContentWidth : 170f;
     public float MaxContentWidth => maxContentWidth > 0f ? maxContentWidth : 320f;
+    public float MinContentHeight => Mathf.Max(0f, minContentHeight);
+    public float MaxContentHeight => Mathf.Max(0f, maxContentHeight);
 }

@@ -94,6 +94,8 @@ public static class ConsumableRuntimeUtility
         if (!targetDie.SetFaceEnchant(targetFaceIndex, sourceFace.enchant))
             return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Could not paste the copied enchant to the target face.");
 
+        NotifyDiceStateChanged(targetDie);
+
         return ConsumableUseResult.Ok(
             $"Copied face {sourceFaceIndex} from {sourceDie.name} to face {targetFaceIndex} on {targetDie.name}.");
     }
@@ -177,6 +179,8 @@ public static class ConsumableRuntimeUtility
         if (!die.SetFaceValue(faceIndex, nextValue))
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Could not change the dice face value.");
 
+        NotifyDiceStateChanged(die);
+
         return ConsumableUseResult.Ok($"{die.name} face {faceIndex} changed to {nextValue}.");
     }
 
@@ -188,6 +192,8 @@ public static class ConsumableRuntimeUtility
         if (!die.SetFaceEnchant(faceIndex, data.faceEnchant))
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Could not apply enchant to the dice face.");
 
+        NotifyDiceStateChanged(die);
+
         return ConsumableUseResult.Ok($"{die.name} face {faceIndex} gained {DiceFaceEnchantUtility.GetDisplayName(data.faceEnchant)}.");
     }
 
@@ -197,6 +203,7 @@ public static class ConsumableRuntimeUtility
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Select a dice face first.");
 
         die.SnapToFaceIndexImmediate(faceIndex, syncRollState: true);
+        NotifyDiceStateChanged(die);
         return ConsumableUseResult.Ok($"{die.name} rolled face is now set to face {faceIndex}.");
     }
 
@@ -285,7 +292,7 @@ public static class ConsumableRuntimeUtility
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Select a die first.");
 
         targetDie.EnableDoubleValueForTurn();
-        targetDie.RefreshDisplayedState();
+        NotifyDiceStateChanged(targetDie);
         return ConsumableUseResult.Ok($"{targetDie.name} face values are doubled for this turn.");
     }
 
@@ -317,8 +324,18 @@ public static class ConsumableRuntimeUtility
             return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Dice Reroll could not validate the selected die.");
         }
 
+        targetDie.onRollComplete += HandleRerollRollComplete;
         targetDie.RollRandomFace();
         return ConsumableUseResult.Ok($"{targetDie.name} rerolled.");
+
+        void HandleRerollRollComplete(DiceSpinnerGeneric rolledDie)
+        {
+            if (rolledDie != targetDie)
+                return;
+
+            targetDie.onRollComplete -= HandleRerollRollComplete;
+            NotifyDiceStateChanged(targetDie, turnManager);
+        }
     }
 
     private static bool CanReloadSpentDie(DiceSpinnerGeneric targetDie, TurnManager turnManager)
@@ -357,8 +374,7 @@ public static class ConsumableRuntimeUtility
                 return;
 
             targetDie.onRollComplete -= HandleReloadRollComplete;
-            if (turnManager != null)
-                turnManager.RefreshPlanningAfterDiceValueReorder();
+            NotifyDiceStateChanged(targetDie, turnManager);
         }
     }
 
@@ -368,5 +384,39 @@ public static class ConsumableRuntimeUtility
             return false;
 
         return turnManager.diceRig.HasRolledThisTurn && !turnManager.diceRig.IsRolling;
+    }
+
+    public static void NotifyDiceStateChanged(DiceSpinnerGeneric changedDie, TurnManager explicitTurnManager = null)
+    {
+        if (changedDie == null)
+            return;
+
+        changedDie.RefreshDisplayedState();
+
+        TurnManager turnManager = explicitTurnManager;
+        if (turnManager == null)
+            turnManager = Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+        if (turnManager == null || turnManager.diceRig == null)
+            return;
+
+        bool belongsToRig = false;
+        if (turnManager.diceRig.slots != null)
+        {
+            for (int i = 0; i < turnManager.diceRig.slots.Length; i++)
+            {
+                DiceSlotRig.Entry slot = turnManager.diceRig.slots[i];
+                if (slot != null && slot.dice == changedDie)
+                {
+                    belongsToRig = true;
+                    break;
+                }
+            }
+        }
+
+        if (!belongsToRig)
+            return;
+
+        turnManager.diceRig.RefreshRollInfoCache();
+        turnManager.RefreshPlanningAfterDiceValueReorder();
     }
 }

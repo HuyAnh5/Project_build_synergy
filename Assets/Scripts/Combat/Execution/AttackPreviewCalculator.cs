@@ -2,7 +2,7 @@ using UnityEngine;
 
 public static class AttackPreviewCalculator
 {
-    private const int DefaultBurnConsumeDamagePerStack = 2;
+    private const int DefaultBurnConsumeDamagePerStack = 0;
     private const int MarkDirectBonusDamage = 3;
 
     public static SkillExecutor.AttackPreview BuildAttackPreview(SkillRuntime rt, CombatActor caster, CombatActor target, int dieValue)
@@ -13,6 +13,8 @@ public static class AttackPreviewCalculator
             baseDamage = 0,
             bonusDamage = 0,
             finalDamage = 0,
+            primaryDamage = 0,
+            burnConsumeDamage = 0,
             canDealDamage = false,
             consumesStagger = false
         };
@@ -98,6 +100,7 @@ public static class AttackPreviewCalculator
         if (rt.group == DamageGroup.Sunder && rt.sunderBonusIfTargetHasGuard && targetHasGuard)
             dmg = Mathf.FloorToInt(dmg * Mathf.Max(0f, rt.sunderGuardDamageMultiplier));
 
+        int burnConsumeDamage = 0;
         if (rt.element == ElementType.Fire && rt.consumesBurn && target != null && target.status != null)
         {
             int burnStacks = target.status.burnStacks;
@@ -105,9 +108,9 @@ public static class AttackPreviewCalculator
             {
                 float burnMul = (ps != null) ? ps.GetBurnConsumeMultiplier() : 1f;
                 int damagePerStack = GetBurnConsumeDamagePerStack(rt, target);
-                int add = Mathf.FloorToInt(burnStacks * damagePerStack * Mathf.Max(0f, burnMul));
-                preview.bonusDamage += add;
-                dmg += add;
+                burnConsumeDamage = Mathf.FloorToInt(burnStacks * damagePerStack * Mathf.Max(0f, burnMul));
+                preview.bonusDamage += burnConsumeDamage;
+                dmg += burnConsumeDamage;
             }
         }
 
@@ -130,6 +133,13 @@ public static class AttackPreviewCalculator
         }
 
         preview.finalDamage = Mathf.Max(0, dmg);
+        preview.burnConsumeDamage = Mathf.Max(0, burnConsumeDamage);
+        preview.primaryDamage = Mathf.Max(0, preview.finalDamage - preview.burnConsumeDamage);
+        if (preview.primaryDamage <= 0 && preview.finalDamage > 0 && preview.burnConsumeDamage > 0)
+            preview.burnConsumeDamage = preview.finalDamage;
+        else if (preview.burnConsumeDamage > preview.finalDamage)
+            preview.burnConsumeDamage = preview.finalDamage;
+
         preview.canDealDamage = preview.finalDamage > 0;
         return preview;
     }
@@ -277,7 +287,7 @@ public static class AttackPreviewCalculator
     {
         if (rt == null) return DefaultBurnConsumeDamagePerStack;
 
-        int perStack = Mathf.Max(DefaultBurnConsumeDamagePerStack, rt.burnDamagePerStack);
+        int perStack = rt.burnDamagePerStack > 0 ? rt.burnDamagePerStack : DefaultBurnConsumeDamagePerStack;
         if (target != null && target.status != null && target.status.cinderbrandTurns > 0)
             perStack += Mathf.Max(0, target.status.cinderbrandBonusPerBurn);
         return perStack;

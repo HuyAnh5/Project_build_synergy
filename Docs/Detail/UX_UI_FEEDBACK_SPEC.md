@@ -2,6 +2,10 @@
 
 > Tài liệu này mô tả **định hướng UX/UI/feedback** cho game: combat readability, tooltip/preview, state readability, intent clarity và những gì player phải hiểu được bằng mắt trong mỗi turn.
 
+
+> **CURRENT SOURCE UPDATE:** Bản này đã nhập các rule hiện tại từ các draft cũ. Không dùng file `archived combat change draft` làm source nữa. Resource hiện tại là **AP**. Combat flow hiện tại là **Player Phase**: dice tự roll đầu phase → player reorder → click/drag skill vào target để cast ngay → dice chuyển used state → End Phase → Enemy Phase.
+
+---
 ---
 
 ## 1. Mục tiêu của hệ thống
@@ -24,11 +28,11 @@ Game được phép sâu ở backend, nhưng frontend phải giúp player:
 
 Ở cấp lượt combat, UI phải giúp player đọc được tối thiểu:
 
-- lane order hiện tại,
-- die nào đang gắn với skill nào,
-- action nào sẽ resolve trước,
-- player còn bao nhiêu Focus,
-- action đã lock hay chưa,
+- thứ tự dice hiện tại,
+- dice nào sẽ bị skill tiếp theo consume,
+- dice nào đang active và dice nào đang used,
+- player còn bao nhiêu AP,
+- target nào hợp lệ cho skill đang hover/drag,
 - mục tiêu nào đang có Guard,
 - mục tiêu nào đang Stagger,
 - mục tiêu nào đang Burn / Mark / Freeze / Chilled / Bleed,
@@ -130,28 +134,26 @@ Nếu chuyện đó xảy ra, toàn bộ UX trust sẽ gãy.
 - object selected phải nổi bật hơn hover
 - click lại đúng object đó → bỏ selected, trở về trạng thái bình thường
 
-#### Use / Confirm gating
-- action **Use** chỉ bật khi:
-  - đã có consumable phù hợp đang selected
-  - current context đang expose đủ target hợp lệ cho effect đó
-- action **Confirm** chỉ bật khi target requirement của effect đã hoàn tất
-- nếu target chưa đủ hoặc target không hợp lệ, **Use / Confirm** phải hiển thị disabled / màu xám
+#### Consumable liên quan dice
+Với consumable nhóm **Fate** hoặc bất kỳ consumable nào cần target dice/face:
+
+- phải có consumable đang selected,
+- phải có dice/face target hợp lệ đang selected hoặc context target hợp lệ,
+- nút **Use** chỉ bật khi target requirement đã đủ,
+- nút **Confirm** chỉ bật khi trong overlay đã chọn đủ face/target yêu cầu.
+
+Nếu thiếu consumable selected, thiếu dice selected, hoặc target chưa đủ, **Use / Confirm** phải disabled và UI phải nói rõ lý do.
 
 #### Dice-edit overlay
-- combat dùng **single-die overlay**
-- shop / loadout dùng **multi-die overlay**
+- combat dùng **single-die overlay** nếu effect chỉ thao tác trên 1 die trong combat
+- shop / loadout dùng **multi-die overlay** nếu context cho phép thao tác trên nhiều dice
 - logic edit face là giống nhau; khác nhau chỉ ở tập target mà context cho phép chọn
-- trong combat, vì overlay chỉ hiển thị 1 dice, mọi thao tác chỉ xảy ra trong phạm vi dice đó
-- trong shop / loadout, vì overlay hiển thị cả 3 dice, effect có thể target mặt ở nhiều dice khác nhau
 
 Guardrail:
 - UI phải luôn cho player hiểu object nào đang được target
 - UI không được gợi cảm giác “đã Confirm” khi player mới chỉ hover hoặc mới chỉ select
 - UI phải luôn cho player hiểu vì sao `Use` hoặc `Confirm` đang bị khóa
 
----
-
-## 5. Intent readability của enemy
 ## 5. Intent readability của enemy
 
 Intent system là một phần UX quan trọng, không chỉ là mechanic.
@@ -225,55 +227,59 @@ Player phải nhìn ra:
 
 ## 7. Trạng thái và feedback theo phase
 
-### 7.1 Roll phase
+### 7.1 Player Phase
 
-UI phải chuyển người chơi sang trạng thái “đọc tình huống”:
+UI phải chuyển người chơi sang trạng thái “đọc tình huống” ngay từ đầu Player Phase:
 
+- dice tự roll ở đầu phase,
 - thấy kết quả roll,
 - thấy Crit / Fail nổi bật,
-- thấy resource hiện tại đủ để làm gì.
+- thấy AP hiện tại,
+- thấy dice nào active / used,
+- thấy skill nào cast được.
 
-### 7.2 Planning phase
+Trong Player Phase, UI phải ưu tiên:
 
-UI phải ưu tiên:
+- reorder dice rõ ràng,
+- preview dice nào sẽ bị consume theo thứ tự hiện tại,
+- click/drag skill vào target để cast ngay,
+- target hợp lệ rõ ràng,
+- invalid reason rõ khi thiếu AP / thiếu dice / target sai.
 
-- drag/drop rõ ràng,
-- reorder rõ ràng,
-- highlight lane rõ ràng,
-- target preview nếu có,
-- phân biệt action hợp lệ / không hợp lệ.
+### 7.2 Dice used state
 
-### 7.3 Lock / Execute
+Dice đã dùng không biến mất khỏi UI.
 
-Khi lock plan:
+Khi một die bị consume:
 
-- player phải nhận ra **reorder** và **skill đã đưa vào turn hiện tại** không còn đổi được,
-- execute phải theo thứ tự nhìn thấy được,
-- UI phải phân biệt rõ giữa:
-  - **line hành động đã khóa**
-  - và **dice state vẫn còn có thể mutate** nếu consumable hợp lệ cho phép edit dice trong Execute.
+- die đó hạ nhẹ trục Y,
+- background đổi màu sang trạng thái used,
+- die vẫn hiển thị số/crit/fail để player nhớ lượt đã diễn ra thế nào,
+- die không còn available cho skill tiếp theo.
 
-Nếu combat hỗ trợ consumable can thiệp dice, UI phải phân biệt rõ:
-- đang ở trạng thái **planning skill**
-- hay đang ở trạng thái **dice-edit / consumable targeting**
+Khi dice được refresh bởi turn mới hoặc consumable/effect:
 
-Player không được nhầm giữa:
-- reorder lane,
-- đổi skill,
-- và mutate dice state.
+- die nâng Y về vị trí active,
+- background trở về trạng thái active,
+- die có thể được dùng lại nếu rule cho phép.
 
-### 7.4 Enemy / End phase
-### 7.4 Enemy / End phase
+### 7.3 End Phase
 
-Player phải hiểu:
+End Phase dùng để cleanup lượt player:
 
-- intent nào vừa được thực hiện,
-- damage đến từ đâu,
-- status nào vừa tick,
-- Guard nào mất vì end phase,
-- sang lượt mới sẽ ở tình trạng gì.
+- tắt preview,
+- khóa input player,
+- resolve end-of-player effects,
+- chuyển sang Enemy Phase.
 
----
+### 7.4 Enemy Phase
+
+Enemy Phase phải hiển thị rõ:
+
+- enemy đang làm gì,
+- damage/status/guard xảy ra với player,
+- status tick / cleanup,
+- khi nào quay lại Player Phase.
 
 ## 8. Nguyên tắc cho VFX / SFX / animation
 
@@ -317,20 +323,8 @@ Nhưng các phần sau là direction mạnh / đã chốt:
 
 - ngoài combat dùng text tĩnh kiểu `Deal X`, `Gain X`,
 - trong combat ưu tiên số đã resolve,
-- UI phải làm lane order, Focus, Guard, Stagger, status và intent đọc được rõ,
+- UI phải làm lane order, AP, Guard, Stagger, status và intent đọc được rõ,
 - clarity quan trọng hơn flashy,
 - complexity được chấp nhận ở design; opacity không được chấp nhận ở UX.
 
 ---
-
-## Runtime Note (2026-04)
-
-- UX/runtime combat hien tai dang dung grammar:
-  - `roll dice`
-  - `reorder neu can`
-  - `drag skill icon tu skill slot vao enemy de cast truc tiep`
-  - `bam End Turn`
-- Co `SelfCastDropZone` rieng cho skill target = self.
-- Roll dice van giu nguyen.
-- Dice da dung tam thoi van dim 50%, chua bien mat that.
-- Neu can huong design tiep theo, xem [COMBAT_CHANGES_2026.md](/C:/Users/huyan/Desktop/GameProject/Project_build_synergy/Docs/Detail/COMBAT_CHANGES_2026.md).

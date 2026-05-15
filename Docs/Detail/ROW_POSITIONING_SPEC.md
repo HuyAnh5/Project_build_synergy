@@ -11,6 +11,10 @@
 >
 > File này **không** ghi flow/control grammar, lane sequencing, hay damage modifier ngoài row.
 
+
+> **CURRENT SOURCE UPDATE:** Access Type hiện tại chỉ dùng **Melee** và **Range**. `Strike` là thuật ngữ cũ cho access type và không còn dùng làm source.
+
+---
 ---
 
 ## 1. Row là gì
@@ -28,7 +32,7 @@ Nó chỉ là:
 
 - điều kiện để dùng skill nào
 - điều kiện để target ai là hợp lệ
-- combat state để skill/passive/content khác đọc nếu muốn
+- combat state để skill/relic/content khác đọc nếu muốn
 
 Không có rule nền kiểu:
 
@@ -43,7 +47,7 @@ Mọi payoff kiểu:
 - đang ở `Back Row` thì nhận Guard
 - đổi row thì proc effect
 
-đều phải đến từ `skill / passive / relic / content` viết rõ ra, không phải từ bản thân row.
+đều phải đến từ `skill / relic / content` viết rõ ra, không phải từ bản thân row.
 
 Rule này áp dụng **đối xứng cho cả 2 phe**:
 
@@ -60,7 +64,7 @@ Row system nên được đọc qua **2 lớp riêng**:
 
 ### 2.1 Access Type
 
-- `Strike`
+- `Melee`
 - `Range`
 
 ### 2.2 Delivery Pattern
@@ -78,8 +82,8 @@ Row system nên được đọc qua **2 lớp riêng**:
 ### 3.0 Rule dùng skill theo row
 
 - Bắt đầu mỗi combat, player luôn ở `Front Row`.
-- `Strike / Melee` chỉ dùng được khi caster đang ở `Front Row`.
-- Nếu caster đang ở `Back Row`, caster không được dùng `Strike / Melee`.
+- `Melee` chỉ dùng được khi caster đang ở `Front Row`.
+- Nếu caster đang ở `Back Row`, caster không được dùng `Melee`.
 - `Range` dùng được ở cả `Front Row` lẫn `Back Row`.
 
 Nói ngắn:
@@ -88,7 +92,7 @@ Nói ngắn:
 - `Back Row` không tự có penalty khác ngoài việc không dùng được melee
 - `Range` không bị khóa bởi row của caster
 
-### 3.1 Strike
+### 3.1 Melee
 
 Nếu phe đối diện vẫn còn ít nhất 1 unit sống ở **front row**:
 
@@ -102,11 +106,11 @@ Rule rất quan trọng:
 
 - việc attacker đang đứng **front** hay **back** không tự mở quyền đánh xuyên row,
 - thứ quyết định quyền chạm mục tiêu là **Access Type**,
-- với `Strike`, front row luôn là lớp chặn mặc định.
+- với `Melee`, front row luôn là lớp chặn mặc định.
 
 Nói gọn:
 
-- **Strike luôn bị front row chặn**
+- **Melee luôn bị front row chặn**
 
 ### 3.2 Range
 
@@ -115,13 +119,13 @@ Nói gọn:
 - front row
 - back row
 
-`Range` không bị front row chặn như `Strike`.
+`Range` không bị front row chặn như `Melee`.
 
 ---
 
 ## 4. Rule AoE chuẩn
 
-### 4.1 Strike AoE
+### 4.1 Melee AoE
 
 Nếu phe đối diện còn unit sống ở **front row**:
 
@@ -133,7 +137,7 @@ Chỉ khi **front row trống**:
 
 Nói gọn:
 
-- `Strike AoE` quét hàng ngoài cùng còn đang chặn.
+- `Melee AoE` quét hàng ngoài cùng còn đang chặn.
 
 ### 4.2 Range AoE
 
@@ -163,12 +167,12 @@ Dành cho các case đặc biệt như:
 
 Câu đúng là:
 
-**Nếu phe đối diện còn front row thì đòn kiểu Strike không thể đánh vào back row, bất kể người đánh đang đứng front hay back.**
+**Nếu phe đối diện còn front row thì đòn kiểu Melee không thể đánh vào back row, bất kể người đánh đang đứng front hay back.**
 
 Điều này có nghĩa:
 
 - vị trí của attacker **không** tự mở quyền đánh xuyên row,
-- đứng back row không làm `Strike` thành `Range`,
+- đứng back row không làm `Melee` thành `Range`,
 - đứng front row cũng không cho đặc quyền vượt row.
 
 Thứ quyết định quyền target là:
@@ -283,7 +287,7 @@ Ngoài target legality nền, row còn là một **combat state** để content 
 Row có thể được dùng bởi:
 
 - skill
-- passive
+- relic
 - consumable
 - enemy move
 - boss move
@@ -335,7 +339,7 @@ Vì vậy:
 
 - Không hardcode row thành damage multiplier mặc định.
 - Không tự gắn bonus/phạt nội tại vào `Front Row / Back Row` nếu content không viết rõ.
-- Không biến player row thành free stance toggle nếu không có skill/passive/effect cho phép.
+- Không biến player row thành free stance toggle nếu không có skill/relic/effect cho phép.
 - Không để vị trí attacker tự quyết định quyền đánh xuyên row.
 - Không gộp row logic vào lane logic.
 - `Cross-row / All-row` phải là exception rõ ràng, không phải default.
@@ -349,9 +353,9 @@ Vì vậy:
 1. Row là lớp vị trí và quyền target, không phải damage modifier nền.
 2. Rule này áp dụng đối xứng cho cả player team và enemy team.
 3. Bản thân row không có thưởng/phạt nội tại; mọi bonus theo row phải đến từ content.
-4. `Strike / Melee` chỉ dùng được từ `Front Row` và luôn bị front row chặn.
+4. `Melee` chỉ dùng được từ `Front Row` và luôn bị front row chặn.
 5. `Range` dùng được ở mọi row và target tự do front hoặc back.
-6. `Strike AoE` quét row ngoài cùng còn đang chặn.
+6. `Melee AoE` quét row ngoài cùng còn đang chặn.
 7. Auto formation shift khi front row chết hết là ngay lập tức, không tốn turn.
 8. Voluntary reposition lên/xuống row theo AI đều tốn 1 turn riêng, trừ khi đến từ skill/effect cưỡng ép.
 6. `Range AoE` chọn tự do 1 row để quét.

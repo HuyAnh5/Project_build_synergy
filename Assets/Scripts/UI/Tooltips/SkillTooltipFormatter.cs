@@ -59,7 +59,7 @@ public static class SkillTooltipFormatter
 
         string description = BuildRuntimeDamageDescription(skill, view);
         if (string.IsNullOrWhiteSpace(description))
-            description = skill.description ?? string.Empty;
+            description = GetDamageTemplate(skill);
 
         if (!string.IsNullOrWhiteSpace(description))
         {
@@ -79,11 +79,12 @@ public static class SkillTooltipFormatter
         if (!string.IsNullOrWhiteSpace(targeting))
             sb.Append(ColorLabel("Targeting")).Append(": ").Append(targeting);
 
-        if (!string.IsNullOrWhiteSpace(skill.description))
+        string description = BuildRuntimeBuffDebuffDescription(skill, view);
+        if (!string.IsNullOrWhiteSpace(description))
         {
             if (sb.Length > 0)
                 sb.Append("\n\n");
-            sb.Append(ColorQuotedAddedValues(skill.description.Trim()));
+            sb.Append(ColorQuotedAddedValues(description.Trim()));
         }
 
         return sb.ToString();
@@ -101,42 +102,104 @@ public static class SkillTooltipFormatter
         if (skill == null)
             return string.Empty;
 
+        string template = GetDamageTemplate(skill);
         if (runtime == null)
-            return skill.description ?? string.Empty;
+            return template;
 
-        string title = GetTitle(skill);
-        if (skill.coreAction == CoreAction.BasicStrike)
-            return $"Deal \"{GetPreviewDamage(runtime)} damage\". Gain {runtime.focusGainOnCast} Focus.";
+        return ReplaceQuotedSegments(template, quoted => ResolveDamageQuotedSegment(skill, runtime, quoted));
+    }
 
-        if (skill.coreAction == CoreAction.BasicGuard)
-            return $"Gain \"{GetPreviewGuard(runtime)} Guard\".";
+    private static string BuildRuntimeBuffDebuffDescription(SkillBuffDebuffSO skill, SkillRuntime runtime)
+    {
+        if (skill == null)
+            return string.Empty;
 
-        string description;
-        switch (title)
+        string template = GetBuffDebuffTemplate(skill);
+        if (runtime == null)
+            return template;
+
+        return ReplaceQuotedSegments(template, quoted => ResolveBuffQuotedSegment(skill, runtime, quoted));
+    }
+
+    private static string GetDamageTemplate(SkillDamageSO skill)
+    {
+        if (skill == null)
+            return string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(skill.spec.normalizedText))
+            return skill.spec.normalizedText.Trim();
+
+        return (skill.description ?? string.Empty).Trim();
+    }
+
+    private static string GetBuffDebuffTemplate(SkillBuffDebuffSO skill)
+    {
+        if (skill == null)
+            return string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(skill.spec.normalizedText))
+            return skill.spec.normalizedText.Trim();
+
+        return (skill.description ?? string.Empty).Trim();
+    }
+
+    private static string ResolveDamageQuotedSegment(SkillDamageSO skill, SkillRuntime rt, string quoted)
+    {
+        if (rt == null)
+            return quoted;
+
+        string lower = (quoted ?? string.Empty).Trim().ToLowerInvariant();
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.ColdSnap))
         {
-            case "Ignite":
-                description = $"Apply \"{GetPreviewBurn(runtime)} Burn\". If Base Value is odd, apply +{GetIgniteOddBurnBonus(runtime)} Burn.";
-                break;
-
-            case "Fire Slash":
-                description = runtime.conditionMet && runtime.applyBurn
-                    ? $"Deal \"{GetPreviewDamage(runtime)} damage\". If die Odd, apply \"{GetPreviewBurn(runtime)} Burn\"."
-                    : $"Deal \"{GetPreviewDamage(runtime)} damage\". If die Odd, apply 1 Burn.";
-                break;
-
-            case "Shatter Guard":
-                description = $"Deal \"{GetPreviewDamage(runtime)} damage\". If die Fail, gain \"{GetPreviewGuardGainFromFlat(runtime, 4)} Guard\".";
-                break;
-
-            case "Static Conduit":
-                description = $"Deal \"{GetPreviewDamage(runtime)} damage\". If target had Mark before hit, apply Mark to all other enemies in the same row.";
-                break;
-            default:
-                description = skill.description ?? string.Empty;
-                break;
+            if (lower.Contains("damage"))
+                return SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, 0) + " damage";
+            if (lower.Contains("guard"))
+                return SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, 1) + " Guard";
         }
 
-        return AppendElementInteractionText(description, runtime);
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.BloodWard) && lower.Contains("guard"))
+            return GetPreviewBloodWardGuard(rt) + " Guard";
+
+        if (lower.Contains("damage"))
+            return GetPreviewDamage(rt) + " damage";
+        if (lower.Contains("guard"))
+            return GetPreviewGenericGuard(rt) + " Guard";
+        if (lower.Contains("burn") || lower == "burn")
+            return GetPreviewBurn(rt) + " Burn";
+        if (lower.Contains("bleed") || lower == "bleed")
+            return GetPreviewBleed(rt) + " Bleed";
+
+        return quoted;
+    }
+
+    private static string ResolveBuffQuotedSegment(SkillBuffDebuffSO skill, SkillRuntime rt, string quoted)
+    {
+        if (skill == null || rt == null)
+            return quoted;
+
+        string lower = (quoted ?? string.Empty).Trim().ToLowerInvariant();
+        if (!lower.Contains("hp") && !lower.Contains("heal") && !lower.Contains("focus"))
+            return quoted;
+
+        if (skill.effects == null)
+            return quoted;
+
+        for (int i = 0; i < skill.effects.Count; i++)
+        {
+            BuffDebuffEffectEntry effect = skill.effects[i];
+            if (effect == null)
+                continue;
+
+            if ((lower.Contains("hp") || lower.Contains("heal")) && effect.id == BuffDebuffEffectId.HealFlat)
+                return effect.GetHealAmount() + " HP";
+            if ((lower.Contains("hp") || lower.Contains("heal")) && effect.id == BuffDebuffEffectId.HealByDiceSum)
+                return ResolveX(rt) + " HP";
+            if (lower.Contains("focus") && effect.id == BuffDebuffEffectId.FocusDelayed)
+                return effect.GetFocusAmount() + " Focus";
+        }
+
+        return quoted;
     }
 
     private static int GetPreviewDamage(SkillRuntime rt)
@@ -173,14 +236,77 @@ public static class SkillTooltipFormatter
             burn = SkillOutputValueUtility.AddActionAddedValue(rt.burnAddStacks, rt);
         }
 
-        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.Ignite) &&
-            SkillBehaviorRuntimeUtility.TryGetSingleBaseValue(rt, out int baseValue) &&
-            (baseValue % 2) != 0)
+        return burn;
+    }
+
+    private static int GetPreviewBleed(SkillRuntime rt)
+    {
+        if (rt == null)
+            return 0;
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.Hemorrhage))
         {
-            burn += GetIgniteOddBurnBonus(rt);
+            CombatActor player = null;
+            BattlePartyManager2D party = UnityEngine.Object.FindObjectOfType<BattlePartyManager2D>(true);
+            if (party != null)
+                player = party.Player;
+            if (player == null)
+                player = UnityEngine.Object.FindObjectOfType<TurnManager>(true)?.player;
+
+            SkillCombatState state = player != null ? player.GetComponent<SkillCombatState>() : null;
+            return state == null ? 0 : SkillOutputValueUtility.AddActionAddedValue(Mathf.Max(0, state.LastEnemyTurnHpLost), rt);
         }
 
-        return burn;
+        if (!rt.applyBleed)
+            return 0;
+
+        return SkillOutputValueUtility.AddActionAddedValue(Mathf.Max(0, rt.bleedTurns), rt);
+    }
+
+    private static int GetPreviewBloodWardGuard(SkillRuntime rt)
+    {
+        if (rt == null)
+            return 0;
+
+        int bleed = 0;
+        BattlePartyManager2D party = UnityEngine.Object.FindObjectOfType<BattlePartyManager2D>(true);
+        if (party != null)
+        {
+            List<CombatActor> enemies = party.GetAliveEnemies(frontOnly: false);
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                CombatActor enemy = enemies[i];
+                if (enemy == null || enemy.status == null)
+                    continue;
+                bleed += Mathf.Max(0, enemy.status.bleedStacks);
+            }
+        }
+        else
+        {
+            bleed = Mathf.Max(0, SkillBehaviorRuntimeUtility.CountBleedOnEnemyTeam(null));
+        }
+
+        return SkillOutputValueUtility.AddActionAddedValue(bleed, rt);
+    }
+
+    private static int GetPreviewGenericGuard(SkillRuntime rt)
+    {
+        if (rt == null)
+            return 0;
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.BloodWard))
+            return GetPreviewBloodWardGuard(rt);
+
+        if (rt.kind == SkillKind.Guard)
+            return GetPreviewGuard(rt);
+
+        if (rt.guardValueMode == BaseEffectValueMode.Flat && rt.guardFlat > 0)
+            return SkillOutputValueUtility.AddActionAddedValue(rt.guardFlat, rt);
+
+        if (rt.localResolvedValues != null && rt.localResolvedValues.Count > 0)
+            return SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, 0);
+
+        return 0;
     }
 
     private static int GetPreviewGuardGainFromFlat(SkillRuntime rt, int baseGuard)
@@ -197,84 +323,6 @@ public static class SkillTooltipFormatter
         for (int i = 0; i < rt.localResolvedValues.Count; i++)
             total += Mathf.Max(0, rt.localResolvedValues[i]);
         return Mathf.Max(0, total);
-    }
-
-    private static int GetIgniteOddBurnBonus(SkillRuntime rt)
-    {
-        if (rt == null)
-            return 2;
-
-        if (rt.fireOddBaseBonusBurn > 0)
-            return rt.fireOddBaseBonusBurn;
-
-        return 2;
-    }
-
-    private static string AppendElementInteractionText(string description, SkillRuntime rt)
-    {
-        if (rt == null)
-            return description ?? string.Empty;
-
-        string result = (description ?? string.Empty).Trim();
-
-        bool hasBurnConsumeText = ContainsText(result, "Consume") && ContainsText(result, "Burn");
-        if (rt.consumesBurn && !hasBurnConsumeText)
-        {
-            result = AppendSentence(
-                result,
-                $"Consume Burn: +\"{Mathf.Max(0, AttackPreviewCalculator.GetBurnConsumeDamagePerStack(rt))} damage\" per Burn.");
-        }
-
-        if (rt.element == ElementType.Ice &&
-            rt.gainIceRewardOnFrozenOrChilledHit &&
-            !ContainsText(result, "Frozen/Chilled"))
-        {
-            List<string> rewards = new List<string>(2);
-            if (rt.iceRewardFocus > 0)
-                rewards.Add($"\"{rt.iceRewardFocus} Focus\"");
-            if (rt.iceRewardGuard > 0)
-                rewards.Add($"\"{rt.iceRewardGuard} Guard\"");
-
-            if (rewards.Count > 0)
-            {
-                string rewardText = rewards.Count == 2
-                    ? rewards[0] + " and " + rewards[1]
-                    : rewards[0];
-                result = AppendSentence(result, $"If target is Frozen/Chilled, gain {rewardText}.");
-            }
-        }
-
-        if (rt.element == ElementType.Lightning &&
-            rt.triggerLightningMarkShock &&
-            rt.group != DamageGroup.Effect &&
-            !ContainsText(result, "Lightning damage") &&
-            !ContainsText(result, "Mark before hit"))
-        {
-            result = AppendSentence(
-                result,
-                $"If target had Mark before hit, deal \"{Mathf.Max(0, rt.lightningMarkShockDamage)} Lightning damage\" to all enemies.");
-        }
-
-        return result;
-    }
-
-    private static string AppendSentence(string description, string sentence)
-    {
-        if (string.IsNullOrWhiteSpace(sentence))
-            return description ?? string.Empty;
-
-        if (string.IsNullOrWhiteSpace(description))
-            return sentence.Trim();
-
-        return description.TrimEnd() + " " + sentence.Trim();
-    }
-
-    private static bool ContainsText(string text, string value)
-    {
-        if (string.IsNullOrEmpty(text) || string.IsNullOrEmpty(value))
-            return false;
-
-        return text.IndexOf(value, StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static void AppendMeta(StringBuilder sb, int focusCost, int slotsRequired, SkillTargetRule target, string element, string tags)
@@ -404,6 +452,8 @@ public static class SkillTooltipFormatter
     {
         if (rt.consumesBurn && SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.Hellfire))
             rules.Add("Consume all Burn. Deal " + Mathf.Max(0, rt.burnDamagePerStack) + " damage per Burn.");
+        else if (rt.consumesBurn && SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.BiteTheDust))
+            rules.Add("Consume all Burn. Deal " + Mathf.Max(0, rt.burnDamagePerStack) + " damage per Burn.");
 
         if (rt.applyBurn)
         {
@@ -521,6 +571,9 @@ public static class SkillTooltipFormatter
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.Hemorrhage))
             rules.Add("Apply " + Blue("Bleed") + " equal to the HP lost last enemy turn, plus Added Value.");
+
+        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.BiteTheDust))
+            rules.Add("Heal 3 HP for every 5 Burn consumed.");
     }
 
     private static void AppendConditionalRules(List<string> rules, SkillRuntime rt)
@@ -833,6 +886,42 @@ public static class SkillTooltipFormatter
                 sb.Append('"');
             sb.Append(text, segmentStart, text.Length - segmentStart);
         }
+
+        return sb.ToString();
+    }
+
+    private static string ReplaceQuotedSegments(string text, Func<string, string> resolver)
+    {
+        if (string.IsNullOrEmpty(text) || resolver == null || !text.Contains("\""))
+            return text;
+
+        StringBuilder sb = new StringBuilder(text.Length + 32);
+        bool inQuote = false;
+        int segmentStart = 0;
+        for (int i = 0; i < text.Length; i++)
+        {
+            if (text[i] != '"')
+                continue;
+
+            if (!inQuote)
+            {
+                sb.Append(text, segmentStart, i - segmentStart);
+                sb.Append('"');
+                segmentStart = i + 1;
+                inQuote = true;
+            }
+            else
+            {
+                string value = text.Substring(segmentStart, i - segmentStart);
+                sb.Append(resolver(value) ?? value);
+                sb.Append('"');
+                segmentStart = i + 1;
+                inQuote = false;
+            }
+        }
+
+        if (segmentStart < text.Length)
+            sb.Append(text, segmentStart, text.Length - segmentStart);
 
         return sb.ToString();
     }

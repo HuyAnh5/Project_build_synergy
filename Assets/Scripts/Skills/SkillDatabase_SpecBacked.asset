@@ -82,6 +82,42 @@ MonoBehaviour:
   - fileID: 11400000
     guid: ad8514b93e374fbaa83a6aca3121b02b
     type: 2
+  - fileID: 11400000
+    guid: 77a1c4d829e44d1b9c8a2a9fbf0e1101
+    type: 2
+  - fileID: 11400000
+    guid: 88b2d5e93af54c2ca9d3b0cf1a2b3202
+    type: 2
+  - fileID: 11400000
+    guid: 99c3e6fa4b065d3db0e4c1df2b3c4303
+    type: 2
+  - fileID: 11400000
+    guid: aad4f70b5c176e4ec1f5d2e03c4d5404
+    type: 2
+  - fileID: 11400000
+    guid: bbe5081c6d287f5fd206e3f14d5e6505
+    type: 2
+  - fileID: 11400000
+    guid: ccf6192d7e39806ae317f405e6f76106
+    type: 2
+  - fileID: 11400000
+    guid: d0a72a3e8f4a917bf4280516f7087207
+    type: 2
+  - fileID: 11400000
+    guid: e1b83b4f905ba28c0539162708198308
+    type: 2
+  - fileID: 11400000
+    guid: f2c94c50a16cb39d164a2738192a9409
+    type: 2
+  - fileID: 11400000
+    guid: 03da5d61b27dc4ae275b38492a3ba50a
+    type: 2
+  - fileID: 11400000
+    guid: 14eb6e72c38ed5bf386c495a3b4cb60b
+    type: 2
+  - fileID: 11400000
+    guid: 2a9c7dc5f3a14b31a8db0f0c8e4e3a12
+    type: 2
   buffDebuffSkills:
   - fileID: 11400000
     guid: c58a812946cb403e98dcd3e35f6e1d48
@@ -94,6 +130,9 @@ MonoBehaviour:
     type: 2
   - fileID: 11400000
     guid: 56e6fa090e104968aeea3559a52fe52f
+    type: 2
+  - fileID: 11400000
+    guid: 6fb0c8718a4d4ec5b50c1f90c1e7ab11
     type: 2
   passiveSkills:
   - fileID: 11400000

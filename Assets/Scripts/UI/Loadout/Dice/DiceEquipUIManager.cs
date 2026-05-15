@@ -421,6 +421,7 @@ public class DiceEquipUIManager : MonoBehaviour
         BuildOrderedDiceFromRuntime();
         RebuildUiOrderFromDiceList();
         UpdateEquippedArray();
+        SyncOutputs(notifyInventoryChanged: false);
         ApplyUiActiveStates();
         RefreshCombatDiceRuntimeState(instant);
         RefreshDiceSelectionVisuals(instant);
@@ -758,10 +759,7 @@ public class DiceEquipUIManager : MonoBehaviour
     {
         RefreshTurnManagerRef();
 
-        bool canShowRollState = turnManager != null &&
-                                turnManager.diceRig != null &&
-                                turnManager.diceRig.HasRolledThisTurn &&
-                                !turnManager.diceRig.IsRolling;
+        bool combatRigReady = turnManager != null && turnManager.diceRig != null;
 
         foreach (KeyValuePair<DiceSpinnerGeneric, DiceDraggableUI> pair in _uiByDice)
         {
@@ -770,9 +768,10 @@ public class DiceEquipUIManager : MonoBehaviour
             if (die == null || diceUi == null)
                 continue;
 
-            bool spent = canShowRollState && turnManager.IsDieSpentThisTurn(die);
-            bool crit = canShowRollState && die.LastRollIsCrit;
-            bool fail = canShowRollState && die.LastRollIsFail;
+            bool dieResolvedThisRoll = combatRigReady && !die.IsRolling && die.LastFaceIndex >= 0;
+            bool spent = dieResolvedThisRoll && turnManager.IsDieSpentThisTurn(die);
+            bool crit = dieResolvedThisRoll && die.LastRollIsCrit;
+            bool fail = dieResolvedThisRoll && die.LastRollIsFail;
             die.SetCombatRollFeedback(crit, fail);
             diceUi.SetCombatVisualState(spent, crit, fail, instant);
         }

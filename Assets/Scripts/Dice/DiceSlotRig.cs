@@ -8,6 +8,9 @@ public class DiceSlotRig : MonoBehaviour
     public const float GenericCritPercent = 0.20f;
     public const float GenericFailPercent = 0.00f;
     public const float PhysicalCritPercent = 0.50f;
+    private const float OpeningRollAccelTime = 0.10f;
+    private const float OpeningRollBaseTotalTime = 1.25f;
+    private const float OpeningRollFinishStaggerPerSlot = 0.75f;
 
     [Serializable]
     [InlineProperty, HideLabel]
@@ -88,6 +91,10 @@ public class DiceSlotRig : MonoBehaviour
     public KeyCode debugRollSlot2Key = KeyCode.S;
     public KeyCode debugRollSlot3Key = KeyCode.D;
 
+    [Title("Auto Roll")]
+    [Tooltip("Delay between starting each active slot roll during player-turn auto roll.")]
+    [Min(0f)] public float sequentialRollSlotDelay = 0.5f;
+
     [ShowInInspector, ReadOnly]
     public bool HasRolledThisTurn { get; private set; }
 
@@ -118,12 +125,14 @@ public class DiceSlotRig : MonoBehaviour
         EnsureSlots();
         ClearRollInfos();
         ApplyActiveStates();
+        BindDieRollCallbacks();
     }
 
     private void OnValidate()
     {
         EnsureSlots();
         ApplyActiveStates();
+        BindDieRollCallbacks();
     }
 
     private void Update()
@@ -165,6 +174,7 @@ public class DiceSlotRig : MonoBehaviour
         }
         ClearRollInfos();
         ApplyActiveStates();
+        ClearCombatRollFeedback();
     }
 
     public void ShowRandomPresentationFaces()
@@ -195,6 +205,24 @@ public class DiceSlotRig : MonoBehaviour
         StartCoroutine(RollRoutine());
     }
 
+    public void RollOnceSequential()
+    {
+        EnsureSlots();
+        if (HasRolledThisTurn) return;
+        if (IsRolling) return;
+
+        StartCoroutine(RollRoutineSequential());
+    }
+
+    public void RollOnceTurnStart()
+    {
+        EnsureSlots();
+        if (HasRolledThisTurn) return;
+        if (IsRolling) return;
+
+        StartCoroutine(RollRoutineSimultaneousStart());
+    }
+
     private IEnumerator RollRoutine()
     {
         EnsureSlots();
@@ -208,6 +236,85 @@ public class DiceSlotRig : MonoBehaviour
             if (d == null) continue;
 
             d.RollRandomFace();
+        }
+
+        while (IsRolling)
+            yield return null;
+
+        HasRolledThisTurn = true;
+        CacheRollInfos();
+        onAllDiceRolled?.Invoke();
+    }
+
+    private IEnumerator RollRoutineSequential()
+    {
+        EnsureSlots();
+        ApplyActiveStates();
+
+        bool rolledAny = false;
+        float delay = Mathf.Max(0f, sequentialRollSlotDelay);
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (!IsSlotActive(i))
+                continue;
+
+            DiceSpinnerGeneric die = GetDice(i);
+            if (die == null)
+                continue;
+
+            die.RollRandomFace();
+            rolledAny = true;
+
+            if (delay > 0f)
+                yield return new WaitForSeconds(delay);
+        }
+
+        if (!rolledAny)
+        {
+            HasRolledThisTurn = true;
+            CacheRollInfos();
+            onAllDiceRolled?.Invoke();
+            yield break;
+        }
+
+        while (IsRolling)
+            yield return null;
+
+        HasRolledThisTurn = true;
+        CacheRollInfos();
+        onAllDiceRolled?.Invoke();
+    }
+
+    private IEnumerator RollRoutineSimultaneousStart()
+    {
+        EnsureSlots();
+        ApplyActiveStates();
+
+        bool rolledAny = false;
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (!IsSlotActive(i))
+                continue;
+
+            DiceSpinnerGeneric die = GetDice(i);
+            if (die == null)
+                continue;
+
+            // Turn-start roll uses its own timing profile from code so inspector tweaks on
+            // individual dice do not change the opening cascade feel.
+            float totalDuration = OpeningRollBaseTotalTime + (OpeningRollFinishStaggerPerSlot * i);
+            die.RollRandomFaceWithTiming(OpeningRollAccelTime, totalDuration);
+            rolledAny = true;
+        }
+
+        if (!rolledAny)
+        {
+            HasRolledThisTurn = true;
+            CacheRollInfos();
+            onAllDiceRolled?.Invoke();
+            yield break;
         }
 
         while (IsRolling)
@@ -323,6 +430,7 @@ public class DiceSlotRig : MonoBehaviour
 
         slots[slot0] = entry;
         ApplyActiveStates();
+        BindDieRollCallbacks();
     }
 
     public void ApplyDiceLayout(DiceSpinnerGeneric[] layout)
@@ -408,6 +516,7 @@ public class DiceSlotRig : MonoBehaviour
         }
 
         ApplyActiveStates();
+        BindDieRollCallbacks();
     }
 
     public void SwapDiceSlots(int a, int b)
@@ -429,6 +538,7 @@ public class DiceSlotRig : MonoBehaviour
         slots[a].slotRoot = slots[b].slotRoot;
         slots[b].slotRoot = tmpSlotRoot;
         ApplyActiveStates();
+        BindDieRollCallbacks();
     }
 
     public int GetDieValue(int slot0)
@@ -669,50 +779,59 @@ public class DiceSlotRig : MonoBehaviour
         EnsureSlots();
         for (int i = 0; i < 3; i++)
         {
-            if (!IsSlotActive(i))
-            {
-                LastRollInfos[i] = default;
-                continue;
-            }
-
-            DiceSpinnerGeneric d = GetDice(i);
-            if (d == null)
-            {
-                LastRollInfos[i] = default;
-                continue;
-            }
-
-            d.GetRollExtents(out int minFace, out int maxFace);
-            int rolled = d.GetDisplayedRolledValue();
-            DiceFaceEnchantKind faceEnchant = d.GetCurrentFaceEnchant();
-            bool isCrit = d.IsCritValue(rolled) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant);
-            bool isFail = d.IsFailValue(rolled) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant);
-            bool grantsCritBonus = isCrit && !DiceFaceEnchantUtility.SuppressesCritBonus(faceEnchant);
-            bool appliesFailPenalty = isFail && !DiceFaceEnchantUtility.SuppressesFailPenalty(faceEnchant);
-            bool isNumericFace = DiceFaceEnchantUtility.IsNumericFace(faceEnchant);
-
-            int genericAdded = 0;
-            if (grantsCritBonus) genericAdded = FloorScaled(rolled, GenericCritPercent);
-            genericAdded += DiceFaceEnchantUtility.GetFlatAddedValue(faceEnchant);
-
-            int genericResolved = rolled + genericAdded;
-            if (genericResolved < 1) genericResolved = 1;
-
-            LastRollInfos[i] = new RollInfo
-            {
-                rolledValue = rolled,
-                minFaceAtRoll = minFace,
-                maxFaceAtRoll = maxFace,
-                faceEnchant = faceEnchant,
-                isCrit = isCrit,
-                isFail = isFail,
-                grantsCritBonus = grantsCritBonus,
-                appliesFailPenalty = appliesFailPenalty,
-                isNumericFace = isNumericFace,
-                genericAddedValue = genericAdded,
-                genericResolvedValue = genericResolved
-            };
+            CacheRollInfoForSlot(i);
         }
+    }
+
+    private void CacheRollInfoForSlot(int slot0)
+    {
+        EnsureSlots();
+        if (slot0 < 0 || slot0 >= LastRollInfos.Length)
+            return;
+
+        if (!IsSlotActive(slot0))
+        {
+            LastRollInfos[slot0] = default;
+            return;
+        }
+
+        DiceSpinnerGeneric d = GetDice(slot0);
+        if (d == null)
+        {
+            LastRollInfos[slot0] = default;
+            return;
+        }
+
+        d.GetRollExtents(out int minFace, out int maxFace);
+        int rolled = d.GetDisplayedRolledValue();
+        DiceFaceEnchantKind faceEnchant = d.GetCurrentFaceEnchant();
+        bool isCrit = d.IsCritValue(rolled) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant);
+        bool isFail = d.IsFailValue(rolled) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant);
+        bool grantsCritBonus = isCrit && !DiceFaceEnchantUtility.SuppressesCritBonus(faceEnchant);
+        bool appliesFailPenalty = isFail && !DiceFaceEnchantUtility.SuppressesFailPenalty(faceEnchant);
+        bool isNumericFace = DiceFaceEnchantUtility.IsNumericFace(faceEnchant);
+
+        int genericAdded = 0;
+        if (grantsCritBonus) genericAdded = FloorScaled(rolled, GenericCritPercent);
+        genericAdded += DiceFaceEnchantUtility.GetFlatAddedValue(faceEnchant);
+
+        int genericResolved = rolled + genericAdded;
+        if (genericResolved < 1) genericResolved = 1;
+
+        LastRollInfos[slot0] = new RollInfo
+        {
+            rolledValue = rolled,
+            minFaceAtRoll = minFace,
+            maxFaceAtRoll = maxFace,
+            faceEnchant = faceEnchant,
+            isCrit = isCrit,
+            isFail = isFail,
+            grantsCritBonus = grantsCritBonus,
+            appliesFailPenalty = appliesFailPenalty,
+            isNumericFace = isNumericFace,
+            genericAddedValue = genericAdded,
+            genericResolvedValue = genericResolved
+        };
     }
 
     private void ClearRollInfos()
@@ -720,6 +839,60 @@ public class DiceSlotRig : MonoBehaviour
         EnsureSlots();
         for (int i = 0; i < LastRollInfos.Length; i++)
             LastRollInfos[i] = default;
+    }
+
+    private void BindDieRollCallbacks()
+    {
+        EnsureSlots();
+        for (int i = 0; i < slots.Length; i++)
+        {
+            DiceSpinnerGeneric die = GetDice(i);
+            if (die == null)
+                continue;
+
+            die.onRollComplete -= HandleDieRollComplete;
+            die.onRollComplete += HandleDieRollComplete;
+        }
+    }
+
+    private void HandleDieRollComplete(DiceSpinnerGeneric die)
+    {
+        if (die == null)
+            return;
+
+        int slot0 = FindSlotIndex(die);
+        if (slot0 < 0)
+            return;
+
+        CacheRollInfoForSlot(slot0);
+
+        RollInfo info = LastRollInfos[slot0];
+        die.SetCombatRollFeedback(info.isCrit, info.isFail);
+    }
+
+    private int FindSlotIndex(DiceSpinnerGeneric die)
+    {
+        if (die == null || slots == null)
+            return -1;
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i] != null && slots[i].dice == die)
+                return i;
+        }
+
+        return -1;
+    }
+
+    private void ClearCombatRollFeedback()
+    {
+        EnsureSlots();
+        for (int i = 0; i < slots.Length; i++)
+        {
+            DiceSpinnerGeneric die = GetDice(i);
+            if (die != null)
+                die.SetCombatRollFeedback(false, false);
+        }
     }
 
     public DiceSpinnerGeneric GetDice(int slot0)

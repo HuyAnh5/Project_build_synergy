@@ -14,6 +14,8 @@ public class SkillExecutor : MonoBehaviour
         public int lightningShockProcCount;
         public int lightningShockDamage;
         public bool consumedStagger;
+        public bool hadPrimaryDamageStep;
+        public int delayedBurnConsumeDamage;
     }
 
     [System.Serializable]
@@ -23,11 +25,14 @@ public class SkillExecutor : MonoBehaviour
         public int baseDamage;
         public int bonusDamage;
         public int finalDamage;
+        public int primaryDamage;
+        public int burnConsumeDamage;
         public bool canDealDamage;
         public bool consumesStagger;
     }
 
     public float delayBetweenActions = 0.25f;
+    public float delayedSecondaryDamageStep = 0.2f;
 
     [Header("Projectile Safety")]
     public float projectileMaxWaitSeconds = 2.5f;
@@ -206,12 +211,26 @@ public class SkillExecutor : MonoBehaviour
 
                 if (useAoe)
                 {
+                    if (aoeShockProcCount > 0 && aoeShockDamage > 0 && delayedSecondaryDamageStep > 0f)
+                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
+
                     if (aoeShockProcCount > 0 && aoeShockDamage > 0)
                         yield return ApplyLightningMarkShockSequence(caster, aoeShockDamage, aoeShockProcCount);
                 }
                 else if (singleResult.lightningShockProcCount > 0 && singleResult.lightningShockDamage > 0)
                 {
+                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
+                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
+
                     yield return ApplyLightningMarkShockSequence(caster, singleResult.lightningShockDamage, singleResult.lightningShockProcCount);
+                }
+
+                if (!useAoe && singleResult.delayedBurnConsumeDamage > 0)
+                {
+                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
+                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
+
+                    ApplyDelayedBurnConsumeDamage(caster, primaryTarget, singleResult.delayedBurnConsumeDamage);
                 }
 
                 caster.GainFocus(rt.focusGainOnCast);
@@ -262,12 +281,26 @@ public class SkillExecutor : MonoBehaviour
 
                 if (useAoe)
                 {
+                    if (aoeShockProcCount > 0 && aoeShockDamage > 0 && delayedSecondaryDamageStep > 0f)
+                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
+
                     if (aoeShockProcCount > 0 && aoeShockDamage > 0)
                         yield return ApplyLightningMarkShockSequence(caster, aoeShockDamage, aoeShockProcCount);
                 }
                 else if (singleResult.lightningShockProcCount > 0 && singleResult.lightningShockDamage > 0)
                 {
+                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
+                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
+
                     yield return ApplyLightningMarkShockSequence(caster, singleResult.lightningShockDamage, singleResult.lightningShockProcCount);
+                }
+
+                if (!useAoe && singleResult.delayedBurnConsumeDamage > 0)
+                {
+                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
+                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
+
+                    ApplyDelayedBurnConsumeDamage(caster, primaryTarget, singleResult.delayedBurnConsumeDamage);
                 }
 
                 caster.GainFocus(rt.focusGainOnCast);
@@ -279,14 +312,30 @@ public class SkillExecutor : MonoBehaviour
             if (useAoe)
             {
                 int aoeShockProcCount = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue, out int aoeShockDamage);
+                if (aoeShockProcCount > 0 && aoeShockDamage > 0 && delayedSecondaryDamageStep > 0f)
+                    yield return new WaitForSeconds(delayedSecondaryDamageStep);
+
                 if (aoeShockProcCount > 0 && aoeShockDamage > 0)
                     yield return ApplyLightningMarkShockSequence(caster, aoeShockDamage, aoeShockProcCount);
             }
             else
             {
                 AttackApplyResult singleResult = ApplyAttack(rt, caster, primaryTarget, dieValue);
+                if (singleResult.delayedBurnConsumeDamage > 0)
+                {
+                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
+                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
+
+                    ApplyDelayedBurnConsumeDamage(caster, primaryTarget, singleResult.delayedBurnConsumeDamage);
+                }
+
                 if (singleResult.lightningShockProcCount > 0 && singleResult.lightningShockDamage > 0)
+                {
+                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
+                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
+
                     yield return ApplyLightningMarkShockSequence(caster, singleResult.lightningShockDamage, singleResult.lightningShockProcCount);
+                }
             }
 
             caster.GainFocus(rt.focusGainOnCast);
@@ -403,6 +452,17 @@ public class SkillExecutor : MonoBehaviour
             if (popups != null)
                 popups.SpawnDamageSplit(caster, t, res.blocked, res.hpLost);
         }
+    }
+
+    private void ApplyDelayedBurnConsumeDamage(CombatActor caster, CombatActor target, int damage)
+    {
+        if (caster == null || target == null || target.IsDead || damage <= 0)
+            return;
+
+        var popups = GetPopups();
+        var result = target.TakeDamageDetailed(damage, bypassGuard: false);
+        if (popups != null)
+            popups.SpawnDamageSplit(caster, target, result.blocked, result.hpLost);
     }
 
     private int ApplyCustomGuardBehavior(SkillRuntime rt, CombatActor caster, int baseGuard)
