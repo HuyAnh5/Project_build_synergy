@@ -159,6 +159,9 @@ public class SkillExecutor : MonoBehaviour
         // For AoE skills, we can proceed even without a clicked target, as long as we have aoeTargets.
         if (primaryTarget == null && !(useAoe && aoeTargets != null && aoeTargets.Count > 0)) yield break;
 
+        if (!useAoe && !SkillUsageRequirementUtility.IsTargetRequirementMet(rt, primaryTarget))
+            yield break;
+
         if (!skipCost && rt.focusCost > 0)
         {
             if (!caster.TrySpendFocus(rt.focusCost))

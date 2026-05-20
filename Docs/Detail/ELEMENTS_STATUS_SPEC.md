@@ -1,6 +1,6 @@
 # ELEMENTS_STATUS_SPEC.md
 
-> Tài liệu này là **source of truth cho 5 hệ chính, 4 status/effect cốt lõi và ailment system**.  
+> Tài liệu này là **source of truth cho 5 hệ chính, status/effect cốt lõi và ailment system**.  
 > Nó mô tả identity, quy tắc kích hoạt, payoff, interaction, edge case và định hướng UX của từng hệ.
 
 
@@ -32,7 +32,7 @@ File này bao gồm:
 - Fire / Burn,
 - Ice / Freeze / Chilled,
 - Lightning / Mark,
-- Bleed,
+- Blood / Bleed,
 - Ailment system,
 - Stagger ở cấp interaction với status,
 - rule tiêu thụ / lan / proc phụ,
@@ -81,10 +81,11 @@ Phần này mô tả **đường đi logic chung của element / status engine**
 → Nếu skill text có payoff từ Mark: resolve payoff đó  
 → Nếu hit / skill hợp lệ phá Mark: remove Mark; baseline hiện tại là 1 hit hợp lệ phá Mark
 
-**Bleed**  
+**Blood / Bleed**  
+→ Nếu skill dùng HP bản thân làm tài nguyên: trả HP cost / self-damage theo skill text  
 → Apply Bleed stack lên target hoặc đọc lượng Bleed hiện có  
-→ Tick ở đầu lượt target theo rule riêng của Bleed  
-→ Một số build có thể convert Bleed thành tài nguyên khác như Guard / consumable
+→ Bleed tick ở đầu lượt target theo rule riêng của Bleed  
+→ Một số Blood skill có thể hồi HP / sustain / convert Bleed thành giá trị khác nếu skill text ghi rõ
 
 ### 3.3 Flow ailment chung
 
@@ -116,17 +117,31 @@ Thay vào đó:
 - ở scope hiện tại, mỗi hệ chủ yếu tương tác với status của chính hệ đó,
 - cross-element reaction là future design space, chưa phải locked rule.
 
-## 4. Bảng tóm tắt identity của 5 hệ
+## 4. Element Identity Overview
 
-| Hệ | Vai trò cốt lõi | Tài nguyên / điểm tựa | Kiểu payoff |
-|---|---|---|---|
-| Physical | Burst thẳng, anti-Guard, clean finish | Crit mạnh, hit trực diện | Damage rõ ràng, decisiveness |
-| Fire | Setup tài nguyên rồi nổ | Burn stack | Consume Burn để burst |
-| Ice | Tempo / control | Freeze, Chilled, Guard/AP window | Bẻ nhịp combat, mở cửa payoff |
-| Lightning | Board control / propagation | Mark | Direct-hit đúng mục tiêu rồi lan ra board |
-| Bleed | Áp lực dài hạn / chuyển hóa tài nguyên | Bleed stack | DoT thật + có thể đổi ra giá trị khác |
+Đây là identity gameplay cấp hệ.  
+Các payoff cụ thể vẫn theo rule **skill-text driven** ở mục `3A`: skill nào apply / consume / phá / khai thác status thì phải ghi rõ trong skill text.
 
----
+| Hệ | Identity ngắn | Damage profile | Target profile | Tài nguyên / điểm tựa | Kiểu chơi chính |
+|---|---|---|---|---|---|
+| Fire | Burst đơn mục tiêu + Burn setup | Cao | Chủ yếu đơn mục tiêu | Burn stack | Dồn damage lớn vào một target quan trọng bằng apply / consume Burn |
+| Ice | Control + lấy tài nguyên | Trung bình | Chủ yếu đơn mục tiêu | Freeze / Chilled | Bẻ nhịp enemy, rồi khai thác Freeze/Chill để lấy AP / Guard / Focus / dice control theo skill text |
+| Lightning | Mark setup → AOE lan truyền | Thấp nếu đánh riêng lẻ | Mạnh khi có nhiều enemy / row | Mark | Gắn Mark lên target đúng, sau đó đánh vào Mark để lan damage/effect ra board |
+| Blood | Risk/reward bằng HP | DoT / sustain / payoff dài hạn | Có thể đơn mục tiêu hoặc áp lực dài hạn | HP bản thân + Bleed stack | Dùng HP của player làm tài nguyên, gây DoT, rồi hồi lại HP hoặc chuyển hóa giá trị thông qua Blood effect |
+| Physical | Ít setup, crit lớn, số to | Cao khi crit | Chủ yếu direct-hit đơn giản | Dice lớn + crit `x1.5` | Chơi thẳng, dễ hiểu: chọn đúng target, dùng dice lớn, crit để tạo burst damage |
+
+### 4.1 Guardrail theo hệ
+
+- **Fire** không nên là AOE chính. Fire phải nổi bật ở burst đơn mục tiêu và Burn payoff.
+- **Ice** không cần damage cao. Ice mạnh vì control, tempo và tài nguyên phụ.
+- **Lightning** nên yếu nếu không có Mark. Mark là lý do khiến Lightning biến thành AOE / propagation.
+- **Blood** phải có rủi ro thật. Nếu hồi HP quá dễ, việc dùng HP bản thân sẽ không còn là cost.
+- **Physical** là hệ dễ chơi / ít setup nhất. Nếu chỉ có `crit x1.5` thì hơi nông, nên về sau có thể gắn thêm synergy với Basic Attack, dice mặt cao hoặc clean finish.
+
+### 4.2 Prototype scope note
+
+Prototype hiện tại không bắt buộc phải bật đủ cả 5 hệ.  
+Nếu chỉ đang test core combat, ưu tiên giữ **Fire / Ice / Lightning** trước. **Blood** và **Physical** có thể là future element hoặc content phase sau, trừ khi bản test cần kiểm tra trực tiếp identity của chúng.
 
 ## 5. Physical
 
@@ -135,13 +150,16 @@ Thay vào đó:
 Physical tồn tại để cho player một trục:
 
 - burst rõ ràng,
+- crit mạnh hơn hệ thường,
+- số to + dice lớn + crit = damage to,
 - anti-Guard,
 - hit thẳng, ít vòng vo,
-- cảm giác clean, decisive.
+- cảm giác clean, decisive,
+- ít phụ thuộc vào status setup.
 
 ### 5.2 Rule đã chốt
 
-- Crit của Physical dùng **`+50% Base`** thay vì `+20% Base` như hệ thường.
+- Crit của Physical dùng **`+50% Base`** thay vì `+20% Base` như hệ thường. Có thể hiểu ở gameplay level là Physical crit gây khoảng **`x1.5` damage trên Base component**.
 
 ### 5.3 Ý nghĩa thiết kế
 
@@ -364,39 +382,64 @@ Lightning là hệ của:
 
 ---
 
-## 9. Bleed
+## 9. Blood / Bleed
 
 ### 9.1 Mục tiêu
 
-Bleed là hệ của:
+Blood là hệ của:
 
-- áp lực dài hạn,
-- damage-over-time thật,
+- risk/reward,
+- dùng HP bản thân làm tài nguyên,
+- damage-over-time thật thông qua Bleed,
+- hồi lại HP / sustain nếu player khai thác đúng payoff,
 - chuyển hóa tài nguyên ở build phù hợp.
 
-### 9.2 Rule đã chốt
+Trong tài liệu này:
+
+- **Blood** là identity / element fantasy,
+- **Bleed** là status chính đại diện cho DoT và áp lực dài hạn.
+
+### 9.2 Rule đã chốt cho Bleed
 
 - Bleed gây damage **đầu lượt**
 - Bleed **bỏ qua Guard**
 - Bleed **giảm dần theo lượt**
 - current wording rõ nhất hiện tại là **`-1 stack mỗi cuối lượt`**
 
-### 9.3 Identity gameplay
+### 9.3 Rule định hướng cho Blood
 
-Bleed khác Burn ở chỗ:
+Các hiệu ứng Blood phải theo skill text, không có hidden rule mặc định.
 
-- Burn là tài nguyên để consume,
+- Skill nào tốn HP / self-damage phải ghi rõ lượng HP mất.
+- Skill nào hồi HP phải ghi rõ điều kiện hồi và lượng hồi.
+- Skill nào convert Bleed thành HP / Guard / Consumable / damage phải ghi rõ.
+- Không mặc định mọi Blood skill đều hồi máu.
+- Không mặc định mọi Bleed tick đều hồi máu.
+- Không để Blood hồi HP dễ đến mức HP cost trở thành miễn phí.
+
+### 9.4 Identity gameplay
+
+Blood khác Burn ở chỗ:
+
+- Burn là tài nguyên để consume burst,
 - Bleed là damage-over-time thật,
-- và trong đúng build, Bleed còn có thể đổi sang Guard hoặc Consumable.
+- Blood dùng chính HP của player như một resource combat,
+- Blood phải cho cảm giác player đang đánh đổi an toàn hiện tại để lấy tempo / sustain / payoff về sau.
 
-### 9.4 Edge cases
+Một turn Blood tốt nên tạo câu hỏi kiểu:
+
+- có nên mất HP bây giờ để giết enemy nguy hiểm không,
+- có đủ cơ hội hồi lại HP sau đó không,
+- có nên kéo dài Bleed để tạo sustain không,
+- có nên chấp nhận rủi ro HP thấp để đổi lấy damage / resource mạnh hơn không.
+
+### 9.5 Edge cases
 
 - Bleed tick **không consume Stagger**.
 - Bleed bypass Guard nhưng vẫn phải đọc đúng timing đầu lượt.
 - Bleed stack là một dạng tài nguyên build-level, không nên bị coi chỉ là số máu chảy máu vô danh.
-
----
-
+- Blood self-damage không nên được tính như enemy damage nếu có hệ thống trigger “khi bị enemy đánh”, trừ khi skill / relic ghi rõ.
+- Nếu Blood skill vừa gây self-damage vừa hồi HP, UI phải preview cả HP mất và HP hồi để player hiểu tradeoff thật.
 ## 10. Stagger như một payoff trung gian
 
 Dù Stagger là core combat rule, ở cấp status engine nó đóng vai trò như một “cơ hội payoff ngắn hạn”.
@@ -510,7 +553,7 @@ Nhưng các vùng sau là **current locked rules**:
 - Freeze → Chilled, miễn Freeze khi đang Freeze/Chilled, Ice payoff phải nằm trong skill text,
 - Mark không stack, không có thời hạn, tồn tại cho đến khi hit/skill hợp lệ phá; Mark payoff phải nằm trong skill text,
 - shock phụ không chain, không proc lại, không consume Mark,
-- Bleed đầu lượt, bypass Guard, giảm dần, current wording `-1 stack mỗi cuối lượt`,
+- Blood dùng HP bản thân / hồi HP theo skill text; Bleed đầu lượt, bypass Guard, giảm dần, current wording `-1 stack mỗi cuối lượt`,
 - ailment là enemy-side system; enemy debuff có thể deterministic/100% vì được telegraph qua enemy intent.
 
 ## Runtime Update Note (Archived)

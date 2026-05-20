@@ -236,7 +236,7 @@ public class DraggableSkillIcon : MonoBehaviour,
         if (UiDragState.IsDragging)
             return;
 
-        SkillTooltipUI.HideCurrent();
+        SkillTooltipUI.HideCurrentUnlessPointerOverTooltip(eventData != null ? eventData.pointerCurrentRaycast.gameObject : null);
 
         DraggableSkillIcon selected = UiDragState.SelectedSkill;
 

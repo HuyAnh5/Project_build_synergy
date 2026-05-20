@@ -52,12 +52,24 @@ public class TurnManager : MonoBehaviour
     private readonly SkillPlanBoard _board = new SkillPlanBoard();
     private readonly CombatActorRuntimeContext _playerContext = new CombatActorRuntimeContext();
     private readonly EnemyTurnCoordinator _enemyTurnCoordinator = new EnemyTurnCoordinator();
+    private readonly Queue<QueuedPlayerCommand> _queuedPlayerCommands = new Queue<QueuedPlayerCommand>();
     private int _cursor = 0;
     private readonly HashSet<DiceSpinnerGeneric> _spentDiceThisTurn = new HashSet<DiceSpinnerGeneric>();
     private bool _victoryResolvedThisCombat;
     private bool _defeatResolvedThisCombat;
     private bool _externalPlayerInteractionLock;
+    private bool _isProcessingQueuedPlayerCommands;
     private Coroutine _autoRollCoroutine;
+
+    private struct QueuedPlayerCommand
+    {
+        public ScriptableObject asset;
+        public SkillRuntime runtime;
+        public CombatActor target;
+        public int resolvedSum;
+        public int maxFace;
+        public int start0;
+    }
 
     void Start()
     {
@@ -178,7 +190,13 @@ public class TurnManager : MonoBehaviour
         if (_board.IsSkillEquipped(activeSkill))
             return false;
 
-        return TryResolvePrototypeCastPlacement(activeSkill, out _, out _, commit: false);
+        if (!TryResolvePrototypeCastPlacement(activeSkill, out _, out _, commit: false))
+            return false;
+
+        if (!TryGetPrototypeSkillTooltipRuntime(activeSkill, out SkillRuntime runtime) || runtime == null)
+            return false;
+
+        return HasAnyValidPrototypeTarget(runtime);
     }
 
     public bool TryGetPrototypeSkillTooltipRuntime(ScriptableObject activeSkill, out SkillRuntime runtime)
@@ -239,8 +257,8 @@ public class TurnManager : MonoBehaviour
             return false;
         }
 
+        EnqueueCurrentExecution(clicked);
         RefreshAllViews();
-        StartCoroutine(ExecuteCurrent(clicked));
         return true;
     }
 
@@ -321,6 +339,9 @@ public class TurnManager : MonoBehaviour
 
     private IEnumerator ContinueRoutine()
     {
+        if (_isProcessingQueuedPlayerCommands || _queuedPlayerCommands.Count > 0)
+            yield break;
+
         if (TryHandleCombatDefeat())
             yield break;
         if (TryHandleCombatVictory())
@@ -372,14 +393,12 @@ public class TurnManager : MonoBehaviour
             return;
         }
 
-        StartCoroutine(ExecuteCurrent(clicked));
+        EnqueueCurrentExecution(clicked);
     }
 
 
-    private IEnumerator ExecuteCurrent(CombatActor clicked)
+    private void EnqueueCurrentExecution(CombatActor clicked)
     {
-        SetPhase(Phase.Executing);
-
         var asset = _board.GetCellSkillAsset(_cursor);
         var rt = _board.GetAnchorRuntime(_cursor);
 
@@ -387,14 +406,14 @@ public class TurnManager : MonoBehaviour
         {
             Debug.LogError($"[TM] AnchorRuntime NULL at cursor={_cursor}, asset={(asset ? asset.name : "NULL")}.", this);
             SetPhase(Phase.Planning);
-            yield break;
+            return;
         }
 
         if (executor == null)
         {
             Debug.LogError("[TM] Missing SkillExecutor reference!", this);
             SetPhase(Phase.Planning);
-            yield break;
+            return;
         }
 
         // Dice debug: raw vs resolved
@@ -412,31 +431,78 @@ public class TurnManager : MonoBehaviour
 
         MarkDiceSpentInRange(start0, span);
         _board.ConsumeGroupAtAnchor_NoRefund(_cursor);
-        RefreshAllViews();
+        _queuedPlayerCommands.Enqueue(new QueuedPlayerCommand
+        {
+            asset = asset,
+            runtime = rt,
+            target = clicked,
+            resolvedSum = resolvedSum,
+            maxFace = maxFace,
+            start0 = start0,
+        });
 
         // ✅ ROUTE: BuffDebuff phải gọi overload SkillBuffDebuffSO, runtime Utility không làm gì
-        if (asset is SkillBuffDebuffSO buffSkill)
+        _cursor = FindNextExecutableAnchor();
+        SetPhase(Phase.Planning);
+        RefreshAllViews();
+        RefreshPlanningInteractivity();
+        
+        if (!_isProcessingQueuedPlayerCommands)
+            StartCoroutine(ProcessQueuedPlayerCommands());
+    }
+
+    private IEnumerator ProcessQueuedPlayerCommands()
+    {
+        _isProcessingQueuedPlayerCommands = true;
+
+        while (_queuedPlayerCommands.Count > 0)
+        {
+            if (TryHandleCombatDefeat())
+            {
+                _isProcessingQueuedPlayerCommands = false;
+                yield break;
+            }
+            if (TryHandleCombatVictory())
+            {
+                _isProcessingQueuedPlayerCommands = false;
+                yield break;
+            }
+
+            yield return ExecuteQueuedCommand(_queuedPlayerCommands.Dequeue());
+        }
+
+        _isProcessingQueuedPlayerCommands = false;
+        RefreshAllViews();
+        RefreshPlanningInteractivity();
+    }
+
+    private IEnumerator ExecuteQueuedCommand(QueuedPlayerCommand command)
+    {
+        if (command.asset == null || executor == null)
+            yield break;
+
+        if (command.asset is SkillBuffDebuffSO buffSkill)
         {
             var aoeTargets = SkillTargetRuleUtility.IsMultiTarget(buffSkill.target)
-                ? TurnManagerCombatUtility.ResolveTargets(buffSkill.target, player, clicked, party, enemy)
+                ? TurnManagerCombatUtility.ResolveTargets(buffSkill.target, player, command.target, party, enemy)
                 : null;
 
             if (logPhase)
                 Debug.Log($"[TM] Branch=BuffDebuff -> {buffSkill.name} targetRule={buffSkill.target} delay={buffSkill.applyDelayTurns} effects={(buffSkill.effects != null ? buffSkill.effects.Count : 0)} applyAilment={buffSkill.applyAilment}", this);
 
-            yield return executor.ExecuteSkill(buffSkill, player, clicked, resolvedSum, maxFace, skipCost: true, aoeTargets: aoeTargets);
+            yield return executor.ExecuteSkill(buffSkill, player, command.target, command.resolvedSum, command.maxFace, skipCost: true, aoeTargets: aoeTargets);
         }
         else
         {
-            var aoeTargets = TurnManagerCombatUtility.ResolveAoeTargets(rt, player, clicked, party, enemy);
+            var aoeTargets = TurnManagerCombatUtility.ResolveAoeTargets(command.runtime, player, command.target, party, enemy);
 
             if (logPhase)
-                Debug.Log($"[TM] Branch=Runtime (Attack/Guard/Legacy) -> rt.kind={rt.kind}", this);
+                Debug.Log($"[TM] Branch=Runtime (Attack/Guard/Legacy) -> rt.kind={command.runtime.kind}", this);
 
-            yield return executor.ExecuteSkill(rt, player, clicked, resolvedSum, skipCost: true, aoeTargets: aoeTargets);
+            yield return executor.ExecuteSkill(command.runtime, player, command.target, command.resolvedSum, skipCost: true, aoeTargets: aoeTargets);
 
-            if (IsBasicStrikeRuntime(rt))
-                _playerContext.HandleBasicStrikeUse(diceRig, start0);
+            if (IsBasicStrikeRuntime(command.runtime))
+                _playerContext.HandleBasicStrikeUse(diceRig, command.start0);
         }
 
         if (TryHandleCombatDefeat())
@@ -445,7 +511,6 @@ public class TurnManager : MonoBehaviour
         if (TryHandleCombatVictory())
             yield break;
 
-        _cursor = FindNextExecutableAnchor();
         SetPhase(Phase.Planning);
         RefreshAllViews();
         RefreshPlanningInteractivity();
@@ -658,6 +723,8 @@ public class TurnManager : MonoBehaviour
 
         _spentDiceThisTurn.Clear();
         _board.Reset();
+        _queuedPlayerCommands.Clear();
+        _isProcessingQueuedPlayerCommands = false;
 
         if (diceRig != null)
         {
@@ -1048,6 +1115,57 @@ public class TurnManager : MonoBehaviour
 
         if (!commit)
             _board.Restore(snap, player);
+
+        return true;
+    }
+
+    private bool HasAnyValidPrototypeTarget(SkillRuntime runtime)
+    {
+        if (runtime == null || player == null)
+            return false;
+
+        if (!runtime.useV2Targeting)
+            return true;
+
+        switch (runtime.targetRuleV2)
+        {
+            case SkillTargetRule.Self:
+                return SkillUsageRequirementUtility.IsTargetRequirementMet(runtime, player);
+
+            case SkillTargetRule.SingleEnemy:
+            case SkillTargetRule.RowEnemies:
+            case SkillTargetRule.AllEnemies:
+            {
+                var enemies = TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, enemy);
+                for (int i = 0; i < enemies.Count; i++)
+                {
+                    CombatActor candidate = enemies[i];
+                    if (candidate == null || candidate.IsDead)
+                        continue;
+                    if (TurnManagerTargetingUtility.IsValidTargetForPendingSkill(runtime, candidate, player, party, enemy))
+                        return true;
+                }
+
+                return false;
+            }
+
+            case SkillTargetRule.SingleAlly:
+            case SkillTargetRule.RowAllies:
+            case SkillTargetRule.AllAllies:
+            {
+                var allies = TurnManagerCombatUtility.ResolveAliveAlliesSnapshot(party, player);
+                for (int i = 0; i < allies.Count; i++)
+                {
+                    CombatActor candidate = allies[i];
+                    if (candidate == null || candidate.IsDead)
+                        continue;
+                    if (TurnManagerTargetingUtility.IsValidTargetForPendingSkill(runtime, candidate, player, party, enemy))
+                        return true;
+                }
+
+                return false;
+            }
+        }
 
         return true;
     }

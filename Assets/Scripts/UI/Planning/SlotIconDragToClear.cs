@@ -72,7 +72,7 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
     public void OnPointerExit(PointerEventData eventData)
     {
         _pointerInside = false;
-        SkillTooltipUI.HideCurrent();
+        SkillTooltipUI.HideCurrentUnlessPointerOverTooltip(eventData != null ? eventData.pointerCurrentRaycast.gameObject : null);
     }
 
     public void OnBeginDrag(PointerEventData eventData)

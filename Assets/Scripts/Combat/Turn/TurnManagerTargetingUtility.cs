@@ -23,6 +23,9 @@ internal static class TurnManagerTargetingUtility
         if (clicked == null) { reason = "clicked == null"; return false; }
         if (player == null) { reason = "player == null"; return false; }
 
+        if (!SkillUsageRequirementUtility.TryValidateTargetRequirement(rt, clicked, out reason))
+            return false;
+
         if (rt.useV2Targeting)
         {
             switch (rt.targetRuleV2)
