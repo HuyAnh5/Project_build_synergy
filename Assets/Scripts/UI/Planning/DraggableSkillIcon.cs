@@ -85,13 +85,7 @@ public class DraggableSkillIcon : MonoBehaviour,
     private bool _lastVisualHasElement;
     private ElementType _lastVisualElement = ElementType.Neutral;
 
-    // --- Resource Preview ---
-    private CombatHUD _cachedHud;
-    private bool _resourcePreviewActive;
-
-    // --- Target Preview (Drag) ---
-    private ActorWorldUI _currentPreviewTarget;
-    private SkillRuntime _cachedDragRuntime;
+    private SkillIconPreviewController _previewController;
 
     // --- Click-to-Select ---
     private bool _selected;
@@ -118,6 +112,7 @@ public class DraggableSkillIcon : MonoBehaviour,
             selfCastZone = FindObjectOfType<SelfCastDropZone>(true);
         if (iconLibrary != null)
             _sharedIconLibrary = iconLibrary;
+        _previewController = new SkillIconPreviewController(turn, selfCastZone, _uiCam, GetSkillAsset, GetPreviewDieValue);
 
         EnsureCostBadgeUi();
         Refresh();
@@ -290,10 +285,7 @@ public class DraggableSkillIcon : MonoBehaviour,
         StartBlinkCoroutine();
         var a = GetSkillAsset();
         if (a != null)
-        {
-            _cachedDragRuntime = null; // reset để rebuild
             ShowResourcePreview(a);
-        }
     }
 
     public void OnDeselected()
@@ -301,7 +293,6 @@ public class DraggableSkillIcon : MonoBehaviour,
         _selected = false;
         StopBlinkCoroutine();
         ClearResourcePreview();
-        ClearTargetPreviewIfActive();
         if (_img != null)
             _img.color = Color.white;
     }
@@ -379,7 +370,6 @@ public class DraggableSkillIcon : MonoBehaviour,
 
     public void OnEndDrag(PointerEventData eventData)
     {
-        ClearTargetPreviewIfActive();
         ClearResourcePreview();
         _cg.blocksRaycasts = true;
         if (_dragRegistered)
@@ -811,370 +801,27 @@ public class DraggableSkillIcon : MonoBehaviour,
     }
 
     // ---------------------------
-    // Resource Preview Helpers
+    // ---------------------------
+    // Resource + Target Preview
     // ---------------------------
 
     public void ShowResourcePreview(ScriptableObject asset)
-    {
-        if (turn == null || asset == null || asset is SkillPassiveSO)
-            return;
-        if (!SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out int slotsRequired))
-            return;
-
-        // --- Focus preview ---
-        CombatHUD hud = GetCachedHud();
-        if (hud != null && turn.player != null)
-        {
-            bool isInvalid = turn.player.focus < focusCost;
-            hud.ShowFocusPreview(focusCost, 0, isInvalid);
-        }
-
-        // --- Dice consume preview ---
-        if (turn.diceRig != null)
-        {
-            BuildSpentDiceSet();
-            turn.diceRig.ShowConsumePreview(slotsRequired, _cachedSpentSet);
-        }
-
-        // --- Targetability overlay ---
-        ShowTargetOverlays(asset);
-
-        _resourcePreviewActive = true;
-    }
+        => _previewController?.ShowResourcePreview(asset);
 
     private void ClearResourcePreview()
-    {
-        if (!_resourcePreviewActive)
-            return;
-
-        _resourcePreviewActive = false;
-
-        CombatHUD hud = GetCachedHud();
-        if (hud != null)
-            hud.ClearFocusPreview();
-
-        if (turn != null && turn.diceRig != null)
-            turn.diceRig.ClearConsumePreview();
-
-        ClearTargetOverlays();
-    }
-
-    private CombatHUD GetCachedHud()
-    {
-        if (_cachedHud == null)
-            _cachedHud = FindObjectOfType<CombatHUD>(true);
-        return _cachedHud;
-    }
-
-    private static readonly System.Collections.Generic.HashSet<DiceSpinnerGeneric> _cachedSpentSet
-        = new System.Collections.Generic.HashSet<DiceSpinnerGeneric>();
-
-    private void BuildSpentDiceSet()
-    {
-        _cachedSpentSet.Clear();
-        if (turn != null && turn.SpentDiceThisTurn != null)
-        {
-            foreach (var d in turn.SpentDiceThisTurn)
-                _cachedSpentSet.Add(d);
-        }
-    }
+        => _previewController?.ClearResourcePreview();
 
     private void Update()
     {
         RefreshIfVisualMetadataChanged();
-        // Update dice preview blink mỗi frame khi đang active
-        if (_resourcePreviewActive && turn != null && turn.diceRig != null)
-        {
-            BuildSpentDiceSet();
-            turn.diceRig.UpdateConsumePreviewVisuals(_cachedSpentSet);
-        }
+        _previewController?.Tick();
     }
-
-    // ---------------------------
-    // Target Preview (HP/Guard/Status)
-    // ---------------------------
 
     private void UpdateTargetPreviewUnderCursor(PointerEventData eventData)
-    {
-        if (turn == null || turn.player == null)
-            return;
-
-        // Raycast to find TargetClickable2D under cursor
-        CombatActor hoveredActor = RaycastForActor(eventData);
-        ActorWorldUI hoveredUI = null;
-        bool hoveringSelfZone = false;
-
-        if (hoveredActor != null && _cachedActorWorldUIs != null)
-        {
-            foreach (ActorWorldUI ui in _cachedActorWorldUIs)
-            {
-                if (ui != null && ui.actor == hoveredActor)
-                {
-                    hoveredUI = ui;
-                    break;
-                }
-            }
-        }
-
-        // Same target as before — skip rebuild
-        hoveringSelfZone = hoveredActor == null &&
-                           IsSelfTargetSkill(GetSkillAsset()) &&
-                           selfCastZone != null &&
-                           selfCastZone.ContainsScreenPoint(eventData.position, _uiCam);
-
-        if (hoveringSelfZone && _cachedActorWorldUIs != null)
-        {
-            hoveredActor = turn.player;
-            foreach (ActorWorldUI ui in _cachedActorWorldUIs)
-            {
-                if (ui != null && ui.actor == turn.player)
-                {
-                    hoveredUI = ui;
-                    break;
-                }
-            }
-        }
-
-        if (hoveredUI == _currentPreviewTarget && hoveredUI != null)
-            return;
-
-        // Clear old
-        ClearTargetPreviewIfActive();
-
-        // No valid target
-        if (hoveredUI == null || hoveredActor == null)
-            return;
-
-        // Check target is valid
-        if (_cachedDragRuntime == null)
-        {
-            ScriptableObject asset = GetSkillAsset();
-            if (asset != null && !(asset is SkillPassiveSO))
-            {
-                // Thử lấy prototype (có tính toán placement). Nếu thất bại (board đầy), tạo fallback runtime để vẫn hiện preview
-                if (!turn.TryGetPrototypeSkillTooltipRuntime(asset, out _cachedDragRuntime))
-                {
-                    if (asset is SkillDamageSO ds) _cachedDragRuntime = SkillRuntime.FromDamage(ds);
-                    else if (asset is SkillBuffDebuffSO bds) _cachedDragRuntime = SkillRuntime.FromBuffDebuff(bds);
-                }
-            }
-        }
-
-        if (_cachedDragRuntime == null)
-            return;
-
-        if (!TurnManagerTargetingUtility.IsValidTargetForPendingSkill(_cachedDragRuntime, hoveredActor, turn.player, turn.party, turn.enemy))
-            return;
-
-        int dieValue = GetPreviewDieValue(_cachedDragRuntime);
-        TargetPreviewBuilder.ActionPreviewBundle bundle =
-            TargetPreviewBuilder.BuildActionBundle(_cachedDragRuntime, turn.player, hoveredActor, dieValue, turn.party, turn.enemy);
-
-        if (!bundle.valid)
-            return;
-
-        _currentPreviewTarget = hoveredUI;
-        ShowActionPreviewBundle(bundle);
-    }
-
-    private void ClearTargetPreviewIfActive()
-    {
-        if (_cachedActorWorldUIs != null)
-        {
-            foreach (ActorWorldUI ui in _cachedActorWorldUIs)
-            {
-                if (ui != null)
-                    ui.ClearTargetPreview();
-            }
-        }
-
-        _currentPreviewTarget = null;
-
-        if (_resourcePreviewActive && turn != null && turn.player != null)
-        {
-            ScriptableObject asset = GetSkillAsset();
-            if (asset != null && SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out _))
-            {
-                CombatHUD hud = GetCachedHud();
-                if (hud != null)
-                    hud.ShowFocusPreview(focusCost, 0, turn.player.focus < focusCost);
-            }
-        }
-    }
-
-    private void ShowActionPreviewBundle(TargetPreviewBuilder.ActionPreviewBundle bundle)
-    {
-        if (_cachedActorWorldUIs == null || bundle.targetPreviews == null)
-            return;
-
-        foreach (KeyValuePair<CombatActor, TargetPreviewData> kvp in bundle.targetPreviews)
-        {
-            if (kvp.Key == null || !kvp.Value.valid)
-                continue;
-
-            foreach (ActorWorldUI ui in _cachedActorWorldUIs)
-            {
-                if (ui != null && ui.actor == kvp.Key)
-                {
-                    ui.ShowTargetPreview(kvp.Value);
-                    break;
-                }
-            }
-        }
-
-        CombatHUD hud = GetCachedHud();
-        ScriptableObject asset = GetSkillAsset();
-        if (hud != null && turn != null && turn.player != null && asset != null &&
-            SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out _))
-        {
-            hud.ShowFocusPreview(focusCost, Mathf.Max(0, bundle.totalSelfFocusGain), turn.player.focus < focusCost);
-        }
-    }
-
-    private CombatActor RaycastForActor(PointerEventData eventData)
-    {
-        // 1. Thử dùng dữ liệu raycast UI (áp dụng cho UI Elements hoặc World có PhysicsRaycaster)
-        GameObject hitGo = eventData.pointerCurrentRaycast.gameObject;
-        CombatActor actor = GetActorFromGameObject(hitGo);
-        if (actor != null) return actor;
-
-        // 2. Fallback: Dùng Physics2D (áp dụng cho World Objects với Collider2D nhưng thiếu PhysicsRaycaster trên Camera)
-        Camera cam = Camera.main;
-        if (cam != null)
-        {
-            Vector3 worldPos = cam.ScreenToWorldPoint(new Vector3(eventData.position.x, eventData.position.y, -cam.transform.position.z));
-            Collider2D hit = Physics2D.OverlapPoint(worldPos);
-            if (hit != null)
-            {
-                actor = GetActorFromGameObject(hit.gameObject);
-                if (actor != null) return actor;
-            }
-        }
-
-        return null;
-    }
-
-    private CombatActor GetActorFromGameObject(GameObject go)
-    {
-        if (go == null) return null;
-        TargetClickable2D clickable = go.GetComponent<TargetClickable2D>();
-        if (clickable == null) clickable = go.GetComponentInParent<TargetClickable2D>();
-
-        if (clickable != null)
-        {
-            CombatActor actor = clickable.GetComponent<CombatActor>();
-            if (actor == null) actor = clickable.GetComponentInParent<CombatActor>();
-            return actor;
-        }
-        return null;
-    }
+        => _previewController?.UpdateTargetPreviewUnderCursor(eventData);
 
     /// <summary>Public accessor so TargetClickable2D can get the expected die value for hover preview.</summary>
     public int GetPublicPreviewDieValue(SkillRuntime rt) => GetPreviewDieValue(rt);
-
-    private int GetPreviewDieValue(SkillRuntime rt)
-    {
-        if (turn == null || turn.diceRig == null || !turn.diceRig.HasRolledThisTurn)
-            return 0;
-
-        // Find the next available die that would be consumed by this skill
-        BuildSpentDiceSet();
-        int value = 0;
-        int slotsNeeded = Mathf.Clamp(rt.slotsRequired, 1, 3);
-        int found = 0;
-
-        for (int i = 0; i < 3 && found < slotsNeeded; i++)
-        {
-            if (!turn.diceRig.IsSlotActive(i)) continue;
-            DiceSpinnerGeneric die = turn.diceRig.GetDice(i);
-            if (die == null) continue;
-            if (_cachedSpentSet.Contains(die)) continue;
-
-            value += turn.diceRig.GetResolvedContribution(i, turn.player, rt.element);
-            found++;
-        }
-
-        return value;
-    }
-
-    // ---------------------------
-    // Targetability Overlay
-    // ---------------------------
-
-    private ActorWorldUI[] _cachedActorWorldUIs;
-    private bool _overlaysShown;
-
-    private void ShowTargetOverlays(ScriptableObject asset)
-    {
-        if (turn == null) return;
-
-        SkillRuntime runtime = null;
-        if (!(asset is SkillPassiveSO))
-            turn.TryGetPrototypeSkillTooltipRuntime(asset, out runtime);
-
-        _cachedActorWorldUIs = FindObjectsOfType<ActorWorldUI>(true);
-
-        foreach (ActorWorldUI ui in _cachedActorWorldUIs)
-        {
-            if (ui == null || ui.actor == null) continue;
-
-            CombatActor a = ui.actor;
-            bool isValid = false;
-
-            if (!a.IsDead)
-            {
-                if (runtime != null)
-                {
-                    isValid = TurnManagerTargetingUtility.IsValidTargetForPendingSkill(runtime, a, turn.player, turn.party, turn.enemy);
-                }
-                else
-                {
-                    // Fallback an toàn nếu không lấy được runtime (chủ yếu là cho kỹ năng passive hoặc lỗi)
-                    if (SkillUiMetadataUtility.TryGetTargetRule(asset, out SkillTargetRule rule))
-                    {
-                        bool isEnemySide = SkillTargetRuleUtility.IsEnemySideTarget(rule);
-                        bool isSelfOnly = rule == SkillTargetRule.Self;
-                        bool isAllySide = SkillTargetRuleUtility.IsAllySideTarget(rule);
-
-                        if (isSelfOnly)
-                            isValid = (a == turn.player);
-                        else if (isEnemySide)
-                            isValid = (a != turn.player && (turn.party == null || a.team != turn.player.team));
-                        else if (isAllySide)
-                            isValid = (a == turn.player || (turn.party != null && a.team == turn.player.team));
-                    }
-                }
-            }
-
-            if (isValid)
-                ui.ShowTargetOverlay(true);
-            else
-                ui.HideTargetOverlay();
-        }
-
-        _overlaysShown = true;
-    }
-
-    private void ClearTargetOverlays()
-    {
-        if (!_overlaysShown) return;
-        _overlaysShown = false;
-
-        ClearTargetPreviewIfActive();
-        _cachedDragRuntime = null;
-
-        if (_cachedActorWorldUIs != null)
-        {
-            foreach (ActorWorldUI ui in _cachedActorWorldUIs)
-            {
-                if (ui != null)
-                    ui.HideTargetOverlay();
-            }
-        }
-
-        _cachedActorWorldUIs = null;
-    }
-
     private void ApplyVisualState()
     {
         if (_img == null) return;
@@ -1277,4 +924,37 @@ public class DraggableSkillIcon : MonoBehaviour,
         if (!_lastVisualHasElement)
             _lastVisualElement = ElementType.Neutral;
     }
+
+    private int GetPreviewDieValue(SkillRuntime rt)
+    {
+        if (turn == null || turn.diceRig == null || rt == null || !turn.diceRig.HasRolledThisTurn)
+            return 0;
+
+        var spentDice = new HashSet<DiceSpinnerGeneric>();
+        if (turn.SpentDiceThisTurn != null)
+        {
+            foreach (DiceSpinnerGeneric die in turn.SpentDiceThisTurn)
+                spentDice.Add(die);
+        }
+
+        int value = 0;
+        int slotsNeeded = Mathf.Clamp(rt.slotsRequired, 1, 3);
+        int found = 0;
+
+        for (int i = 0; i < 3 && found < slotsNeeded; i++)
+        {
+            if (!turn.diceRig.IsSlotActive(i))
+                continue;
+
+            DiceSpinnerGeneric die = turn.diceRig.GetDice(i);
+            if (die == null || spentDice.Contains(die))
+                continue;
+
+            value += turn.diceRig.GetResolvedContribution(i, turn.player, rt.element);
+            found++;
+        }
+
+        return value;
+    }
 }
+

@@ -15,6 +15,43 @@ MonoBehaviour:
   icon: {fileID: 1192862653530567456, guid: 5a0d3fd8e60fcda41b083875f9a9dffd, type: 3}
   displayName: Ignite
   description: Apply "3 Burn". If Crit, +2 Added Value.
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: Apply {base1} {Burn}.
+    requirements: []
+    baseEffects:
+    - type: 1
+      target: 0
+      status: 1
+      value:
+        baseAmount: 3
+        mode: 1
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes:
+    - condition:
+        scope: 0
+        logic: 0
+        clauses:
+        - reference: 0
+          comparison: 0
+          value: 0
+      effects:
+      - type: 1
+        target: 0
+        status: 1
+        value:
+          baseAmount: 2
+          mode: 0
+          status: 1
+          divisor: 1
+          matchBaseValue: 7
+        previewable: 1
+    customHook:
+      kind: 0
+      reason: 
   spec:
     rarity: 0
     specState: 0

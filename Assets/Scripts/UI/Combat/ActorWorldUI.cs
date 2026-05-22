@@ -75,6 +75,8 @@ public class ActorWorldUI : MonoBehaviour
     public RectTransform guardRoot;
     public Image guardIcon;
     public TMP_Text guardText;
+    [Tooltip("Play mode only. When enabled, GuardRoot is shown only while Guard > 0. Edit mode never auto-hides it so the prefab can be adjusted freely.")]
+    public bool autoToggleGuardRootInPlayMode = true;
     public Vector2 hpBarSize = new Vector2(164f, 16f);
     public Color hpFillColor = new Color(0.92f, 0.22f, 0.2f, 1f);
     public Color hpGuardFillColor = new Color(0.13f, 0.62f, 0.95f, 1f);
@@ -485,7 +487,7 @@ public class ActorWorldUI : MonoBehaviour
         }
 
         // --- Guard preview ---
-        if (guardRoot != null)
+        if (guardRoot != null && Application.isPlaying && autoToggleGuardRootInPlayMode)
             guardRoot.gameObject.SetActive(guardAfter > 0);
         if (guardText != null)
             guardText.text = Mathf.Max(0, guardAfter).ToString();
@@ -705,13 +707,6 @@ public class ActorWorldUI : MonoBehaviour
         int safeHp = Mathf.Max(0, hp);
         int safeMaxHp = Mathf.Max(1, maxHp);
 
-        if (guardIcon != null)
-        {
-            if (TryGetStatusVisual(CombatUiStatusIconKind.Guard, out StatusVisualData guardData))
-                guardIcon.sprite = guardData.sprite;
-            else
-                guardIcon.sprite = null;
-        }
 
         if (hpText != null)
         {
@@ -731,7 +726,7 @@ public class ActorWorldUI : MonoBehaviour
             hpBarFill.color = staggered ? hpStaggerFillColor : (guard > 0 ? hpGuardFillColor : hpFillColor);
         }
 
-        if (guardRoot != null)
+        if (guardRoot != null && Application.isPlaying && autoToggleGuardRootInPlayMode)
             guardRoot.gameObject.SetActive(guard > 0);
         if (guardText != null)
             guardText.text = Mathf.Max(0, guard).ToString();

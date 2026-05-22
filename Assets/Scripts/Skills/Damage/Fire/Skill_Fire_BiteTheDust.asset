@@ -14,14 +14,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 1192862653530567456, guid: 5a0d3fd8e60fcda41b083875f9a9dffd, type: 3}
   displayName: Bite the Dust
-  description: Consume all Burn. Deal 1 damage per Burn consumed. For every 5 Burn consumed, heal 3 HP.
+  description: Consume all Burn. Deal 1 damage per Burn consumed. For every 5 Burn
+    consumed, heal 3 HP.
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: 
+    requirements: []
+    baseEffects: []
+    conditionalOutcomes: []
+    customHook:
+      kind: 0
+      reason: 
   spec:
     rarity: 2
     specState: 0
     buildRole: 1
     implementationCoverage: 1
-    normalizedText: Consume all Burn. Deal 1 damage per Burn consumed. For every 5 Burn consumed, heal 3 HP.
-    designIntent: Fire burn spender that converts large Burn stacks into damage and sustain.
+    normalizedText: Consume all Burn. Deal 1 damage per Burn consumed. For every
+      5 Burn consumed, heal 3 HP.
+    designIntent: Fire burn spender that converts large Burn stacks into damage and
+      sustain.
   behaviorFamily: 1
   fireBehaviorId: 5
   iceBehaviorId: 0

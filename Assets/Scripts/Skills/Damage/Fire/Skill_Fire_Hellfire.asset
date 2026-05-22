@@ -16,6 +16,62 @@ MonoBehaviour:
   displayName: Hellfire
   description: Requires target with Burn. Consume all Burn, deal 3 damage per Burn.
     Each die with Base 7 applies 7 Burn again.
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: '{Consume} all {Burn}. Deal {base2} damage.'
+    requirements:
+    - type: 0
+      failureText: Target needs Burn.
+      condition:
+        scope: 0
+        logic: 0
+        clauses:
+        - reference: 40
+          comparison: 6
+          value: 0
+    baseEffects:
+    - type: 2
+      target: 0
+      status: 1
+      value:
+        baseAmount: 0
+        mode: 0
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    - type: 0
+      target: 0
+      status: 1
+      value:
+        baseAmount: 3
+        mode: 3
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes:
+    - condition:
+        scope: 0
+        logic: 0
+        clauses:
+        - reference: 0
+          comparison: 2
+          value: 7
+      effects:
+      - type: 1
+        target: 0
+        status: 1
+        value:
+          baseAmount: 7
+          mode: 5
+          status: 1
+          divisor: 1
+          matchBaseValue: 7
+        previewable: 1
+    customHook:
+      kind: 0
+      reason: 
   spec:
     rarity: 3
     specState: 2

@@ -52,7 +52,7 @@ public class TurnManager : MonoBehaviour
     private readonly SkillPlanBoard _board = new SkillPlanBoard();
     private readonly CombatActorRuntimeContext _playerContext = new CombatActorRuntimeContext();
     private readonly EnemyTurnCoordinator _enemyTurnCoordinator = new EnemyTurnCoordinator();
-    private readonly Queue<QueuedPlayerCommand> _queuedPlayerCommands = new Queue<QueuedPlayerCommand>();
+    private readonly Queue<TurnManagerQueuedPlayerCommand> _queuedPlayerCommands = new Queue<TurnManagerQueuedPlayerCommand>();
     private int _cursor = 0;
     private readonly HashSet<DiceSpinnerGeneric> _spentDiceThisTurn = new HashSet<DiceSpinnerGeneric>();
     private bool _victoryResolvedThisCombat;
@@ -60,16 +60,6 @@ public class TurnManager : MonoBehaviour
     private bool _externalPlayerInteractionLock;
     private bool _isProcessingQueuedPlayerCommands;
     private Coroutine _autoRollCoroutine;
-
-    private struct QueuedPlayerCommand
-    {
-        public ScriptableObject asset;
-        public SkillRuntime runtime;
-        public CombatActor target;
-        public int resolvedSum;
-        public int maxFace;
-        public int start0;
-    }
 
     void Start()
     {
@@ -87,7 +77,7 @@ public class TurnManager : MonoBehaviour
         {
             diceRig.onAllDiceRolled += OnDiceRolled;
 
-            // ✅ hook dice debuff layer
+            // ? hook dice debuff layer
             diceRig.onComputeAllDiceDelta += ComputeAllDiceDelta;
 
             diceRig.BeginNewTurn();
@@ -328,7 +318,7 @@ public class TurnManager : MonoBehaviour
     }
 
     // ---------------------------
-    // Continue / Target flow (giữ như batch 3 của bạn)
+    // Continue / Target flow (gi? nhu batch 3 c?a b?n)
     // ---------------------------
     public void OnContinue()
     {
@@ -431,7 +421,7 @@ public class TurnManager : MonoBehaviour
 
         MarkDiceSpentInRange(start0, span);
         _board.ConsumeGroupAtAnchor_NoRefund(_cursor);
-        _queuedPlayerCommands.Enqueue(new QueuedPlayerCommand
+        _queuedPlayerCommands.Enqueue(new TurnManagerQueuedPlayerCommand
         {
             asset = asset,
             runtime = rt,
@@ -441,7 +431,7 @@ public class TurnManager : MonoBehaviour
             start0 = start0,
         });
 
-        // ✅ ROUTE: BuffDebuff phải gọi overload SkillBuffDebuffSO, runtime Utility không làm gì
+        // ? ROUTE: BuffDebuff ph?i g?i overload SkillBuffDebuffSO, runtime Utility kh�ng l�m g�
         _cursor = FindNextExecutableAnchor();
         SetPhase(Phase.Planning);
         RefreshAllViews();
@@ -476,34 +466,9 @@ public class TurnManager : MonoBehaviour
         RefreshPlanningInteractivity();
     }
 
-    private IEnumerator ExecuteQueuedCommand(QueuedPlayerCommand command)
+    private IEnumerator ExecuteQueuedCommand(TurnManagerQueuedPlayerCommand command)
     {
-        if (command.asset == null || executor == null)
-            yield break;
-
-        if (command.asset is SkillBuffDebuffSO buffSkill)
-        {
-            var aoeTargets = SkillTargetRuleUtility.IsMultiTarget(buffSkill.target)
-                ? TurnManagerCombatUtility.ResolveTargets(buffSkill.target, player, command.target, party, enemy)
-                : null;
-
-            if (logPhase)
-                Debug.Log($"[TM] Branch=BuffDebuff -> {buffSkill.name} targetRule={buffSkill.target} delay={buffSkill.applyDelayTurns} effects={(buffSkill.effects != null ? buffSkill.effects.Count : 0)} applyAilment={buffSkill.applyAilment}", this);
-
-            yield return executor.ExecuteSkill(buffSkill, player, command.target, command.resolvedSum, command.maxFace, skipCost: true, aoeTargets: aoeTargets);
-        }
-        else
-        {
-            var aoeTargets = TurnManagerCombatUtility.ResolveAoeTargets(command.runtime, player, command.target, party, enemy);
-
-            if (logPhase)
-                Debug.Log($"[TM] Branch=Runtime (Attack/Guard/Legacy) -> rt.kind={command.runtime.kind}", this);
-
-            yield return executor.ExecuteSkill(command.runtime, player, command.target, command.resolvedSum, skipCost: true, aoeTargets: aoeTargets);
-
-            if (IsBasicStrikeRuntime(command.runtime))
-                _playerContext.HandleBasicStrikeUse(diceRig, command.start0);
-        }
+        yield return TurnManagerCommandExecutionUtility.ExecuteQueuedCommand(command, executor, player, party, enemy, diceRig, _playerContext, logPhase, this);
 
         if (TryHandleCombatDefeat())
             yield break;
@@ -515,7 +480,6 @@ public class TurnManager : MonoBehaviour
         RefreshAllViews();
         RefreshPlanningInteractivity();
     }
-
     private IEnumerator EnemyTurnRoutine()
     {
         SetPhase(Phase.EnemyTurn);
@@ -528,10 +492,10 @@ public class TurnManager : MonoBehaviour
         if (player != null && playerSkillState != null)
             playerSkillState.BeginEnemyTurn(player.hp);
 
-        // ✅ Intent fade out when enemy turn starts (STS feel)
+        // ? Intent fade out when enemy turn starts (STS feel)
         TurnManagerViewUtility.FadeEnemyIntents(TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, enemy), 0.25f);
 
-        // ✅ Delay trước enemy đầu tiên (để không đánh ngay lập tức khi vừa bấm Continue)
+        // ? Delay tru?c enemy d?u ti�n (d? kh�ng d�nh ngay l?p t?c khi v?a b?m Continue)
         if (delayBetweenEnemyAttacks > 0f)
             yield return new WaitForSeconds(delayBetweenEnemyAttacks);
 
@@ -561,7 +525,7 @@ public class TurnManager : MonoBehaviour
             {
                 if (e.status != null) e.status.OnOwnerTurnEnded();
 
-                // ✅ Nhịp đều: skip cũng delay như một lượt “hành động”
+                // ? Nh?p d?u: skip cung delay nhu m?t lu?t �h�nh d?ng�
                 if (delayBetweenEnemyAttacks > 0f)
                     yield return new WaitForSeconds(delayBetweenEnemyAttacks);
 
@@ -572,7 +536,7 @@ public class TurnManager : MonoBehaviour
             {
                 var brain = e.GetComponent<EnemyBrainController>();
 
-                // nếu có brain+definition thì cast skill thật
+                // n?u c� brain+definition th� cast skill th?t
                 if (brain != null && brain.definition != null && brain.definition.moves != null && brain.definition.moves.Count > 0)
                 {
 
@@ -580,7 +544,7 @@ public class TurnManager : MonoBehaviour
                     {
                         var move = brain.definition.moves[brain.CurrentIntent.moveIndex];
 
-                        // chọn skill để cast: ưu tiên BuffDebuff nếu có, không thì Damage
+                        // ch?n skill d? cast: uu ti�n BuffDebuff n?u c�, kh�ng th� Damage
                         if (move.buffDebuffSkill != null)
                         {
                             // resolve target cho buff/debuff
@@ -598,7 +562,7 @@ public class TurnManager : MonoBehaviour
                                     break;
 
                                 case SkillTargetRule.SingleAlly:
-                                    // ✅ heal ally yếu nhất nếu move tag Heal
+                                    // ? heal ally y?u nh?t n?u move tag Heal
                                     if ((move.tags & EnemyDefinitionSO.EnemyMoveTag.Heal) != 0)
                                         clicked = brain.PickMostInjuredEnemyAlly(party, includeSelf: true);
                                     else
@@ -626,10 +590,10 @@ public class TurnManager : MonoBehaviour
                                     break;
                             }
 
-                            // nếu SingleAlly heal mà không ai thiếu máu => fallback attack nhẹ (hoặc skip)
+                            // n?u SingleAlly heal m� kh�ng ai thi?u m�u => fallback attack nh? (ho?c skip)
                             if (move.buffDebuffSkill.target == SkillTargetRule.SingleAlly && clicked == null)
                             {
-                                // fallback: đánh player bằng damageSkill nếu có
+                                // fallback: d�nh player b?ng damageSkill n?u c�
                                 if (move.damageSkill != null)
                                     yield return executor.ExecuteSkill(move.damageSkill, e, player, dieValue: 3, skipCost: true);
                             }
@@ -652,7 +616,7 @@ public class TurnManager : MonoBehaviour
                             {
                                 case SkillTargetRule.Self: target = e; break;
                                 case SkillTargetRule.SingleEnemy: target = player; break;
-                                case SkillTargetRule.SingleAlly: target = e; break; // damage hiếm khi dùng
+                                case SkillTargetRule.SingleAlly: target = e; break; // damage hi?m khi d�ng
                                 case SkillTargetRule.RowEnemies:
                                 case SkillTargetRule.AllEnemies:
                                     target = player;
@@ -670,7 +634,7 @@ public class TurnManager : MonoBehaviour
                                 yield return executor.ExecuteSkill(move.damageSkill, e, target, dieValue: 3, skipCost: true, aoeTargets: aoe);
                         }
 
-                        // consume intent + tick cooldown turn (tối thiểu để cooldown hoạt động)
+                        // consume intent + tick cooldown turn (t?i thi?u d? cooldown ho?t d?ng)
                         brain.ConsumeCurrentIntent();
                         brain.AdvanceTurnTick();
                         brain.DecideNextIntent(player);
@@ -683,7 +647,7 @@ public class TurnManager : MonoBehaviour
                     }
                 }
 
-                // fallback cuối cùng nếu chưa có brain/move/skill
+                // fallback cu?i c�ng n?u chua c� brain/move/skill
                 player.TakeDamage(4, bypassGuard: false);
                 if (delayBetweenEnemyAttacks > 0f)
                     yield return new WaitForSeconds(delayBetweenEnemyAttacks);
@@ -741,7 +705,7 @@ public class TurnManager : MonoBehaviour
             StopCoroutine(_autoRollCoroutine);
         _autoRollCoroutine = StartCoroutine(AutoRollPlayerTurnIfNeeded());
 
-        // ✅ Ensure enemy has intent for THIS upcoming enemy turn (STS style)
+        // ? Ensure enemy has intent for THIS upcoming enemy turn (STS style)
         TurnManagerViewUtility.EnsureEnemyIntentsNow(TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, enemy), player);
     }
 

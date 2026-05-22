@@ -547,7 +547,7 @@ public static class RewardGachaGenerator
     private static string GetSkillDescription(ScriptableObject asset)
     {
         if (asset is SkillDamageSO damage)
-            return damage.description;
+            return damage.GetAuthoringDescription();
         if (asset is SkillBuffDebuffSO buff)
             return buff.description;
         return string.Empty;

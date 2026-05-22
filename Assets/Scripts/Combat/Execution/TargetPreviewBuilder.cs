@@ -87,6 +87,10 @@ public static class TargetPreviewBuilder
         if (rt == null || caster == null)
             return bundle;
 
+        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
+        if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+            return BuildResolvedGameplayBundle(rt, caster, clickedTarget, bundle);
+
         List<CombatActor> actionTargets = ResolveActionTargets(rt, caster, clickedTarget, party, fallbackEnemy);
         if (actionTargets.Count <= 0)
             return bundle;
@@ -132,6 +136,82 @@ public static class TargetPreviewBuilder
         return bundle;
     }
 
+    private static ActionPreviewBundle BuildResolvedGameplayBundle(
+        SkillRuntime rt,
+        CombatActor caster,
+        CombatActor clickedTarget,
+        ActionPreviewBundle bundle)
+    {
+        SkillResolvedResult resolved = SkillGameplayResolver.Resolve(rt, caster, clickedTarget);
+        if (resolved == null || !resolved.canCast || resolved.effects == null)
+            return bundle;
+
+        PassiveSystem passiveSystem = caster != null ? caster.GetComponent<PassiveSystem>() : null;
+        for (int i = 0; i < resolved.effects.Count; i++)
+        {
+            ResolvedEffect effect = resolved.effects[i];
+            if (effect == null || !effect.previewable)
+                continue;
+
+            CombatActor effectTarget = effect.targetActor != null ? effect.targetActor : clickedTarget;
+            if (effectTarget == null)
+                continue;
+
+            if (!bundle.targetPreviews.TryGetValue(effectTarget, out TargetPreviewData data))
+                data = CreateBaselineData(caster, effectTarget);
+
+            int value = Mathf.Max(0, effect.value);
+            switch (effect.type)
+            {
+                case SkillEffectType.DealDamage:
+                    ApplyDamageToData(effectTarget, ref data, value, rt.bypassGuard, rt.clearsGuard, canBreakGuard: true, canConsumeStagger: false);
+                    break;
+                case SkillEffectType.ApplyStatus:
+                    ApplyResolvedStatusPreview(effect.status, value, passiveSystem, ref data);
+                    break;
+                case SkillEffectType.ConsumeStatus:
+                    if (effect.status == StatusKind.Burn)
+                        data.previewBurnAfter = 0;
+                    break;
+                case SkillEffectType.GainGuard:
+                    if (effectTarget == caster)
+                        data.selfGuardGain += value;
+                    else
+                        data.previewGuardAfter += value;
+                    break;
+                case SkillEffectType.Heal:
+                    if (effectTarget == caster)
+                        data.selfHealGain += value;
+                    data.previewHpAfter = Mathf.Min(data.currentMaxHp, data.previewHpAfter + value);
+                    data.hpLost = data.currentHp - data.previewHpAfter;
+                    break;
+                case SkillEffectType.GainAP:
+                    if (effectTarget == caster)
+                        data.selfFocusGain += value;
+                    break;
+            }
+
+            bundle.targetPreviews[effectTarget] = data;
+            bundle.valid |= data.valid;
+        }
+
+        foreach (var pair in bundle.targetPreviews)
+        {
+            bundle.totalSelfFocusGain += Mathf.Max(0, pair.Value.selfFocusGain);
+            bool previewAlreadyOnCaster = pair.Key == caster && (rt.kind == SkillKind.Guard || rt.kind == SkillKind.Utility);
+            if (!previewAlreadyOnCaster)
+                bundle.totalSelfGuardGain += Mathf.Max(0, pair.Value.selfGuardGain);
+            bundle.totalSelfHealGain += Mathf.Max(0, pair.Value.selfHealGain);
+        }
+
+        if (bundle.totalSelfGuardGain > 0)
+            AddCasterGuardPreview(caster, bundle.totalSelfGuardGain, ref bundle);
+        if (bundle.totalSelfHealGain > 0)
+            AddCasterHealPreview(caster, bundle.totalSelfHealGain, ref bundle);
+
+        return bundle;
+    }
+
     private static TargetPreviewData CreateBaselineData(CombatActor caster, CombatActor target)
     {
         TargetPreviewData data = default;
@@ -169,6 +249,13 @@ public static class TargetPreviewBuilder
     {
         SkillExecutor.AttackPreview ap = AttackPreviewCalculator.BuildAttackPreview(rt, caster, target, dieValue);
         ApplyDamageToData(target, ref data, ap.finalDamage, rt.bypassGuard, rt.clearsGuard, canBreakGuard: true, canConsumeStagger: ap.consumesStagger);
+
+        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
+        if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+        {
+            ApplyResolvedGameplayPreview(rt, caster, target, ref data);
+            return;
+        }
 
         PassiveSystem ps = caster != null ? caster.GetComponent<PassiveSystem>() : null;
         bool targetHadBurnBeforeHit = data.currentBurn > 0;
@@ -273,6 +360,67 @@ public static class TargetPreviewBuilder
             int guardIndex = SkillBehaviorRuntimeUtility.GetHighestBaseValueIndex(rt);
             int guard = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, guardIndex);
             data.selfGuardGain += Mathf.Max(0, guard);
+        }
+    }
+
+    private static void ApplyResolvedGameplayPreview(SkillRuntime rt, CombatActor caster, CombatActor target, ref TargetPreviewData data)
+    {
+        SkillResolvedResult resolved = SkillGameplayResolver.Resolve(rt, caster, target);
+        if (resolved == null || resolved.effects == null)
+            return;
+
+        PassiveSystem passiveSystem = caster != null ? caster.GetComponent<PassiveSystem>() : null;
+        for (int i = 0; i < resolved.effects.Count; i++)
+        {
+            ResolvedEffect effect = resolved.effects[i];
+            if (effect == null || !effect.previewable)
+                continue;
+
+            int value = Mathf.Max(0, effect.value);
+            switch (effect.type)
+            {
+                case SkillEffectType.ApplyStatus:
+                    ApplyResolvedStatusPreview(effect.status, value, passiveSystem, ref data);
+                    break;
+                case SkillEffectType.ConsumeStatus:
+                    if (effect.status == StatusKind.Burn)
+                        data.previewBurnAfter = 0;
+                    break;
+                case SkillEffectType.GainGuard:
+                    if (effect.target == SkillEffectTarget.Self)
+                        data.selfGuardGain += value;
+                    break;
+                case SkillEffectType.Heal:
+                    if (effect.target == SkillEffectTarget.Self)
+                        data.selfHealGain += value;
+                    break;
+                case SkillEffectType.GainAP:
+                    if (effect.target == SkillEffectTarget.Self)
+                        data.selfFocusGain += value;
+                    break;
+            }
+        }
+    }
+
+    private static void ApplyResolvedStatusPreview(StatusKind status, int value, PassiveSystem passiveSystem, ref TargetPreviewData data)
+    {
+        if (value <= 0 && status != StatusKind.Mark && status != StatusKind.Freeze)
+            return;
+
+        switch (status)
+        {
+            case StatusKind.Burn:
+                data.previewBurnAfter += value + (passiveSystem != null ? passiveSystem.GetBonusStatusStacksApplied(StatusKind.Burn) : 0);
+                break;
+            case StatusKind.Mark:
+                data.previewMarkedAfter = true;
+                break;
+            case StatusKind.Bleed:
+                data.previewBleedAfter += value + (passiveSystem != null ? passiveSystem.GetBonusStatusStacksApplied(StatusKind.Bleed) : 0);
+                break;
+            case StatusKind.Freeze:
+                data.previewFrozenAfter = true;
+                break;
         }
     }
 

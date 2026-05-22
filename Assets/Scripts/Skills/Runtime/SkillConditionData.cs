@@ -67,28 +67,39 @@ public enum SkillConditionReference
 
 public enum SkillConditionComparison
 {
+    [InspectorName("Odd")]
     IsOdd,
+    [InspectorName("Even")]
     IsEven,
+    [InspectorName("=")]
     Equals,
+    [InspectorName("!=")]
     NotEquals,
+    [InspectorName(">=")]
     GreaterOrEqual,
+    [InspectorName("<=")]
     LessOrEqual,
+    [InspectorName("True")]
     IsTrue,
+    [InspectorName("False")]
     IsFalse,
 }
 
 [Serializable, InlineProperty]
 public class SkillConditionClause
 {
-    [HorizontalGroup("Row", Width = 200)]
+    [ShowInInspector, ReadOnly, HideLabel]
+    [PropertyOrder(-10)]
+    public string Summary => NeedsValue
+        ? $"{reference} {comparison} {value}"
+        : $"{reference} {comparison}";
+
     [LabelText("Reference")]
     public SkillConditionReference reference = SkillConditionReference.AnyBaseValue;
 
-    [HorizontalGroup("Row", Width = 150)]
     [LabelText("Compare")]
     public SkillConditionComparison comparison = SkillConditionComparison.IsOdd;
 
-    [HorizontalGroup("Row")]
     [ShowIf(nameof(NeedsValue))]
     [LabelText("Value")]
     public int value = 0;
@@ -132,13 +143,16 @@ public class SkillConditionContext
 [Serializable]
 public class SkillConditionData
 {
+    [HideLabel]
     [EnumToggleButtons]
     public SkillConditionScope scope = SkillConditionScope.SlotBound;
 
+    [HideLabel]
     [EnumToggleButtons]
     public SkillConditionLogic logic = SkillConditionLogic.All;
 
-    [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = true)]
+    [HideLabel]
+    [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<SkillConditionClause> clauses = new List<SkillConditionClause>();
 
     public bool HasAnyClause => clauses != null && clauses.Count > 0;

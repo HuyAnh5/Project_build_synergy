@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
@@ -162,6 +162,14 @@ public class SkillExecutor : MonoBehaviour
         if (!useAoe && !SkillUsageRequirementUtility.IsTargetRequirementMet(rt, primaryTarget))
             yield break;
 
+        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
+        if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+        {
+            SkillResolvedResult resolved = SkillGameplayResolver.Resolve(rt, caster, primaryTarget);
+            if (resolved == null || !resolved.canCast)
+                yield break;
+        }
+
         if (!skipCost && rt.focusCost > 0)
         {
             if (!caster.TrySpendFocus(rt.focusCost))
@@ -184,7 +192,12 @@ public class SkillExecutor : MonoBehaviour
             int scaledGuard = Mathf.FloorToInt(baseGuard * mult);
 
             caster.AddGuard(scaledGuard);
+            if (scaledGuard > 0)
+                CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Guard);
+
             caster.GainFocus(rt.focusGainOnCast);
+            if (rt.focusGainOnCast > 0)
+                CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Focus);
 
             yield return new WaitForSeconds(delayBetweenActions);
             yield break;
@@ -452,6 +465,7 @@ public class SkillExecutor : MonoBehaviour
             if (t.team == caster.team) continue;
 
             var res = t.TakeDamageDetailed(damage, bypassGuard: false);
+            CombatHitFeedback.Play(t, CombatHitFeedback.FeedbackKind.Hit);
             if (popups != null)
                 popups.SpawnDamageSplit(caster, t, res.blocked, res.hpLost);
         }
@@ -464,6 +478,7 @@ public class SkillExecutor : MonoBehaviour
 
         var popups = GetPopups();
         var result = target.TakeDamageDetailed(damage, bypassGuard: false);
+        CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.BurnConsume);
         if (popups != null)
             popups.SpawnDamageSplit(caster, target, result.blocked, result.hpLost);
     }

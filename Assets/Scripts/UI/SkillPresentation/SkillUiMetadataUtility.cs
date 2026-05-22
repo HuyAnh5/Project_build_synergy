@@ -162,7 +162,7 @@ public static class SkillUiMetadataUtility
         switch (asset)
         {
             case SkillDamageSO damage:
-                return damage.description ?? string.Empty;
+                return damage.GetAuthoringDescription();
             case SkillBuffDebuffSO buffDebuff:
                 return buffDebuff.description ?? string.Empty;
             case SkillPassiveSO passive:

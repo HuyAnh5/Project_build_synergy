@@ -19,6 +19,26 @@ internal static class SkillAttackResolutionUtility
         if (targets == null)
             return 0;
 
+        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
+        if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+        {
+            CombatActor primaryTarget = null;
+            for (int i = 0; i < targets.Count; i++)
+            {
+                if (targets[i] != null && !targets[i].IsDead)
+                {
+                    primaryTarget = targets[i];
+                    break;
+                }
+            }
+
+            if (primaryTarget == null)
+                return 0;
+
+            ApplyAttack(rt, caster, primaryTarget, dieValue, popups, context, buildAttackPreview);
+            return 0;
+        }
+
         for (int i = 0; i < targets.Count; i++)
         {
             CombatActor t = targets[i];
@@ -45,6 +65,10 @@ internal static class SkillAttackResolutionUtility
     {
         if (rt == null || target == null || buildAttackPreview == null)
             return default;
+
+        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
+        if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+            return ApplyResolvedGameplayAttack(rt, caster, target, popups, context);
 
         PassiveSystem ps = caster != null ? caster.GetComponent<PassiveSystem>() : null;
         bool hadGuardBeforeHit = target.guardPool > 0;
@@ -97,6 +121,10 @@ internal static class SkillAttackResolutionUtility
 
         int immediateDamage = splitBurnConsumeStep ? preview.primaryDamage : preview.finalDamage;
         CombatActor.DamageResult dmgResult = target.TakeDamageDetailed(immediateDamage, bypassGuard: info.bypassGuard);
+        if (immediateDamage > 0)
+            CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Hit);
+        if (delayedBurnConsumeDamage > 0)
+            CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.BurnConsume);
 
         if (info.isDamage &&
             rt.element == ElementType.Ice &&
@@ -110,7 +138,10 @@ internal static class SkillAttackResolutionUtility
             {
                 int guardReward = Mathf.Max(0, rt.iceRewardGuard);
                 if (guardReward > 0)
+                {
                     caster.AddGuard(guardReward);
+                    CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Guard);
+                }
 
                 int focusReward = Mathf.Max(0, rt.iceRewardFocus);
                 if (focusReward > 0)
@@ -118,6 +149,7 @@ internal static class SkillAttackResolutionUtility
                     if (ps != null)
                         focusReward += ps.GetFreezeBreakFocusBonusAdd();
                     caster.GainFocus(focusReward);
+                    CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Focus);
                 }
             }
         }
@@ -131,11 +163,17 @@ internal static class SkillAttackResolutionUtility
             if (reward > 0 && ps != null)
                 reward += ps.GetFreezeBreakFocusBonusAdd();
             if (reward != 0)
+            {
                 caster.GainFocus(reward);
+                CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Focus);
+            }
         }
 
         if (triggerMarkPayoff && target.status != null)
+        {
+            CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.MarkPayoff);
             target.status.marked = false;
+        }
 
         if (preview.consumesStagger && target.status != null)
             target.status.ClearStagger();
@@ -162,6 +200,183 @@ internal static class SkillAttackResolutionUtility
             hadPrimaryDamageStep = preview.primaryDamage > 0,
             delayedBurnConsumeDamage = delayedBurnConsumeDamage
         };
+    }
+
+    private static SkillExecutor.AttackApplyResult ApplyResolvedGameplayAttack(
+        SkillRuntime rt,
+        CombatActor caster,
+        CombatActor target,
+        DamagePopupSystem popups,
+        MonoBehaviour context)
+    {
+        SkillResolvedResult resolved = SkillGameplayResolver.Resolve(rt, caster, target);
+        if (resolved == null || !resolved.canCast || target == null)
+            return default;
+
+        var info = new DamageInfo
+        {
+            group = rt.group,
+            element = rt.element,
+            bypassGuard = rt.bypassGuard,
+            clearsGuard = rt.clearsGuard,
+            canUseMarkMultiplier = rt.canUseMarkMultiplier,
+            isDamage = false
+        };
+
+        if (Debug.isDebugBuild)
+            Debug.Log($"[EXEC] ApplyResolvedGameplayAttack rt={rt.kind}/{rt.group}/{rt.element} effects={resolved.effects.Count}", context);
+
+        CombatActor.DamageResult aggregateDamageResult = default;
+        int totalDamage = 0;
+        for (int i = 0; i < resolved.effects.Count; i++)
+        {
+            ResolvedEffect effect = resolved.effects[i];
+            if (effect == null || effect.type != SkillEffectType.DealDamage)
+                continue;
+
+            CombatActor effectTarget = effect.targetActor != null ? effect.targetActor : target;
+            if (effectTarget == null || effectTarget.IsDead)
+                continue;
+
+            int damage = Mathf.Max(0, effect.value);
+            if (damage <= 0)
+                continue;
+
+            info.isDamage = true;
+            totalDamage += damage;
+            CombatActor.DamageResult damageResult = effectTarget.TakeDamageDetailed(damage, bypassGuard: info.bypassGuard);
+            CombatHitFeedback.Play(effectTarget, CombatHitFeedback.FeedbackKind.Hit);
+            aggregateDamageResult.blocked += damageResult.blocked;
+            aggregateDamageResult.hpLost += damageResult.hpLost;
+            aggregateDamageResult.guardBroken |= damageResult.guardBroken;
+
+            if (info.clearsGuard)
+                effectTarget.guardPool = 0;
+
+            if (effectTarget.status != null && caster != null)
+            {
+                int reward = effectTarget.status.OnHitByDamageReturnFocusReward(ref info);
+                if (reward != 0)
+                {
+                    caster.GainFocus(reward);
+                    CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Focus);
+                }
+            }
+
+            if (damageResult.guardBroken && effectTarget.status != null)
+                effectTarget.status.ApplyStagger();
+
+            if (popups != null)
+                popups.SpawnDamageSplit(caster, effectTarget, damageResult.blocked, damageResult.hpLost);
+        }
+
+        ApplyResolvedGameplayEffects(resolved, caster, target);
+
+        return new SkillExecutor.AttackApplyResult
+        {
+            damageResult = aggregateDamageResult,
+            lightningShockProcCount = 0,
+            lightningShockDamage = 0,
+            consumedStagger = false,
+            hadPrimaryDamageStep = totalDamage > 0,
+            delayedBurnConsumeDamage = 0
+        };
+    }
+
+    private static void ApplyResolvedGameplayEffects(SkillResolvedResult resolved, CombatActor caster, CombatActor selectedTarget)
+    {
+        if (resolved == null || resolved.effects == null)
+            return;
+
+        PassiveSystem passiveSystem = caster != null ? caster.GetComponent<PassiveSystem>() : null;
+        for (int i = 0; i < resolved.effects.Count; i++)
+        {
+            ResolvedEffect effect = resolved.effects[i];
+            if (effect == null || effect.type == SkillEffectType.DealDamage)
+                continue;
+
+            CombatActor target = effect.targetActor != null
+                ? effect.targetActor
+                : ResolveEffectTarget(effect.target, caster, selectedTarget);
+            if (target == null)
+                continue;
+
+            int value = Mathf.Max(0, effect.value);
+            switch (effect.type)
+            {
+                case SkillEffectType.ApplyStatus:
+                    ApplyResolvedStatus(effect.status, target, value, passiveSystem);
+                    break;
+                case SkillEffectType.GainGuard:
+                    target.AddGuard(value);
+                    if (value > 0)
+                        CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Guard);
+                    break;
+                case SkillEffectType.Heal:
+                    if (target.Heal(value) > 0)
+                        CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Heal);
+                    break;
+                case SkillEffectType.GainAP:
+                    target.GainFocus(value);
+                    if (value > 0)
+                        CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Focus);
+                    break;
+                case SkillEffectType.ConsumeStatus:
+                    ConsumeResolvedStatus(effect.status, target, value);
+                    break;
+            }
+        }
+    }
+
+    private static CombatActor ResolveEffectTarget(SkillEffectTarget target, CombatActor caster, CombatActor selectedTarget)
+    {
+        switch (target)
+        {
+            case SkillEffectTarget.Self:
+                return caster;
+            case SkillEffectTarget.SelectedEnemy:
+            case SkillEffectTarget.RowEnemies:
+            case SkillEffectTarget.AllEnemies:
+            default:
+                return selectedTarget;
+        }
+    }
+
+    private static void ApplyResolvedStatus(StatusKind status, CombatActor target, int value, PassiveSystem passiveSystem)
+    {
+        if (target == null || target.status == null || value <= 0)
+            return;
+
+        switch (status)
+        {
+            case StatusKind.Burn:
+                target.status.ApplyBurn(value + GetBonusStatusStacks(passiveSystem, StatusKind.Burn), 3);
+                break;
+            case StatusKind.Mark:
+                target.status.ApplyMark();
+                break;
+            case StatusKind.Bleed:
+                target.status.ApplyBleed(value + GetBonusStatusStacks(passiveSystem, StatusKind.Bleed));
+                break;
+            case StatusKind.Freeze:
+                target.status.ApplyFreeze();
+                break;
+        }
+    }
+
+    private static int GetBonusStatusStacks(PassiveSystem passiveSystem, StatusKind status)
+        => passiveSystem != null ? passiveSystem.GetBonusStatusStacksApplied(status) : 0;
+
+    private static void ConsumeResolvedStatus(StatusKind status, CombatActor target, int expectedStacks)
+    {
+        if (target == null || target.status == null)
+            return;
+
+        if (status == StatusKind.Burn && expectedStacks > 0)
+        {
+            target.status.ConsumeAllBurn();
+            CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.BurnConsume);
+        }
     }
 
     public static void ApplyStatusesAfterHit(SkillRuntime rt, CombatActor caster, CombatActor target, int dieValue, int finalDamage, bool targetHadBurnBeforeHit)
@@ -260,7 +475,10 @@ internal static class SkillAttackResolutionUtility
         {
             int conditionalGuard = GetConditionalGuardValue(rt, dieValue);
             if (conditionalGuard > 0)
+            {
                 caster.AddGuard(conditionalGuard);
+                CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Guard);
+            }
         }
     }
 
@@ -321,7 +539,10 @@ internal static class SkillAttackResolutionUtility
         {
             int heal = Mathf.FloorToInt(Mathf.Max(0, targetBurnStacksBeforeHit) / 5f) * 3;
             if (heal > 0)
+            {
                 caster.Heal(heal);
+                CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Heal);
+            }
             return;
         }
 
@@ -354,7 +575,10 @@ internal static class SkillAttackResolutionUtility
                 int guardIndex = SkillBehaviorRuntimeUtility.GetHighestBaseValueIndex(rt);
                 int guard = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, guardIndex);
                 if (guard > 0)
+                {
                     caster.AddGuard(guard);
+                    CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Guard);
+                }
             }
             return;
         }
@@ -382,7 +606,10 @@ internal static class SkillAttackResolutionUtility
         {
             int guard = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, 1);
             if (guard > 0)
+            {
                 caster.AddGuard(guard);
+                CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Guard);
+            }
             return;
         }
 
@@ -526,6 +753,7 @@ internal static class SkillAttackResolutionUtility
 
             case SplitRoleBranchOutcome.Guard:
                 caster.AddGuard(value);
+                CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Guard);
                 break;
         }
     }

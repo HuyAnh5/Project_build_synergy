@@ -7,10 +7,10 @@ public static class SkillOutputValueUtility
         int safeBase = Mathf.Max(0, baseValue);
         int safeResolved = Mathf.Max(0, resolvedValue);
         int addedValue = Mathf.Max(0, safeResolved - safeBase);
-        int adjustedBase = appliesFailPenalty ? Mathf.FloorToInt(safeBase * 0.5f) : safeBase;
-        int total = Mathf.Max(0, adjustedBase) + addedValue;
+        int unmodifiedTotal = safeBase + addedValue;
+        int total = appliesFailPenalty ? Mathf.FloorToInt(unmodifiedTotal * 0.5f) : unmodifiedTotal;
 
-        if (safeBase > 0 && total < 1)
+        if (unmodifiedTotal > 0 && total < 1)
             total = 1;
 
         return Mathf.Max(0, total);
@@ -42,13 +42,12 @@ public static class SkillOutputValueUtility
     public static int AddActionAddedValue(int baseAmount, SkillRuntime rt)
     {
         int safeBase = Mathf.Max(0, baseAmount);
-        int adjustedBase = safeBase;
-        if (rt != null && rt.localFailPenaltyAny)
-            adjustedBase = Mathf.FloorToInt(safeBase * 0.5f);
+        int unmodifiedTotal = safeBase + GetTotalActionAddedValue(rt);
+        int total = (rt != null && rt.localFailPenaltyAny)
+            ? Mathf.FloorToInt(unmodifiedTotal * 0.5f)
+            : unmodifiedTotal;
 
-        int total = Mathf.Max(0, adjustedBase) + GetTotalActionAddedValue(rt);
-
-        if (safeBase > 0 && total < 1)
+        if (unmodifiedTotal > 0 && total < 1)
             total = 1;
 
         return Mathf.Max(0, total);
@@ -68,12 +67,12 @@ public static class SkillOutputValueUtility
         for (int i = 0; i < rt.localBaseValues.Count; i++)
             baseOutput += Mathf.Max(0, rt.localBaseValues[i]);
 
-        int adjustedBase = baseOutput;
-        if (rt.localFailPenaltyAny)
-            adjustedBase = Mathf.FloorToInt(baseOutput * 0.5f);
+        int unmodifiedTotal = baseOutput + GetTotalActionAddedValue(rt);
+        int total = rt.localFailPenaltyAny
+            ? Mathf.FloorToInt(unmodifiedTotal * 0.5f)
+            : unmodifiedTotal;
 
-        int total = Mathf.Max(0, adjustedBase) + GetTotalActionAddedValue(rt);
-        if (baseOutput > 0 && total < 1)
+        if (unmodifiedTotal > 0 && total < 1)
             total = 1;
 
         return Mathf.Max(0, total);

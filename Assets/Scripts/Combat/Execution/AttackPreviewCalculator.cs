@@ -22,6 +22,31 @@ public static class AttackPreviewCalculator
         if (rt == null || rt.kind != SkillKind.Attack)
             return preview;
 
+        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
+        if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+        {
+            SkillResolvedResult resolved = SkillGameplayResolver.Resolve(rt, caster, target);
+            int damage = 0;
+            if (resolved != null && resolved.effects != null)
+            {
+                for (int i = 0; i < resolved.effects.Count; i++)
+                {
+                    ResolvedEffect effect = resolved.effects[i];
+                    if (effect == null || effect.type != SkillEffectType.DealDamage)
+                        continue;
+                    if (effect.targetActor != null && effect.targetActor != target)
+                        continue;
+                    damage += Mathf.Max(0, effect.value);
+                }
+            }
+
+            preview.baseDamage = Mathf.Max(0, damage);
+            preview.finalDamage = preview.baseDamage;
+            preview.primaryDamage = preview.finalDamage;
+            preview.canDealDamage = preview.finalDamage > 0;
+            return preview;
+        }
+
         preview.baseDamage = rt.CalculateDamage(preview.effectiveDieValue);
         ApplyBaseEffectPreview(rt, ref preview);
 
