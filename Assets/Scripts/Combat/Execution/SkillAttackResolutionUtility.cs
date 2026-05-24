@@ -228,6 +228,7 @@ internal static class SkillAttackResolutionUtility
 
         CombatActor.DamageResult aggregateDamageResult = default;
         int totalDamage = 0;
+        bool consumedAnyStagger = false;
         for (int i = 0; i < resolved.effects.Count; i++)
         {
             ResolvedEffect effect = resolved.effects[i];
@@ -242,6 +243,14 @@ internal static class SkillAttackResolutionUtility
             if (damage <= 0)
                 continue;
 
+            bool consumesStagger = AttackPreviewCalculator.CanConsumeStagger(rt, effectTarget);
+            if (consumesStagger)
+            {
+                damage = Mathf.FloorToInt(damage * 1.2f);
+                if (damage < 1)
+                    damage = 1;
+            }
+
             info.isDamage = true;
             totalDamage += damage;
             CombatActor.DamageResult damageResult = effectTarget.TakeDamageDetailed(damage, bypassGuard: info.bypassGuard);
@@ -249,6 +258,8 @@ internal static class SkillAttackResolutionUtility
             aggregateDamageResult.blocked += damageResult.blocked;
             aggregateDamageResult.hpLost += damageResult.hpLost;
             aggregateDamageResult.guardBroken |= damageResult.guardBroken;
+
+            ApplyNewPipelineEmberWeaponBurn(rt, caster, effectTarget, damage);
 
             if (info.clearsGuard)
                 effectTarget.guardPool = 0;
@@ -265,6 +276,11 @@ internal static class SkillAttackResolutionUtility
 
             if (damageResult.guardBroken && effectTarget.status != null)
                 effectTarget.status.ApplyStagger();
+            else if (consumesStagger && effectTarget.status != null)
+            {
+                effectTarget.status.ClearStagger();
+                consumedAnyStagger = true;
+            }
 
             if (popups != null)
                 popups.SpawnDamageSplit(caster, effectTarget, damageResult.blocked, damageResult.hpLost);
@@ -277,10 +293,26 @@ internal static class SkillAttackResolutionUtility
             damageResult = aggregateDamageResult,
             lightningShockProcCount = 0,
             lightningShockDamage = 0,
-            consumedStagger = false,
+            consumedStagger = consumedAnyStagger,
             hadPrimaryDamageStep = totalDamage > 0,
             delayedBurnConsumeDamage = 0
         };
+    }
+
+    private static void ApplyNewPipelineEmberWeaponBurn(SkillRuntime rt, CombatActor caster, CombatActor target, int finalDamage)
+    {
+        if (!IsBasicStrike(rt) || caster == null || caster.status == null || target == null || target.status == null)
+            return;
+        if (caster.status.emberWeaponTurns <= 0 || !caster.status.emberWeaponBurnEqualsDamage)
+            return;
+        if (caster.status.emberWeaponBurnOnCritOnly && !rt.localCritAny)
+            return;
+
+        int emberBurn = Mathf.Max(0, finalDamage);
+        PassiveSystem passiveSystem = caster.GetComponent<PassiveSystem>();
+        emberBurn += passiveSystem != null ? passiveSystem.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
+        if (emberBurn > 0)
+            target.status.ApplyBurn(emberBurn, 3);
     }
 
     private static void ApplyResolvedGameplayEffects(SkillResolvedResult resolved, CombatActor caster, CombatActor selectedTarget)

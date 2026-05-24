@@ -164,7 +164,15 @@ public static class TargetPreviewBuilder
             switch (effect.type)
             {
                 case SkillEffectType.DealDamage:
-                    ApplyDamageToData(effectTarget, ref data, value, rt.bypassGuard, rt.clearsGuard, canBreakGuard: true, canConsumeStagger: false);
+                    bool canConsumeStagger = AttackPreviewCalculator.CanConsumeStagger(rt, effectTarget);
+                    if (canConsumeStagger)
+                    {
+                        value = Mathf.FloorToInt(value * 1.2f);
+                        if (value < 1)
+                            value = 1;
+                    }
+                    ApplyDamageToData(effectTarget, ref data, value, rt.bypassGuard, rt.clearsGuard, canBreakGuard: true, canConsumeStagger: canConsumeStagger);
+                    ApplyEmberWeaponBurnPreview(rt, caster, value, ref data);
                     break;
                 case SkillEffectType.ApplyStatus:
                     ApplyResolvedStatusPreview(effect.status, value, passiveSystem, ref data);
@@ -253,6 +261,7 @@ public static class TargetPreviewBuilder
         SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
         if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
         {
+            ApplyEmberWeaponBurnPreview(rt, caster, ap.finalDamage, ref data);
             ApplyResolvedGameplayPreview(rt, caster, target, ref data);
             return;
         }
@@ -409,6 +418,22 @@ public static class TargetPreviewBuilder
                 data.previewFrozenAfter = true;
                 break;
         }
+    }
+
+    private static void ApplyEmberWeaponBurnPreview(SkillRuntime rt, CombatActor caster, int finalDamage, ref TargetPreviewData data)
+    {
+        if (rt == null || rt.coreAction != CoreAction.BasicStrike || caster == null || caster.status == null)
+            return;
+        if (caster.status.emberWeaponTurns <= 0 || !caster.status.emberWeaponBurnEqualsDamage)
+            return;
+        if (caster.status.emberWeaponBurnOnCritOnly && !rt.localCritAny)
+            return;
+
+        int emberBurn = Mathf.Max(0, finalDamage);
+        PassiveSystem passiveSystem = caster.GetComponent<PassiveSystem>();
+        emberBurn += passiveSystem != null ? passiveSystem.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
+        if (emberBurn > 0)
+            data.previewBurnAfter += emberBurn;
     }
 
     private static void BuildUtilityPreview(SkillRuntime rt, int dieValue, ref TargetPreviewData data)

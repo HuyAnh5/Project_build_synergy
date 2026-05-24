@@ -42,6 +42,14 @@ public static class AttackPreviewCalculator
 
             preview.baseDamage = Mathf.Max(0, damage);
             preview.finalDamage = preview.baseDamage;
+            bool resolvedAttemptedDamage = preview.finalDamage > 0;
+            if (resolvedAttemptedDamage && CanConsumeStagger(rt, target))
+            {
+                preview.finalDamage = Mathf.FloorToInt(preview.finalDamage * 1.2f);
+                if (preview.finalDamage < 1)
+                    preview.finalDamage = 1;
+                preview.consumesStagger = true;
+            }
             preview.primaryDamage = preview.finalDamage;
             preview.canDealDamage = preview.finalDamage > 0;
             return preview;
