@@ -1,4 +1,3 @@
-using System.Text;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -12,14 +11,8 @@ public class CombatHUD : MonoBehaviour
     public TurnManager turnManager;
     public CombatActor player;
 
-    [Header("Player UI")]
-    public TMP_Text playerHpText;
+    [Header("Player Focus")]
     public TMP_Text playerFocusText;
-    public TMP_Text playerGuardText;
-    public TMP_Text playerStatusText;
-    public bool hideLegacyPlayerStats = true;
-
-    [Header("Player Focus Bar")]
     public RectTransform playerFocusBarRoot;
     public RectTransform playerFocusSegmentsRoot;
     public Image[] playerFocusSegments = new Image[DefaultFocusSegmentCount];
@@ -31,25 +24,15 @@ public class CombatHUD : MonoBehaviour
     public Vector2 focusSegmentSize = new Vector2(14f, 14f);
     public float focusSegmentSpacing = 2f;
     public float focusNumberWidth = 28f;
-    [Range(1f, 6f)]
-    public float focusPreviewBlinkSpeed = 3f;
-    
-    [Header("Dice Consume Preview")]
-    [Range(0f, 10f)]
-    public float consumePreviewBlinkSpeed = 3f;
-    [Range(0f, 1f)]
-    public float consumePreviewMinAlpha = 0.5f;
-    [Range(0f, 1f)]
-    public float consumePreviewInvalidMinAlpha = 0.6f;
+    [Range(1f, 6f)] public float focusPreviewBlinkSpeed = 3f;
 
-    private int _lastHp = int.MinValue;
-    private int _lastMaxHp = int.MinValue;
+    [Header("Dice Consume Preview")]
+    [Range(0f, 10f)] public float consumePreviewBlinkSpeed = 3f;
+    [Range(0f, 1f)] public float consumePreviewMinAlpha = 0.5f;
+    [Range(0f, 1f)] public float consumePreviewInvalidMinAlpha = 0.6f;
+
     private int _lastFocus = int.MinValue;
     private int _lastMaxFocus = int.MinValue;
-    private int _lastGuard = int.MinValue;
-    private string _lastStatusText;
-
-    // --- Focus preview state ---
     private int _previewFocusCost;
     private int _previewFocusGain;
     private bool _previewFocusActive;
@@ -58,80 +41,110 @@ public class CombatHUD : MonoBehaviour
     private Color _focusBarBackgroundOriginalColor;
     private Color _playerFocusTextOriginalColor = Color.white;
 
-    void Awake()
+    private void Awake()
     {
         TryResolveRefs();
-        HideLegacyPlayerStatTexts();
         EnsurePlayerFocusBarUi();
-
-        if (playerFocusText != null && !_previewFocusActive)
-            _playerFocusTextOriginalColor = playerFocusText.color;
+        CacheOriginalColors();
     }
 
-    void Update()
+    private void Update()
     {
-        if (!player)
+        if (player == null)
             TryResolveRefs();
-        if (!player)
+        if (player == null)
             return;
 
-        HideLegacyPlayerStatTexts();
         EnsurePlayerFocusBarUi();
-
-        if (playerFocusText != null && !_previewFocusActive)
-            _playerFocusTextOriginalColor = playerFocusText.color;
-
-        if (playerFocusText && (_lastFocus != player.focus || _lastMaxFocus != player.maxFocus))
-        {
-            _lastFocus = player.focus;
-            _lastMaxFocus = player.maxFocus;
-            playerFocusText.text = player.focus.ToString();
-            RefreshPlayerFocusSegments();
-        }
+        CacheOriginalColors();
 
         if (_previewFocusActive)
+        {
             UpdateFocusPreviewBlink();
+            return;
+        }
+
+        RefreshFocusIfChanged();
     }
 
     public void SetupPlayerFocusBarUi()
     {
         EnsurePlayerFocusBarUi();
-        if (playerFocusText != null && player != null)
+        CacheOriginalColors();
+        ForceRefreshFocus();
+    }
+
+    public void ShowFocusPreview(int cost, int gain, bool isInvalid)
+    {
+        _previewFocusCost = Mathf.Max(0, cost);
+        _previewFocusGain = Mathf.Max(0, gain);
+        _previewFocusActive = _previewFocusCost > 0 || _previewFocusGain > 0 || isInvalid;
+        _previewFocusInvalid = isInvalid;
+
+        EnsurePlayerFocusBarUi();
+        if (_focusBarBackgroundImage == null && playerFocusBarRoot != null)
+        {
+            _focusBarBackgroundImage = playerFocusBarRoot.GetComponent<Image>();
+            if (_focusBarBackgroundImage != null)
+                _focusBarBackgroundOriginalColor = _focusBarBackgroundImage.color;
+        }
+
+        RefreshPlayerFocusSegments();
+    }
+
+    public void ClearFocusPreview()
+    {
+        _previewFocusActive = false;
+        _previewFocusInvalid = false;
+        _previewFocusCost = 0;
+        _previewFocusGain = 0;
+
+        if (_focusBarBackgroundImage != null)
+            _focusBarBackgroundImage.color = _focusBarBackgroundOriginalColor;
+
+        ForceRefreshFocus();
+    }
+
+    private void TryResolveRefs()
+    {
+        if (party == null)
+            party = FindObjectOfType<BattlePartyManager2D>(true);
+        if (turnManager == null)
+            turnManager = FindObjectOfType<TurnManager>(true);
+        if (player == null && party != null)
+            player = party.Player;
+        if (player == null && turnManager != null)
+            player = turnManager.player;
+    }
+
+    private void CacheOriginalColors()
+    {
+        if (playerFocusText != null && !_previewFocusActive)
+            _playerFocusTextOriginalColor = playerFocusText.color;
+    }
+
+    private void RefreshFocusIfChanged()
+    {
+        if (_lastFocus == player.focus && _lastMaxFocus == player.maxFocus)
+            return;
+
+        ForceRefreshFocus();
+    }
+
+    private void ForceRefreshFocus()
+    {
+        if (player == null)
+            return;
+
+        _lastFocus = player.focus;
+        _lastMaxFocus = player.maxFocus;
+        if (playerFocusText != null)
         {
             playerFocusText.text = player.focus.ToString();
             playerFocusText.color = _playerFocusTextOriginalColor;
         }
 
         RefreshPlayerFocusSegments();
-    }
-
-    void TryResolveRefs()
-    {
-        if (!party)
-            party = FindObjectOfType<BattlePartyManager2D>(true);
-        if (!turnManager)
-            turnManager = FindObjectOfType<TurnManager>(true);
-
-        if (!player && party != null && party.Player != null)
-            player = party.Player;
-
-        if (!player && turnManager != null && turnManager.player != null)
-            player = turnManager.player;
-
-        if (!player)
-        {
-            var all = FindObjectsOfType<CombatActor>(true);
-            foreach (var a in all)
-            {
-                if (!a)
-                    continue;
-                if (a.name.ToLower().Contains("player"))
-                {
-                    player = a;
-                    break;
-                }
-            }
-        }
     }
 
     private void EnsurePlayerFocusBarUi()
@@ -141,255 +154,102 @@ public class CombatHUD : MonoBehaviour
         if (parentRect == null)
             return;
 
-        bool createdRoot = false;
         if (playerFocusBarRoot == null)
-        {
-            Transform existingRoot = parentRect.Find("PlayerFocusBarRoot");
-            if (existingRoot != null)
-                playerFocusBarRoot = existingRoot as RectTransform;
-        }
-
+            playerFocusBarRoot = parentRect.Find("PlayerFocusBarRoot") as RectTransform;
         if (playerFocusBarRoot == null)
-        {
-            GameObject rootGo = new GameObject("PlayerFocusBarRoot", typeof(RectTransform));
-            playerFocusBarRoot = rootGo.GetComponent<RectTransform>();
-            playerFocusBarRoot.SetParent(parentRect, false);
-            createdRoot = true;
-        }
+            playerFocusBarRoot = CreateFocusBarRoot(parentRect);
 
-        Image bgImg = playerFocusBarRoot.GetComponent<Image>();
-        if (bgImg == null)
-        {
-            bgImg = playerFocusBarRoot.gameObject.AddComponent<Image>();
-            bgImg.color = new Color(0f, 0f, 0f, 0.4f);
-            bgImg.raycastTarget = false;
-        }
-
-        if (createdRoot && labelRect != null)
-        {
-            playerFocusBarRoot.anchorMin = labelRect.anchorMin;
-            playerFocusBarRoot.anchorMax = labelRect.anchorMax;
-            playerFocusBarRoot.pivot = labelRect.pivot;
-            playerFocusBarRoot.anchoredPosition = labelRect.anchoredPosition;
-        }
-        else if (createdRoot)
-        {
-            playerFocusBarRoot.anchorMin = new Vector2(0f, 1f);
-            playerFocusBarRoot.anchorMax = new Vector2(0f, 1f);
-            playerFocusBarRoot.pivot = new Vector2(0f, 1f);
-            playerFocusBarRoot.anchoredPosition = new Vector2(24f, -24f);
-        }
-
-        if (createdRoot)
-            playerFocusBarRoot.sizeDelta = new Vector2(focusNumberWidth + 6f + focusBarSize.x, Mathf.Max(24f, focusBarSize.y));
-
-        bool createdValueText = false;
-        if (playerFocusText == null)
-        {
-            playerFocusText = CreateHudText("PlayerFocusValue", playerFocusBarRoot, "0", 18f, FontStyles.Bold, TextAlignmentOptions.MidlineLeft);
-            createdValueText = true;
-        }
-
-        playerFocusText.raycastTarget = false;
-        playerFocusText.enableWordWrapping = false;
-        RectTransform valueRect = playerFocusText.rectTransform;
-        if (createdValueText)
-        {
-            valueRect.anchorMin = new Vector2(0f, 0.5f);
-            valueRect.anchorMax = new Vector2(0f, 0.5f);
-            valueRect.pivot = new Vector2(0f, 0.5f);
-            valueRect.anchoredPosition = Vector2.zero;
-            valueRect.sizeDelta = new Vector2(focusNumberWidth, 24f);
-        }
-
-        bool createdSegmentsRoot = false;
-        if (playerFocusSegmentsRoot == null)
-        {
-            Transform existingSegments = playerFocusBarRoot.Find("Segments");
-            if (existingSegments != null)
-                playerFocusSegmentsRoot = existingSegments as RectTransform;
-        }
-
-        if (playerFocusSegmentsRoot == null)
-        {
-            GameObject segmentsGo = new GameObject("Segments", typeof(RectTransform));
-            playerFocusSegmentsRoot = segmentsGo.GetComponent<RectTransform>();
-            playerFocusSegmentsRoot.SetParent(playerFocusBarRoot, false);
-            createdSegmentsRoot = true;
-        }
-
-        if (createdSegmentsRoot)
-        {
-            playerFocusSegmentsRoot.anchorMin = new Vector2(0f, 0.5f);
-            playerFocusSegmentsRoot.anchorMax = new Vector2(0f, 0.5f);
-            playerFocusSegmentsRoot.pivot = new Vector2(0f, 0.5f);
-            playerFocusSegmentsRoot.anchoredPosition = new Vector2(focusNumberWidth + 6f, 0f);
-            playerFocusSegmentsRoot.sizeDelta = focusBarSize;
-        }
-
-        int segmentCount = Mathf.Max(1, DefaultFocusSegmentCount);
-        if (playerFocusSegments == null || playerFocusSegments.Length != segmentCount)
-            playerFocusSegments = new Image[segmentCount];
-
-        float totalSpacing = focusSegmentSpacing * (segmentCount - 1);
-        float availableWidth = Mathf.Max(1f, focusBarSize.x - totalSpacing);
-        float segmentWidth = Mathf.Min(focusSegmentSize.x, availableWidth / segmentCount);
-
-        for (int i = 0; i < segmentCount; i++)
-        {
-            Image segment = playerFocusSegments[i];
-            if (segment == null)
-            {
-                Transform existingSegment = playerFocusSegmentsRoot.Find($"Segment_{i + 1}");
-                if (existingSegment != null)
-                    segment = existingSegment.GetComponent<Image>();
-            }
-
-            if (segment == null)
-            {
-                GameObject segmentGo = new GameObject($"Segment_{i + 1}", typeof(RectTransform), typeof(Image));
-                RectTransform segmentRect = segmentGo.GetComponent<RectTransform>();
-                segmentRect.SetParent(playerFocusSegmentsRoot, false);
-                segment = segmentGo.GetComponent<Image>();
-                RectTransform rect = segment.rectTransform;
-                rect.anchorMin = new Vector2(0f, 0.5f);
-                rect.anchorMax = new Vector2(0f, 0.5f);
-                rect.pivot = new Vector2(0f, 0.5f);
-                rect.sizeDelta = new Vector2(segmentWidth, focusSegmentSize.y);
-                rect.anchoredPosition = new Vector2(i * (segmentWidth + focusSegmentSpacing), 0f);
-            }
-
-            playerFocusSegments[i] = segment;
-
-            segment.type = Image.Type.Simple;
-            segment.raycastTarget = false;
-        }
-    }
-
-    private void RefreshPlayerFocusSegments()
-    {
-        if (playerFocusSegments == null)
-            return;
-
-        int current = player != null ? Mathf.Max(0, player.focus) : 0;
-        int max = player != null ? Mathf.Clamp(player.maxFocus, 0, playerFocusSegments.Length) : playerFocusSegments.Length;
-
-        for (int i = 0; i < playerFocusSegments.Length; i++)
-        {
-            Image segment = playerFocusSegments[i];
-            if (segment == null)
-                continue;
-
-            bool withinMax = i < max;
-            bool filled = i < current;
-            segment.color = withinMax
-                ? (filled ? playerFocusFilledColor : playerFocusEmptyColor)
-                : new Color(playerFocusEmptyColor.r, playerFocusEmptyColor.g, playerFocusEmptyColor.b, 0.25f);
-        }
-    }
-
-    // ---------------------------
-    // Focus Preview API
-    // ---------------------------
-
-    /// <summary>
-    /// Hiển thị preview tiêu hao Focus khi hover/drag skill.
-    /// cost = số Focus skill sẽ dùng (đã tính modifier).
-    /// isInvalid = true nếu player không đủ Focus.
-    /// </summary>
-    public void ShowFocusPreview(int cost, int gain, bool isInvalid)
-    {
-        _previewFocusCost = Mathf.Max(0, cost);
-        _previewFocusGain = Mathf.Max(0, gain);
-        _previewFocusInvalid = isInvalid;
-        _previewFocusActive = true;
-
-        // Cache background để đổi màu đỏ khi invalid
-        if (_focusBarBackgroundImage == null && playerFocusBarRoot != null)
+        if (_focusBarBackgroundImage == null)
         {
             _focusBarBackgroundImage = playerFocusBarRoot.GetComponent<Image>();
             if (_focusBarBackgroundImage != null)
                 _focusBarBackgroundOriginalColor = _focusBarBackgroundImage.color;
         }
 
-        if (_previewFocusInvalid && _focusBarBackgroundImage != null)
-            _focusBarBackgroundImage.color = playerFocusInvalidColor;
+        if (playerFocusSegmentsRoot == null)
+            playerFocusSegmentsRoot = playerFocusBarRoot.Find("Segments") as RectTransform;
+        if (playerFocusSegmentsRoot == null)
+            playerFocusSegmentsRoot = CreateSegmentsRoot(playerFocusBarRoot);
+
+        EnsureFocusSegments();
     }
 
-    /// <summary>
-    /// Tắt preview Focus, trả về trạng thái bình thường.
-    /// </summary>
-    public void ClearFocusPreview()
+    private RectTransform CreateFocusBarRoot(RectTransform parent)
     {
-        _previewFocusActive = false;
-        _previewFocusCost = 0;
-        _previewFocusGain = 0;
-        _previewFocusInvalid = false;
-
-        // Restore background color
-        if (_focusBarBackgroundImage != null)
-            _focusBarBackgroundImage.color = _focusBarBackgroundOriginalColor;
-
-        if (playerFocusText != null && player != null)
-        {
-            playerFocusText.text = player.focus.ToString();
-            playerFocusText.color = _playerFocusTextOriginalColor;
-        }
-
-        // Redraw segments bình thường
-        RefreshPlayerFocusSegments();
+        GameObject root = new GameObject("PlayerFocusBarRoot", typeof(RectTransform), typeof(Image));
+        RectTransform rect = root.GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+        rect.sizeDelta = focusBarSize;
+        Image image = root.GetComponent<Image>();
+        image.color = playerFocusEmptyColor;
+        return rect;
     }
 
-    private void UpdateFocusPreviewBlink()
+    private RectTransform CreateSegmentsRoot(RectTransform parent)
+    {
+        GameObject root = new GameObject("Segments", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        RectTransform rect = root.GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        HorizontalLayoutGroup layout = root.GetComponent<HorizontalLayoutGroup>();
+        layout.childAlignment = TextAnchor.MiddleCenter;
+        layout.childControlHeight = false;
+        layout.childControlWidth = false;
+        layout.childForceExpandHeight = false;
+        layout.childForceExpandWidth = false;
+        layout.spacing = focusSegmentSpacing;
+        return rect;
+    }
+
+    private void EnsureFocusSegments()
+    {
+        if (playerFocusSegments == null || playerFocusSegments.Length != DefaultFocusSegmentCount)
+            playerFocusSegments = new Image[DefaultFocusSegmentCount];
+
+        for (int i = 0; i < playerFocusSegments.Length; i++)
+        {
+            if (playerFocusSegments[i] != null)
+                continue;
+
+            Transform existing = playerFocusSegmentsRoot.Find($"FocusSegment_{i + 1}");
+            if (existing != null)
+            {
+                playerFocusSegments[i] = existing.GetComponent<Image>();
+                continue;
+            }
+
+            GameObject segment = new GameObject($"FocusSegment_{i + 1}", typeof(RectTransform), typeof(Image));
+            RectTransform rect = segment.GetComponent<RectTransform>();
+            rect.SetParent(playerFocusSegmentsRoot, false);
+            rect.sizeDelta = focusSegmentSize;
+            playerFocusSegments[i] = segment.GetComponent<Image>();
+        }
+    }
+
+    private void RefreshPlayerFocusSegments()
     {
         if (playerFocusSegments == null || player == null)
             return;
 
-        int current = Mathf.Max(0, player.focus);
+        int current = Mathf.Clamp(player.focus, 0, playerFocusSegments.Length);
         int max = Mathf.Clamp(player.maxFocus, 0, playerFocusSegments.Length);
-
-        // Tính alpha nhấp nháy: dao động 0.4 -> 1.0
-        float t = Mathf.PingPong(Time.time * focusPreviewBlinkSpeed, 1f);
-        float blinkAlpha = Mathf.Lerp(0.4f, 1f, t);
-        int previewFinalFocus = Mathf.Clamp(current - _previewFocusCost + _previewFocusGain, 0, player.maxFocus);
+        int previewFinalFocus = Mathf.Clamp(current - _previewFocusCost + _previewFocusGain, 0, max);
+        float blinkAlpha = _previewFocusActive ? 0.55f + 0.45f * Mathf.PingPong(Time.unscaledTime * focusPreviewBlinkSpeed, 1f) : 1f;
 
         if (playerFocusText != null)
         {
-            bool hasFocusChange = _previewFocusCost != 0 || _previewFocusGain != 0;
-            playerFocusText.text = hasFocusChange ? previewFinalFocus.ToString() : current.ToString();
-
-            if (hasFocusChange)
-            {
-                Color textColor;
-                if (_previewFocusInvalid)
-                {
-                    textColor = playerFocusInvalidColor;
-                }
-                else if (_previewFocusGain > _previewFocusCost)
-                {
-                    DamagePopupSystem popups = FindObjectOfType<DamagePopupSystem>();
-                    textColor = popups != null ? popups.focusGainColor : new Color(0.22f, 0.74f, 1f, 1f);
-                }
-                else
-                {
-                    textColor = playerFocusPreviewColor;
-                }
-
-                textColor.a = blinkAlpha;
-                playerFocusText.color = textColor;
-            }
-            else
-            {
-                playerFocusText.color = _playerFocusTextOriginalColor;
-            }
+            playerFocusText.text = _previewFocusActive ? previewFinalFocus.ToString() : current.ToString();
+            playerFocusText.color = _previewFocusInvalid ? playerFocusInvalidColor : (_previewFocusActive ? playerFocusPreviewColor : _playerFocusTextOriginalColor);
         }
 
-        // Segment nào sẽ bị tiêu: từ (current - cost) đến (current - 1)
         int previewStart = current - _previewFocusCost;
-
-        // Segment nào sẽ được hồi: từ current đến (current + gain - 1)
         int gainStart = current;
         int gainEnd = current + _previewFocusGain - 1;
+        Color focusGainColor = ResolveFocusGainColor();
 
         for (int i = 0; i < playerFocusSegments.Length; i++)
         {
@@ -399,102 +259,40 @@ public class CombatHUD : MonoBehaviour
 
             bool withinMax = i < max;
             bool filled = i < current;
-
             if (!withinMax)
             {
-                segment.color = new Color(playerFocusEmptyColor.r, playerFocusEmptyColor.g, playerFocusEmptyColor.b, 0.25f);
+                segment.color = WithAlpha(playerFocusEmptyColor, 0.25f);
                 continue;
             }
 
-            // Segment nằm trong vùng sẽ bị tiêu hao
-            bool isPreviewConsumed = filled && i >= previewStart && i < current;
-            
-            // Segment nằm trong vùng sẽ được hồi thêm
-            bool isPreviewGained = !filled && i >= gainStart && i <= gainEnd;
-
-            if (isPreviewConsumed)
-            {
-                Color preview = playerFocusPreviewColor;
-                preview.a = blinkAlpha;
-                segment.color = preview;
-            }
-            else if (isPreviewGained)
-            {
-                // Thay vì dùng màu FocusGain của DamagePopupSystem (màu cyan), ta có thể dùng màu đó.
-                Color gainColor = new Color(0.22f, 0.74f, 1f, 1f); // default xanh biển
-                DamagePopupSystem popups = FindObjectOfType<DamagePopupSystem>();
-                if (popups != null) gainColor = popups.focusGainColor;
-
-                gainColor.a = blinkAlpha;
-                segment.color = gainColor;
-            }
+            bool consumed = _previewFocusActive && filled && i >= previewStart && i < current;
+            bool gained = _previewFocusActive && !filled && i >= gainStart && i <= gainEnd;
+            if (consumed)
+                segment.color = WithAlpha(_previewFocusInvalid ? playerFocusInvalidColor : playerFocusPreviewColor, blinkAlpha);
+            else if (gained)
+                segment.color = WithAlpha(focusGainColor, blinkAlpha);
             else
-            {
                 segment.color = filled ? playerFocusFilledColor : playerFocusEmptyColor;
-            }
         }
+    }
 
+    private void UpdateFocusPreviewBlink()
+    {
+        RefreshPlayerFocusSegments();
         if (_previewFocusInvalid && _focusBarBackgroundImage != null)
-        {
-            Color bg = playerFocusInvalidColor;
-            bg.a = blinkAlpha * playerFocusInvalidColor.a;
-            _focusBarBackgroundImage.color = bg;
-        }
+            _focusBarBackgroundImage.color = WithAlpha(playerFocusInvalidColor, 0.55f + 0.45f * Mathf.PingPong(Time.unscaledTime * focusPreviewBlinkSpeed, 1f));
     }
 
-    private static TMP_Text CreateHudText(string name, RectTransform parent, string initialText, float fontSize, FontStyles style, TextAlignmentOptions alignment)
+    private Color ResolveFocusGainColor()
     {
-        GameObject textGo = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI));
-        RectTransform rect = textGo.GetComponent<RectTransform>();
-        rect.SetParent(parent, false);
-        rect.localScale = Vector3.one;
-
-        TextMeshProUGUI text = textGo.GetComponent<TextMeshProUGUI>();
-        text.text = initialText;
-        text.fontSize = fontSize;
-        text.fontStyle = style;
-        text.alignment = alignment;
-        text.color = Color.white;
-        text.raycastTarget = false;
-        text.enableWordWrapping = false;
-        return text;
+        DamagePopupSystem popups = FindObjectOfType<DamagePopupSystem>();
+        return popups != null ? popups.focusGainColor : new Color(0.22f, 0.74f, 1f, 1f);
     }
 
-    private void HideLegacyPlayerStatTexts()
+    private static Color WithAlpha(Color color, float alpha)
     {
-        if (!hideLegacyPlayerStats)
-            return;
-
-        if (playerHpText != null)
-            playerHpText.gameObject.SetActive(false);
-        if (playerGuardText != null)
-            playerGuardText.gameObject.SetActive(false);
-        if (playerStatusText != null)
-            playerStatusText.gameObject.SetActive(false);
-    }
-
-    string BuildStatusString(StatusController st)
-    {
-        if (!st)
-            return string.Empty;
-
-        var sb = new StringBuilder(64);
-        bool first = true;
-
-        void Add(string s)
-        {
-            if (!first)
-                sb.Append("  ");
-            sb.Append(s);
-            first = false;
-        }
-
-        if (st.burnStacks > 0) Add($"Burn:{st.burnStacks}");
-        if (st.bleedStacks > 0) Add($"Bleed:{st.bleedStacks}");
-        if (st.marked) Add("Mark");
-        if (st.staggered) Add("Stagger");
-        if (st.frozen) Add("Freeze");
-
-        return sb.ToString();
+        color.a = alpha;
+        return color;
     }
 }
+

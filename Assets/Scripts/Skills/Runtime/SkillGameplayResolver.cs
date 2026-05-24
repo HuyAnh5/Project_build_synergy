@@ -96,6 +96,8 @@ public static class SkillGameplayResolver
             }
         }
 
+        ApplyCombatModifierRiders(context, result);
+
         return result;
     }
 
@@ -206,6 +208,61 @@ public static class SkillGameplayResolver
         }
 
         return true;
+    }
+
+    private static void ApplyCombatModifierRiders(SkillResolveContext context, SkillResolvedResult result)
+    {
+        if (context == null || result == null || context.runtime == null || context.caster == null || context.caster.status == null)
+            return;
+
+        ApplyEmberWeaponRider(context, result);
+    }
+
+    private static void ApplyEmberWeaponRider(SkillResolveContext context, SkillResolvedResult result)
+    {
+        SkillRuntime runtime = context.runtime;
+        StatusController casterStatus = context.caster.status;
+        if (runtime.coreAction != CoreAction.BasicStrike || casterStatus.emberWeaponTurns <= 0 || !casterStatus.emberWeaponBurnEqualsDamage)
+            return;
+
+        if (casterStatus.emberWeaponBurnOnCritOnly && !runtime.localCritAny)
+            return;
+
+        int burnValue = GetTotalResolvedDamage(result, context.target);
+        if (burnValue <= 0)
+            return;
+
+        var resolved = new ResolvedEffect
+        {
+            type = SkillEffectType.ApplyStatus,
+            target = SkillEffectTarget.SelectedEnemy,
+            targetActor = context.target,
+            status = StatusKind.Burn,
+            value = burnValue,
+            isBlueValue = false,
+            previewable = true,
+            source = null
+        };
+        result.effects.Add(resolved);
+        AccumulateResult(resolved, result);
+    }
+
+    private static int GetTotalResolvedDamage(SkillResolvedResult result, CombatActor target)
+    {
+        if (result == null || result.effects == null)
+            return 0;
+
+        int total = 0;
+        for (int i = 0; i < result.effects.Count; i++)
+        {
+            ResolvedEffect effect = result.effects[i];
+            if (effect == null || effect.type != SkillEffectType.DealDamage)
+                continue;
+            if (target != null && effect.targetActor != null && effect.targetActor != target)
+                continue;
+            total += Mathf.Max(0, effect.value);
+        }
+        return total;
     }
 
     private static void ResolveEffects(List<SkillEffectData> effects, SkillResolveContext context, SkillResolvedResult result)

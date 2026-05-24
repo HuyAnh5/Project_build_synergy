@@ -1,4 +1,4 @@
-﻿// EnemyBrainController.cs
+// EnemyBrainController.cs
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -47,6 +47,7 @@ public class EnemyBrainController : MonoBehaviour
     private readonly Dictionary<int, int> _cooldownRemainingByMoveIndex = new Dictionary<int, int>();
     private readonly Dictionary<int, int> _consecutiveByMoveIndex = new Dictionary<int, int>();
     private readonly Queue<int> _recentMoveHistory = new Queue<int>();
+    private int _scriptedLoopCursor;
 
     private void Awake()
     {
@@ -95,6 +96,7 @@ public class EnemyBrainController : MonoBehaviour
         _cooldownRemainingByMoveIndex.Clear();
         _consecutiveByMoveIndex.Clear();
         _recentMoveHistory.Clear();
+        _scriptedLoopCursor = 0;
     }
 
     /// <summary>
@@ -119,7 +121,10 @@ public class EnemyBrainController : MonoBehaviour
             _recentMoveHistory.Count,
             GetCooldown,
             GetConsecutive,
-            () => PeekLastHistory());
+            () => PeekLastHistory(),
+            _scriptedLoopCursor,
+            out int nextScriptedLoopCursor);
+        _scriptedLoopCursor = nextScriptedLoopCursor;
         if (chosenIndex < 0)
         {
             CurrentIntent = IntentData.None;

@@ -20,6 +20,8 @@ internal sealed class EnemyTurnCoordinator
         if (player != null && playerSkillState != null)
             playerSkillState.BeginEnemyTurn(player.hp);
 
+        ClearEnemyGuardsAtTurnStart(party, fallbackEnemy);
+
         TurnManagerViewUtility.FadeEnemyIntents(TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, fallbackEnemy), 0.25f);
 
         if (delayBetweenEnemyAttacks > 0f)
@@ -200,4 +202,32 @@ internal sealed class EnemyTurnCoordinator
         if (enemy != null && enemy.status != null)
             enemy.status.OnOwnerTurnEnded();
     }
+
+    private static void ClearEnemyGuardsAtTurnStart(BattlePartyManager2D party, CombatActor fallbackEnemy)
+    {
+        var cleared = new HashSet<CombatActor>();
+
+        var enemies = TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, fallbackEnemy);
+        for (int i = 0; i < enemies.Count; i++)
+            ClearEnemyGuard(enemies[i], cleared);
+
+        var actors = Object.FindObjectsOfType<CombatActor>(true);
+        for (int i = 0; i < actors.Length; i++)
+        {
+            CombatActor actor = actors[i];
+            if (actor == null || actor.team != CombatActor.TeamSide.Enemy)
+                continue;
+
+            ClearEnemyGuard(actor, cleared);
+        }
+    }
+
+    private static void ClearEnemyGuard(CombatActor enemy, HashSet<CombatActor> cleared)
+    {
+        if (enemy == null || enemy.IsDead || cleared == null || !cleared.Add(enemy))
+            return;
+
+        enemy.SetGuard(0);
+    }
 }
+

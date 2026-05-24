@@ -19,6 +19,7 @@ public class GameplayDiceEditController : MonoBehaviour
     [SerializeField] private TurnManager turnManager;
     [SerializeField] private DiceEquipUIManager diceEquipUiManager;
     [SerializeField] private GameplayDiceEditPanelUI panelUi;
+    [SerializeField] private ConsumableBarUIManager consumableBarUi;
     [SerializeField] private Transform inspectAnchor;
 
     [Header("Inspect Presentation")]
@@ -329,7 +330,10 @@ public class GameplayDiceEditController : MonoBehaviour
         if (sourceDie != null)
             ConsumableRuntimeUtility.NotifyDiceStateChanged(sourceDie, turnManager);
 
+        if (consumableBarUi == null)
+            consumableBarUi = FindObjectOfType<ConsumableBarUIManager>(true);
 
+        consumableBarUi?.ClearSelectionForExternalConsumableResolution(_pendingConsumableSlot);
         runInventory.TryConsumeConsumableCharge(_pendingConsumableSlot, 1);
         diceEquipUiManager?.ClearSelectedDice();
 
@@ -795,3 +799,5 @@ public class GameplayDiceEditController : MonoBehaviour
             Debug.Log($"[GameplayDiceEdit] {message}", this);
     }
 }
+
+

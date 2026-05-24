@@ -11,8 +11,12 @@ internal static class EnemyIntentSelectionUtility
         int recentHistoryCount,
         Func<int, int> getCooldown,
         Func<int, int> getConsecutive,
-        Func<int> peekLastHistory)
+        Func<int> peekLastHistory,
+        int scriptedLoopCursor,
+        out int nextScriptedLoopCursor)
     {
+        nextScriptedLoopCursor = scriptedLoopCursor;
+
         if (definition == null || definition.moves == null || definition.moves.Count == 0)
             return -1;
 
@@ -27,6 +31,35 @@ internal static class EnemyIntentSelectionUtility
         if (forcedIndex >= 0)
             return forcedIndex;
 
+        if (definition.intentSelectionMode == EnemyDefinitionSO.EnemyIntentSelectionMode.ScriptedLoop)
+        {
+            return PickScriptedLoopMove(
+                definition,
+                nextTurnIndex,
+                selfHpPct,
+                scriptedLoopCursor,
+                out nextScriptedLoopCursor);
+        }
+
+        return PickWeightedMove(
+            definition,
+            nextTurnIndex,
+            selfHpPct,
+            recentHistoryCount,
+            getCooldown,
+            getConsecutive,
+            peekLastHistory);
+    }
+
+    private static int PickWeightedMove(
+        EnemyDefinitionSO definition,
+        int nextTurnIndex,
+        float selfHpPct,
+        int recentHistoryCount,
+        Func<int, int> getCooldown,
+        Func<int, int> getConsecutive,
+        Func<int> peekLastHistory)
+    {
         List<int> candidates = BuildCandidateIndices(
             definition,
             nextTurnIndex,
@@ -53,6 +86,42 @@ internal static class EnemyIntentSelectionUtility
             return -1;
 
         return WeightedPick(definition, candidates);
+    }
+
+    private static int PickScriptedLoopMove(
+        EnemyDefinitionSO definition,
+        int nextTurnIndex,
+        float selfHpPct,
+        int scriptedLoopCursor,
+        out int nextScriptedLoopCursor)
+    {
+        int moveCount = definition.moves.Count;
+        int currentIndex = Mathf.Clamp(scriptedLoopCursor, 0, moveCount - 1);
+        int loopBackIndex = Mathf.Clamp(definition.loopBackToMoveNumber - 1, 0, moveCount - 1);
+
+        for (int checkedCount = 0; checkedCount < moveCount; checkedCount++)
+        {
+            EnemyDefinitionSO.EnemyMoveSlot move = definition.moves[currentIndex];
+            int candidateIndex = currentIndex;
+            currentIndex = AdvanceScriptedLoopCursor(currentIndex, moveCount, loopBackIndex);
+
+            if (IsMoveBaseEligible(move, nextTurnIndex, selfHpPct))
+            {
+                nextScriptedLoopCursor = currentIndex;
+                return candidateIndex;
+            }
+        }
+
+        nextScriptedLoopCursor = currentIndex;
+        return -1;
+    }
+
+    private static int AdvanceScriptedLoopCursor(int currentIndex, int moveCount, int loopBackIndex)
+    {
+        int nextIndex = currentIndex + 1;
+        if (nextIndex >= moveCount)
+            nextIndex = loopBackIndex;
+        return Mathf.Clamp(nextIndex, 0, moveCount - 1);
     }
 
     private static int TryPickForcedMoveIndex(

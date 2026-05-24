@@ -179,6 +179,9 @@ public class TurnManager : MonoBehaviour
             return false;
         if (_board.IsSkillEquipped(activeSkill))
             return false;
+        if (SkillActiveStateUtility.BlocksRecastWhileActive(activeSkill) &&
+            SkillActiveStateUtility.IsSkillActiveOnPlayer(activeSkill, player, out _))
+            return false;
 
         if (!TryResolvePrototypeCastPlacement(activeSkill, out _, out _, commit: false))
             return false;

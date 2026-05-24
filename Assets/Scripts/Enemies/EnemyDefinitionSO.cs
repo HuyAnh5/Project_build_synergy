@@ -1,4 +1,4 @@
-﻿// EnemyDefinitionSO.cs
+// EnemyDefinitionSO.cs
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -82,16 +82,38 @@ public class EnemyDefinitionSO : ScriptableObject
 
     // -------------------- AI Knobs --------------------
 
-    [BoxGroup("AI"), LabelText("Burst Cap %")]
+    public enum EnemyIntentSelectionMode
+    {
+        WeightedPercent,
+        ScriptedLoop
+    }
+
+    [BoxGroup("AI"), LabelText("Intent Selection Mode")]
+    [Tooltip("WeightedPercent = chọn theo %/weight như hiện tại. ScriptedLoop = chạy Move 1 -> Move 2 -> ... rồi quay lại Loop Back To Move Number.")]
+    public EnemyIntentSelectionMode intentSelectionMode = EnemyIntentSelectionMode.WeightedPercent;
+
+    [BoxGroup("AI/Scripted Loop"), LabelText("Loop Back To Move Number")]
+    [ShowIf(nameof(IsScriptedLoopMode))]
+    [MinValue(1)]
+    [Tooltip("Dùng khi Intent Selection Mode = ScriptedLoop. 1 = hết chuỗi quay lại Move 1, 2 = quay lại Move 2, 3 = quay lại Move 3...")]
+    public int loopBackToMoveNumber = 1;
+
+    private bool IsScriptedLoopMode => intentSelectionMode == EnemyIntentSelectionMode.ScriptedLoop;
+    private bool IsWeightedPercentMode => intentSelectionMode == EnemyIntentSelectionMode.WeightedPercent;
+
+    [BoxGroup("AI/Weighted Percent"), LabelText("Burst Cap %")]
+    [ShowIf(nameof(IsWeightedPercentMode))]
     [Range(0.5f, 1.0f)]
     [Tooltip("STS-style safety: selector nên tránh chọn move gây burst vượt % HP player. (Selector sẽ dùng sau).")]
     public float burstCapPercent = 0.80f;
 
-    [BoxGroup("AI"), LabelText("No Repeat Twice")]
-    [Tooltip("Global anti-spam: không chọn cùng 1 move 2 lần liên tiếp (nếu possible).")]
+    [BoxGroup("AI/Weighted Percent"), LabelText("No Repeat Twice")]
+    [ShowIf(nameof(IsWeightedPercentMode))]
+    [Tooltip("Global anti-spam: không chọn cùng 1 move 2 lần liên tiếp (nếu possible). WeightedPercent dùng chính; ScriptedLoop vẫn có thể bị force rules/cooldown chặn nếu move không hợp lệ.")]
     public bool noRepeatTwice = true;
 
-    [BoxGroup("AI"), LabelText("History Window")]
+    [BoxGroup("AI/Weighted Percent"), LabelText("History Window")]
+    [ShowIf(nameof(IsWeightedPercentMode))]
     [MinValue(1)]
     [Tooltip("Số turn gần nhất để anti-spam nâng cao (nếu bạn muốn dùng).")]
     public int historyWindow = 2;

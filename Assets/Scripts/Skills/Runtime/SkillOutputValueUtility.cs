@@ -28,6 +28,9 @@ public static class SkillOutputValueUtility
             total += Mathf.Max(0, rt.localResolvedValues[i] - rt.localBaseValues[i]);
         }
 
+        if (rt.coreAction == CoreAction.BasicStrike)
+            total += Mathf.Max(0, rt.ownerFlatDamageBonus);
+
         if (rt.conditionMet && rt.conditionalOutcomeEnabled && rt.conditionalOutcomeType == ConditionalOutcomeType.GainAddedValue)
         {
             int bonusAddedValue = rt.conditionalOutcomeValueMode == ConditionalOutcomeValueMode.X
@@ -51,6 +54,27 @@ public static class SkillOutputValueUtility
             total = 1;
 
         return Mathf.Max(0, total);
+    }
+
+    public static int ResolveFlatStatusStacks(int baseStacks)
+    {
+        return Mathf.Max(0, baseStacks);
+    }
+
+    public static int ResolveStatusStacks(int baseStacks, SkillRuntime rt, BaseEffectValueMode valueMode, int resolvedDieValue, bool forceResolvedValue = false)
+    {
+        if (valueMode == BaseEffectValueMode.X || forceResolvedValue)
+            return ResolveXValue(resolvedDieValue, rt);
+
+        return ResolveFlatStatusStacks(baseStacks);
+    }
+
+    public static int ResolveConditionalStatusStacks(int baseStacks, SkillRuntime rt, ConditionalOutcomeValueMode valueMode, int resolvedDieValue)
+    {
+        if (valueMode == ConditionalOutcomeValueMode.X)
+            return ResolveXValue(resolvedDieValue, rt);
+
+        return ResolveFlatStatusStacks(baseStacks);
     }
 
     public static int ResolveXValue(int resolvedValue)

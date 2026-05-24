@@ -273,19 +273,6 @@ public static class TargetPreviewBuilder
         if (rt.conditionMet && rt.conditionalOutcomeEnabled && rt.conditionalOutcomeType == ConditionalOutcomeType.ApplyBurn)
             data.previewBurnAfter += GetConditionalBurnStacks(rt, dieValue, caster);
 
-        if (IsBasicStrike(rt) && caster != null && caster.status != null && caster.status.emberWeaponTurns > 0)
-        {
-            bool canApplyEmberBurn = caster.status.emberWeaponBurnEqualsDamage;
-            if (canApplyEmberBurn && caster.status.emberWeaponBurnOnCritOnly)
-                canApplyEmberBurn = rt.localCritAny;
-
-            if (canApplyEmberBurn)
-            {
-                int emberBurn = Mathf.Max(0, ap.finalDamage);
-                emberBurn += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
-                data.previewBurnAfter += emberBurn;
-            }
-        }
 
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.Hellfire) && targetHadBurnBeforeHit)
         {
@@ -652,20 +639,18 @@ public static class TargetPreviewBuilder
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.FireSlash))
             return rt.conditionMet ? Mathf.Max(0, rt.burnAddStacks) : 0;
 
-        int burn;
-        if (rt.baseBurnValueMode == BaseEffectValueMode.X || rt.fireApplyBurnFromResolvedValue)
+        int burn = SkillOutputValueUtility.ResolveStatusStacks(
+            rt.burnAddStacks,
+            rt,
+            rt.baseBurnValueMode,
+            dieValue,
+            rt.fireApplyBurnFromResolvedValue);
+
+        if (rt.fireGrantBonusBurnOnOddBase &&
+            SkillBehaviorRuntimeUtility.TryGetSingleBaseValue(rt, out int fireBaseValue) &&
+            (fireBaseValue % 2) != 0)
         {
-            burn = SkillOutputValueUtility.ResolveXValue(dieValue, rt);
-            if (rt.fireGrantBonusBurnOnOddBase &&
-                SkillBehaviorRuntimeUtility.TryGetSingleBaseValue(rt, out int fireBaseValue) &&
-                (fireBaseValue % 2) != 0)
-            {
-                burn += Mathf.Max(0, rt.fireOddBaseBonusBurn);
-            }
-        }
-        else
-        {
-            burn = SkillOutputValueUtility.AddActionAddedValue(Mathf.Max(0, rt.burnAddStacks), rt);
+            burn += Mathf.Max(0, rt.fireOddBaseBonusBurn);
         }
 
         burn += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
@@ -677,9 +662,11 @@ public static class TargetPreviewBuilder
         if (rt == null || !rt.conditionMet || !rt.conditionalOutcomeEnabled || rt.conditionalOutcomeType != ConditionalOutcomeType.ApplyBurn)
             return 0;
 
-        int burn = rt.conditionalOutcomeValueMode == ConditionalOutcomeValueMode.X
-            ? SkillOutputValueUtility.ResolveXValue(dieValue, rt)
-            : SkillOutputValueUtility.AddActionAddedValue(Mathf.Max(0, rt.conditionalOutcomeFlatValue), rt);
+        int burn = SkillOutputValueUtility.ResolveConditionalStatusStacks(
+            Mathf.Max(0, rt.conditionalOutcomeFlatValue),
+            rt,
+            rt.conditionalOutcomeValueMode,
+            dieValue);
 
         PassiveSystem ps = caster != null ? caster.GetComponent<PassiveSystem>() : null;
         burn += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
@@ -708,7 +695,7 @@ public static class TargetPreviewBuilder
         }
 
         PassiveSystem ps = caster != null ? caster.GetComponent<PassiveSystem>() : null;
-        int bleed = SkillOutputValueUtility.AddActionAddedValue(Mathf.Max(0, rt.bleedTurns), rt);
+        int bleed = SkillOutputValueUtility.ResolveFlatStatusStacks(rt.bleedTurns);
         bleed += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Bleed) : 0;
         return Mathf.Max(0, bleed);
     }

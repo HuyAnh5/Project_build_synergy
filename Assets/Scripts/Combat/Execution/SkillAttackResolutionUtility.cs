@@ -393,19 +393,21 @@ internal static class SkillAttackResolutionUtility
             {
                 burnStacks = rt.conditionMet ? Mathf.Max(0, rt.burnAddStacks) : 0;
             }
-            else if (rt.baseBurnValueMode == BaseEffectValueMode.X || (rt.element == ElementType.Fire && rt.fireApplyBurnFromResolvedValue))
+            else
             {
-                burnStacks = SkillOutputValueUtility.ResolveXValue(dieValue, rt);
+                burnStacks = SkillOutputValueUtility.ResolveStatusStacks(
+                    rt.burnAddStacks,
+                    rt,
+                    rt.baseBurnValueMode,
+                    dieValue,
+                    rt.element == ElementType.Fire && rt.fireApplyBurnFromResolvedValue);
+
                 if (rt.fireGrantBonusBurnOnOddBase &&
                     SkillBehaviorRuntimeUtility.TryGetSingleBaseValue(rt, out int fireBaseValue) &&
                     (fireBaseValue % 2) != 0)
                 {
                     burnStacks += Mathf.Max(0, rt.fireOddBaseBonusBurn);
                 }
-            }
-            else
-            {
-                burnStacks = SkillOutputValueUtility.AddActionAddedValue(burnStacks, rt);
             }
 
             burnStacks += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
@@ -456,7 +458,7 @@ internal static class SkillAttackResolutionUtility
         if (rt.applyBleed &&
             !SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.Hemorrhage))
         {
-            int bleedStacks = SkillOutputValueUtility.AddActionAddedValue(rt.bleedTurns, rt);
+            int bleedStacks = SkillOutputValueUtility.ResolveFlatStatusStacks(rt.bleedTurns);
             bleedStacks += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Bleed) : 0;
             if (bleedStacks > 0)
                 target.status.ApplyBleed(bleedStacks);
@@ -691,15 +693,11 @@ internal static class SkillAttackResolutionUtility
         if (rt == null || !rt.conditionalOutcomeEnabled || rt.conditionalOutcomeType != ConditionalOutcomeType.ApplyBurn)
             return 0;
 
-        switch (rt.conditionalOutcomeValueMode)
-        {
-            case ConditionalOutcomeValueMode.X:
-                return SkillOutputValueUtility.ResolveXValue(dieValue, rt);
-
-            case ConditionalOutcomeValueMode.Flat:
-            default:
-                return SkillOutputValueUtility.AddActionAddedValue(rt.conditionalOutcomeFlatValue, rt);
-        }
+        return SkillOutputValueUtility.ResolveConditionalStatusStacks(
+            rt.conditionalOutcomeFlatValue,
+            rt,
+            rt.conditionalOutcomeValueMode,
+            dieValue);
     }
 
     private static int GetConditionalGuardValue(SkillRuntime rt, int dieValue)

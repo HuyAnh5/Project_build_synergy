@@ -2241,7 +2241,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 4.4, y: 5.6}
+  m_AnchoredPosition: {x: 0.00000047683716, y: 6.1}
   m_SizeDelta: {x: 36, y: 36}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8113163652370187048
@@ -3137,7 +3137,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: -8.3, y: -5.5}
   m_SizeDelta: {x: 70, y: 20}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &5768559583130478353
@@ -4333,7 +4333,7 @@ MonoBehaviour:
   intentRoot: {fileID: 4403853371309563753}
   intentCanvasGroup: {fileID: 0}
   intentIcon: {fileID: 2220429684422808162}
-  intentValueText: {fileID: 0}
+  intentValueText: {fileID: 6452770775804168523}
   intentFallbackSprite: {fileID: 0}
   intentSize: {x: 44, y: 44}
   hpBarRoot: {fileID: 7974546587630421329}

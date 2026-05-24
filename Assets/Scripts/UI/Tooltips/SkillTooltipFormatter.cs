@@ -6,6 +6,8 @@ using UnityEngine;
 public static class SkillTooltipFormatter
 {
     private const string AddedValueColor = "#5CCBFF";
+    private const string ReducedValueColor = "#FF5C7A";
+    private const string IncreasedValueColor = "#67E88D";
 
     public struct TooltipContent
     {
@@ -209,7 +211,9 @@ public static class SkillTooltipFormatter
             consumedBleedStacks = effect.value.status == StatusKind.Bleed ? 1 : 0,
             totalAddedValue = SkillOutputValueUtility.GetTotalActionAddedValue(runtime)
         });
-        string valueText = effect.value.mode == SkillValueMode.AddedValueScaled ? Blue(value.ToString()) : value.ToString();
+        string valueText = effect.value.mode == SkillValueMode.AddedValueScaled
+            ? FormatAddedValueText(value, effect.value)
+            : value.ToString();
         return text.Replace("{" + token + "}", valueText);
     }
 
@@ -262,7 +266,9 @@ public static class SkillTooltipFormatter
             consumedBleedStacks = effect.value != null && effect.value.status == StatusKind.Bleed ? 1 : 0,
             totalAddedValue = SkillOutputValueUtility.GetTotalActionAddedValue(runtime)
         });
-        string valueText = effect.value != null && effect.value.mode == SkillValueMode.AddedValueScaled ? Blue(value.ToString()) : value.ToString();
+        string valueText = effect.value != null && effect.value.mode == SkillValueMode.AddedValueScaled
+            ? FormatAddedValueText(value, effect.value)
+            : value.ToString();
         if (effect.value != null && effect.value.mode == SkillValueMode.ConsumedStatusStacksScaled)
             valueText = $"{effect.value.baseAmount} per consumed {FormatKeyword(effect.value.status.ToString())}";
         else if (effect.value != null && effect.value.mode == SkillValueMode.ConsumedStatusStacksDividedScaled)
@@ -519,7 +525,21 @@ public static class SkillTooltipFormatter
         };
     }
 
-    private static string Blue(string text) => "<color=" + AddedValueColor + ">" + text + "</color>";
+    private static string Blue(string text) => ColorText(text, AddedValueColor);
+
+    private static string FormatAddedValueText(int currentValue, SkillValueData valueData)
+    {
+        int baseline = valueData != null ? Mathf.Max(0, valueData.baseAmount) : currentValue;
+        string color = AddedValueColor;
+        if (currentValue < baseline)
+            color = ReducedValueColor;
+        else if (currentValue > baseline)
+            color = IncreasedValueColor;
+
+        return ColorText(currentValue.ToString(), color);
+    }
+
+    private static string ColorText(string text, string color) => "<color=" + color + ">" + text + "</color>";
 
     private static string ColorQuotedAddedValues(string text)
     {
