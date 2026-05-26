@@ -58,6 +58,8 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private bool _crit;
     private bool _fail;
     private bool _previewSpentLike;
+    private bool _castMotionLocked;
+    private float? _castYOffsetOverride;
 
     private void Awake()
     {
@@ -134,13 +136,15 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         if (_dragging)
             return;
 
+        if (_castMotionLocked)
+            return;
+
         MoveToDisplayPosition(instant);
     }
 
     public void SetCombatVisualState(bool spent, bool crit, bool fail, bool instant = false)
     {
         EnsureInitialized();
-        bool spentTriggered = !_spent && spent;
         bool failTriggered = !_fail && fail;
         bool changed = _spent != spent || _crit != crit || _fail != fail;
 
@@ -156,7 +160,10 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         if (_dragging)
             return;
 
-        MoveToDisplayPosition(instant || spentTriggered);
+        if (_castMotionLocked)
+            return;
+
+        MoveToDisplayPosition(instant);
         if (failTriggered)
             PlayShake(failShakeStrength, failShakeDuration, failShakeVibrato);
     }

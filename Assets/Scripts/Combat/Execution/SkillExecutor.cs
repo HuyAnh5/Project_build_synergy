@@ -8,6 +8,7 @@ public class SkillExecutor : MonoBehaviour
 {
     private BattlePartyManager2D _cachedParty;
     private readonly SkillTargetSelectionService _targetSelectionService = new SkillTargetSelectionService();
+    private readonly Dictionary<DiceSpinnerGeneric, DiceDraggableUI> _diceUiBySpinner = new Dictionary<DiceSpinnerGeneric, DiceDraggableUI>();
 
     internal struct AttackApplyResult
     {
@@ -642,6 +643,8 @@ public class PlayerDiceCastAnimator : MonoBehaviour
     [Min(0f)] public float launchPrepLift = 0.18f;
     [Min(0f)] public float usedDropDistance = 0.24f;
     [Min(0.01f)] public float usedDropDuration = 0.10f;
+    [Range(0f, 1f)] public float liftCommitPortionBeforeThrow = 0.1f;
+    [Range(0f, 1f)] public float returnCatchOverlapPortion = 0.22f;
 
     [Header("Enemy Throw")]
     [Min(0.01f)] public float throwDuration = 0.24f;
@@ -655,7 +658,7 @@ public class PlayerDiceCastAnimator : MonoBehaviour
     [Header("Self Slam")]
     [Min(0.01f)] public float selfHopDuration = 0.10f;
     [Min(0.01f)] public float selfSlamDuration = 0.16f;
-    [Min(0f)] public float selfHopHeight = 0.26f;
+    [Min(0f)] public float selfHopHeight = 1.5f;
 
     [Header("Impact Feel")]
     [Min(0f)] public float impactPunchScale = 0.08f;
@@ -699,6 +702,7 @@ public class PlayerDiceCastAnimator : MonoBehaviour
 
     private readonly Dictionary<Transform, TransformState> _baselineStates = new Dictionary<Transform, TransformState>();
     private readonly Dictionary<Transform, DetachedTransformState> _detachedStates = new Dictionary<Transform, DetachedTransformState>();
+    private readonly Dictionary<DiceSpinnerGeneric, DiceDraggableUI> _diceUiBySpinner = new Dictionary<DiceSpinnerGeneric, DiceDraggableUI>();
     private readonly List<Tween> _activeTweens = new List<Tween>();
     private readonly List<GameObject> _activeProxyObjects = new List<GameObject>();
     private readonly HashSet<Transform> _hiddenOriginalRoots = new HashSet<Transform>();
@@ -844,10 +848,34 @@ public class PlayerDiceCastAnimator : MonoBehaviour
         Transform plate = slot.plateRoot;
         DiceSpinnerGeneric spinner = slot.spinner;
         Transform moveTarget = spinner != null && spinner.pivot != null ? spinner.pivot : die;
+        DiceDraggableUI diceUi = ResolveDiceUi(spinner);
+        bool uiCardControlsLiftDrop = diceUi != null;
+        Tween uiLiftTween = null;
+        float liftLeadTime = Mathf.Clamp(launchPrepDuration * Mathf.Clamp01(liftCommitPortionBeforeThrow), 0f, launchPrepDuration);
+
+        if (uiCardControlsLiftDrop)
+        {
+            uiLiftTween = diceUi.AnimateCastDisplayToReady(launchPrepDuration, Ease.OutBack);
+        }
+
+        Tween liftTween = null;
+        bool plateCarriesDie = plate != null && plate != die && die != null && die.IsChildOf(plate);
+        Vector3 plateReadyPosition = plate != null && plate != die
+            ? plate.position + Vector3.up * (usedDropDistance * 0.7f)
+            : Vector3.zero;
+        if (!uiCardControlsLiftDrop && plateCarriesDie)
+        {
+            liftTween = RegisterTween(plate.DOMove(plateReadyPosition, launchPrepDuration).SetEase(Ease.OutBack));
+        }
+
+        if (liftLeadTime > 0f)
+            yield return new WaitForSeconds(liftLeadTime);
 
         TransformState dieBase = GetTransformState(die);
         TransformState plateBase = plate != null && plate != die ? GetTransformState(plate) : default;
         TransformState moveBase = GetTransformState(moveTarget);
+        if (plate != null && plate != die)
+            plateReadyPosition = plateBase.position + Vector3.up * (usedDropDistance * 0.7f);
 
         ReleaseWorldSyncForCast(die, plate);
 
@@ -858,7 +886,7 @@ public class PlayerDiceCastAnimator : MonoBehaviour
         Vector3 outwardControl = BuildArcControlPoint(moveBase.position, impactPoint, outwardArcHeight, 0f);
         Quaternion moveRotation = moveBase.rotation;
 
-        yield return TweenAlongQuadratic(
+        Tween outwardTween = CreateQuadraticTween(
             moveTarget,
             moveBase.position,
             outwardControl,
@@ -866,6 +894,8 @@ public class PlayerDiceCastAnimator : MonoBehaviour
             throwDuration,
             moveRotation,
             moveRotation);
+        if (outwardTween != null)
+            yield return outwardTween.WaitForCompletion();
 
         PlayTargetImpactFeedback(primaryTarget, isFinal);
         if (mode == CastMode.EnemyAoeAnchor && isFinal)
@@ -878,7 +908,7 @@ public class PlayerDiceCastAnimator : MonoBehaviour
             yield return new WaitForSeconds(impactHoldDuration);
 
         Vector3 returnControl = BuildArcControlPoint(impactPoint, moveBase.position, returnArcHeight, 0f);
-        yield return TweenAlongQuadratic(
+        Tween returnTween = CreateQuadraticTween(
             moveTarget,
             impactPoint,
             returnControl,
@@ -887,22 +917,58 @@ public class PlayerDiceCastAnimator : MonoBehaviour
             moveRotation,
             moveRotation);
 
+        float returnOverlapLead = Mathf.Clamp(returnDuration * Mathf.Clamp01(returnCatchOverlapPortion), 0f, returnDuration);
+        float returnPreCatchTime = Mathf.Max(0f, returnDuration - returnOverlapLead);
+        if (returnPreCatchTime > 0f)
+            yield return new WaitForSeconds(returnPreCatchTime);
+
+        Tween dropTween = null;
+        if (uiCardControlsLiftDrop)
+        {
+            RestoreWorldSyncForCast(die, plate);
+            dropTween = diceUi.AnimateCastDisplayToSpent(usedDropDuration, Ease.InOutQuad);
+        }
+        else if (plateCarriesDie)
+        {
+            PlayPlateCatch(plate);
+            dropTween = RegisterTween(plate.DOMove(plateBase.position, usedDropDuration).SetEase(Ease.InOutQuad));
+        }
+
+        if (returnTween != null)
+            yield return returnTween.WaitForCompletion();
+
         if (rollTween != null && rollTween.active)
             yield return rollTween.WaitForCompletion();
+        if (dropTween != null && dropTween.active)
+            yield return dropTween.WaitForCompletion();
 
-        moveTarget.position = moveBase.position;
-        moveTarget.rotation = moveBase.rotation;
-        die.position = dieBase.position;
-        die.rotation = dieBase.rotation;
+        if (!plateCarriesDie)
+        {
+            moveTarget.position = moveBase.position;
+            moveTarget.rotation = moveBase.rotation;
+            die.position = dieBase.position;
+            die.rotation = dieBase.rotation;
+        }
 
         if (plate != null && plate != die)
         {
-            plate.position = plateBase.position;
+            plate.position = plateCarriesDie ? plateReadyPosition : plateBase.position;
             plate.rotation = plateBase.rotation;
         }
 
-        RestoreWorldSyncForCast(die, plate);
-        SnapToUsedState(die, plate, dieBase, plateBase);
+        if (uiCardControlsLiftDrop)
+        {
+            diceUi.EndCastMotionLock();
+        }
+        else if (plateCarriesDie)
+        {
+            RestoreWorldSyncForCast(die, plate);
+        }
+        else
+        {
+            RestoreWorldSyncForCast(die, plate);
+            SnapToUsedState(die, plate, dieBase, plateBase);
+        }
     }
 
     private IEnumerator AnimateSelfSlam(
@@ -913,57 +979,79 @@ public class PlayerDiceCastAnimator : MonoBehaviour
     {
         Transform die = slot.dieRoot;
         Transform plate = slot.plateRoot;
+        DiceSpinnerGeneric spinner = slot.spinner;
+        DiceDraggableUI diceUi = ResolveDiceUi(spinner);
+        bool uiCardControlsLiftDrop = diceUi != null;
+        bool plateCarriesDie = plate != null && plate != die && die != null && die.IsChildOf(plate);
+        Tween uiLiftTween = null;
+        Tween plateLiftTween = null;
+        float liftLeadTime = Mathf.Clamp(launchPrepDuration * Mathf.Clamp01(liftCommitPortionBeforeThrow), 0f, launchPrepDuration);
+
+        if (uiCardControlsLiftDrop)
+            uiLiftTween = diceUi.AnimateCastDisplayToReady(launchPrepDuration, Ease.OutBack);
+
+        if (!uiCardControlsLiftDrop && plateCarriesDie)
+        {
+            Vector3 plateReadyPosition = plate.position + Vector3.up * (usedDropDistance * 0.7f);
+            plateLiftTween = RegisterTween(plate.DOMove(plateReadyPosition, launchPrepDuration).SetEase(Ease.OutBack));
+        }
+
+        if (liftLeadTime > 0f)
+            yield return new WaitForSeconds(liftLeadTime);
 
         TransformState dieBase = GetTransformState(die);
         TransformState plateBase = plate != null && plate != die ? GetTransformState(plate) : default;
-
         ReleaseWorldSyncForCast(die, plate);
 
-        yield return PlayLaunchPrep(die, plate, dieBase, plateBase);
-
         Vector3 apex = dieBase.position + Vector3.up * selfHopHeight;
-        Tween hopTween = RegisterTween(die.DOMove(apex, selfHopDuration).SetEase(Ease.OutQuad));
+        Tween hopTween = RegisterTween(die.DOMoveY(apex.y, selfHopDuration).SetEase(Ease.OutQuad));
         yield return hopTween.WaitForCompletion();
 
         Vector3 slamTarget = dieBase.position + Vector3.down * usedDropDistance;
-        Tween slamTween = RegisterTween(die.DOMove(slamTarget, selfSlamDuration).SetEase(Ease.InQuad));
+        Tween slamTween = RegisterTween(die.DOMoveY(slamTarget.y, selfSlamDuration).SetEase(Ease.InQuad));
+
+        float returnOverlapLead = Mathf.Clamp(selfSlamDuration * Mathf.Clamp01(returnCatchOverlapPortion), 0f, selfSlamDuration);
+        float slamPreCatchTime = Mathf.Max(0f, selfSlamDuration - returnOverlapLead);
+        if (slamPreCatchTime > 0f)
+            yield return new WaitForSeconds(slamPreCatchTime);
+
+        Tween dropTween = null;
+        if (uiCardControlsLiftDrop)
+        {
+            RestoreWorldSyncForCast(die, plate);
+            dropTween = diceUi.AnimateCastDisplayToSpent(usedDropDuration, Ease.InOutQuad);
+        }
+        else if (plate != null && plate != die)
+        {
+            Vector3 plateUsed = plateBase.position + Vector3.down * (usedDropDistance * 0.7f);
+            PlayPlateCatch(plate);
+            dropTween = RegisterTween(plate.DOMoveY(plateUsed.y, usedDropDuration).SetEase(Ease.InOutQuad));
+        }
+
         yield return slamTween.WaitForCompletion();
 
         PlayTargetImpactFeedback(caster, isFinal);
         if (isFinal)
             onImpact?.Invoke();
 
-        PlayPlateCatch(plate);
-
         die.position = slamTarget;
         die.rotation = dieBase.rotation;
 
-        if (plate != null && plate != die)
+        if (uiLiftTween != null && uiLiftTween.active)
+            yield return uiLiftTween.WaitForCompletion();
+        if (plateLiftTween != null && plateLiftTween.active)
+            yield return plateLiftTween.WaitForCompletion();
+        if (dropTween != null && dropTween.active)
+            yield return dropTween.WaitForCompletion();
+
+        if (uiCardControlsLiftDrop)
         {
-            Vector3 plateUsed = plateBase.position + Vector3.down * (usedDropDistance * 0.7f);
-            Tween plateTween = RegisterTween(plate.DOMove(plateUsed, usedDropDuration).SetEase(Ease.InOutQuad));
-            yield return plateTween.WaitForCompletion();
+            diceUi.EndCastMotionLock();
         }
-
-        RestoreWorldSyncForCast(die, plate);
-    }
-
-    private IEnumerator PlayLaunchPrep(Transform die, Transform plate, TransformState dieBase, TransformState plateBase)
-    {
-        if (die == null)
-            yield break;
-
-        Sequence prep = DOTween.Sequence();
-        prep.Append(RegisterTween(die.DOMove(dieBase.position + Vector3.up * launchPrepLift, launchPrepDuration * 0.5f).SetEase(Ease.OutQuad)));
-        prep.Append(RegisterTween(die.DOMove(dieBase.position, launchPrepDuration * 0.5f).SetEase(Ease.InQuad)));
-
-        if (plate != null && plate != die)
+        else
         {
-            prep.Join(RegisterTween(plate.DOMove(plateBase.position + Vector3.up * (launchPrepLift * 0.45f), launchPrepDuration * 0.5f).SetEase(Ease.OutQuad)));
-            prep.Join(RegisterTween(plate.DOMove(plateBase.position, launchPrepDuration * 0.5f).SetEase(Ease.InQuad)).SetDelay(launchPrepDuration * 0.5f));
+            RestoreWorldSyncForCast(die, plate);
         }
-
-        yield return prep.WaitForCompletion();
     }
 
     private IEnumerator DropIntoUsedState(Transform die, Transform plate, TransformState dieBase, TransformState plateBase)
@@ -1002,7 +1090,7 @@ public class PlayerDiceCastAnimator : MonoBehaviour
         }
     }
 
-    private IEnumerator TweenAlongQuadratic(
+    private Tween CreateQuadraticTween(
         Transform target,
         Vector3 p0,
         Vector3 pc,
@@ -1012,16 +1100,14 @@ public class PlayerDiceCastAnimator : MonoBehaviour
         Quaternion rot1)
     {
         if (target == null)
-            yield break;
+            return null;
 
-        Tween tween = RegisterTween(DOVirtual.Float(0f, 1f, Mathf.Max(0.01f, duration), t =>
+        return RegisterTween(DOVirtual.Float(0f, 1f, Mathf.Max(0.01f, duration), t =>
         {
             float eased = DOVirtual.EasedValue(0f, 1f, t, Ease.InOutSine);
             target.position = EvaluateQuadratic(p0, pc, p1, eased);
             target.rotation = Quaternion.SlerpUnclamped(rot0, rot1, eased);
         }).SetEase(Ease.Linear));
-
-        yield return tween.WaitForCompletion();
     }
 
     private Vector3 ResolveEnemyImpactPoint(CombatActor primaryTarget, Vector3 fallback)
@@ -1208,6 +1294,29 @@ public class PlayerDiceCastAnimator : MonoBehaviour
         seq.Append(RegisterTween(spinTarget.DOLocalRotate(midEuler, accelDuration, RotateMode.FastBeyond360).SetEase(Ease.InQuad)));
         seq.Append(RegisterTween(spinTarget.DOLocalRotate(endEuler, settleDuration, RotateMode.FastBeyond360).SetEase(Ease.OutQuart)));
         return RegisterTween(seq);
+    }
+
+    private DiceDraggableUI ResolveDiceUi(DiceSpinnerGeneric spinner)
+    {
+        if (spinner == null)
+            return null;
+
+        if (_diceUiBySpinner.TryGetValue(spinner, out DiceDraggableUI cached) && cached != null && cached.dice == spinner)
+            return cached;
+
+        DiceDraggableUI[] allDiceUi = FindObjectsOfType<DiceDraggableUI>(true);
+        for (int i = 0; i < allDiceUi.Length; i++)
+        {
+            DiceDraggableUI candidate = allDiceUi[i];
+            if (candidate == null || candidate.dice != spinner)
+                continue;
+
+            _diceUiBySpinner[spinner] = candidate;
+            return candidate;
+        }
+
+        _diceUiBySpinner.Remove(spinner);
+        return null;
     }
 
     private int ResolvePresentationFaceIndex(DiceSpinnerGeneric spinner)

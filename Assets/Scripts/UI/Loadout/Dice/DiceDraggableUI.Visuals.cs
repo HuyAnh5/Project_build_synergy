@@ -57,8 +57,58 @@ public partial class DiceDraggableUI
         return Mathf.Max(0.22f, tweenDuration);
     }
 
+    public void BeginCastMotionLock()
+    {
+        EnsureInitialized();
+        _castMotionLocked = true;
+        KillMoveTweens();
+        _castYOffsetOverride = _rt.anchoredPosition.y - _homeAnchoredPos.y;
+    }
+
+    public void EndCastMotionLock()
+    {
+        EnsureInitialized();
+        _castMotionLocked = false;
+        _castYOffsetOverride = null;
+    }
+
+    public Tween AnimateCastDisplayToReady(float duration, Ease ease)
+        => AnimateCastDisplayToYOffset(0f, duration, ease);
+
+    public Tween AnimateCastDisplayToSpent(float duration, Ease ease)
+        => AnimateCastDisplayToYOffset(-spentDropY, duration, ease);
+
+    private Tween AnimateCastDisplayToYOffset(float targetYOffset, float duration, Ease ease)
+    {
+        EnsureInitialized();
+        BeginCastMotionLock();
+
+        Vector2 target = _homeAnchoredPos + new Vector2(0f, targetYOffset);
+        if (duration <= 0f)
+        {
+            _castYOffsetOverride = targetYOffset;
+            _rt.anchoredPosition = target;
+            return null;
+        }
+
+        KillMoveTweens();
+        _moveTween = _rt.DOAnchorPos(target, duration)
+            .SetEase(ease)
+            .SetUpdate(true)
+            .OnUpdate(() => _castYOffsetOverride = _rt.anchoredPosition.y - _homeAnchoredPos.y)
+            .OnComplete(() =>
+            {
+                _castYOffsetOverride = targetYOffset;
+                _moveTween = null;
+            });
+        return _moveTween;
+    }
+
     private Vector2 GetDisplayAnchoredPosition(Vector2 anchoredPos)
     {
+        if (_castMotionLocked && _castYOffsetOverride.HasValue)
+            return anchoredPos + new Vector2(0f, _castYOffsetOverride.Value);
+
         float yOffset = _selected ? selectedLiftY : ((_spent || _previewSpentLike) ? -spentDropY : 0f);
         return anchoredPos + new Vector2(0f, yOffset);
     }
@@ -111,6 +161,9 @@ public partial class DiceDraggableUI
 
     private void MoveToDisplayPosition(bool instant)
     {
+        if (_castMotionLocked)
+            return;
+
         KillMoveTweens();
         Vector2 target = GetDisplayAnchoredPosition(_homeAnchoredPos);
         if (instant)
@@ -205,7 +258,7 @@ public partial class DiceDraggableUI
         RefreshVisualState();
     }
 
-    public void SetPreviewSpentLike(bool active)
+    public void SetPreviewSpentLike(bool active, bool instant = false, bool suppressMove = false)
     {
         EnsureInitialized();
         if (_previewSpentLike == active)
@@ -213,8 +266,8 @@ public partial class DiceDraggableUI
 
         _previewSpentLike = active;
 
-        if (!_dragging)
-            MoveToDisplayPosition(instant: false);
+        if (!_dragging && !_castMotionLocked && !suppressMove)
+            MoveToDisplayPosition(instant);
 
         RefreshVisualState();
     }
@@ -231,7 +284,7 @@ public partial class DiceDraggableUI
         RefreshVisualState();
     }
 
-    public void ClearPreviewSpentLike()
+    public void ClearPreviewSpentLike(bool instant = false, bool suppressMove = false)
     {
         if (!_previewSpentLike)
             return;
@@ -239,8 +292,8 @@ public partial class DiceDraggableUI
         EnsureInitialized();
         _previewSpentLike = false;
 
-        if (!_dragging)
-            MoveToDisplayPosition(instant: false);
+        if (!_dragging && !_castMotionLocked && !suppressMove)
+            MoveToDisplayPosition(instant);
 
         RefreshVisualState();
     }

@@ -242,7 +242,7 @@ public partial class DiceSlotRig
     /// <summary>
     /// Tắt preview dice consume, trả visual về bình thường.
     /// </summary>
-    public void ClearConsumePreview()
+    public void ClearConsumePreview(System.Collections.Generic.HashSet<DiceSpinnerGeneric> keepPreviewSpentLikeDice = null)
     {
         if (!_consumePreviewActive && _cachedDiceUIs == null)
             return;
@@ -261,7 +261,9 @@ public partial class DiceSlotRig
             if (ui != null)
             {
                 ui.ClearPreviewTint();
-                ui.ClearPreviewSpentLike();
+                bool keepSpentLike = keepPreviewSpentLikeDice != null && keepPreviewSpentLikeDice.Contains(die);
+                if (!keepSpentLike)
+                    ui.ClearPreviewSpentLike(true);
             }
         }
 
@@ -302,7 +304,7 @@ public partial class DiceSlotRig
                 // Thiếu dice: tất cả dice đỏ nhẹ nhấp nháy, ẩn outline để hiện khối màu đỏ đồng nhất
                 float alpha = Mathf.Lerp(invalidMinAlpha, 1f, t);
                 ui.SetPreviewTint(new Color(1f, 0.3f, 0.3f, alpha), true);
-                ui.ClearPreviewSpentLike();
+                ui.ClearPreviewSpentLike(true);
                 continue;
             }
 
@@ -310,7 +312,7 @@ public partial class DiceSlotRig
             if (spentDice != null && spentDice.Contains(die))
             {
                 ui.ClearPreviewTint();
-                ui.ClearPreviewSpentLike();
+                ui.ClearPreviewSpentLike(true);
                 continue;
             }
 
@@ -319,14 +321,14 @@ public partial class DiceSlotRig
                 // Dice sẽ bị consume: vàng nhấp nháy
                 float alpha = Mathf.Lerp(minAlpha, 1f, t);
                 ui.SetPreviewTint(new Color(0.62f, 0.62f, 0.62f, alpha), false);
-                ui.SetPreviewSpentLike(true);
+                ui.SetPreviewSpentLike(true, false);
                 consumed++;
             }
             else
             {
                 // Dice không bị consume: bình thường
                 ui.ClearPreviewTint();
-                ui.ClearPreviewSpentLike();
+                ui.ClearPreviewSpentLike(true);
             }
         }
     }

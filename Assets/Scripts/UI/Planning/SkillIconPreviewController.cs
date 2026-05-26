@@ -6,6 +6,7 @@ using UnityEngine.EventSystems;
 internal sealed class SkillIconPreviewController
 {
     private static readonly HashSet<DiceSpinnerGeneric> CachedSpentSet = new HashSet<DiceSpinnerGeneric>();
+    private static readonly HashSet<DiceSpinnerGeneric> CachedPendingUsedVisualSet = new HashSet<DiceSpinnerGeneric>();
 
     private readonly TurnManager _turn;
     private readonly SelfCastDropZone _selfCastZone;
@@ -69,7 +70,10 @@ internal sealed class SkillIconPreviewController
             hud.ClearFocusPreview();
 
         if (_turn != null && _turn.diceRig != null)
-            _turn.diceRig.ClearConsumePreview();
+        {
+            BuildPendingUsedVisualSet();
+            _turn.diceRig.ClearConsumePreview(CachedPendingUsedVisualSet);
+        }
 
         ClearTargetOverlays();
     }
@@ -160,6 +164,19 @@ internal sealed class SkillIconPreviewController
         {
             foreach (DiceSpinnerGeneric die in _turn.SpentDiceThisTurn)
                 CachedSpentSet.Add(die);
+        }
+    }
+
+    private void BuildPendingUsedVisualSet()
+    {
+        CachedPendingUsedVisualSet.Clear();
+        if (_turn == null || _turn.SpentDiceThisTurn == null)
+            return;
+
+        foreach (DiceSpinnerGeneric die in _turn.SpentDiceThisTurn)
+        {
+            if (_turn.IsDiePendingUsedVisualThisTurn(die))
+                CachedPendingUsedVisualSet.Add(die);
         }
     }
 

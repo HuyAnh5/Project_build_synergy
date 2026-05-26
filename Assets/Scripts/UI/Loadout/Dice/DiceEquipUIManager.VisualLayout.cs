@@ -12,11 +12,11 @@ public partial class DiceEquipUIManager
         UpdateEquippedArray();
         SyncOutputs(notifyInventoryChanged: false);
         ApplyUiActiveStates();
+        RefreshRowLayout(instant);
         RefreshCombatDiceRuntimeState(instant);
         RefreshDiceSelectionVisuals(instant);
         RebindCombatLaneIndices();
         RebindWorldSlotOwners();
-        RefreshRowLayout(instant);
         SyncWorldSlotRootsToUI(instant);
     }
 
@@ -160,11 +160,11 @@ public partial class DiceEquipUIManager
     private void RefreshVisualState(bool instant)
     {
         ApplyUiActiveStates();
+        RefreshRowLayout(instant);
         RefreshCombatDiceRuntimeState(instant);
         RefreshDiceSelectionVisuals(instant);
         RebindCombatLaneIndices();
         RebindWorldSlotOwners();
-        RefreshRowLayout(instant);
         SyncWorldSlotRootsToUI(instant);
     }
 
@@ -358,9 +358,14 @@ public partial class DiceEquipUIManager
                 continue;
 
             bool dieResolvedThisRoll = combatRigReady && !die.IsRolling && die.LastFaceIndex >= 0;
-            bool spent = dieResolvedThisRoll && turnManager.IsDieSpentThisTurn(die);
+            bool pendingUsedVisual = dieResolvedThisRoll && turnManager.IsDiePendingUsedVisualThisTurn(die);
+            bool spent = dieResolvedThisRoll && turnManager.ShouldShowDieAsSpentVisual(die);
             bool crit = dieResolvedThisRoll && die.LastRollIsCrit;
             bool fail = dieResolvedThisRoll && die.LastRollIsFail;
+            if (pendingUsedVisual)
+                diceUi.SetPreviewSpentLike(true, true);
+            if (spent)
+                diceUi.ClearPreviewSpentLike(true, true);
             die.SetCombatRollFeedback(crit, fail);
             diceUi.SetCombatVisualState(spent, crit, fail, instant);
         }

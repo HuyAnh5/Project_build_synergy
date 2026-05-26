@@ -1041,8 +1041,14 @@ public class TurnManager : MonoBehaviour
     public bool IsDieSpentThisTurn(DiceSpinnerGeneric die)
         => die != null && _spentDiceThisTurn.Contains(die);
 
-    public bool ShouldDimDieAsSpent(DiceSpinnerGeneric die)
+    public bool IsDiePendingUsedVisualThisTurn(DiceSpinnerGeneric die)
+        => die != null && _pendingUsedVisualDiceThisTurn.Contains(die);
+
+    public bool ShouldShowDieAsSpentVisual(DiceSpinnerGeneric die)
         => die != null && _spentDiceThisTurn.Contains(die) && !_pendingUsedVisualDiceThisTurn.Contains(die);
+
+    public bool ShouldDimDieAsSpent(DiceSpinnerGeneric die)
+        => ShouldShowDieAsSpentVisual(die);
 
     public bool RestoreDieToAvailableThisTurn(DiceSpinnerGeneric die)
     {

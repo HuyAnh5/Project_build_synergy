@@ -28,7 +28,7 @@ MonoBehaviour:
   identity: 0
   target: 0
   applyDelayTurns: 0
-  slotsRequired: 1
+  slotsRequired: 3
   focusCost: 2
   focusGainOnCast: 0
   _focusDelayedDelayWarning: 0
