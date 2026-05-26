@@ -59,7 +59,7 @@ public partial class DiceDraggableUI
 
     private Vector2 GetDisplayAnchoredPosition(Vector2 anchoredPos)
     {
-        float yOffset = _selected ? selectedLiftY : (_spent ? -spentDropY : 0f);
+        float yOffset = _selected ? selectedLiftY : ((_spent || _previewSpentLike) ? -spentDropY : 0f);
         return anchoredPos + new Vector2(0f, yOffset);
     }
 
@@ -75,6 +75,12 @@ public partial class DiceDraggableUI
 
         if (outlineEffect != null)
         {
+            if (_spent)
+            {
+                outlineEffect.enabled = false;
+                return;
+            }
+
             if (_hasPreviewTint && _forceHideOutline)
             {
                 outlineEffect.enabled = false;
@@ -199,6 +205,20 @@ public partial class DiceDraggableUI
         RefreshVisualState();
     }
 
+    public void SetPreviewSpentLike(bool active)
+    {
+        EnsureInitialized();
+        if (_previewSpentLike == active)
+            return;
+
+        _previewSpentLike = active;
+
+        if (!_dragging)
+            MoveToDisplayPosition(instant: false);
+
+        RefreshVisualState();
+    }
+
     /// <summary>
     /// Xoá tint preview, trả background về trạng thái bình thường.
     /// </summary>
@@ -208,6 +228,20 @@ public partial class DiceDraggableUI
         _hasPreviewTint = false;
         _forceHideOutline = false;
         EnsureInitialized();
+        RefreshVisualState();
+    }
+
+    public void ClearPreviewSpentLike()
+    {
+        if (!_previewSpentLike)
+            return;
+
+        EnsureInitialized();
+        _previewSpentLike = false;
+
+        if (!_dragging)
+            MoveToDisplayPosition(instant: false);
+
         RefreshVisualState();
     }
 }
