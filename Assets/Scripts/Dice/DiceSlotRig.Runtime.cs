@@ -259,7 +259,10 @@ public partial class DiceSlotRig
             if (die == null) continue;
             DiceDraggableUI ui = FindDiceUI(die);
             if (ui != null)
+            {
                 ui.ClearPreviewTint();
+                ui.ClearPreviewSpentLike();
+            }
         }
 
         _cachedDiceUIs = null;
@@ -299,24 +302,31 @@ public partial class DiceSlotRig
                 // Thiếu dice: tất cả dice đỏ nhẹ nhấp nháy, ẩn outline để hiện khối màu đỏ đồng nhất
                 float alpha = Mathf.Lerp(invalidMinAlpha, 1f, t);
                 ui.SetPreviewTint(new Color(1f, 0.3f, 0.3f, alpha), true);
+                ui.ClearPreviewSpentLike();
                 continue;
             }
 
             // Dice đã spent rồi thì skip (nó đã dim 50%)
             if (spentDice != null && spentDice.Contains(die))
+            {
+                ui.ClearPreviewTint();
+                ui.ClearPreviewSpentLike();
                 continue;
+            }
 
             if (consumed < _consumePreviewCount)
             {
                 // Dice sẽ bị consume: vàng nhấp nháy
                 float alpha = Mathf.Lerp(minAlpha, 1f, t);
-                ui.SetPreviewTint(new Color(1f, 0.85f, 0.2f, alpha));
+                ui.SetPreviewTint(new Color(0.62f, 0.62f, 0.62f, alpha), false);
+                ui.SetPreviewSpentLike(true);
                 consumed++;
             }
             else
             {
                 // Dice không bị consume: bình thường
                 ui.ClearPreviewTint();
+                ui.ClearPreviewSpentLike();
             }
         }
     }

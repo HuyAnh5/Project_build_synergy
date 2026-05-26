@@ -57,6 +57,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private bool _spent;
     private bool _crit;
     private bool _fail;
+    private bool _previewSpentLike;
 
     private void Awake()
     {
@@ -139,6 +140,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     public void SetCombatVisualState(bool spent, bool crit, bool fail, bool instant = false)
     {
         EnsureInitialized();
+        bool spentTriggered = !_spent && spent;
         bool failTriggered = !_fail && fail;
         bool changed = _spent != spent || _crit != crit || _fail != fail;
 
@@ -154,7 +156,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         if (_dragging)
             return;
 
-        MoveToDisplayPosition(instant);
+        MoveToDisplayPosition(instant || spentTriggered);
         if (failTriggered)
             PlayShake(failShakeStrength, failShakeDuration, failShakeVibrato);
     }
