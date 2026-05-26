@@ -55,6 +55,7 @@ public class TurnManager : MonoBehaviour
     private readonly Queue<TurnManagerQueuedPlayerCommand> _queuedPlayerCommands = new Queue<TurnManagerQueuedPlayerCommand>();
     private int _cursor = 0;
     private readonly HashSet<DiceSpinnerGeneric> _spentDiceThisTurn = new HashSet<DiceSpinnerGeneric>();
+    private readonly HashSet<DiceSpinnerGeneric> _pendingUsedVisualDiceThisTurn = new HashSet<DiceSpinnerGeneric>();
     private bool _victoryResolvedThisCombat;
     private bool _defeatResolvedThisCombat;
     private bool _externalPlayerInteractionLock;
@@ -432,6 +433,7 @@ public class TurnManager : MonoBehaviour
             resolvedSum = resolvedSum,
             maxFace = maxFace,
             start0 = start0,
+            span = span,
         });
 
         // ? ROUTE: BuffDebuff ph?i g?i overload SkillBuffDebuffSO, runtime Utility kh�ng l�m g�
@@ -472,6 +474,7 @@ public class TurnManager : MonoBehaviour
     private IEnumerator ExecuteQueuedCommand(TurnManagerQueuedPlayerCommand command)
     {
         yield return TurnManagerCommandExecutionUtility.ExecuteQueuedCommand(command, executor, player, party, enemy, diceRig, _playerContext, logPhase, this);
+        FinalizePendingUsedVisualRange(command.start0, command.span);
 
         if (TryHandleCombatDefeat())
             yield break;
@@ -689,6 +692,7 @@ public class TurnManager : MonoBehaviour
         TurnManagerLifecycleUtility.BeginPlayerTurnStatusesAndFocus(player, logPhase, this);
 
         _spentDiceThisTurn.Clear();
+        _pendingUsedVisualDiceThisTurn.Clear();
         _board.Reset();
         _queuedPlayerCommands.Clear();
         _isProcessingQueuedPlayerCommands = false;
@@ -699,6 +703,9 @@ public class TurnManager : MonoBehaviour
             ApplySlotCollapseToRig();
             diceRig.BeginNewTurn();
         }
+
+        if (executor != null)
+            executor.ResetPlayerCastVisualState();
 
         RefreshAllViews();
         RefreshPlanningInteractivity();
@@ -948,6 +955,7 @@ public class TurnManager : MonoBehaviour
             if (die != null)
             {
                 _spentDiceThisTurn.Add(die);
+                _pendingUsedVisualDiceThisTurn.Add(die);
                 DiceCombatEnchantRuntimeUtility.MarkDieUsedInCombat(die);
             }
         }
@@ -1033,6 +1041,9 @@ public class TurnManager : MonoBehaviour
     public bool IsDieSpentThisTurn(DiceSpinnerGeneric die)
         => die != null && _spentDiceThisTurn.Contains(die);
 
+    public bool ShouldDimDieAsSpent(DiceSpinnerGeneric die)
+        => die != null && _spentDiceThisTurn.Contains(die) && !_pendingUsedVisualDiceThisTurn.Contains(die);
+
     public bool RestoreDieToAvailableThisTurn(DiceSpinnerGeneric die)
     {
         if (die == null)
@@ -1041,6 +1052,8 @@ public class TurnManager : MonoBehaviour
         bool removed = _spentDiceThisTurn.Remove(die);
         if (!removed)
             return false;
+
+        _pendingUsedVisualDiceThisTurn.Remove(die);
 
         if (diceRig != null)
             diceRig.RefreshRollInfoCache();
@@ -1053,6 +1066,19 @@ public class TurnManager : MonoBehaviour
         }
 
         return true;
+    }
+
+    private void FinalizePendingUsedVisualRange(int start0, int span)
+    {
+        if (diceRig == null || diceRig.slots == null)
+            return;
+
+        for (int i = start0; i < start0 + span && i < diceRig.slots.Length; i++)
+        {
+            DiceSpinnerGeneric die = diceRig.slots[i] != null ? diceRig.slots[i].dice : null;
+            if (die != null)
+                _pendingUsedVisualDiceThisTurn.Remove(die);
+        }
     }
 
     private bool TryResolvePrototypeCastPlacement(ScriptableObject activeSkill, out int start0, out int anchor0, bool commit)

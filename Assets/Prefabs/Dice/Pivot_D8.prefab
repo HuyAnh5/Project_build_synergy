@@ -406,6 +406,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DiceSpinnerGeneric
   pivot: {fileID: 4316808728159653016}
+  flightSpinTarget: {fileID: 1334092910551651593}
   faces:
   - value: 1
     localEuler: {x: -124.33, y: 0, z: 0}

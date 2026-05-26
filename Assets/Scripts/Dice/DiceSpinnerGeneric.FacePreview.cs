@@ -91,6 +91,8 @@ public partial class DiceSpinnerGeneric
     {
         if (pivot == null)
             pivot = transform;
+        if (flightSpinTarget == null)
+            flightSpinTarget = pivot;
         _pivotBaseLocalPosition = pivot.localPosition;
         AutoWireTextReferences();
 
@@ -107,6 +109,8 @@ public partial class DiceSpinnerGeneric
     {
         if (pivot == null)
             pivot = transform;
+        if (flightSpinTarget == null)
+            flightSpinTarget = pivot;
         _pivotBaseLocalPosition = pivot.localPosition;
         AutoWireTextReferences();
 

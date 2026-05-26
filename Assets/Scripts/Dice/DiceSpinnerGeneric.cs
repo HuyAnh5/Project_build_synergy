@@ -20,6 +20,9 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
     private const string FeedbackOutlineShaderName = "Hidden/BuildSynergy/DieFeedbackOutlineURP";
 
     public Transform pivot;
+    [Header("Presentation")]
+    [Tooltip("Optional inner transform used for cast/flying spin presentation. Falls back to pivot when empty.")]
+    public Transform flightSpinTarget;
     public DiceFace[] faces;
 
     [Header("Whole-Die Tag")]
@@ -96,6 +99,8 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
 
     public bool LastRollIsCrit => IsCritValue(LastRolledValue) || DiceFaceEnchantUtility.CountsAsCritForConditions(GetCurrentFaceEnchant());
     public bool LastRollIsFail => IsFailValue(LastRolledValue) || DiceFaceEnchantUtility.CountsAsFailForConditions(GetCurrentFaceEnchant());
+    public Tween ActiveTween => _tween;
+    public Transform FlightSpinTarget => flightSpinTarget != null ? flightSpinTarget : pivot;
 
     public System.Action<DiceSpinnerGeneric> onRollComplete;
 
@@ -103,6 +108,8 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
     {
         if (pivot == null)
             pivot = transform;
+        if (flightSpinTarget == null)
+            flightSpinTarget = pivot;
         _pivotBaseLocalPosition = pivot.localPosition;
         AutoWireTextReferences();
 
@@ -217,6 +224,51 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
         });
 
         _tween = seq;
+    }
+
+    public Tween PlayPresentationRollToFaceIndex(int faceIndex, float accelDuration, float totalDuration, int extraLoopsPerAxis = 0)
+    {
+        if (!ValidateFaces())
+            return null;
+
+        faceIndex = Mathf.Clamp(faceIndex, 0, faces.Length - 1);
+
+        Vector3 targetEuler = NormalizeEuler(faces[faceIndex].localEuler);
+
+        _tween?.Kill();
+        ClearRollStatePopupVisuals(clearText: false);
+        IsRolling = true;
+
+        Vector3 startEuler = pivot.localEulerAngles;
+
+        int lx = Random.Range(loopsMin.x, loopsMax.x + 1) + Mathf.Max(0, extraLoopsPerAxis);
+        int ly = Random.Range(loopsMin.y, loopsMax.y + 1) + Mathf.Max(0, extraLoopsPerAxis);
+        int lz = Random.Range(loopsMin.z, loopsMax.z + 1) + Mathf.Max(0, extraLoopsPerAxis);
+
+        Vector3 endEuler = targetEuler + new Vector3(360f * lx, 360f * ly, 360f * lz);
+
+        float safeAccelTime = Mathf.Max(0.01f, accelDuration);
+        float safeTotalTime = Mathf.Max(safeAccelTime + 0.01f, totalDuration);
+        float slowTime = Mathf.Max(0.01f, safeTotalTime - safeAccelTime);
+        Vector3 midEuler = Vector3.Lerp(startEuler, endEuler, accelPortion);
+
+        Sequence seq = DOTween.Sequence();
+        seq.Append(pivot.DOLocalRotate(midEuler, safeAccelTime, RotateMode.FastBeyond360).SetEase(Ease.InQuad));
+        seq.Append(pivot.DOLocalRotate(endEuler, slowTime, RotateMode.FastBeyond360).SetEase(Ease.OutQuart));
+        seq.OnComplete(() =>
+        {
+            IsRolling = false;
+            RefreshDisplayedState();
+            _tween = null;
+        });
+        seq.OnKill(() =>
+        {
+            if (_tween == seq)
+                _tween = null;
+        });
+
+        _tween = seq;
+        return seq;
     }
 
     public void RollToFaceIndexTurnStartProfile(int faceIndex, float accelDuration, float baseTotalDuration, float tailDuration, int extraTailLoops, Vector3Int? sharedBaseLoops = null)

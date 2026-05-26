@@ -52,7 +52,7 @@ public static class TurnManagerViewUtility
         {
             if (ui == null) continue;
             float alpha = 1f;
-            if (turn != null && ui.dice != null && turn.IsDieSpentThisTurn(ui.dice))
+            if (turn != null && ui.dice != null && turn.ShouldDimDieAsSpent(ui.dice))
                 alpha = 0.5f;
             ui.SetRestingAlpha(alpha);
         }

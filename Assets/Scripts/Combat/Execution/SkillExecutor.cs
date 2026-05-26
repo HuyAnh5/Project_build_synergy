@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System;
 using UnityEngine;
 using DG.Tweening;
 
@@ -49,6 +50,9 @@ public class SkillExecutor : MonoBehaviour
     [Header("Lightning Mark")]
     public float lightningMarkShockInterval = 0.2f;
 
+    [Header("Player Dice Cast")]
+    public PlayerDiceCastAnimator playerDiceCastAnimator;
+
     private DamagePopupSystem GetPopups()
     {
         if (damagePopups != null) return damagePopups;
@@ -71,14 +75,14 @@ public class SkillExecutor : MonoBehaviour
         yield return ExecuteSkill(rt, caster, target, dieValue, skipCost);
     }
 
-    public IEnumerator ExecuteSkill(SkillDamageSO skill, CombatActor caster, CombatActor target, int dieValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null)
+    public IEnumerator ExecuteSkill(SkillDamageSO skill, CombatActor caster, CombatActor target, int dieValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null, DiceSlotRig castDiceRig = null, int castStart0 = -1, int castSpan = 0)
     {
         var rt = SkillRuntime.FromDamage(skill);
-        yield return ExecuteSkill(rt, caster, target, dieValue, skipCost, aoeTargets);
+        yield return ExecuteSkill(rt, caster, target, dieValue, skipCost, aoeTargets, castDiceRig, castStart0, castSpan);
     }
 
     // NEW: SkillBuffDebuffSO execution (applies via StatusController)
-    public IEnumerator ExecuteSkill(SkillBuffDebuffSO skill, CombatActor caster, CombatActor clickedTarget, int rolledValue, int maxFaceValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null)
+    public IEnumerator ExecuteSkill(SkillBuffDebuffSO skill, CombatActor caster, CombatActor clickedTarget, int rolledValue, int maxFaceValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null, DiceSlotRig castDiceRig = null, int castStart0 = -1, int castSpan = 0)
     {
         if (skill == null || caster == null) yield break;
 
@@ -100,24 +104,37 @@ public class SkillExecutor : MonoBehaviour
 
         Debug.Log($"[EXEC] Targets resolved count={targets.Count}", this);
 
-        for (int i = 0; i < targets.Count; i++)
+        System.Action applyBuffEffects = () =>
         {
-            var t = targets[i];
-            if (t == null || t.IsDead) continue;
-
-            int hpBefore = t.hp;
-            int focusBefore = t.focus;
-
-            if (t.status != null)
+            for (int i = 0; i < targets.Count; i++)
             {
-                t.status.ApplyBuffDebuffSkill(skill, caster, rolledValue, maxFaceValue);
-                bool hasAil = t.status.HasAilment(out var at, out var left);
-                Debug.Log($"[EXEC] Apply -> target={t.name} hp:{hpBefore}->{t.hp} focus:{focusBefore}->{t.focus} hasAilment={hasAil} {(hasAil ? ($"type={at} left={left}") : "")}", this);
+                var t = targets[i];
+                if (t == null || t.IsDead) continue;
+
+                int hpBefore = t.hp;
+                int focusBefore = t.focus;
+
+                if (t.status != null)
+                {
+                    t.status.ApplyBuffDebuffSkill(skill, caster, rolledValue, maxFaceValue);
+                    bool hasAil = t.status.HasAilment(out var at, out var left);
+                    Debug.Log($"[EXEC] Apply -> target={t.name} hp:{hpBefore}->{t.hp} focus:{focusBefore}->{t.focus} hasAilment={hasAil} {(hasAil ? ($"type={at} left={left}") : "")}", this);
+                }
+                else
+                {
+                    Debug.LogWarning($"[EXEC] target={t.name} has NO StatusController", this);
+                }
             }
-            else
-            {
-                Debug.LogWarning($"[EXEC] target={t.name} has NO StatusController", this);
-            }
+        };
+
+        if (ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
+        {
+            PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, clickedTarget, targets);
+            yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, caster, clickedTarget, targets, mode, applyBuffEffects);
+        }
+        else
+        {
+            applyBuffEffects();
         }
 
         if (skill.focusGainOnCast != 0)
@@ -144,7 +161,10 @@ public class SkillExecutor : MonoBehaviour
         CombatActor clickedTarget,
         int dieValue,
         bool skipCost = false,
-        IReadOnlyList<CombatActor> aoeTargets = null)
+        IReadOnlyList<CombatActor> aoeTargets = null,
+        DiceSlotRig castDiceRig = null,
+        int castStart0 = -1,
+        int castSpan = 0)
     {
         if (rt == null || caster == null) yield break;
 
@@ -178,26 +198,38 @@ public class SkillExecutor : MonoBehaviour
 
         if (rt.kind == SkillKind.Guard)
         {
-            int baseGuard = rt.CalculateGuard(dieValue);
-            if (rt.guardValueMode == BaseEffectValueMode.Flat && rt.guardFlat > 0)
-                baseGuard = SkillOutputValueUtility.AddActionAddedValue(rt.guardFlat, rt);
-            baseGuard = ApplyCustomGuardBehavior(rt, caster, baseGuard);
+            System.Action applyGuard = () =>
+            {
+                int baseGuard = rt.CalculateGuard(dieValue);
+                if (rt.guardValueMode == BaseEffectValueMode.Flat && rt.guardFlat > 0)
+                    baseGuard = SkillOutputValueUtility.AddActionAddedValue(rt.guardFlat, rt);
+                baseGuard = ApplyCustomGuardBehavior(rt, caster, baseGuard);
 
-            // apply GuardGainPercent passive
-            float pct = 0f;
-            var ps = caster.GetComponent<PassiveSystem>();
-            if (ps != null) pct = ps.GetGuardGainPercent();
+                float pct = 0f;
+                var ps = caster.GetComponent<PassiveSystem>();
+                if (ps != null) pct = ps.GetGuardGainPercent();
 
-            float mult = 1f + Mathf.Max(-0.99f, pct);
-            int scaledGuard = Mathf.FloorToInt(baseGuard * mult);
+                float mult = 1f + Mathf.Max(-0.99f, pct);
+                int scaledGuard = Mathf.FloorToInt(baseGuard * mult);
 
-            caster.AddGuard(scaledGuard);
-            if (scaledGuard > 0)
-                CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Guard);
+                caster.AddGuard(scaledGuard);
+                if (scaledGuard > 0)
+                    CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Guard);
 
-            caster.GainFocus(rt.focusGainOnCast);
-            if (rt.focusGainOnCast > 0)
-                CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Focus);
+                caster.GainFocus(rt.focusGainOnCast);
+                if (rt.focusGainOnCast > 0)
+                    CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Focus);
+            };
+
+            if (ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
+            {
+                PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, primaryTarget, null);
+                yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, caster, primaryTarget, null, mode, applyGuard);
+            }
+            else
+            {
+                applyGuard();
+            }
 
             yield return new WaitForSeconds(delayBetweenActions);
             yield break;
@@ -205,6 +237,51 @@ public class SkillExecutor : MonoBehaviour
 
         if (rt.kind == SkillKind.Attack)
         {
+            if (ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
+            {
+                AttackApplyResult singleResult = default;
+                int aoeShockProcCount = 0;
+                int aoeShockDamage = 0;
+
+                System.Action applyAttackAtImpact = () =>
+                {
+                    if (useAoe)
+                        aoeShockProcCount = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue, out aoeShockDamage);
+                    else
+                        singleResult = ApplyAttack(rt, caster, primaryTarget, dieValue);
+                };
+
+                PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, primaryTarget, aoeTargets);
+                yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, caster, primaryTarget, aoeTargets, mode, applyAttackAtImpact);
+
+                if (useAoe)
+                {
+                    if (aoeShockProcCount > 0 && aoeShockDamage > 0 && delayedSecondaryDamageStep > 0f)
+                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
+
+                    if (aoeShockProcCount > 0 && aoeShockDamage > 0)
+                        yield return ApplyLightningMarkShockSequence(caster, aoeShockDamage, aoeShockProcCount);
+                }
+                else if (singleResult.lightningShockProcCount > 0 && singleResult.lightningShockDamage > 0)
+                {
+                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
+                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
+
+                    yield return ApplyLightningMarkShockSequence(caster, singleResult.lightningShockDamage, singleResult.lightningShockProcCount);
+                }
+
+                if (!useAoe && singleResult.delayedBurnConsumeDamage > 0)
+                {
+                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
+                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
+
+                    ApplyDelayedBurnConsumeDamage(caster, primaryTarget, singleResult.delayedBurnConsumeDamage);
+                }
+
+                caster.GainFocus(rt.focusGainOnCast);
+                yield return new WaitForSeconds(delayBetweenActions);
+                yield break;
+            }
             // MELEE (visual 1 lần)
             if (rt.range == RangeType.Melee)
             {
@@ -501,4 +578,847 @@ public class SkillExecutor : MonoBehaviour
         return baseGuard;
     }
 
+    public void ResetPlayerCastVisualState()
+    {
+        if (playerDiceCastAnimator == null)
+            playerDiceCastAnimator = GetComponent<PlayerDiceCastAnimator>();
+
+        if (playerDiceCastAnimator != null)
+            playerDiceCastAnimator.ResetAllVisualState();
+    }
+
+    private bool ShouldUsePlayerDiceCastAnimation(CombatActor caster, DiceSlotRig castDiceRig, int castStart0, int castSpan)
+    {
+        if (caster == null || castDiceRig == null)
+            return false;
+        if (!caster.isPlayer)
+            return false;
+        if (castStart0 < 0 || castSpan <= 0)
+            return false;
+        return GetPlayerDiceCastAnimator() != null;
+    }
+
+    private PlayerDiceCastAnimator GetPlayerDiceCastAnimator()
+    {
+        if (playerDiceCastAnimator != null)
+            return playerDiceCastAnimator;
+
+        playerDiceCastAnimator = GetComponent<PlayerDiceCastAnimator>();
+        if (playerDiceCastAnimator == null)
+            playerDiceCastAnimator = gameObject.AddComponent<PlayerDiceCastAnimator>();
+        return playerDiceCastAnimator;
+    }
+
+    private static PlayerDiceCastAnimator.CastMode ResolveCastMode(
+        CombatActor caster,
+        CombatActor primaryTarget,
+        IReadOnlyList<CombatActor> aoeTargets)
+    {
+        if (caster == null || primaryTarget == null)
+            return PlayerDiceCastAnimator.CastMode.Self;
+
+        if (primaryTarget.team == caster.team)
+            return PlayerDiceCastAnimator.CastMode.Self;
+
+        return aoeTargets != null && aoeTargets.Count > 1
+            ? PlayerDiceCastAnimator.CastMode.EnemyAoeAnchor
+            : PlayerDiceCastAnimator.CastMode.EnemySingle;
+    }
+
+}
+
+public class PlayerDiceCastAnimator : MonoBehaviour
+{
+    public enum CastMode
+    {
+        Self,
+        EnemySingle,
+        EnemyAoeAnchor
+    }
+
+    [Header("Shared Timing")]
+    [Min(0f)] public float interDieDelay = 0.12f;
+    [Min(0.01f)] public float launchPrepDuration = 0.10f;
+    [Min(0f)] public float launchPrepLift = 0.18f;
+    [Min(0f)] public float usedDropDistance = 0.24f;
+    [Min(0.01f)] public float usedDropDuration = 0.10f;
+
+    [Header("Enemy Throw")]
+    [Min(0.01f)] public float throwDuration = 0.24f;
+    [Min(0.01f)] public float returnDuration = 0.41f;
+    [Min(0f)] public float outwardArcHeight = 0.38f;
+    [Min(0f)] public float returnArcHeight = 4.8f;
+    [Min(0f)] public float impactHoldDuration = 0.03f;
+    [Min(0.01f)] public float enemyImpactScale = 0.5f;
+    [Min(0.01f)] public float enemyReturnPeakScale = 1.5f;
+
+    [Header("Self Slam")]
+    [Min(0.01f)] public float selfHopDuration = 0.10f;
+    [Min(0.01f)] public float selfSlamDuration = 0.16f;
+    [Min(0f)] public float selfHopHeight = 0.26f;
+
+    [Header("Impact Feel")]
+    [Min(0f)] public float impactPunchScale = 0.08f;
+    [Min(0.01f)] public float impactPunchDuration = 0.16f;
+    [Min(0f)] public float plateCatchPunchScale = 0.12f;
+    [Min(0.01f)] public float plateCatchPunchDuration = 0.18f;
+
+    private struct TransformState
+    {
+        public Vector3 position;
+        public Quaternion rotation;
+        public Vector3 scale;
+    }
+
+    private sealed class SlotVisualRefs
+    {
+        public Transform dieRoot;
+        public Transform plateRoot;
+        public DiceSpinnerGeneric spinner;
+        public Transform spinnerTransform;
+    }
+
+    private sealed class ProxyVisualRefs
+    {
+        public GameObject rootObject;
+        public Transform root;
+        public DiceSpinnerGeneric spinner;
+        public Transform spinnerTransform;
+        public Vector3 baseScale;
+    }
+
+    private struct DetachedTransformState
+    {
+        public Transform parent;
+        public int siblingIndex;
+        public Vector3 localPosition;
+        public Quaternion localRotation;
+        public Vector3 localScale;
+        public Vector3 worldScale;
+    }
+
+    private readonly Dictionary<Transform, TransformState> _baselineStates = new Dictionary<Transform, TransformState>();
+    private readonly Dictionary<Transform, DetachedTransformState> _detachedStates = new Dictionary<Transform, DetachedTransformState>();
+    private readonly List<Tween> _activeTweens = new List<Tween>();
+    private readonly List<GameObject> _activeProxyObjects = new List<GameObject>();
+    private readonly HashSet<Transform> _hiddenOriginalRoots = new HashSet<Transform>();
+    private readonly HashSet<Transform> _temporarilyReleasedWorldSyncRoots = new HashSet<Transform>();
+
+    public IEnumerator PlayCast(
+        DiceSlotRig diceRig,
+        int start0,
+        int span,
+        CombatActor caster,
+        CombatActor primaryTarget,
+        IReadOnlyList<CombatActor> aoeTargets,
+        CastMode mode,
+        Action onFinalImpact)
+    {
+        List<SlotVisualRefs> slots = CollectSlotVisuals(diceRig, start0, span);
+        if (slots.Count == 0)
+        {
+            onFinalImpact?.Invoke();
+            yield break;
+        }
+
+        int completedCount = 0;
+        bool finalImpactTriggered = false;
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            SlotVisualRefs slot = slots[i];
+            int orderIndex = i;
+            bool isFinal = i == slots.Count - 1;
+            StartCoroutine(AnimateSlotRoutine(
+                slot,
+                orderIndex,
+                isFinal,
+                caster,
+                primaryTarget,
+                aoeTargets,
+                mode,
+                () =>
+                {
+                    if (isFinal && !finalImpactTriggered)
+                    {
+                        finalImpactTriggered = true;
+                        onFinalImpact?.Invoke();
+                    }
+                },
+                () => completedCount++));
+        }
+
+        while (completedCount < slots.Count)
+            yield return null;
+    }
+
+    public void ResetAllVisualState()
+    {
+        for (int i = _activeTweens.Count - 1; i >= 0; i--)
+        {
+            Tween tween = _activeTweens[i];
+            if (tween != null && tween.active)
+                tween.Kill(false);
+        }
+
+        _activeTweens.Clear();
+
+        for (int i = _activeProxyObjects.Count - 1; i >= 0; i--)
+        {
+            GameObject proxy = _activeProxyObjects[i];
+            if (proxy != null)
+                Destroy(proxy);
+        }
+
+        _activeProxyObjects.Clear();
+
+        foreach (Transform releasedRoot in _temporarilyReleasedWorldSyncRoots)
+            DiceEquipWorldSyncUtility.EndTemporaryRelease(releasedRoot);
+        _temporarilyReleasedWorldSyncRoots.Clear();
+
+        foreach (KeyValuePair<Transform, DetachedTransformState> kvp in _detachedStates)
+            RestoreDetachedTransform(kvp.Key, kvp.Value);
+        _detachedStates.Clear();
+
+        foreach (Transform hiddenRoot in _hiddenOriginalRoots)
+            SetRenderableVisibility(hiddenRoot, true);
+        _hiddenOriginalRoots.Clear();
+
+        foreach (KeyValuePair<Transform, TransformState> kvp in _baselineStates)
+        {
+            Transform target = kvp.Key;
+            if (target == null)
+                continue;
+
+            TransformState state = kvp.Value;
+            target.position = state.position;
+            target.rotation = state.rotation;
+            target.localScale = state.scale;
+        }
+
+        _baselineStates.Clear();
+    }
+
+    private IEnumerator AnimateSlotRoutine(
+        SlotVisualRefs slot,
+        int orderIndex,
+        bool isFinal,
+        CombatActor caster,
+        CombatActor primaryTarget,
+        IReadOnlyList<CombatActor> aoeTargets,
+        CastMode mode,
+        Action onImpact,
+        Action onComplete)
+    {
+        if (slot == null || slot.dieRoot == null)
+        {
+            onComplete?.Invoke();
+            yield break;
+        }
+
+        if (orderIndex > 0 && interDieDelay > 0f)
+            yield return new WaitForSeconds(interDieDelay * orderIndex);
+
+        CacheTransformState(slot.dieRoot);
+        if (slot.plateRoot != null && slot.plateRoot != slot.dieRoot)
+            CacheTransformState(slot.plateRoot);
+
+        if (mode == CastMode.Self)
+            yield return AnimateSelfSlam(slot, isFinal, caster, onImpact);
+        else
+            yield return AnimateEnemyThrow(slot, orderIndex, isFinal, primaryTarget, aoeTargets, mode, onImpact);
+
+        onComplete?.Invoke();
+    }
+
+    private IEnumerator AnimateEnemyThrow(
+        SlotVisualRefs slot,
+        int orderIndex,
+        bool isFinal,
+        CombatActor primaryTarget,
+        IReadOnlyList<CombatActor> aoeTargets,
+        CastMode mode,
+        Action onImpact)
+    {
+        Transform die = slot.dieRoot;
+        Transform plate = slot.plateRoot;
+        DiceSpinnerGeneric spinner = slot.spinner;
+        Transform moveTarget = spinner != null && spinner.pivot != null ? spinner.pivot : die;
+
+        TransformState dieBase = GetTransformState(die);
+        TransformState plateBase = plate != null && plate != die ? GetTransformState(plate) : default;
+        TransformState moveBase = GetTransformState(moveTarget);
+
+        ReleaseWorldSyncForCast(die, plate);
+
+        float totalRollDuration = throwDuration + Mathf.Max(0f, impactHoldDuration) + returnDuration;
+        Tween rollTween = StartExistingSpinnerPresentationRoll(spinner, orderIndex, totalRollDuration);
+
+        Vector3 impactPoint = ResolveEnemyImpactPoint(primaryTarget, moveBase.position);
+        Vector3 outwardControl = BuildArcControlPoint(moveBase.position, impactPoint, outwardArcHeight, 0f);
+        Quaternion moveRotation = moveBase.rotation;
+
+        yield return TweenAlongQuadratic(
+            moveTarget,
+            moveBase.position,
+            outwardControl,
+            impactPoint,
+            throwDuration,
+            moveRotation,
+            moveRotation);
+
+        PlayTargetImpactFeedback(primaryTarget, isFinal);
+        if (mode == CastMode.EnemyAoeAnchor && isFinal)
+            PlayAoeTargetFeedback(aoeTargets, primaryTarget);
+
+        if (isFinal)
+            onImpact?.Invoke();
+
+        if (impactHoldDuration > 0f)
+            yield return new WaitForSeconds(impactHoldDuration);
+
+        Vector3 returnControl = BuildArcControlPoint(impactPoint, moveBase.position, returnArcHeight, 0f);
+        yield return TweenAlongQuadratic(
+            moveTarget,
+            impactPoint,
+            returnControl,
+            moveBase.position,
+            returnDuration,
+            moveRotation,
+            moveRotation);
+
+        if (rollTween != null && rollTween.active)
+            yield return rollTween.WaitForCompletion();
+
+        moveTarget.position = moveBase.position;
+        moveTarget.rotation = moveBase.rotation;
+        die.position = dieBase.position;
+        die.rotation = dieBase.rotation;
+
+        if (plate != null && plate != die)
+        {
+            plate.position = plateBase.position;
+            plate.rotation = plateBase.rotation;
+        }
+
+        RestoreWorldSyncForCast(die, plate);
+        SnapToUsedState(die, plate, dieBase, plateBase);
+    }
+
+    private IEnumerator AnimateSelfSlam(
+        SlotVisualRefs slot,
+        bool isFinal,
+        CombatActor caster,
+        Action onImpact)
+    {
+        Transform die = slot.dieRoot;
+        Transform plate = slot.plateRoot;
+
+        TransformState dieBase = GetTransformState(die);
+        TransformState plateBase = plate != null && plate != die ? GetTransformState(plate) : default;
+
+        ReleaseWorldSyncForCast(die, plate);
+
+        yield return PlayLaunchPrep(die, plate, dieBase, plateBase);
+
+        Vector3 apex = dieBase.position + Vector3.up * selfHopHeight;
+        Tween hopTween = RegisterTween(die.DOMove(apex, selfHopDuration).SetEase(Ease.OutQuad));
+        yield return hopTween.WaitForCompletion();
+
+        Vector3 slamTarget = dieBase.position + Vector3.down * usedDropDistance;
+        Tween slamTween = RegisterTween(die.DOMove(slamTarget, selfSlamDuration).SetEase(Ease.InQuad));
+        yield return slamTween.WaitForCompletion();
+
+        PlayTargetImpactFeedback(caster, isFinal);
+        if (isFinal)
+            onImpact?.Invoke();
+
+        PlayPlateCatch(plate);
+
+        die.position = slamTarget;
+        die.rotation = dieBase.rotation;
+
+        if (plate != null && plate != die)
+        {
+            Vector3 plateUsed = plateBase.position + Vector3.down * (usedDropDistance * 0.7f);
+            Tween plateTween = RegisterTween(plate.DOMove(plateUsed, usedDropDuration).SetEase(Ease.InOutQuad));
+            yield return plateTween.WaitForCompletion();
+        }
+
+        RestoreWorldSyncForCast(die, plate);
+    }
+
+    private IEnumerator PlayLaunchPrep(Transform die, Transform plate, TransformState dieBase, TransformState plateBase)
+    {
+        if (die == null)
+            yield break;
+
+        Sequence prep = DOTween.Sequence();
+        prep.Append(RegisterTween(die.DOMove(dieBase.position + Vector3.up * launchPrepLift, launchPrepDuration * 0.5f).SetEase(Ease.OutQuad)));
+        prep.Append(RegisterTween(die.DOMove(dieBase.position, launchPrepDuration * 0.5f).SetEase(Ease.InQuad)));
+
+        if (plate != null && plate != die)
+        {
+            prep.Join(RegisterTween(plate.DOMove(plateBase.position + Vector3.up * (launchPrepLift * 0.45f), launchPrepDuration * 0.5f).SetEase(Ease.OutQuad)));
+            prep.Join(RegisterTween(plate.DOMove(plateBase.position, launchPrepDuration * 0.5f).SetEase(Ease.InQuad)).SetDelay(launchPrepDuration * 0.5f));
+        }
+
+        yield return prep.WaitForCompletion();
+    }
+
+    private IEnumerator DropIntoUsedState(Transform die, Transform plate, TransformState dieBase, TransformState plateBase)
+    {
+        if (die == null)
+            yield break;
+
+        Vector3 dieUsed = dieBase.position + Vector3.down * usedDropDistance;
+        Sequence used = DOTween.Sequence();
+        used.Append(RegisterTween(die.DOMove(dieUsed, usedDropDuration).SetEase(Ease.InOutQuad)));
+
+        if (plate != null && plate != die)
+        {
+            Vector3 plateUsed = plateBase.position + Vector3.down * (usedDropDistance * 0.7f);
+            used.Join(RegisterTween(plate.DOMove(plateUsed, usedDropDuration).SetEase(Ease.InOutQuad)));
+        }
+
+        yield return used.WaitForCompletion();
+
+        die.position = dieUsed;
+        die.rotation = dieBase.rotation;
+    }
+
+    private void SnapToUsedState(Transform die, Transform plate, TransformState dieBase, TransformState plateBase)
+    {
+        if (die == null)
+            return;
+
+        die.position = dieBase.position + Vector3.down * usedDropDistance;
+        die.rotation = dieBase.rotation;
+
+        if (plate != null && plate != die)
+        {
+            plate.position = plateBase.position + Vector3.down * (usedDropDistance * 0.7f);
+            plate.rotation = plateBase.rotation;
+        }
+    }
+
+    private IEnumerator TweenAlongQuadratic(
+        Transform target,
+        Vector3 p0,
+        Vector3 pc,
+        Vector3 p1,
+        float duration,
+        Quaternion rot0,
+        Quaternion rot1)
+    {
+        if (target == null)
+            yield break;
+
+        Tween tween = RegisterTween(DOVirtual.Float(0f, 1f, Mathf.Max(0.01f, duration), t =>
+        {
+            float eased = DOVirtual.EasedValue(0f, 1f, t, Ease.InOutSine);
+            target.position = EvaluateQuadratic(p0, pc, p1, eased);
+            target.rotation = Quaternion.SlerpUnclamped(rot0, rot1, eased);
+        }).SetEase(Ease.Linear));
+
+        yield return tween.WaitForCompletion();
+    }
+
+    private Vector3 ResolveEnemyImpactPoint(CombatActor primaryTarget, Vector3 fallback)
+    {
+        if (primaryTarget == null)
+            return fallback;
+
+        ActorWorldUI worldUi = primaryTarget.GetComponent<ActorWorldUI>();
+        if (worldUi != null)
+        {
+            Transform uiTransform = worldUi.transform;
+            return uiTransform.position + new Vector3(0f, 0.1f, 0f);
+        }
+
+        Transform targetTransform = primaryTarget.transform;
+        return targetTransform != null
+            ? targetTransform.position + new Vector3(0f, 0.1f, 0f)
+            : fallback;
+    }
+
+    private Vector3 BuildArcControlPoint(Vector3 start, Vector3 end, float arcHeight, float forwardBias)
+    {
+        Vector3 midpoint = Vector3.Lerp(start, end, 0.5f);
+        Vector3 travel = end - start;
+        Vector3 planar = new Vector3(travel.x, 0f, travel.z);
+        Vector3 forward = planar.sqrMagnitude > 0.0001f ? planar.normalized : Vector3.right;
+        return midpoint + Vector3.up * arcHeight + forward * forwardBias;
+    }
+
+    private List<SlotVisualRefs> CollectSlotVisuals(DiceSlotRig diceRig, int start0, int span)
+    {
+        var results = new List<SlotVisualRefs>();
+        if (diceRig == null || diceRig.slots == null)
+            return results;
+
+        start0 = Mathf.Clamp(start0, 0, 2);
+        span = Mathf.Clamp(span, 1, 3);
+
+        for (int i = start0; i < start0 + span && i < diceRig.slots.Length; i++)
+        {
+            DiceSlotRig.Entry entry = diceRig.slots[i];
+            if (entry == null)
+                continue;
+
+            Transform dieRoot = entry.diceRoot != null
+                ? entry.diceRoot.transform
+                : (entry.dice != null ? entry.dice.transform : null);
+            if (dieRoot == null)
+                continue;
+
+            Transform plateRoot = entry.slotRoot != null ? entry.slotRoot.transform : null;
+            DiceSpinnerGeneric spinner = entry.dice != null ? entry.dice : dieRoot.GetComponentInChildren<DiceSpinnerGeneric>(true);
+            results.Add(new SlotVisualRefs
+            {
+                dieRoot = dieRoot,
+                plateRoot = plateRoot,
+                spinner = spinner,
+                spinnerTransform = spinner != null ? spinner.transform : dieRoot
+            });
+        }
+
+        return results;
+    }
+
+    private void CacheTransformState(Transform target)
+    {
+        if (target == null || _baselineStates.ContainsKey(target))
+            return;
+
+        _baselineStates[target] = new TransformState
+        {
+            position = target.position,
+            rotation = target.rotation,
+            scale = target.localScale
+        };
+    }
+
+    private TransformState GetTransformState(Transform target)
+    {
+        if (target == null)
+            return default;
+
+        if (_baselineStates.TryGetValue(target, out TransformState state))
+            return state;
+
+        state = new TransformState
+        {
+            position = target.position,
+            rotation = target.rotation,
+            scale = target.localScale
+        };
+        _baselineStates[target] = state;
+        return state;
+    }
+
+    private Tween RegisterTween(Tween tween)
+    {
+        if (tween == null)
+            return null;
+
+        _activeTweens.Add(tween);
+        tween.OnKill(() => _activeTweens.Remove(tween));
+        return tween;
+    }
+
+    private void PlayTargetImpactFeedback(CombatActor actor, bool finalImpact)
+    {
+        if (actor == null)
+            return;
+
+        float strength = Mathf.Max(0f, impactPunchScale) * (finalImpact ? 1.35f : 0.8f);
+        RegisterTween(actor.transform.DOPunchScale(Vector3.one * strength, impactPunchDuration, 1, 0.55f));
+    }
+
+    private ProxyVisualRefs CreateFlightProxy(SlotVisualRefs source, TransformState dieBase)
+    {
+        if (source == null || source.dieRoot == null)
+            return null;
+
+        GameObject proxyObject = Instantiate(source.dieRoot.gameObject, dieBase.position, dieBase.rotation, transform);
+        proxyObject.name = source.dieRoot.gameObject.name + "_CastProxy";
+        SetWorldScale(proxyObject.transform, source.dieRoot.lossyScale);
+        _activeProxyObjects.Add(proxyObject);
+
+        DiceSpinnerGeneric proxySpinner = proxyObject.GetComponentInChildren<DiceSpinnerGeneric>(true);
+        if (proxySpinner != null && source.spinner != null)
+        {
+            proxySpinner.CopyRuntimeStateFrom(source.spinner, copyRotation: true);
+            proxySpinner.enableSpaceKey = false;
+        }
+
+        return new ProxyVisualRefs
+        {
+            rootObject = proxyObject,
+            root = proxyObject.transform,
+            spinner = proxySpinner,
+            spinnerTransform = proxySpinner != null ? proxySpinner.transform : proxyObject.transform,
+            baseScale = proxySpinner != null ? proxySpinner.transform.localScale : proxyObject.transform.localScale
+        };
+    }
+
+    private Tween StartSpinnerSpin(ProxyVisualRefs proxy, int orderIndex, float duration, int baseLoopsX, int baseLoopsY, int baseLoopsZ)
+    {
+        if (proxy == null || proxy.spinnerTransform == null)
+            return null;
+
+        Vector3 startEuler = proxy.spinnerTransform.localEulerAngles;
+        Vector3 endEuler = startEuler + new Vector3(
+            360f * (baseLoopsX + (orderIndex % 2)),
+            360f * (baseLoopsY + (orderIndex % 3)),
+            360f * (baseLoopsZ + ((orderIndex + 1) % 2)));
+
+        return RegisterTween(proxy.spinnerTransform.DOLocalRotate(endEuler, Mathf.Max(0.01f, duration), RotateMode.FastBeyond360).SetEase(Ease.Linear));
+    }
+
+    private Tween StartExistingSpinnerPresentationRoll(DiceSpinnerGeneric spinner, int orderIndex, float duration)
+    {
+        if (spinner == null)
+            return null;
+
+        Transform spinTarget = spinner.FlightSpinTarget;
+        if (spinTarget == null)
+            return null;
+
+        spinTarget.DOKill(complete: false);
+
+        Vector3 startEuler = spinTarget.localEulerAngles;
+        Vector3 targetEuler = spinTarget == spinner.pivot
+            ? ResolvePivotTargetEulerForCurrentFace(spinner, startEuler)
+            : Vector3.zero;
+
+        float safeDuration = Mathf.Max(0.02f, duration);
+        float accelDuration = Mathf.Clamp(launchPrepDuration, 0.04f, safeDuration * 0.25f);
+        float settleDuration = Mathf.Max(0.01f, safeDuration - accelDuration);
+
+        int loopsX = spinner.loopsMin.x + (spinner.loopsMax.x - spinner.loopsMin.x) / 2 + (orderIndex % 2);
+        int loopsY = spinner.loopsMin.y + (spinner.loopsMax.y - spinner.loopsMin.y) / 2 + ((orderIndex + 1) % 2);
+        int loopsZ = spinner.loopsMin.z + (spinner.loopsMax.z - spinner.loopsMin.z) / 2 + ((orderIndex + 2) % 2);
+
+        Vector3 endEuler = targetEuler + new Vector3(360f * loopsX, 360f * loopsY, 360f * loopsZ);
+        Vector3 midEuler = Vector3.Lerp(startEuler, endEuler, spinner.accelPortion);
+
+        Sequence seq = DOTween.Sequence();
+        seq.Append(RegisterTween(spinTarget.DOLocalRotate(midEuler, accelDuration, RotateMode.FastBeyond360).SetEase(Ease.InQuad)));
+        seq.Append(RegisterTween(spinTarget.DOLocalRotate(endEuler, settleDuration, RotateMode.FastBeyond360).SetEase(Ease.OutQuart)));
+        return RegisterTween(seq);
+    }
+
+    private int ResolvePresentationFaceIndex(DiceSpinnerGeneric spinner)
+    {
+        if (spinner == null)
+            return -1;
+
+        if (spinner.LastFaceIndex >= 0 && spinner.faces != null && spinner.LastFaceIndex < spinner.faces.Length)
+            return spinner.LastFaceIndex;
+
+        Camera cam = Camera.main;
+        return spinner.GetBestFacingFaceIndex(cam);
+    }
+
+    private static Vector3 ResolvePivotTargetEulerForCurrentFace(DiceSpinnerGeneric spinner, Vector3 fallback)
+    {
+        if (spinner == null || spinner.faces == null)
+            return fallback;
+
+        int faceIndex = spinner.LastFaceIndex;
+        if (faceIndex < 0 || faceIndex >= spinner.faces.Length)
+            return fallback;
+
+        Vector3 euler = spinner.faces[faceIndex].localEuler;
+        return new Vector3(NormalizeAngle(euler.x), NormalizeAngle(euler.y), NormalizeAngle(euler.z));
+    }
+
+    private static float NormalizeAngle(float value)
+    {
+        value %= 360f;
+        if (value < 0f)
+            value += 360f;
+        return value;
+    }
+
+
+    private Tween StartProxyScaleTween(ProxyVisualRefs proxy, float scaleMultiplier, float duration, Ease ease)
+    {
+        if (proxy == null || proxy.spinnerTransform == null)
+            return null;
+
+        return RegisterTween(proxy.spinnerTransform.DOScale(proxy.baseScale * scaleMultiplier, Mathf.Max(0.01f, duration)).SetEase(ease));
+    }
+
+    private void DestroyFlightProxy(ProxyVisualRefs proxy)
+    {
+        if (proxy == null || proxy.rootObject == null)
+            return;
+
+        _activeProxyObjects.Remove(proxy.rootObject);
+        Destroy(proxy.rootObject);
+    }
+
+    private void ReleaseWorldSyncForCast(Transform die, Transform plate)
+    {
+        TryReleaseWorldSyncRoot(die);
+        if (plate != null && plate != die)
+            TryReleaseWorldSyncRoot(plate);
+    }
+
+    private void RestoreWorldSyncForCast(Transform die, Transform plate)
+    {
+        TryRestoreWorldSyncRoot(die);
+        if (plate != null && plate != die)
+            TryRestoreWorldSyncRoot(plate);
+    }
+
+    private void TryReleaseWorldSyncRoot(Transform root)
+    {
+        if (root == null || !_temporarilyReleasedWorldSyncRoots.Add(root))
+            return;
+
+        DiceEquipWorldSyncUtility.BeginTemporaryRelease(root);
+    }
+
+    private void TryRestoreWorldSyncRoot(Transform root)
+    {
+        if (root == null || !_temporarilyReleasedWorldSyncRoots.Remove(root))
+            return;
+
+        DiceEquipWorldSyncUtility.EndTemporaryRelease(root);
+    }
+
+    private DetachedTransformState DetachForFlight(Transform target)
+    {
+        DetachedTransformState state = new DetachedTransformState
+        {
+            parent = target.parent,
+            siblingIndex = target.GetSiblingIndex(),
+            localPosition = target.localPosition,
+            localRotation = target.localRotation,
+            localScale = target.localScale,
+            worldScale = target.lossyScale
+        };
+
+        _detachedStates[target] = state;
+        target.SetParent(transform, true);
+        SetWorldScale(target, state.worldScale);
+        return state;
+    }
+
+    private void RestoreDetachedTransform(Transform target, DetachedTransformState state)
+    {
+        if (target == null)
+            return;
+
+        target.SetParent(state.parent, true);
+
+        if (state.parent != null)
+        {
+            int maxIndex = Mathf.Max(0, state.parent.childCount - 1);
+            target.SetSiblingIndex(Mathf.Clamp(state.siblingIndex, 0, maxIndex));
+        }
+
+        target.localPosition = state.localPosition;
+        target.localRotation = state.localRotation;
+        target.localScale = state.localScale;
+    }
+
+    private static void SetWorldScale(Transform target, Vector3 desiredWorldScale)
+    {
+        if (target == null)
+            return;
+
+        Vector3 parentScale = target.parent != null ? target.parent.lossyScale : Vector3.one;
+        target.localScale = new Vector3(
+            SafeDivide(desiredWorldScale.x, parentScale.x),
+            SafeDivide(desiredWorldScale.y, parentScale.y),
+            SafeDivide(desiredWorldScale.z, parentScale.z));
+    }
+
+    private static float SafeDivide(float value, float divisor)
+    {
+        return Mathf.Abs(divisor) <= 0.0001f ? value : value / divisor;
+    }
+
+    private void SetRenderableVisibility(Transform root, bool visible)
+    {
+        if (root == null)
+            return;
+
+        Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            if (renderers[i] != null)
+                renderers[i].enabled = visible;
+        }
+    }
+
+    private void PlayAoeTargetFeedback(IReadOnlyList<CombatActor> aoeTargets, CombatActor primaryTarget)
+    {
+        if (aoeTargets == null)
+            return;
+
+        for (int i = 0; i < aoeTargets.Count; i++)
+        {
+            CombatActor actor = aoeTargets[i];
+            if (actor == null || actor.IsDead || actor == primaryTarget)
+                continue;
+
+            RegisterTween(actor.transform.DOPunchScale(Vector3.one * (impactPunchScale * 0.75f), impactPunchDuration * 0.9f, 1, 0.5f).SetDelay(i * 0.03f));
+        }
+    }
+
+    private void PlayPlateCatch(Transform plate)
+    {
+        if (plate == null)
+            return;
+
+        float strength = Mathf.Max(0f, plateCatchPunchScale);
+        if (strength <= 0f)
+            return;
+
+        RegisterTween(plate.DOPunchScale(Vector3.one * strength, plateCatchPunchDuration, 1, 0.6f));
+    }
+
+    private Vector3 GetImpactPoint(CombatActor actor)
+    {
+        if (actor == null)
+            return transform.position;
+
+        Transform namedImpact = actor.transform.Find("ImpactPoint");
+        if (namedImpact != null)
+            return namedImpact.position;
+
+        if (actor.uiAnchor != null)
+            return actor.uiAnchor.position;
+
+        Renderer[] renderers = actor.GetComponentsInChildren<Renderer>(true);
+        if (renderers != null && renderers.Length > 0)
+        {
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                if (renderers[i] == null)
+                    continue;
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+            return bounds.center;
+        }
+
+        Collider2D hitbox2D = actor.GetComponentInChildren<Collider2D>(true);
+        if (hitbox2D != null)
+            return hitbox2D.bounds.center;
+
+        return actor.transform.position;
+    }
+
+    private static Vector3 EvaluateQuadratic(Vector3 p0, Vector3 pc, Vector3 p1, float t)
+    {
+        float u = 1f - t;
+        return (u * u * p0) + (2f * u * t * pc) + (t * t * p1);
+    }
 }

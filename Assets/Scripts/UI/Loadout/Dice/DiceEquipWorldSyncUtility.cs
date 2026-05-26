@@ -2,6 +2,8 @@ using UnityEngine;
 
 internal static class DiceEquipWorldSyncUtility
 {
+    private static readonly System.Collections.Generic.Dictionary<Transform, int> ReleasedRoots = new System.Collections.Generic.Dictionary<Transform, int>();
+
     public static void RefreshDiceRigRollInfosAfterReorder(DiceSlotRig diceRig)
     {
         if (diceRig == null || !diceRig.HasRolledThisTurn || diceRig.IsRolling)
@@ -106,6 +108,8 @@ internal static class DiceEquipWorldSyncUtility
             DiceDraggableUI owner = i < worldSlotOwners.Length ? worldSlotOwners[i] : null;
             if (slotRoot == null || owner == null || !owner.gameObject.activeInHierarchy)
                 continue;
+            if (IsTemporarilyReleased(slotRoot))
+                continue;
 
             if (!TryGetDiceUICenterWorldPosition(owner, uiCamera, worldCameraToUse, slotRoot.position, out Vector3 targetWorld))
                 continue;
@@ -116,6 +120,34 @@ internal static class DiceEquipWorldSyncUtility
                 slotRoot.position = Vector3.Lerp(slotRoot.position, targetWorld, 1f);
         }
     }
+
+    public static void BeginTemporaryRelease(Transform root)
+    {
+        if (root == null)
+            return;
+
+        if (ReleasedRoots.TryGetValue(root, out int count))
+            ReleasedRoots[root] = count + 1;
+        else
+            ReleasedRoots[root] = 1;
+    }
+
+    public static void EndTemporaryRelease(Transform root)
+    {
+        if (root == null)
+            return;
+
+        if (!ReleasedRoots.TryGetValue(root, out int count))
+            return;
+
+        if (count <= 1)
+            ReleasedRoots.Remove(root);
+        else
+            ReleasedRoots[root] = count - 1;
+    }
+
+    public static bool IsTemporarilyReleased(Transform root)
+        => root != null && ReleasedRoots.ContainsKey(root);
 
     public static Camera GetUICamera(Canvas rootCanvas)
     {

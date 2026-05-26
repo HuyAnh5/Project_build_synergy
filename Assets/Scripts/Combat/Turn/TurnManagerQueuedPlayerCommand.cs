@@ -8,4 +8,5 @@ internal struct TurnManagerQueuedPlayerCommand
     public int resolvedSum;
     public int maxFace;
     public int start0;
+    public int span;
 }

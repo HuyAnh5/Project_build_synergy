@@ -31,7 +31,7 @@ internal static class TurnManagerCommandExecutionUtility
                     context);
             }
 
-            yield return executor.ExecuteSkill(buffSkill, player, command.target, command.resolvedSum, command.maxFace, skipCost: true, aoeTargets: aoeTargets);
+            yield return executor.ExecuteSkill(buffSkill, player, command.target, command.resolvedSum, command.maxFace, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span);
         }
         else
         {
@@ -40,7 +40,7 @@ internal static class TurnManagerCommandExecutionUtility
             if (logPhase)
                 Debug.Log($"[TM] Branch=Runtime (Attack/Guard/Legacy) -> rt.kind={command.runtime.kind}", context);
 
-            yield return executor.ExecuteSkill(command.runtime, player, command.target, command.resolvedSum, skipCost: true, aoeTargets: aoeTargets);
+            yield return executor.ExecuteSkill(command.runtime, player, command.target, command.resolvedSum, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span);
 
             if (IsBasicStrikeRuntime(command.runtime))
                 playerContext?.HandleBasicStrikeUse(diceRig, command.start0);
