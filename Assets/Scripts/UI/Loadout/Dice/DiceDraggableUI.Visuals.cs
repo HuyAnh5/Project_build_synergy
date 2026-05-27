@@ -209,6 +209,25 @@ public partial class DiceDraggableUI
             });
     }
 
+    public void PlayTransientBuffFlash()
+    {
+        EnsureInitialized();
+        if (backgroundImage == null)
+            return;
+
+        _backgroundColorTween?.Kill();
+        Color baseColor = GetBaseBackgroundColor();
+        backgroundImage.color = baseColor;
+        _backgroundColorTween = DOTween.Sequence()
+            .Append(backgroundImage.DOColor(transientBuffFlashColor, Mathf.Max(0.01f, transientBuffFlashInDuration)).SetUpdate(true))
+            .Append(backgroundImage.DOColor(baseColor, Mathf.Max(0.01f, transientBuffFlashOutDuration)).SetUpdate(true))
+            .OnComplete(() =>
+            {
+                _backgroundColorTween = null;
+                RefreshVisualState();
+            });
+    }
+
     private Color GetBaseBackgroundColor()
     {
         return _selected ? selectedBackgroundColor : _defaultBackgroundColor;

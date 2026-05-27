@@ -29,6 +29,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     public Color critOutlineColor = new Color(1f, 0.85f, 0.2f, 1f);
     public Color failOutlineColor = new Color(1f, 0.25f, 0.25f, 1f);
     public Color invalidFlashColor = new Color(1f, 0.35f, 0.35f, 1f);
+    public Color transientBuffFlashColor = new Color(0.36f, 0.88f, 1f, 1f);
     public Vector2 outlineDistance = new Vector2(6f, -6f);
     public float failShakeDuration = 0.16f;
     public Vector2 failShakeStrength = new Vector2(10f, 0f);
@@ -36,6 +37,8 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     public float invalidShakeDuration = 0.18f;
     public Vector2 invalidShakeStrength = new Vector2(14f, 0f);
     public int invalidShakeVibrato = 18;
+    public float transientBuffFlashInDuration = 0.06f;
+    public float transientBuffFlashOutDuration = 0.12f;
     [SerializeField] private RectTransform critFailPopupAnchor;
 
     private RectTransform _rt;

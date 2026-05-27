@@ -117,10 +117,63 @@ public static class SkillGameplayResolver
                 return Mathf.Max(0, baseAmount * (GetConsumedStatusStacks(value.status, context) / Mathf.Max(1, value.divisor)));
             case SkillValueMode.MatchingBaseValueCountScaled:
                 return Mathf.Max(0, baseAmount * CountMatchingBaseValues(value.matchBaseValue, context));
+            case SkillValueMode.ActionX:
+                return context != null ? SkillOutputValueUtility.ResolveXValue(0, context.runtime) : 0;
+            case SkillValueMode.HighestBaseValueScaled:
+                return SkillOutputValueUtility.AddActionAddedValue(GetHighestBaseValue(context), context != null ? context.runtime : null);
+            case SkillValueMode.FirstResolvedValueInGroup:
+                return GetResolvedValueAtIndex(context, 0);
+            case SkillValueMode.LastResolvedValueInGroup:
+                return GetResolvedValueAtIndex(context, GetLastResolvedIndex(context));
+            case SkillValueMode.TotalBleedOnBoardScaled:
+                return SkillOutputValueUtility.AddActionAddedValue(GetTotalBleedOnBoard(context), context != null ? context.runtime : null);
+            case SkillValueMode.LastEnemyTurnHpLostScaled:
+                return SkillOutputValueUtility.AddActionAddedValue(GetLastEnemyTurnHpLost(context), context != null ? context.runtime : null);
             case SkillValueMode.Fixed:
             default:
                 return baseAmount;
         }
+    }
+
+    private static int GetHighestBaseValue(SkillResolveContext context)
+    {
+        if (context == null || context.runtime == null)
+            return 0;
+
+        return Mathf.Max(0, SkillBehaviorRuntimeUtility.GetHighestBaseValue(context.runtime));
+    }
+
+    private static int GetResolvedValueAtIndex(SkillResolveContext context, int index)
+    {
+        if (context == null || context.runtime == null || index < 0)
+            return 0;
+
+        return Mathf.Max(0, SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(context.runtime, index));
+    }
+
+    private static int GetLastResolvedIndex(SkillResolveContext context)
+    {
+        if (context == null || context.runtime == null || context.runtime.localResolvedValues == null)
+            return -1;
+
+        return context.runtime.localResolvedValues.Count - 1;
+    }
+
+    private static int GetTotalBleedOnBoard(SkillResolveContext context)
+    {
+        if (context != null && context.conditionContext != null)
+            return Mathf.Max(0, context.conditionContext.totalBleedOnBoard);
+
+        return CountTotalBleed(context != null ? context.caster : null);
+    }
+
+    private static int GetLastEnemyTurnHpLost(SkillResolveContext context)
+    {
+        if (context == null || context.caster == null)
+            return 0;
+
+        SkillCombatState state = context.caster.GetComponent<SkillCombatState>();
+        return state == null ? 0 : Mathf.Max(0, state.LastEnemyTurnHpLost);
     }
 
     private static int CountMatchingBaseValues(int matchBaseValue, SkillResolveContext context)
@@ -355,6 +408,7 @@ public static class SkillGameplayResolver
         switch (effect.type)
         {
             case SkillEffectType.DealDamage:
+            case SkillEffectType.DealSecondaryDamage:
                 result.damageDelta += Mathf.Max(0, effect.value);
                 break;
             case SkillEffectType.GainGuard:

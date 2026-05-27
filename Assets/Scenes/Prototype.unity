@@ -3300,6 +3300,7 @@ MonoBehaviour:
   lungeIgnoreTimeScale: 0
   damagePopups: {fileID: 0}
   lightningMarkShockInterval: 0.2
+  playerDiceCastAnimator: {fileID: 0}
 --- !u!114 &733054730
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8055,6 +8056,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2009635725}
+  - component: {fileID: 2009635726}
   m_Layer: 0
   m_Name: ----- OTHER -----
   m_TagString: Untagged
@@ -8077,6 +8079,23 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2009635726
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2009635724}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cd1d59d93ddcb04468c3839cce3a8e44, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CombatLabPrototypeController
+  config: {fileID: 11400000, guid: dcdac18eb752ad54f972bdb317cd6a2a, type: 2}
+  party: {fileID: 733054730}
+  runInventory: {fileID: 1082519198}
+  turnManager: {fileID: 733054728}
+  shuffleSelectedSkillOrder: 1
 --- !u!1 &2029048944
 GameObject:
   m_ObjectHideFlags: 0

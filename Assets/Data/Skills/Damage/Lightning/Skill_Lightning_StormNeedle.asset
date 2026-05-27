@@ -15,6 +15,53 @@ MonoBehaviour:
   icon: {fileID: 0}
   displayName: Storm Needle
   description: Deal "4 damage". If target has Mark, trigger Lightning payoff.
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: Deal {base1} damage. If target has {Mark}, consume {Mark} and deal {cond1_2} damage to all enemies.
+    requirements: []
+    baseEffects:
+    - type: 0
+      target: 0
+      status: 1
+      value:
+        baseAmount: 4
+        mode: 1
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes:
+    - condition:
+        scope: 0
+        logic: 0
+        clauses:
+        - reference: 43
+          comparison: 6
+          value: 0
+      effects:
+      - type: 2
+        target: 0
+        status: 2
+        value:
+          baseAmount: 0
+          mode: 0
+          status: 1
+          divisor: 1
+          matchBaseValue: 7
+        previewable: 1
+      - type: 8
+        target: 2
+        status: 1
+        value:
+          baseAmount: 3
+          mode: 0
+          status: 1
+          divisor: 1
+          matchBaseValue: 7
+        previewable: 1
+    customHook:
+      kind: 0
+      reason: 
   spec:
     rarity: 1
     specState: 2
@@ -130,14 +177,14 @@ MonoBehaviour:
   guardFlat: 0
   bypassGuard: 0
   clearsGuard: 0
-  canUseMarkMultiplier: 1
+  canUseMarkMultiplier: 0
   consumesBurn: 0
   burnDamagePerStack: 2
   gainIceRewardOnFrozenOrChilledHit: 1
   iceRewardFocus: 1
   iceRewardGuard: 3
-  triggerLightningMarkShock: 1
-  lightningMarkShockDamage: 3
+  triggerLightningMarkShock: 0
+  lightningMarkShockDamage: 0
   fireModules:
     useXFormula: 0
     applyBurnFromResolvedValue: 0

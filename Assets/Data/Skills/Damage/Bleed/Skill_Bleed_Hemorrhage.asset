@@ -15,6 +15,25 @@ MonoBehaviour:
   icon: {fileID: 0}
   displayName: Hemorrhage
   description: Apply "Bleed" equal to HP the player lost last enemy turn.
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: Apply {base1} Bleed.
+    requirements: []
+    baseEffects:
+    - type: 1
+      target: 0
+      status: 3
+      value:
+        baseAmount: 0
+        mode: 11
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes: []
+    customHook:
+      kind: 0
+      reason: 
   spec:
     rarity: 3
     specState: 2

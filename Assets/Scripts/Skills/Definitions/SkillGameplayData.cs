@@ -5,14 +5,15 @@ using UnityEngine;
 
 public enum SkillEffectType
 {
-    DealDamage,
-    ApplyStatus,
-    ConsumeStatus,
-    Heal,
-    GainGuard,
-    GainAP,
-    ModifyCost,
-    AddValue
+    DealDamage = 0,
+    ApplyStatus = 1,
+    ConsumeStatus = 2,
+    Heal = 3,
+    GainGuard = 4,
+    GainAP = 5,
+    ModifyCost = 6,
+    AddValue = 7,
+    DealSecondaryDamage = 8
 }
 
 public enum SkillEffectTarget
@@ -30,7 +31,13 @@ public enum SkillValueMode
     TargetStatusStacksScaled,
     ConsumedStatusStacksScaled,
     ConsumedStatusStacksDividedScaled,
-    MatchingBaseValueCountScaled
+    MatchingBaseValueCountScaled,
+    ActionX,
+    HighestBaseValueScaled,
+    FirstResolvedValueInGroup,
+    LastResolvedValueInGroup,
+    TotalBleedOnBoardScaled,
+    LastEnemyTurnHpLostScaled
 }
 
 public enum SkillRequirementType
@@ -86,6 +93,18 @@ public class SkillValueData
                     return $"{baseAmount} x consumed {status} / {Mathf.Max(1, divisor)}";
                 case SkillValueMode.MatchingBaseValueCountScaled:
                     return $"{baseAmount} x base={matchBaseValue} matches";
+                case SkillValueMode.ActionX:
+                    return "Action X";
+                case SkillValueMode.HighestBaseValueScaled:
+                    return "Highest Base + Added Value";
+                case SkillValueMode.FirstResolvedValueInGroup:
+                    return "First slot resolved value";
+                case SkillValueMode.LastResolvedValueInGroup:
+                    return "Last slot resolved value";
+                case SkillValueMode.TotalBleedOnBoardScaled:
+                    return "Total Bleed on board + Added Value";
+                case SkillValueMode.LastEnemyTurnHpLostScaled:
+                    return "Last enemy turn HP lost + Added Value";
                 case SkillValueMode.Fixed:
                 default:
                     return $"Fixed {baseAmount}";
@@ -144,6 +163,8 @@ public class SkillEffectData
         {
             case SkillEffectType.DealDamage:
                 return $"Deal {valueText} damage to {target}";
+            case SkillEffectType.DealSecondaryDamage:
+                return $"Deal secondary {valueText} damage to {target}";
             case SkillEffectType.ApplyStatus:
                 return $"Apply {valueText} {status} to {target}";
             case SkillEffectType.ConsumeStatus:

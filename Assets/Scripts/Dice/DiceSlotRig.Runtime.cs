@@ -123,6 +123,25 @@ public partial class DiceSlotRig
         }
     }
 
+    public bool HasAnySkillAffectingRollFeedbackThisTurn()
+    {
+        EnsureSlots();
+        if (!HasRolledThisTurn)
+            return false;
+
+        for (int i = 0; i < LastRollInfos.Length; i++)
+        {
+            if (!IsSlotActive(i))
+                continue;
+
+            RollInfo info = LastRollInfos[i];
+            if (info.isCrit || info.isFail || info.faceEnchant != DiceFaceEnchantKind.None)
+                return true;
+        }
+
+        return false;
+    }
+
     public DiceSpinnerGeneric GetDice(int slot0)
     {
         EnsureSlots();

@@ -191,6 +191,7 @@ public static class SkillTooltipFormatter
         }
 
         text = text.Replace("{Burn}", FormatKeyword("Burn"));
+        text = text.Replace("{Mark}", FormatKeyword("Mark"));
         text = text.Replace("{Odd}", "Odd");
         text = text.Replace("{Even}", "Even");
         text = text.Replace("{Crit}", FormatKeyword("Crit"));
@@ -238,6 +239,8 @@ public static class SkillTooltipFormatter
         {
             case SkillEffectType.DealDamage:
                 return $"Deal {value} damage.";
+            case SkillEffectType.DealSecondaryDamage:
+                return $"Deal secondary {value} damage.";
             case SkillEffectType.ApplyStatus:
                 return $"Apply {value} {FormatKeyword(effect.status.ToString())}.";
             case SkillEffectType.ConsumeStatus:
@@ -282,6 +285,8 @@ public static class SkillTooltipFormatter
         {
             case SkillEffectType.DealDamage:
                 return $"Deal {valueText} damage.";
+            case SkillEffectType.DealSecondaryDamage:
+                return $"Deal secondary {valueText} damage.";
             case SkillEffectType.ApplyStatus:
                 return $"Apply {valueText} {FormatKeyword(effect.status.ToString())}.";
             case SkillEffectType.ConsumeStatus:

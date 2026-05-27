@@ -15,6 +15,35 @@ MonoBehaviour:
   icon: {fileID: 0}
   displayName: Cold Snap
   description: Left slot deals "X damage". Right slot gains "X Guard".
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: Left slot deals {base1} damage. Right slot gains {base2} Guard.
+    requirements: []
+    baseEffects:
+    - type: 0
+      target: 0
+      status: 1
+      value:
+        baseAmount: 0
+        mode: 8
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    - type: 4
+      target: 1
+      status: 1
+      value:
+        baseAmount: 0
+        mode: 9
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes: []
+    customHook:
+      kind: 0
+      reason: 
   spec:
     rarity: 2
     specState: 2

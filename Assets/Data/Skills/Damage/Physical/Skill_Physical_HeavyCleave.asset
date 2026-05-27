@@ -15,6 +15,25 @@ MonoBehaviour:
   icon: {fileID: 0}
   displayName: Heavy Cleave
   description: Deal "X damage". X is the highest Base Value in this 2-dice group.
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: Deal {base1} damage.
+    requirements: []
+    baseEffects:
+    - type: 0
+      target: 0
+      status: 1
+      value:
+        baseAmount: 0
+        mode: 7
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes: []
+    customHook:
+      kind: 0
+      reason: 
   spec:
     rarity: 2
     specState: 2

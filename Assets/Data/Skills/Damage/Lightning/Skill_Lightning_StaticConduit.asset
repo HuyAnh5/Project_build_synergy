@@ -16,6 +16,43 @@ MonoBehaviour:
   displayName: Static Conduit
   description: Deal "3 damage". If target has Mark, apply Mark to another enemy
     in the same row.
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: Deal {base1} damage.
+    requirements: []
+    baseEffects:
+    - type: 0
+      target: 0
+      status: 1
+      value:
+        baseAmount: 3
+        mode: 1
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes:
+    - condition:
+        scope: 0
+        logic: 0
+        clauses:
+        - reference: 43
+          comparison: 6
+          value: 0
+      effects:
+      - type: 1
+        target: 3
+        status: 2
+        value:
+          baseAmount: 1
+          mode: 0
+          status: 1
+          divisor: 1
+          matchBaseValue: 7
+        previewable: 1
+    customHook:
+      kind: 0
+      reason: 
   spec:
     rarity: 0
     specState: 0

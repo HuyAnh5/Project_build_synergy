@@ -7,8 +7,9 @@ public static class SkillOutputValueUtility
         int safeBase = Mathf.Max(0, baseValue);
         int safeResolved = Mathf.Max(0, resolvedValue);
         int addedValue = Mathf.Max(0, safeResolved - safeBase);
+        int reducedBase = appliesFailPenalty ? Mathf.FloorToInt(safeBase * 0.5f) : safeBase;
         int unmodifiedTotal = safeBase + addedValue;
-        int total = appliesFailPenalty ? Mathf.FloorToInt(unmodifiedTotal * 0.5f) : unmodifiedTotal;
+        int total = reducedBase + addedValue;
 
         if (unmodifiedTotal > 0 && total < 1)
             total = 1;
@@ -45,10 +46,12 @@ public static class SkillOutputValueUtility
     public static int AddActionAddedValue(int baseAmount, SkillRuntime rt)
     {
         int safeBase = Mathf.Max(0, baseAmount);
-        int unmodifiedTotal = safeBase + GetTotalActionAddedValue(rt);
-        int total = (rt != null && rt.localFailPenaltyAny)
-            ? Mathf.FloorToInt(unmodifiedTotal * 0.5f)
-            : unmodifiedTotal;
+        int addedValue = GetTotalActionAddedValue(rt);
+        int reducedBase = (rt != null && rt.localFailPenaltyAny)
+            ? Mathf.FloorToInt(safeBase * 0.5f)
+            : safeBase;
+        int unmodifiedTotal = safeBase + addedValue;
+        int total = reducedBase + addedValue;
 
         if (unmodifiedTotal > 0 && total < 1)
             total = 1;
@@ -91,10 +94,12 @@ public static class SkillOutputValueUtility
         for (int i = 0; i < rt.localBaseValues.Count; i++)
             baseOutput += Mathf.Max(0, rt.localBaseValues[i]);
 
-        int unmodifiedTotal = baseOutput + GetTotalActionAddedValue(rt);
-        int total = rt.localFailPenaltyAny
-            ? Mathf.FloorToInt(unmodifiedTotal * 0.5f)
-            : unmodifiedTotal;
+        int addedValue = GetTotalActionAddedValue(rt);
+        int reducedBase = rt.localFailPenaltyAny
+            ? Mathf.FloorToInt(baseOutput * 0.5f)
+            : baseOutput;
+        int unmodifiedTotal = baseOutput + addedValue;
+        int total = reducedBase + addedValue;
 
         if (unmodifiedTotal > 0 && total < 1)
             total = 1;

@@ -801,6 +801,8 @@ public class TurnManager : MonoBehaviour
 
         _board.RecalculateRuntimesAndRebalance(player, diceRig);
         RefreshAllViews();
+        if (diceRig != null && diceRig.HasAnySkillAffectingRollFeedbackThisTurn())
+            DraggableSkillIcon.PulseAffectedSkillIconsOnce(this);
         RefreshPlanningInteractivity();
     }
 

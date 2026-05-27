@@ -17,6 +17,9 @@ using UnityEngine.UI;
 public class DraggableSkillIcon : MonoBehaviour,
     IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler, ISkillTooltipSource
 {
+    private const string AddedValueColorToken = "#5CCBFF";
+    private const string ReducedValueColorToken = "#FF5C7A";
+    private const string IncreasedValueColorToken = "#67E88D";
     private const string FocusBadgeName = "FocusCostBadge";
     private const string SlotBadgeName = "SlotCostBadge";
     private const string ElementBadgeName = "ElementBadge";
@@ -72,6 +75,10 @@ public class DraggableSkillIcon : MonoBehaviour,
     [SerializeField] private float activeAuraWaveSeconds = 1.2f;
     [Tooltip("Image source used only by the active aura. Assign manually to avoid aura inheriting the skill art image.")]
     [SerializeField] private Image activeAuraSourceImage;
+    [SerializeField] private Color transientAffectedAuraBrightColor = new Color(0.36f, 0.88f, 1f, 0.95f);
+    [SerializeField] private Color transientAffectedAuraWaveColor = new Color(0.36f, 0.88f, 1f, 0.5f);
+    [SerializeField] private float transientAffectedAuraDuration = 0.22f;
+    [SerializeField] private float transientAffectedAuraWaveSize = 10f;
 
     private static SkillUiIconLibrarySO _sharedIconLibrary;
 
@@ -98,6 +105,8 @@ public class DraggableSkillIcon : MonoBehaviour,
     private Image _activeAuraRim;
     private readonly List<Tween> _activeAuraTweens = new List<Tween>();
     private bool _activeAuraTweensRunning;
+    private bool _transientAffectedAuraRunning;
+    private Sequence _transientAffectedAuraSequence;
     private bool _isActiveRuntimeSkill;
     private bool _lastActiveRuntimeSkill;
     private int _activeRuntimeTurns;
@@ -111,6 +120,7 @@ public class DraggableSkillIcon : MonoBehaviour,
     // --- Click-to-Select ---
     private bool _selected;
     private Coroutine _blinkCoroutine;
+    private static int _lastAffectedPulseFrame = -1;
     private static readonly Color SelectedBlinkColorA = new Color(1f, 0.92f, 0.3f, 1f);  // đỉnh sáng
     private static readonly Color SelectedBlinkColorB = new Color(1f, 0.65f, 0.1f, 0.5f); // đỉnh mờ
 
@@ -168,6 +178,9 @@ public class DraggableSkillIcon : MonoBehaviour,
             UiDragState.DeselectSkill();
 
         StopBlinkCoroutine();
+        _transientAffectedAuraSequence?.Kill();
+        _transientAffectedAuraSequence = null;
+        _transientAffectedAuraRunning = false;
         StopActiveAuraTweens();
         SkillTooltipUI.HideCurrent();
     }
@@ -321,6 +334,130 @@ public class DraggableSkillIcon : MonoBehaviour,
         ClearResourcePreview();
         if (_img != null)
             _img.color = Color.white;
+    }
+
+    public static void PulseAffectedSkillIconsOnce(TurnManager turn)
+    {
+        if (turn == null)
+            return;
+
+        int frame = Time.frameCount;
+        if (_lastAffectedPulseFrame == frame)
+            return;
+
+        DraggableSkillIcon[] icons = FindObjectsOfType<DraggableSkillIcon>(true);
+        bool pulsedAny = false;
+        for (int i = 0; i < icons.Length; i++)
+        {
+            DraggableSkillIcon icon = icons[i];
+            if (icon == null || !icon.gameObject.activeInHierarchy)
+                continue;
+
+            ScriptableObject asset = icon.GetSkillAsset();
+            if (asset == null || asset is SkillPassiveSO)
+                continue;
+
+            if (!turn.TryGetPrototypeSkillTooltipRuntime(asset, out SkillRuntime runtime) || runtime == null)
+                continue;
+
+            if (!IsSkillAffectedByDice(runtime))
+                continue;
+
+            icon.PlayTransientAffectedAuraPulse();
+            pulsedAny = true;
+        }
+
+        if (pulsedAny)
+            _lastAffectedPulseFrame = frame;
+    }
+
+    private static bool IsSkillAffectedByDice(SkillRuntime runtime)
+    {
+        if (runtime == null)
+            return false;
+
+        if (runtime.coreAction == CoreAction.BasicGuard || runtime.guardValueMode == BaseEffectValueMode.X)
+            return true;
+
+        if (SkillOutputValueUtility.GetTotalActionAddedValue(runtime) > 0)
+            return true;
+
+        if (runtime.localFailPenaltyAny)
+            return true;
+
+        if (runtime.conditionMet)
+        {
+            if (runtime.conditionalOutcomeEnabled)
+                return true;
+
+            if (runtime.applyBurn || runtime.applyBleed || runtime.applyFreeze || runtime.applyMark)
+                return true;
+        }
+
+        return false;
+    }
+
+    public void PlayTransientAffectedAuraPulse()
+    {
+        if (!enableActiveAura)
+            return;
+
+        EnsureActiveAuraUi();
+        if (_activeAuraRim == null)
+            return;
+
+        _transientAffectedAuraSequence?.Kill();
+        _transientAffectedAuraSequence = null;
+        _transientAffectedAuraRunning = true;
+
+        StopActiveAuraTweens();
+        int waveCount = GetActiveAuraWaveCount();
+        EnsureActiveAuraWavePool(waveCount);
+        for (int i = 0; i < _activeAuraWaves.Count; i++)
+            SetAuraLayerVisible(_activeAuraWaves[i], i < waveCount);
+        SetAuraLayerVisible(_activeAuraRim, true);
+
+        float duration = Mathf.Max(0.08f, transientAffectedAuraDuration);
+        float halfDuration = duration * 0.5f;
+
+        Sequence seq = DOTween.Sequence().SetUpdate(true);
+        seq.AppendCallback(() =>
+        {
+            ApplyAuraRim(_activeAuraRim, transientAffectedAuraBrightColor, 1f);
+            for (int i = 0; i < waveCount && i < _activeAuraWaves.Count; i++)
+            {
+                Image wave = _activeAuraWaves[i];
+                LayoutAuraLayer(wave, 0f);
+                wave.color = transientAffectedAuraWaveColor;
+            }
+        });
+        seq.Append(DOVirtual.Float(0f, 1f, halfDuration, t =>
+        {
+            for (int i = 0; i < waveCount && i < _activeAuraWaves.Count; i++)
+            {
+                Image wave = _activeAuraWaves[i];
+                if (wave == null)
+                    continue;
+
+                float expand = Mathf.Lerp(0f, transientAffectedAuraWaveSize, t);
+                LayoutAuraLayer(wave, expand);
+                Color c = transientAffectedAuraWaveColor;
+                c.a *= (1f - t);
+                wave.color = c;
+            }
+        }).SetEase(Ease.OutQuad));
+        seq.Append(DOVirtual.Float(1f, 0f, halfDuration, t =>
+        {
+            if (_activeAuraRim != null)
+                ApplyAuraRim(_activeAuraRim, transientAffectedAuraBrightColor, t);
+        }).SetEase(Ease.OutQuad));
+        seq.OnComplete(() =>
+        {
+            _transientAffectedAuraRunning = false;
+            _transientAffectedAuraSequence = null;
+            ApplyActiveAuraVisibility();
+        });
+        _transientAffectedAuraSequence = seq;
     }
 
     private void StartBlinkCoroutine()
@@ -1085,10 +1222,13 @@ public class DraggableSkillIcon : MonoBehaviour,
         LayoutActiveAuraLayers();
         SyncActiveAuraSprites();
 
-        bool visible = _isActiveRuntimeSkill;
+        bool visible = _isActiveRuntimeSkill || _transientAffectedAuraRunning;
         for (int i = 0; i < _activeAuraWaves.Count; i++)
             SetAuraLayerVisible(_activeAuraWaves[i], visible);
         SetAuraLayerVisible(_activeAuraRim, visible);
+
+        if (_transientAffectedAuraRunning)
+            return;
 
         if (visible)
             StartActiveAuraTweens();

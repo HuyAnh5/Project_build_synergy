@@ -30,9 +30,7 @@ public static class TargetPreviewBuilder
         if (rt.kind == SkillKind.Guard && isSelf)
         {
             int baseGuard = rt.CalculateGuard(dieValue);
-            if (SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.BloodWard))
-                baseGuard = SkillOutputValueUtility.AddActionAddedValue(Mathf.Max(0, SkillBehaviorRuntimeUtility.CountBleedOnEnemyTeam(caster)), rt);
-            else if (rt.guardValueMode == BaseEffectValueMode.Flat && rt.guardFlat > 0)
+            if (rt.guardValueMode == BaseEffectValueMode.Flat && rt.guardFlat > 0)
                 baseGuard = SkillOutputValueUtility.AddActionAddedValue(rt.guardFlat, rt);
 
             float pct = 0f;
@@ -121,8 +119,6 @@ public static class TargetPreviewBuilder
                 bundle.targetPreviews[target] = data;
             }
 
-            if (SkillBehaviorRuntimeUtility.IsBehavior(rt, LightningDamageBehaviorId.StaticConduit) && data.currentMarked)
-                ApplyStaticConduitMarkPreview(rt, caster, target, ref bundle);
         }
 
         if (bundle.totalSelfGuardGain > 0)
@@ -147,6 +143,10 @@ public static class TargetPreviewBuilder
             return bundle;
 
         PassiveSystem passiveSystem = caster != null ? caster.GetComponent<PassiveSystem>() : null;
+        int totalShockProcCount = 0;
+        int shockDamagePerProc = 0;
+        var markPayoffAppliedTargets = new HashSet<CombatActor>();
+        var iceRewardAppliedTargets = new HashSet<CombatActor>();
         for (int i = 0; i < resolved.effects.Count; i++)
         {
             ResolvedEffect effect = resolved.effects[i];
@@ -164,15 +164,48 @@ public static class TargetPreviewBuilder
             switch (effect.type)
             {
                 case SkillEffectType.DealDamage:
-                    bool canConsumeStagger = AttackPreviewCalculator.CanConsumeStagger(rt, effectTarget);
+                case SkillEffectType.DealSecondaryDamage:
+                    bool isPrimaryDamage = effect.type == SkillEffectType.DealDamage;
+                    bool canConsumeStagger = isPrimaryDamage && AttackPreviewCalculator.CanConsumeStagger(rt, effectTarget);
+                    bool targetHadMarkBeforeHit = isPrimaryDamage && AttackPreviewCalculator.CanUseMarkPayoff(rt, effectTarget);
+                    bool targetWasFrozenOrChilled = isPrimaryDamage &&
+                                                    effectTarget.status != null &&
+                                                    (effectTarget.status.frozen || effectTarget.status.chilledTurns > 0);
                     if (canConsumeStagger)
                     {
                         value = Mathf.FloorToInt(value * 1.2f);
                         if (value < 1)
                             value = 1;
                     }
+
+                    bool applyMarkPayoffNow = targetHadMarkBeforeHit && !markPayoffAppliedTargets.Contains(effectTarget);
+                    if (applyMarkPayoffNow && rt.element != ElementType.Lightning)
+                    {
+                        value += 3;
+                        markPayoffAppliedTargets.Add(effectTarget);
+                        data.previewMarkedAfter = false;
+                    }
+
                     ApplyDamageToData(effectTarget, ref data, value, rt.bypassGuard, rt.clearsGuard, canBreakGuard: true, canConsumeStagger: canConsumeStagger);
                     ApplyEmberWeaponBurnPreview(rt, caster, value, ref data);
+
+                    if (isPrimaryDamage && applyMarkPayoffNow && rt.element == ElementType.Lightning && rt.triggerLightningMarkShock)
+                    {
+                        markPayoffAppliedTargets.Add(effectTarget);
+                        shockDamagePerProc = Mathf.Max(shockDamagePerProc, GetLightningShockDamagePerProc(rt, caster));
+                        totalShockProcCount++;
+                    }
+
+                    if (isPrimaryDamage &&
+                        rt.element == ElementType.Ice &&
+                        rt.gainIceRewardOnFrozenOrChilledHit &&
+                        targetWasFrozenOrChilled &&
+                        iceRewardAppliedTargets.Add(effectTarget))
+                    {
+                        data.selfGuardGain += Mathf.Max(0, rt.iceRewardGuard);
+                        data.selfFocusGain += Mathf.Max(0, rt.iceRewardFocus) +
+                                              (passiveSystem != null ? passiveSystem.GetFreezeBreakFocusBonusAdd() : 0);
+                    }
                     break;
                 case SkillEffectType.ApplyStatus:
                     ApplyResolvedStatusPreview(effect.status, value, passiveSystem, ref data);
@@ -180,6 +213,8 @@ public static class TargetPreviewBuilder
                 case SkillEffectType.ConsumeStatus:
                     if (effect.status == StatusKind.Burn)
                         data.previewBurnAfter = 0;
+                    else if (effect.status == StatusKind.Mark)
+                        data.previewMarkedAfter = false;
                     break;
                 case SkillEffectType.GainGuard:
                     if (effectTarget == caster)
@@ -216,6 +251,9 @@ public static class TargetPreviewBuilder
             AddCasterGuardPreview(caster, bundle.totalSelfGuardGain, ref bundle);
         if (bundle.totalSelfHealGain > 0)
             AddCasterHealPreview(caster, bundle.totalSelfHealGain, ref bundle);
+
+        if (totalShockProcCount > 0 && shockDamagePerProc > 0)
+            ApplyResolvedLightningShockPreview(caster, clickedTarget, shockDamagePerProc, totalShockProcCount, ref bundle);
 
         return bundle;
     }
@@ -336,20 +374,8 @@ public static class TargetPreviewBuilder
         if (rt.conditionMet && rt.conditionalOutcomeEnabled && rt.conditionalOutcomeType == ConditionalOutcomeType.GainGuard)
             data.selfGuardGain += GetConditionalGuardValue(rt, dieValue);
 
-        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.BrutalSmash) && targetHadMarkBeforeHit)
-            data.selfFocusGain += 1;
-
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, FireDamageBehaviorId.BiteTheDust))
             data.selfHealGain += Mathf.FloorToInt(Mathf.Max(0, data.currentBurn) / 5f) * 3;
-
-        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.Shatter) && rt.localFailAny)
-            data.selfGuardGain += 4;
-
-        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.ColdSnap))
-        {
-            int guard = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(rt, 1);
-            data.selfGuardGain += Mathf.Max(0, guard);
-        }
 
         if (rt.fireGainGuardFromHighestBase)
         {
@@ -525,6 +551,41 @@ public static class TargetPreviewBuilder
         }
     }
 
+    private static void ApplyResolvedLightningShockPreview(
+        CombatActor caster,
+        CombatActor clickedTarget,
+        int shockDamagePerProc,
+        int shockProcCount,
+        ref ActionPreviewBundle bundle)
+    {
+        var context = new SkillResolveContext
+        {
+            caster = caster,
+            target = clickedTarget
+        };
+
+        List<CombatActor> shockTargets = SkillGameplayResolver.ResolveEffectTargets(SkillEffectTarget.AllEnemies, context);
+        if (shockTargets == null)
+            return;
+
+        for (int i = 0; i < shockTargets.Count; i++)
+        {
+            CombatActor target = shockTargets[i];
+            if (target == null || target.IsDead || target == caster || target.team == caster.team)
+                continue;
+
+            TargetPreviewData data = bundle.targetPreviews.TryGetValue(target, out TargetPreviewData existing)
+                ? existing
+                : CreateBaselineData(caster, target);
+
+            for (int proc = 0; proc < shockProcCount; proc++)
+                ApplyDamageToData(target, ref data, shockDamagePerProc, bypassGuard: false, clearsGuard: false, canBreakGuard: false, canConsumeStagger: false);
+
+            bundle.targetPreviews[target] = data;
+            bundle.valid |= data.valid;
+        }
+    }
+
     private static void AddCasterGuardPreview(CombatActor caster, int totalGuardGain, ref ActionPreviewBundle bundle)
     {
         if (caster == null || totalGuardGain <= 0)
@@ -557,32 +618,6 @@ public static class TargetPreviewBuilder
         casterPreview.hpLost = casterPreview.currentHp - hpAfter;
         bundle.targetPreviews[caster] = casterPreview;
         bundle.valid |= casterPreview.valid;
-    }
-
-    private static void ApplyStaticConduitMarkPreview(
-        SkillRuntime rt,
-        CombatActor caster,
-        CombatActor primaryTarget,
-        ref ActionPreviewBundle bundle)
-    {
-        if (rt == null || caster == null || primaryTarget == null)
-            return;
-
-        List<CombatActor> others = SkillBehaviorRuntimeUtility.GetOtherEnemiesInSameRow(caster, primaryTarget);
-        for (int i = 0; i < others.Count; i++)
-        {
-            CombatActor other = others[i];
-            if (other == null || other.IsDead || other.status == null)
-                continue;
-
-            TargetPreviewData otherPreview = bundle.targetPreviews.TryGetValue(other, out TargetPreviewData existing)
-                ? existing
-                : CreateBaselineData(caster, other);
-            otherPreview.previewMarkedAfter = true;
-            bundle.targetPreviews[other] = otherPreview;
-            bundle.valid |= otherPreview.valid;
-            break;
-        }
     }
 
     private static void ApplyDamageToData(
@@ -712,12 +747,6 @@ public static class TargetPreviewBuilder
     {
         if (rt == null || !rt.applyBleed)
             return 0;
-
-        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.Hemorrhage))
-        {
-            SkillCombatState state = caster != null ? caster.GetComponent<SkillCombatState>() : null;
-            return state == null ? 0 : SkillOutputValueUtility.AddActionAddedValue(Mathf.Max(0, state.LastEnemyTurnHpLost), rt);
-        }
 
         PassiveSystem ps = caster != null ? caster.GetComponent<PassiveSystem>() : null;
         int bleed = SkillOutputValueUtility.ResolveFlatStatusStacks(rt.bleedTurns);

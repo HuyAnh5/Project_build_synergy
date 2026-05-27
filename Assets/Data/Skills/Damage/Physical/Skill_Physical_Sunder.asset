@@ -14,14 +14,33 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: Sunder
-  description: Deal "X damage". Bypass Guard.
+  description: Deal "5 damage". Bypass Guard.
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: Deal {base1} damage. Bypass Guard.
+    requirements: []
+    baseEffects:
+    - type: 0
+      target: 0
+      status: 1
+      value:
+        baseAmount: 5
+        mode: 1
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes: []
+    customHook:
+      kind: 0
+      reason: 
   spec:
     rarity: 2
     specState: 2
     buildRole: 11
     implementationCoverage: 2
-    normalizedText: Deal "X damage". Bypass Guard.
-    designIntent: Clean anti-Guard utility without hidden bonus.
+    normalizedText: Deal "5 damage". Bypass Guard.
+    designIntent: Fixed anti-Guard hit without hidden bonus.
   behaviorFamily: 0
   fireBehaviorId: 0
   iceBehaviorId: 0
@@ -120,9 +139,9 @@ MonoBehaviour:
     burnTurns: 3
   focusCost: 2
   focusGainOnCast: 0
-  baseDamageValueMode: 1
+  baseDamageValueMode: 0
   dieMultiplier: 0
-  flatDamage: 0
+  flatDamage: 5
   sunderBonusIfTargetHasGuard: 0
   sunderGuardDamageMultiplier: 2
   guardValueMode: 1

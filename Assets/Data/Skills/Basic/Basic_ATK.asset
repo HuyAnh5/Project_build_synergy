@@ -55,7 +55,7 @@ MonoBehaviour:
   range: 0
   hitAllEnemies: 0
   hitAllAllies: 0
-  slotsRequired: 3
+  slotsRequired: 1
   hasCondition: 0
   conditionEditorMode: 0
   useSystemConditionPreset: 1

@@ -15,6 +15,25 @@ MonoBehaviour:
   icon: {fileID: 0}
   displayName: Blood Ward
   description: Gain "Guard" equal to total Bleed on all enemies.
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: Gain {base1} Guard.
+    requirements: []
+    baseEffects:
+    - type: 4
+      target: 1
+      status: 1
+      value:
+        baseAmount: 0
+        mode: 10
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes: []
+    customHook:
+      kind: 0
+      reason: 
   spec:
     rarity: 2
     specState: 2

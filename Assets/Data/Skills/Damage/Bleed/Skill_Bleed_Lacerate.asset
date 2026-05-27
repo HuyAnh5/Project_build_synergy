@@ -14,14 +14,51 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   icon: {fileID: 0}
   displayName: Lacerate
-  description: Apply "5 Bleed". If Crit, +5 Added Value.
+  description: Apply "5 Bleed". If Crit, apply "+5 Bleed".
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: Apply {base1} Bleed.
+    requirements: []
+    baseEffects:
+    - type: 1
+      target: 0
+      status: 3
+      value:
+        baseAmount: 5
+        mode: 0
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes:
+    - condition:
+        scope: 0
+        logic: 0
+        clauses:
+        - reference: 11
+          comparison: 6
+          value: 0
+      effects:
+      - type: 1
+        target: 0
+        status: 3
+        value:
+          baseAmount: 5
+          mode: 0
+          status: 1
+          divisor: 1
+          matchBaseValue: 7
+        previewable: 1
+    customHook:
+      kind: 0
+      reason: 
   spec:
     rarity: 2
     specState: 2
     buildRole: 4
     implementationCoverage: 2
-    normalizedText: Apply "5 Bleed". If Crit, +5 Added Value.
-    designIntent: Bleed setup signature.
+    normalizedText: Apply "5 Bleed". If Crit, apply "+5 Bleed".
+    designIntent: Bleed setup signature with explicit Crit bleed payoff.
   behaviorFamily: 4
   fireBehaviorId: 0
   iceBehaviorId: 0
@@ -107,8 +144,8 @@ MonoBehaviour:
     overrideVfx: 0
     projectilePrefab: {fileID: 0}
   conditionalOutcome:
-    enabled: 1
-    type: 4
+    enabled: 0
+    type: 0
     valueMode: 0
     flatValue: 5
     burnTurns: 3

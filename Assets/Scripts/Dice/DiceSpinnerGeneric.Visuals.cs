@@ -8,18 +8,25 @@ using UnityEditor;
 
 public partial class DiceSpinnerGeneric
 {
+    private readonly struct RollPopupStep
+    {
+        public readonly string Text;
+        public readonly Color Color;
+
+        public RollPopupStep(string text, Color color)
+        {
+            Text = text;
+            Color = color;
+        }
+    }
+
     private void PlayRollStatePopupIfNeeded()
     {
         if (!Application.isPlaying || !animateCritFailPopup)
             return;
 
-        string label = null;
-        if (LastRollIsCrit)
-            label = critText;
-        else if (LastRollIsFail)
-            label = failText;
-
-        if (string.IsNullOrWhiteSpace(label))
+        List<RollPopupStep> steps = BuildRollPopupSteps();
+        if (steps.Count == 0)
             return;
 
         TMP_Text popup = GetOrCreateRollStatePopupInstance();
@@ -30,31 +37,126 @@ public partial class DiceSpinnerGeneric
 
         PositionRollStatePopup(popup);
         popup.gameObject.SetActive(true);
-        popup.text = label;
-        Color popupColor = rollStatePopupColor;
-        popupColor.a = 1f;
-        popup.color = popupColor;
 
-        Sequence seq = DOTween.Sequence();
-        if (popup.rectTransform != null)
+        Color baseColor = rollStatePopupColor;
+        baseColor.a = 1f;
+        popup.color = baseColor;
+
+        Sequence seq = DOTween.Sequence().SetUpdate(true);
+        RectTransform popupRect = popup.rectTransform;
+        if (popupRect != null)
         {
-            Vector2 start = popup.rectTransform.anchoredPosition;
-            seq.Append(popup.rectTransform.DOAnchorPosY(start.y + rollStatePopupRiseDistance, Mathf.Max(0.01f, rollStatePopupDuration)).SetEase(Ease.OutQuad));
+            Vector2 start = popupRect.anchoredPosition;
+            float perStepDuration = Mathf.Max(0.12f, rollStatePopupDuration);
+            float risePerStep = rollStatePopupRiseDistance / Mathf.Max(1, steps.Count);
+            popupRect.anchoredPosition = start;
+
+            for (int i = 0; i < steps.Count; i++)
+            {
+                RollPopupStep step = steps[i];
+                seq.AppendCallback(() =>
+                {
+                    popup.text = step.Text;
+                    Color c = step.Color;
+                    c.a = 1f;
+                    popup.color = c;
+                });
+                seq.Append(popupRect.DOAnchorPosY(start.y + (risePerStep * (i + 1)), perStepDuration).SetEase(Ease.OutQuad));
+                seq.Join(popup.DOFade(0f, perStepDuration).From(1f).SetEase(Ease.OutQuad));
+                if (i < steps.Count - 1)
+                    seq.AppendInterval(0.03f);
+            }
         }
         else
         {
             Vector3 start = popup.transform.position;
-            seq.Append(popup.transform.DOMoveY(start.y + rollStatePopupRiseDistance, Mathf.Max(0.01f, rollStatePopupDuration)).SetEase(Ease.OutQuad));
+            float perStepDuration = Mathf.Max(0.12f, rollStatePopupDuration);
+            float risePerStep = rollStatePopupRiseDistance / Mathf.Max(1, steps.Count);
+            popup.transform.position = start;
+
+            for (int i = 0; i < steps.Count; i++)
+            {
+                RollPopupStep step = steps[i];
+                seq.AppendCallback(() =>
+                {
+                    popup.text = step.Text;
+                    Color c = step.Color;
+                    c.a = 1f;
+                    popup.color = c;
+                });
+                seq.Append(popup.transform.DOMoveY(start.y + (risePerStep * (i + 1)), perStepDuration).SetEase(Ease.OutQuad));
+                seq.Join(popup.DOFade(0f, perStepDuration).From(1f).SetEase(Ease.OutQuad));
+                if (i < steps.Count - 1)
+                    seq.AppendInterval(0.03f);
+            }
         }
 
-        seq.Join(popup.DOFade(0f, Mathf.Max(0.01f, rollStatePopupDuration)).SetEase(Ease.OutQuad));
-        seq.SetUpdate(true);
         seq.OnComplete(() =>
         {
             ClearRollStatePopupVisuals(clearText: true);
             _rollStatePopupTween = null;
         });
         _rollStatePopupTween = seq;
+    }
+
+    private List<RollPopupStep> BuildRollPopupSteps()
+    {
+        List<RollPopupStep> steps = new List<RollPopupStep>(4);
+        DiceFaceEnchantKind enchant = GetCurrentFaceEnchant();
+        bool suppressCritBonus = DiceFaceEnchantUtility.SuppressesCritBonus(enchant);
+        bool suppressFailPenalty = DiceFaceEnchantUtility.SuppressesFailPenalty(enchant);
+
+        if (LastRollIsCrit)
+        {
+            steps.Add(new RollPopupStep(critText, rollStatePopupColor));
+            if (!suppressCritBonus)
+            {
+                int critAdded = GetCritDisplayAddedValue(LastRolledValue);
+                if (critAdded > 0)
+                    steps.Add(new RollPopupStep($"+{critAdded}", new Color(0.36f, 0.88f, 1f, 1f)));
+            }
+        }
+
+        if (LastRollIsFail)
+        {
+            steps.Add(new RollPopupStep(failText, rollStatePopupColor));
+            if (!suppressFailPenalty)
+                steps.Add(new RollPopupStep("/2", new Color(1f, 0.45f, 0.45f, 1f)));
+        }
+
+        AppendEnchantPopupStep(steps, enchant);
+        return steps;
+    }
+
+    private void AppendEnchantPopupStep(List<RollPopupStep> steps, DiceFaceEnchantKind enchant)
+    {
+        switch (enchant)
+        {
+            case DiceFaceEnchantKind.None:
+                return;
+            case DiceFaceEnchantKind.ValuePlusN:
+                steps.Add(new RollPopupStep($"+{DiceFaceEnchantUtility.ValuePlusNAddedValue}", new Color(0.36f, 0.88f, 1f, 1f)));
+                return;
+            case DiceFaceEnchantKind.GuardBoost:
+                steps.Add(new RollPopupStep($"+{DiceFaceEnchantUtility.GuardBoostAmount} Guard", new Color(0.36f, 0.88f, 1f, 1f)));
+                return;
+            case DiceFaceEnchantKind.GoldProc:
+                steps.Add(new RollPopupStep($"+{DiceFaceEnchantUtility.GoldProcAmount} Gold", new Color(0.36f, 0.88f, 1f, 1f)));
+                return;
+            case DiceFaceEnchantKind.Fire:
+                steps.Add(new RollPopupStep("Fire", new Color(0.36f, 0.88f, 1f, 1f)));
+                return;
+            case DiceFaceEnchantKind.Bleed:
+                steps.Add(new RollPopupStep("Bleed", new Color(0.36f, 0.88f, 1f, 1f)));
+                return;
+            case DiceFaceEnchantKind.Ice:
+                steps.Add(new RollPopupStep($"+{DiceFaceEnchantUtility.IceAddedValue}", new Color(0.36f, 0.88f, 1f, 1f)));
+                steps.Add(new RollPopupStep("Ice", new Color(0.36f, 0.88f, 1f, 1f)));
+                return;
+            case DiceFaceEnchantKind.Lightning:
+                steps.Add(new RollPopupStep("Lightning", new Color(0.36f, 0.88f, 1f, 1f)));
+                return;
+        }
     }
 
     private void ClearRollStatePopupVisuals(bool clearText)

@@ -15,6 +15,25 @@ MonoBehaviour:
   icon: {fileID: -8939101552625722761, guid: 422d8f3fa3ef44841b1b50e7af231af9, type: 3}
   displayName: Deep Freeze
   description: Apply Freeze.
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: Apply Freeze.
+    requirements: []
+    baseEffects:
+    - type: 1
+      target: 0
+      status: 4
+      value:
+        baseAmount: 1
+        mode: 0
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes: []
+    customHook:
+      kind: 0
+      reason: 
   spec:
     rarity: 0
     specState: 0

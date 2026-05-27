@@ -201,6 +201,15 @@ public class SkillExecutor : MonoBehaviour
         {
             System.Action applyGuard = () =>
             {
+                if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+                {
+                    SkillAttackResolutionUtility.ApplyResolvedGameplayNonAttack(rt, caster, primaryTarget);
+                    caster.GainFocus(rt.focusGainOnCast);
+                    if (rt.focusGainOnCast > 0)
+                        CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Focus);
+                    return;
+                }
+
                 int baseGuard = rt.CalculateGuard(dieValue);
                 if (rt.guardValueMode == BaseEffectValueMode.Flat && rt.guardFlat > 0)
                     baseGuard = SkillOutputValueUtility.AddActionAddedValue(rt.guardFlat, rt);
@@ -565,16 +574,6 @@ public class SkillExecutor : MonoBehaviour
     {
         if (rt == null || caster == null)
             return baseGuard;
-
-        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, BleedDamageBehaviorId.BloodWard))
-            return SkillOutputValueUtility.AddActionAddedValue(
-                Mathf.Max(0, SkillBehaviorRuntimeUtility.CountBleedOnEnemyTeam(caster)),
-                rt);
-
-        if (SkillBehaviorRuntimeUtility.IsBehavior(rt, IceDamageBehaviorId.ColdSnap))
-            return SkillOutputValueUtility.AddActionAddedValue(
-                Mathf.Max(0, SkillBehaviorRuntimeUtility.GetHighestBaseValue(rt)),
-                rt);
 
         return baseGuard;
     }
