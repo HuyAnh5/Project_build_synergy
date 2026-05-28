@@ -63,6 +63,8 @@ public partial class DiceDraggableUI
         _castMotionLocked = true;
         KillMoveTweens();
         _castYOffsetOverride = _rt.anchoredPosition.y - _homeAnchoredPos.y;
+        if (_cg != null)
+            _cg.blocksRaycasts = false;
     }
 
     public void EndCastMotionLock()
@@ -70,6 +72,8 @@ public partial class DiceDraggableUI
         EnsureInitialized();
         _castMotionLocked = false;
         _castYOffsetOverride = null;
+        if (_cg != null && !_dragging)
+            _cg.blocksRaycasts = true;
     }
 
     public Tween AnimateCastDisplayToReady(float duration, Ease ease)

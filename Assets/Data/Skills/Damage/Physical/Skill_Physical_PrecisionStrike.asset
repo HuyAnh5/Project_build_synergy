@@ -24,8 +24,8 @@ MonoBehaviour:
       target: 0
       status: 1
       value:
-        baseAmount: 0
-        mode: 6
+        baseAmount: 3
+        mode: 1
         status: 1
         divisor: 1
         matchBaseValue: 7

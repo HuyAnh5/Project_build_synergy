@@ -27,15 +27,5 @@ MonoBehaviour:
     orderInRow: 0
   d4Prefab: {fileID: 0}
   d8Prefab: {fileID: 4134805224854751960, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
-  skillGroups:
-  - label: 
-    skillA: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
-    skillB: {fileID: 11400000, guid: d0a72a3e8f4a917bf4280516f7087207, type: 2}
-    skillC: {fileID: 11400000, guid: ccf6192d7e39806ae317f405e6f76106, type: 2}
-    skillD: {fileID: 11400000, guid: e1b83b4f905ba28c0539162708198308, type: 2}
-  consumables:
-  - {fileID: 11400000, guid: daac03b175d89f44aaadeed13907ac6f, type: 2}
-  - {fileID: 11400000, guid: 123a834a9b634a04ca2a16991d3daebc, type: 2}
-  - {fileID: 11400000, guid: 6f0ec1d6ddf84fd5a7148f10d6a2e1a4, type: 2}
-  - {fileID: 11400000, guid: 31217922bea208b458ea0470a6e71265, type: 2}
-  - {fileID: 11400000, guid: c1df92299cc33994484c0126b6320ea5, type: 2}
+  skillGroups: []
+  consumables: []

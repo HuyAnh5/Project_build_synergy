@@ -9,6 +9,8 @@ public class DamagePopupSystem : MonoBehaviour
     {
         public TMP_Text popup;
         public int total;
+        public int hitCount;
+        public float lastHitTime;
     }
 
     [Header("Prefab & Parent (UI or World)")]
@@ -118,6 +120,7 @@ public class DamagePopupSystem : MonoBehaviour
         // reset alpha/scale for next use
         var c = t.color; c.a = 1f; t.color = c;
         t.transform.localScale = Vector3.one;
+        t.raycastTarget = false;
 
         t.gameObject.SetActive(false);
         _pool.Enqueue(t);
@@ -139,7 +142,7 @@ public class DamagePopupSystem : MonoBehaviour
 
         if (hpLost > 0)
         {
-            SpawnTotalDamage(attacker, target, hpLost);
+            RegisterTotalDamageHit(attacker, target, hpLost);
 
             if (blocked > 0)
             {
@@ -153,6 +156,41 @@ public class DamagePopupSystem : MonoBehaviour
                 SpawnHpArc(attacker, target, hpLost.ToString(), hpColor);
             }
         }
+    }
+
+    private void RegisterTotalDamageHit(CombatActor attacker, CombatActor target, int amount)
+    {
+        if (attacker == null || !attacker.isPlayer || target == null)
+            return;
+
+        int safeAmount = Mathf.Max(0, amount);
+        if (safeAmount <= 0)
+            return;
+
+        float now = Time.unscaledTime;
+        float comboWindow = Mathf.Max(0.01f, totalDamageDuration);
+
+        if (!_activeTotalDamagePopups.TryGetValue(target, out TotalDamageState state) || state == null)
+        {
+            state = new TotalDamageState();
+            _activeTotalDamagePopups[target] = state;
+        }
+        else if (now - state.lastHitTime > comboWindow)
+        {
+            if (state.popup != null)
+                Return(state.popup);
+
+            state.popup = null;
+            state.total = 0;
+            state.hitCount = 0;
+        }
+
+        state.total += safeAmount;
+        state.hitCount++;
+        state.lastHitTime = now;
+
+        if (state.hitCount >= 2)
+            SpawnTotalDamage(target, state.total);
     }
 
     /// <summary>
@@ -237,6 +275,7 @@ public class DamagePopupSystem : MonoBehaviour
             t.transform.SetParent(spawnParent, false);
 
         t.gameObject.SetActive(true);
+        t.raycastTarget = false;
         t.text = text;
         t.color = color;
 
@@ -277,20 +316,18 @@ public class DamagePopupSystem : MonoBehaviour
         seq.OnComplete(() => Return(t));
     }
 
-    private void SpawnTotalDamage(CombatActor source, CombatActor target, int amount)
+    private void SpawnTotalDamage(CombatActor target, int amount)
     {
         if (target == null) return;
 
         int safeAmount = Mathf.Max(0, amount);
         if (safeAmount <= 0) return;
 
-        int total = safeAmount;
-        if (_activeTotalDamagePopups.TryGetValue(target, out TotalDamageState activeState) && activeState != null)
+        _activeTotalDamagePopups.TryGetValue(target, out TotalDamageState activeState);
+        if (activeState != null)
         {
-            total += Mathf.Max(0, activeState.total);
             if (activeState.popup != null)
                 Return(activeState.popup);
-            _activeTotalDamagePopups.Remove(target);
         }
 
         TMP_Text t = Rent();
@@ -300,7 +337,8 @@ public class DamagePopupSystem : MonoBehaviour
             t.transform.SetParent(spawnParent, false);
 
         t.gameObject.SetActive(true);
-        t.text = total.ToString();
+        t.raycastTarget = false;
+        t.text = safeAmount.ToString();
         t.color = totalDamageColor;
 
         Vector3 start = GetCenter(target, PopupSpawnKind.TotalDamage);
@@ -327,7 +365,9 @@ public class DamagePopupSystem : MonoBehaviour
         TotalDamageState state = new TotalDamageState
         {
             popup = t,
-            total = total
+            total = activeState != null ? activeState.total : safeAmount,
+            hitCount = activeState != null ? activeState.hitCount : 2,
+            lastHitTime = activeState != null ? activeState.lastHitTime : Time.unscaledTime
         };
         _activeTotalDamagePopups[target] = state;
         seq.OnComplete(() =>
@@ -335,7 +375,11 @@ public class DamagePopupSystem : MonoBehaviour
             if (_activeTotalDamagePopups.TryGetValue(target, out TotalDamageState current) &&
                 current != null &&
                 current.popup == t)
-                _activeTotalDamagePopups.Remove(target);
+            {
+                current.popup = null;
+                if (Time.unscaledTime - current.lastHitTime > Mathf.Max(0.01f, totalDamageDuration))
+                    _activeTotalDamagePopups.Remove(target);
+            }
             Return(t);
         });
     }
@@ -367,6 +411,7 @@ public class DamagePopupSystem : MonoBehaviour
         if (spawnParent != null) t.transform.SetParent(spawnParent, false);
 
         t.gameObject.SetActive(true);
+        t.raycastTarget = false;
         t.text = text;
         t.color = color;
 

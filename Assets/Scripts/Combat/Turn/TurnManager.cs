@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
@@ -20,6 +22,9 @@ public class TurnManager : MonoBehaviour
     [Header("Optional: lock planning UI before roll / after Continue")]
     public CanvasGroup skillBarGroup;
     public CanvasGroup slotsPanelGroup;
+    [Header("Phase Button UI")]
+    [SerializeField] private Button continueButton;
+    [SerializeField] private TMP_Text continueButtonLabel;
 
     [Tooltip("If TRUE, disables planning UI until dice have finished rolling.\n" +
              "If your Roll button lives inside these CanvasGroups, keep this FALSE or move the Roll button out.")]
@@ -41,7 +46,7 @@ public class TurnManager : MonoBehaviour
 
     // Player can keep adjusting planning/reorder/select during the whole planning phase.
     public bool IsPlanning => phase == Phase.Planning;
-    public bool CanInteractWithSkills => phase == Phase.Planning && !IsSkillInteractionLockedForCurrentRollWindow() && !ArePlayerCommandsLocked;
+    public bool CanInteractWithSkills => phase == Phase.Planning && !IsSkillInteractionLockedForCurrentRollWindow() && !ArePlayerCommandsLocked && !_endTurnQueued;
     public bool ArePlayerCommandsLocked => _externalPlayerInteractionLock || _defeatResolvedThisCombat || player == null || player.IsDead;
 
     private readonly ActionSlotDrop[] _drops = new ActionSlotDrop[3];
@@ -60,6 +65,7 @@ public class TurnManager : MonoBehaviour
     private bool _defeatResolvedThisCombat;
     private bool _externalPlayerInteractionLock;
     private bool _isProcessingQueuedPlayerCommands;
+    private bool _endTurnQueued;
     private Coroutine _autoRollCoroutine;
 
     void Start()
@@ -109,6 +115,8 @@ public class TurnManager : MonoBehaviour
         RefreshAllPreviews();
         UpdateAllIconsDim();
         UpdateAllDiceDim();
+        ResolveContinueButtonUi();
+        RefreshContinueButtonUi();
         BeginNewPlayerTurn();
         if (diceRig != null)
             diceRig.ShowRandomPresentationFaces();
@@ -328,23 +336,9 @@ public class TurnManager : MonoBehaviour
     {
         if (!IsPlanning) return;
         if (ArePlayerCommandsLocked) return;
-        StartCoroutine(ContinueRoutine());
-    }
+        if (_endTurnQueued) return;
 
-    private IEnumerator ContinueRoutine()
-    {
-        if (_isProcessingQueuedPlayerCommands || _queuedPlayerCommands.Count > 0)
-            yield break;
-
-        if (TryHandleCombatDefeat())
-            yield break;
-        if (TryHandleCombatVictory())
-            yield break;
-
-        EndPlayerTurn_TickStatusesAndPassives();
-        if (TryHandleCombatDefeat())
-            yield break;
-        yield return EnemyTurnThenBeginNewPlayerTurn();
+        EnqueueEndTurn();
     }
 
 
@@ -427,6 +421,7 @@ public class TurnManager : MonoBehaviour
         _board.ConsumeGroupAtAnchor_NoRefund(_cursor);
         _queuedPlayerCommands.Enqueue(new TurnManagerQueuedPlayerCommand
         {
+            kind = TurnManagerQueuedPlayerCommandKind.Skill,
             asset = asset,
             runtime = rt,
             target = clicked,
@@ -442,14 +437,11 @@ public class TurnManager : MonoBehaviour
         RefreshAllViews();
         RefreshPlanningInteractivity();
         
-        if (!_isProcessingQueuedPlayerCommands)
-            StartCoroutine(ProcessQueuedPlayerCommands());
+        EnsureQueuedPlayerCommandProcessingStarted();
     }
 
     private IEnumerator ProcessQueuedPlayerCommands()
     {
-        _isProcessingQueuedPlayerCommands = true;
-
         while (_queuedPlayerCommands.Count > 0)
         {
             if (TryHandleCombatDefeat())
@@ -463,7 +455,15 @@ public class TurnManager : MonoBehaviour
                 yield break;
             }
 
-            yield return ExecuteQueuedCommand(_queuedPlayerCommands.Dequeue());
+            TurnManagerQueuedPlayerCommand command = _queuedPlayerCommands.Dequeue();
+            if (command.kind == TurnManagerQueuedPlayerCommandKind.EndTurn)
+            {
+                _endTurnQueued = false;
+                yield return ExecuteQueuedEndTurn();
+                break;
+            }
+
+            yield return ExecuteQueuedCommand(command);
         }
 
         _isProcessingQueuedPlayerCommands = false;
@@ -485,6 +485,20 @@ public class TurnManager : MonoBehaviour
         SetPhase(Phase.Planning);
         RefreshAllViews();
         RefreshPlanningInteractivity();
+    }
+
+    private IEnumerator ExecuteQueuedEndTurn()
+    {
+        if (TryHandleCombatDefeat())
+            yield break;
+        if (TryHandleCombatVictory())
+            yield break;
+
+        EndPlayerTurn_TickStatusesAndPassives();
+        if (TryHandleCombatDefeat())
+            yield break;
+
+        yield return EnemyTurnThenBeginNewPlayerTurn();
     }
     private IEnumerator EnemyTurnRoutine()
     {
@@ -696,6 +710,7 @@ public class TurnManager : MonoBehaviour
         _board.Reset();
         _queuedPlayerCommands.Clear();
         _isProcessingQueuedPlayerCommands = false;
+        _endTurnQueued = false;
 
         if (diceRig != null)
         {
@@ -815,8 +830,9 @@ public class TurnManager : MonoBehaviour
             return;
         }
 
-        bool shouldLock = ArePlayerCommandsLocked || (lockPlanningUIUntilRolled && !CanInteractWithSkills);
+        bool shouldLock = ArePlayerCommandsLocked || _endTurnQueued || (lockPlanningUIUntilRolled && !CanInteractWithSkills);
         LockPlanningUI(shouldLock);
+        RefreshContinueButtonUi();
     }
 
     private void LockPlanningUI(bool locked)
@@ -845,6 +861,7 @@ public class TurnManager : MonoBehaviour
         if (phase == newPhase) return;
 
         phase = newPhase;
+        RefreshContinueButtonUi();
 
         if (logPhase)
             Debug.Log($"[TurnManager] Phase => {phase}", this);
@@ -1017,6 +1034,75 @@ public class TurnManager : MonoBehaviour
 
         _externalPlayerInteractionLock = locked;
         RefreshPlanningInteractivity();
+    }
+
+    private void EnqueueEndTurn()
+    {
+        _queuedPlayerCommands.Enqueue(new TurnManagerQueuedPlayerCommand
+        {
+            kind = TurnManagerQueuedPlayerCommandKind.EndTurn
+        });
+        _endTurnQueued = true;
+        UiDragState.DeselectSkill();
+        RefreshAllViews();
+        RefreshPlanningInteractivity();
+
+        EnsureQueuedPlayerCommandProcessingStarted();
+    }
+
+    private void EnsureQueuedPlayerCommandProcessingStarted()
+    {
+        if (_isProcessingQueuedPlayerCommands)
+            return;
+
+        _isProcessingQueuedPlayerCommands = true;
+        StartCoroutine(ProcessQueuedPlayerCommands());
+    }
+
+    private void ResolveContinueButtonUi()
+    {
+        if (continueButton == null)
+        {
+            Button[] buttons = FindObjectsOfType<Button>(true);
+            for (int i = 0; i < buttons.Length; i++)
+            {
+                Button button = buttons[i];
+                if (button == null)
+                    continue;
+
+                var onClick = button.onClick;
+                int count = onClick.GetPersistentEventCount();
+                for (int j = 0; j < count; j++)
+                {
+                    if (onClick.GetPersistentTarget(j) == this && onClick.GetPersistentMethodName(j) == nameof(OnContinue))
+                    {
+                        continueButton = button;
+                        break;
+                    }
+                }
+
+                if (continueButton != null)
+                    break;
+            }
+        }
+
+        if (continueButtonLabel == null && continueButton != null)
+            continueButtonLabel = continueButton.GetComponentInChildren<TMP_Text>(true);
+    }
+
+    private void RefreshContinueButtonUi()
+    {
+        ResolveContinueButtonUi();
+
+        if (continueButtonLabel != null)
+        {
+            continueButtonLabel.text = (phase == Phase.EnemyTurn || _endTurnQueued) ? "Enemy Phase" : "End Phase";
+        }
+
+        if (continueButton != null)
+        {
+            continueButton.interactable = IsPlanning && !ArePlayerCommandsLocked && !_endTurnQueued;
+        }
     }
 
 
