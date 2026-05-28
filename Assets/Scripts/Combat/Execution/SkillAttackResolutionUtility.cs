@@ -3,21 +3,19 @@ using UnityEngine;
 
 internal static class SkillAttackResolutionUtility
 {
-    public static int ApplyAttackToTargets(
+    public static SkillExecutor.AttackApplyResult ApplyAttackToTargets(
         SkillRuntime rt,
         CombatActor caster,
         IReadOnlyList<CombatActor> targets,
         int dieValue,
         DamagePopupSystem popups,
         MonoBehaviour context,
-        System.Func<SkillRuntime, CombatActor, CombatActor, int, SkillExecutor.AttackPreview> buildAttackPreview,
-        out int lightningShockDamage)
+        System.Func<SkillRuntime, CombatActor, CombatActor, int, SkillExecutor.AttackPreview> buildAttackPreview)
     {
-        int totalShockProcCount = 0;
-        lightningShockDamage = 0;
+        SkillExecutor.AttackApplyResult aggregate = default;
 
         if (targets == null)
-            return 0;
+            return default;
 
         SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
         if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
@@ -33,10 +31,9 @@ internal static class SkillAttackResolutionUtility
             }
 
             if (primaryTarget == null)
-                return 0;
+                return default;
 
-            ApplyAttack(rt, caster, primaryTarget, dieValue, popups, context, buildAttackPreview);
-            return 0;
+            return ApplyAttack(rt, caster, primaryTarget, dieValue, popups, context, buildAttackPreview);
         }
 
         for (int i = 0; i < targets.Count; i++)
@@ -46,12 +43,23 @@ internal static class SkillAttackResolutionUtility
                 continue;
 
             SkillExecutor.AttackApplyResult result = ApplyAttack(rt, caster, t, dieValue, popups, context, buildAttackPreview);
-            totalShockProcCount += result.lightningShockProcCount;
-            if (result.lightningShockDamage > 0)
-                lightningShockDamage = result.lightningShockDamage;
+            aggregate.damageResult.blocked += result.damageResult.blocked;
+            aggregate.damageResult.hpLost += result.damageResult.hpLost;
+            aggregate.damageResult.guardBroken |= result.damageResult.guardBroken;
+            aggregate.lightningShockProcCount += result.lightningShockProcCount;
+            aggregate.lightningShockDamage = Mathf.Max(aggregate.lightningShockDamage, result.lightningShockDamage);
+            aggregate.consumedStagger |= result.consumedStagger;
+            aggregate.hadPrimaryDamageStep |= result.hadPrimaryDamageStep;
+            aggregate.delayedBurnConsumeDamage += result.delayedBurnConsumeDamage;
+            if (result.delayedFollowUpEffects != null && result.delayedFollowUpEffects.Count > 0)
+            {
+                if (aggregate.delayedFollowUpEffects == null)
+                    aggregate.delayedFollowUpEffects = new List<ResolvedEffect>();
+                aggregate.delayedFollowUpEffects.AddRange(result.delayedFollowUpEffects);
+            }
         }
 
-        return totalShockProcCount;
+        return aggregate;
     }
 
     public static SkillExecutor.AttackApplyResult ApplyAttack(
@@ -234,10 +242,22 @@ internal static class SkillAttackResolutionUtility
         int shockDamagePerProc = 0;
         var markPayoffAppliedTargets = new HashSet<CombatActor>();
         var iceRewardAppliedTargets = new HashSet<CombatActor>();
+        var primaryDamageAppliedTargets = new HashSet<CombatActor>();
+        List<ResolvedEffect> delayedFollowUpEffects = null;
+
         for (int i = 0; i < resolved.effects.Count; i++)
         {
             ResolvedEffect effect = resolved.effects[i];
-            if (effect == null || (effect.type != SkillEffectType.DealDamage && effect.type != SkillEffectType.DealSecondaryDamage))
+            if (effect == null)
+                continue;
+            if (effect.sameActionFollowUp)
+            {
+                if (delayedFollowUpEffects == null)
+                    delayedFollowUpEffects = new List<ResolvedEffect>();
+                delayedFollowUpEffects.Add(effect);
+                continue;
+            }
+            if (effect.type != SkillEffectType.DealDamage && effect.type != SkillEffectType.DealSecondaryDamage)
                 continue;
 
             CombatActor effectTarget = effect.targetActor != null ? effect.targetActor : target;
@@ -245,8 +265,9 @@ internal static class SkillAttackResolutionUtility
                 continue;
 
             bool isPrimaryDamage = effect.type == SkillEffectType.DealDamage;
-            bool targetHadMarkBeforeHit = isPrimaryDamage && AttackPreviewCalculator.CanUseMarkPayoff(rt, effectTarget);
-            bool targetWasFrozenOrChilled = isPrimaryDamage &&
+            bool isFirstPrimaryDamageForTarget = isPrimaryDamage && primaryDamageAppliedTargets.Add(effectTarget);
+            bool targetHadMarkBeforeHit = isFirstPrimaryDamageForTarget && AttackPreviewCalculator.CanUseMarkPayoff(rt, effectTarget);
+            bool targetWasFrozenOrChilled = isFirstPrimaryDamageForTarget &&
                                             effectTarget.status != null &&
                                             (effectTarget.status.frozen || effectTarget.status.chilledTurns > 0);
 
@@ -259,7 +280,7 @@ internal static class SkillAttackResolutionUtility
             if (damage <= 0)
                 continue;
 
-            bool consumesStagger = isPrimaryDamage && AttackPreviewCalculator.CanConsumeStagger(rt, effectTarget);
+            bool consumesStagger = isFirstPrimaryDamageForTarget && AttackPreviewCalculator.CanConsumeStagger(rt, effectTarget);
             if (consumesStagger)
             {
                 damage = Mathf.FloorToInt(damage * 1.2f);
@@ -275,13 +296,13 @@ internal static class SkillAttackResolutionUtility
             aggregateDamageResult.hpLost += damageResult.hpLost;
             aggregateDamageResult.guardBroken |= damageResult.guardBroken;
 
-            if (isPrimaryDamage)
+            if (isFirstPrimaryDamageForTarget)
                 ApplyNewPipelineEmberWeaponBurn(rt, caster, effectTarget, damage);
 
             if (info.clearsGuard)
                 effectTarget.guardPool = 0;
 
-            if (isPrimaryDamage && effectTarget.status != null && caster != null)
+            if (isFirstPrimaryDamageForTarget && effectTarget.status != null && caster != null)
             {
                 int reward = effectTarget.status.OnHitByDamageReturnFocusReward(ref info);
                 if (reward != 0)
@@ -293,13 +314,13 @@ internal static class SkillAttackResolutionUtility
 
             if (isPrimaryDamage && damageResult.guardBroken && effectTarget.status != null)
                 effectTarget.status.ApplyStagger();
-            else if (isPrimaryDamage && consumesStagger && effectTarget.status != null)
+            else if (isFirstPrimaryDamageForTarget && consumesStagger && effectTarget.status != null)
             {
                 effectTarget.status.ClearStagger();
                 consumedAnyStagger = true;
             }
 
-            if (isPrimaryDamage &&
+            if (isFirstPrimaryDamageForTarget &&
                 rt.element == ElementType.Ice &&
                 rt.gainIceRewardOnFrozenOrChilledHit &&
                 caster != null &&
@@ -322,7 +343,7 @@ internal static class SkillAttackResolutionUtility
                 }
             }
 
-            if (isPrimaryDamage && applyMarkPayoffNow && effectTarget.status != null)
+            if (isFirstPrimaryDamageForTarget && applyMarkPayoffNow && effectTarget.status != null)
             {
                 if (rt.element == ElementType.Lightning && rt.triggerLightningMarkShock)
                 {
@@ -342,7 +363,7 @@ internal static class SkillAttackResolutionUtility
                 popups.SpawnDamageSplit(caster, effectTarget, damageResult.blocked, damageResult.hpLost);
         }
 
-        ApplyResolvedGameplayEffects(resolved, caster, target);
+        ApplyResolvedGameplayEffects(resolved.effects, caster, target, includeFollowUpEffects: false);
 
         return new SkillExecutor.AttackApplyResult
         {
@@ -351,7 +372,8 @@ internal static class SkillAttackResolutionUtility
             lightningShockDamage = shockDamagePerProc,
             consumedStagger = consumedAnyStagger,
             hadPrimaryDamageStep = totalDamage > 0,
-            delayedBurnConsumeDamage = 0
+            delayedBurnConsumeDamage = 0,
+            delayedFollowUpEffects = delayedFollowUpEffects
         };
     }
 
@@ -361,7 +383,7 @@ internal static class SkillAttackResolutionUtility
         if (resolved == null || !resolved.canCast)
             return;
 
-        ApplyResolvedGameplayEffects(resolved, caster, selectedTarget);
+        ApplyResolvedGameplayEffects(resolved.effects, caster, selectedTarget, includeFollowUpEffects: false);
     }
 
     private static void ApplyNewPipelineEmberWeaponBurn(SkillRuntime rt, CombatActor caster, CombatActor target, int finalDamage)
@@ -380,16 +402,18 @@ internal static class SkillAttackResolutionUtility
             target.status.ApplyBurn(emberBurn, 3);
     }
 
-    private static void ApplyResolvedGameplayEffects(SkillResolvedResult resolved, CombatActor caster, CombatActor selectedTarget)
+    private static void ApplyResolvedGameplayEffects(IReadOnlyList<ResolvedEffect> effects, CombatActor caster, CombatActor selectedTarget, bool includeFollowUpEffects)
     {
-        if (resolved == null || resolved.effects == null)
+        if (effects == null)
             return;
 
         PassiveSystem passiveSystem = caster != null ? caster.GetComponent<PassiveSystem>() : null;
-        for (int i = 0; i < resolved.effects.Count; i++)
+        for (int i = 0; i < effects.Count; i++)
         {
-            ResolvedEffect effect = resolved.effects[i];
+            ResolvedEffect effect = effects[i];
             if (effect == null || effect.type == SkillEffectType.DealDamage || effect.type == SkillEffectType.DealSecondaryDamage)
+                continue;
+            if (effect.sameActionFollowUp != includeFollowUpEffects)
                 continue;
 
             CombatActor target = effect.targetActor != null
@@ -421,8 +445,67 @@ internal static class SkillAttackResolutionUtility
                 case SkillEffectType.ConsumeStatus:
                     ConsumeResolvedStatus(effect.status, target, value);
                     break;
+                case SkillEffectType.ClearGuard:
+                    ClearResolvedGuard(target);
+                    break;
             }
         }
+    }
+
+    public static void ApplyResolvedGameplayFollowUpEffects(
+        SkillRuntime rt,
+        CombatActor caster,
+        CombatActor selectedTarget,
+        IReadOnlyList<ResolvedEffect> effects,
+        DamagePopupSystem popups)
+    {
+        if (effects == null || rt == null)
+            return;
+
+        for (int i = 0; i < effects.Count; i++)
+        {
+            ResolvedEffect effect = effects[i];
+            if (effect == null || !effect.sameActionFollowUp)
+                continue;
+
+            CombatActor effectTarget = effect.targetActor != null
+                ? effect.targetActor
+                : ResolveEffectTarget(effect.target, caster, selectedTarget);
+            if (effectTarget == null || effectTarget.IsDead)
+                continue;
+
+            if (effect.type == SkillEffectType.DealDamage || effect.type == SkillEffectType.DealSecondaryDamage)
+            {
+                int damage = Mathf.Max(0, effect.value);
+                if (damage <= 0)
+                    continue;
+
+                CombatActor.DamageResult damageResult = effectTarget.TakeDamageDetailed(damage, bypassGuard: rt.bypassGuard);
+                CombatHitFeedback.Play(effectTarget, CombatHitFeedback.FeedbackKind.Hit);
+                if (damageResult.guardBroken && effectTarget.status != null)
+                    effectTarget.status.ApplyStagger();
+                if (popups != null)
+                    popups.SpawnDamageSplit(caster, effectTarget, damageResult.blocked, damageResult.hpLost);
+            }
+        }
+
+        ApplyResolvedGameplayEffects(effects, caster, selectedTarget, includeFollowUpEffects: true);
+    }
+
+    private static bool ClearResolvedGuard(CombatActor target)
+    {
+        if (target == null)
+            return false;
+
+        int guardBefore = Mathf.Max(0, target.guardPool);
+        if (guardBefore <= 0)
+            return false;
+
+        target.guardPool = 0;
+        if (target.status != null)
+            target.status.ApplyStagger();
+
+        return true;
     }
 
     private static CombatActor ResolveEffectTarget(SkillEffectTarget target, CombatActor caster, CombatActor selectedTarget)

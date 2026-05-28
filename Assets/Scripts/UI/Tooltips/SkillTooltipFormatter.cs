@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 using UnityEngine;
 
 public static class SkillTooltipFormatter
@@ -8,6 +9,7 @@ public static class SkillTooltipFormatter
     private const string AddedValueColor = "#5CCBFF";
     private const string ReducedValueColor = "#FF5C7A";
     private const string IncreasedValueColor = "#67E88D";
+    private static readonly Regex SymbolicXValueRegex = new Regex(@"\bX(?=(?:\s+(?:action|damage|guard|burn|bleed|hp|focus|ap))\b)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     public struct TooltipContent
     {
@@ -197,7 +199,7 @@ public static class SkillTooltipFormatter
         text = text.Replace("{Crit}", FormatKeyword("Crit"));
         text = text.Replace("{Guard}", FormatKeyword("Guard"));
         text = text.Replace("{Consume}", "Consume");
-        return text;
+        return ColorSymbolicXTokens(text);
     }
 
     private static string ReplaceEffectTokens(string text, string token, SkillEffectData effect, SkillRuntime runtime)
@@ -212,9 +214,7 @@ public static class SkillTooltipFormatter
             consumedBleedStacks = effect.value.status == StatusKind.Bleed ? 1 : 0,
             totalAddedValue = SkillOutputValueUtility.GetTotalActionAddedValue(runtime)
         });
-        string valueText = effect.value.mode == SkillValueMode.AddedValueScaled
-            ? FormatAddedValueText(value, effect.value)
-            : value.ToString();
+        string valueText = FormatTooltipValueText(value, effect.value);
         return text.Replace("{" + token + "}", valueText);
     }
 
@@ -269,9 +269,7 @@ public static class SkillTooltipFormatter
             consumedBleedStacks = effect.value != null && effect.value.status == StatusKind.Bleed ? 1 : 0,
             totalAddedValue = SkillOutputValueUtility.GetTotalActionAddedValue(runtime)
         });
-        string valueText = effect.value != null && effect.value.mode == SkillValueMode.AddedValueScaled
-            ? FormatAddedValueText(value, effect.value)
-            : value.ToString();
+        string valueText = FormatTooltipValueText(value, effect.value);
         if (effect.value != null && effect.value.mode == SkillValueMode.ConsumedStatusStacksScaled)
             valueText = $"{effect.value.baseAmount} per consumed {FormatKeyword(effect.value.status.ToString())}";
         else if (effect.value != null && effect.value.mode == SkillValueMode.ConsumedStatusStacksDividedScaled)
@@ -293,6 +291,8 @@ public static class SkillTooltipFormatter
                 return $"Consume {FormatKeyword(effect.status.ToString())}.";
             case SkillEffectType.GainGuard:
                 return $"Gain {valueText} {FormatKeyword("Guard")}.";
+            case SkillEffectType.ClearGuard:
+                return $"Clear all {FormatKeyword("Guard")}.";
             default:
                 return effect.type.ToString();
         }
@@ -512,6 +512,21 @@ public static class SkillTooltipFormatter
         return SkillOutputValueUtility.ResolveXValue(0, runtime);
     }
 
+    private static string FormatTooltipValueText(int currentValue, SkillValueData valueData)
+    {
+        if (valueData == null)
+            return currentValue.ToString();
+
+        return IsBlueValueMode(valueData.mode)
+            ? FormatAddedValueText(currentValue, valueData)
+            : currentValue.ToString();
+    }
+
+    private static bool IsBlueValueMode(SkillValueMode mode)
+    {
+        return mode == SkillValueMode.AddedValueScaled || mode == SkillValueMode.ActionX;
+    }
+
     private static SkillRuntime BuildBuffRuntime(SkillBuffDebuffSO skill)
     {
         if (skill == null)
@@ -549,7 +564,7 @@ public static class SkillTooltipFormatter
     private static string ColorQuotedAddedValues(string text)
     {
         if (string.IsNullOrEmpty(text) || !text.Contains("\""))
-            return text;
+            return ColorSymbolicXTokens(text);
 
         StringBuilder sb = new StringBuilder(text.Length + 32);
         bool inQuote = false;
@@ -581,7 +596,15 @@ public static class SkillTooltipFormatter
             sb.Append(text, segmentStart, text.Length - segmentStart);
         }
 
-        return sb.ToString();
+        return ColorSymbolicXTokens(sb.ToString());
+    }
+
+    private static string ColorSymbolicXTokens(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return text;
+
+        return SymbolicXValueRegex.Replace(text, match => Blue(match.Value));
     }
 
     private static string ReplaceQuotedSegments(string text, Func<string, string> resolver)

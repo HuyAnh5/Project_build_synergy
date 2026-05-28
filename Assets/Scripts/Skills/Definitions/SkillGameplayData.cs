@@ -13,7 +13,8 @@ public enum SkillEffectType
     GainAP = 5,
     ModifyCost = 6,
     AddValue = 7,
-    DealSecondaryDamage = 8
+    DealSecondaryDamage = 8,
+    ClearGuard = 9
 }
 
 public enum SkillEffectTarget
@@ -154,7 +155,7 @@ public class SkillEffectData
         => type == SkillEffectType.ApplyStatus || type == SkillEffectType.ConsumeStatus;
 
     private bool UsesValue()
-        => type != SkillEffectType.ConsumeStatus;
+        => type != SkillEffectType.ConsumeStatus && type != SkillEffectType.ClearGuard;
 
     private string BuildSummary()
     {
@@ -179,6 +180,8 @@ public class SkillEffectData
                 return $"Modify cost by {valueText}";
             case SkillEffectType.AddValue:
                 return $"Add value {valueText}";
+            case SkillEffectType.ClearGuard:
+                return $"Clear all Guard on {target}";
             default:
                 return type.ToString();
         }

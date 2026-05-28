@@ -712,6 +712,10 @@ MonoBehaviour:
   activeAuraWaveSize: 8
   activeAuraWaveSeconds: 1.2
   activeAuraSourceImage: {fileID: 6197109227560003670}
+  transientAffectedAuraBrightColor: {r: 0.36, g: 0.88, b: 1, a: 0.95}
+  transientAffectedAuraWaveColor: {r: 0.36, g: 0.88, b: 1, a: 0.5}
+  transientAffectedAuraDuration: 0.22
+  transientAffectedAuraWaveSize: 10
 --- !u!114 &3014366409071643787
 MonoBehaviour:
   m_ObjectHideFlags: 0

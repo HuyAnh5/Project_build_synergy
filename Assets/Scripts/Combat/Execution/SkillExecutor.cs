@@ -6,6 +6,8 @@ using DG.Tweening;
 
 public class SkillExecutor : MonoBehaviour
 {
+    public const float GlobalDelayedSecondaryStep = 0.3f;
+
     private BattlePartyManager2D _cachedParty;
     private readonly SkillTargetSelectionService _targetSelectionService = new SkillTargetSelectionService();
     private readonly Dictionary<DiceSpinnerGeneric, DiceDraggableUI> _diceUiBySpinner = new Dictionary<DiceSpinnerGeneric, DiceDraggableUI>();
@@ -18,6 +20,10 @@ public class SkillExecutor : MonoBehaviour
         public bool consumedStagger;
         public bool hadPrimaryDamageStep;
         public int delayedBurnConsumeDamage;
+        public List<ResolvedEffect> delayedFollowUpEffects;
+
+        public bool HasDelayedFollowUpEffects =>
+            delayedFollowUpEffects != null && delayedFollowUpEffects.Count > 0;
     }
 
     [System.Serializable]
@@ -34,8 +40,6 @@ public class SkillExecutor : MonoBehaviour
     }
 
     public float delayBetweenActions = 0.25f;
-    public float delayedSecondaryDamageStep = 0.2f;
-
     [Header("Projectile Safety")]
     public float projectileMaxWaitSeconds = 2.5f;
 
@@ -47,9 +51,6 @@ public class SkillExecutor : MonoBehaviour
 
     [Header("Damage Popup")]
     public DamagePopupSystem damagePopups;
-
-    [Header("Lightning Mark")]
-    public float lightningMarkShockInterval = 0.2f;
 
     [Header("Player Dice Cast")]
     public PlayerDiceCastAnimator playerDiceCastAnimator;
@@ -250,42 +251,43 @@ public class SkillExecutor : MonoBehaviour
             if (ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
             {
                 AttackApplyResult singleResult = default;
-                int aoeShockProcCount = 0;
-                int aoeShockDamage = 0;
+                AttackApplyResult aoeResult = default;
+                bool impactResolved = false;
+                bool followUpCompleted = false;
 
                 System.Action applyAttackAtImpact = () =>
                 {
                     if (useAoe)
-                        aoeShockProcCount = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue, out aoeShockDamage);
+                    {
+                        aoeResult = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue);
+                        StartCoroutine(ResolveDelayedAttackFollowUpsAtImpact(rt, caster, primaryTarget, aoeResult, () => followUpCompleted = true));
+                    }
                     else
+                    {
                         singleResult = ApplyAttack(rt, caster, primaryTarget, dieValue);
+                        StartCoroutine(ResolveDelayedAttackFollowUpsAtImpact(rt, caster, primaryTarget, singleResult, () => followUpCompleted = true));
+                    }
+
+                    impactResolved = true;
                 };
 
                 PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, primaryTarget, aoeTargets);
                 yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, caster, primaryTarget, aoeTargets, mode, applyAttackAtImpact);
 
-                if (useAoe)
+                if (impactResolved)
                 {
-                    if (aoeShockProcCount > 0 && aoeShockDamage > 0 && delayedSecondaryDamageStep > 0f)
-                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
-
-                    if (aoeShockProcCount > 0 && aoeShockDamage > 0)
-                        yield return ApplyLightningMarkShockSequence(caster, aoeShockDamage, aoeShockProcCount);
+                    while (!followUpCompleted)
+                        yield return null;
                 }
-                else if (singleResult.lightningShockProcCount > 0 && singleResult.lightningShockDamage > 0)
+                else if (useAoe)
                 {
-                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
-                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
-
-                    yield return ApplyLightningMarkShockSequence(caster, singleResult.lightningShockDamage, singleResult.lightningShockProcCount);
+                    aoeResult = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue);
+                    yield return ResolveDelayedAttackFollowUps(rt, caster, primaryTarget, aoeResult);
                 }
-
-                if (!useAoe && singleResult.delayedBurnConsumeDamage > 0)
+                else
                 {
-                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
-                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
-
-                    ApplyDelayedBurnConsumeDamage(caster, primaryTarget, singleResult.delayedBurnConsumeDamage);
+                    singleResult = ApplyAttack(rt, caster, primaryTarget, dieValue);
+                    yield return ResolveDelayedAttackFollowUps(rt, caster, primaryTarget, singleResult);
                 }
 
                 caster.GainFocus(rt.focusGainOnCast);
@@ -296,15 +298,14 @@ public class SkillExecutor : MonoBehaviour
             if (rt.range == RangeType.Melee)
             {
                 AttackApplyResult singleResult = default;
-                int aoeShockProcCount = 0;
-                int aoeShockDamage = 0;
+                AttackApplyResult aoeResult = default;
 
                 yield return MeleeLungeDOTween_HitMoment(caster, primaryTarget, () =>
                 {
                     // Apply đúng 1 lần tại hit moment
                     if (useAoe)
                     {
-                        aoeShockProcCount = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue, out aoeShockDamage);
+                        aoeResult = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue);
                     }
                     else
                     {
@@ -313,28 +314,9 @@ public class SkillExecutor : MonoBehaviour
                 });
 
                 if (useAoe)
-                {
-                    if (aoeShockProcCount > 0 && aoeShockDamage > 0 && delayedSecondaryDamageStep > 0f)
-                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
-
-                    if (aoeShockProcCount > 0 && aoeShockDamage > 0)
-                        yield return ApplyLightningMarkShockSequence(caster, aoeShockDamage, aoeShockProcCount);
-                }
-                else if (singleResult.lightningShockProcCount > 0 && singleResult.lightningShockDamage > 0)
-                {
-                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
-                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
-
-                    yield return ApplyLightningMarkShockSequence(caster, singleResult.lightningShockDamage, singleResult.lightningShockProcCount);
-                }
-
-                if (!useAoe && singleResult.delayedBurnConsumeDamage > 0)
-                {
-                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
-                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
-
-                    ApplyDelayedBurnConsumeDamage(caster, primaryTarget, singleResult.delayedBurnConsumeDamage);
-                }
+                    yield return ResolveDelayedAttackFollowUps(rt, caster, primaryTarget, aoeResult);
+                else
+                    yield return ResolveDelayedAttackFollowUps(rt, caster, primaryTarget, singleResult);
 
                 caster.GainFocus(rt.focusGainOnCast);
                 yield return new WaitForSeconds(delayBetweenActions);
@@ -347,15 +329,14 @@ public class SkillExecutor : MonoBehaviour
                 bool done = false;
                 float elapsed = 0f;
                 AttackApplyResult singleResult = default;
-                int aoeShockProcCount = 0;
-                int aoeShockDamage = 0;
+                AttackApplyResult aoeResult = default;
 
                 var proj = Instantiate(rt.projectilePrefab, caster.firePoint.position, caster.firePoint.rotation);
                 proj.Launch(primaryTarget.transform, () =>
                 {
                     if (useAoe)
                     {
-                        aoeShockProcCount = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue, out aoeShockDamage);
+                        aoeResult = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue);
                     }
                     else
                     {
@@ -378,33 +359,14 @@ public class SkillExecutor : MonoBehaviour
                 {
                     if (proj != null) Destroy(proj.gameObject);
 
-                    if (useAoe) aoeShockProcCount = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue, out aoeShockDamage);
+                    if (useAoe) aoeResult = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue);
                     else singleResult = ApplyAttack(rt, caster, primaryTarget, dieValue);
                 }
 
                 if (useAoe)
-                {
-                    if (aoeShockProcCount > 0 && aoeShockDamage > 0 && delayedSecondaryDamageStep > 0f)
-                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
-
-                    if (aoeShockProcCount > 0 && aoeShockDamage > 0)
-                        yield return ApplyLightningMarkShockSequence(caster, aoeShockDamage, aoeShockProcCount);
-                }
-                else if (singleResult.lightningShockProcCount > 0 && singleResult.lightningShockDamage > 0)
-                {
-                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
-                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
-
-                    yield return ApplyLightningMarkShockSequence(caster, singleResult.lightningShockDamage, singleResult.lightningShockProcCount);
-                }
-
-                if (!useAoe && singleResult.delayedBurnConsumeDamage > 0)
-                {
-                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
-                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
-
-                    ApplyDelayedBurnConsumeDamage(caster, primaryTarget, singleResult.delayedBurnConsumeDamage);
-                }
+                    yield return ResolveDelayedAttackFollowUps(rt, caster, primaryTarget, aoeResult);
+                else
+                    yield return ResolveDelayedAttackFollowUps(rt, caster, primaryTarget, singleResult);
 
                 caster.GainFocus(rt.focusGainOnCast);
                 yield return new WaitForSeconds(delayBetweenActions);
@@ -413,33 +375,9 @@ public class SkillExecutor : MonoBehaviour
 
             // fallback (no projectile)
             if (useAoe)
-            {
-                int aoeShockProcCount = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue, out int aoeShockDamage);
-                if (aoeShockProcCount > 0 && aoeShockDamage > 0 && delayedSecondaryDamageStep > 0f)
-                    yield return new WaitForSeconds(delayedSecondaryDamageStep);
-
-                if (aoeShockProcCount > 0 && aoeShockDamage > 0)
-                    yield return ApplyLightningMarkShockSequence(caster, aoeShockDamage, aoeShockProcCount);
-            }
+                yield return ResolveDelayedAttackFollowUps(rt, caster, primaryTarget, ApplyAttackToTargets(rt, caster, aoeTargets, dieValue));
             else
-            {
-                AttackApplyResult singleResult = ApplyAttack(rt, caster, primaryTarget, dieValue);
-                if (singleResult.delayedBurnConsumeDamage > 0)
-                {
-                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
-                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
-
-                    ApplyDelayedBurnConsumeDamage(caster, primaryTarget, singleResult.delayedBurnConsumeDamage);
-                }
-
-                if (singleResult.lightningShockProcCount > 0 && singleResult.lightningShockDamage > 0)
-                {
-                    if (singleResult.hadPrimaryDamageStep && delayedSecondaryDamageStep > 0f)
-                        yield return new WaitForSeconds(delayedSecondaryDamageStep);
-
-                    yield return ApplyLightningMarkShockSequence(caster, singleResult.lightningShockDamage, singleResult.lightningShockProcCount);
-                }
-            }
+                yield return ResolveDelayedAttackFollowUps(rt, caster, primaryTarget, ApplyAttack(rt, caster, primaryTarget, dieValue));
 
             caster.GainFocus(rt.focusGainOnCast);
             yield return new WaitForSeconds(delayBetweenActions);
@@ -510,11 +448,45 @@ public class SkillExecutor : MonoBehaviour
         return AttackPreviewCalculator.BuildAttackPreview(rt, caster, target, dieValue);
     }
 
-    private int ApplyAttackToTargets(SkillRuntime rt, CombatActor caster, IReadOnlyList<CombatActor> targets, int dieValue, out int lightningShockDamage)
-        => SkillAttackResolutionUtility.ApplyAttackToTargets(rt, caster, targets, dieValue, GetPopups(), this, BuildAttackPreview, out lightningShockDamage);
+    private AttackApplyResult ApplyAttackToTargets(SkillRuntime rt, CombatActor caster, IReadOnlyList<CombatActor> targets, int dieValue)
+        => SkillAttackResolutionUtility.ApplyAttackToTargets(rt, caster, targets, dieValue, GetPopups(), this, BuildAttackPreview);
 
     private AttackApplyResult ApplyAttack(SkillRuntime rt, CombatActor caster, CombatActor target, int dieValue)
         => SkillAttackResolutionUtility.ApplyAttack(rt, caster, target, dieValue, GetPopups(), this, BuildAttackPreview);
+
+    private IEnumerator ResolveDelayedAttackFollowUpsAtImpact(
+        SkillRuntime rt,
+        CombatActor caster,
+        CombatActor primaryTarget,
+        AttackApplyResult result,
+        Action onComplete)
+    {
+        yield return ResolveDelayedAttackFollowUps(rt, caster, primaryTarget, result);
+        onComplete?.Invoke();
+    }
+
+    private IEnumerator ResolveDelayedAttackFollowUps(SkillRuntime rt, CombatActor caster, CombatActor primaryTarget, AttackApplyResult result)
+    {
+        if (result.hadPrimaryDamageStep && result.HasDelayedFollowUpEffects && GlobalDelayedSecondaryStep > 0f)
+            yield return new WaitForSeconds(GlobalDelayedSecondaryStep);
+
+        if (result.HasDelayedFollowUpEffects)
+            SkillAttackResolutionUtility.ApplyResolvedGameplayFollowUpEffects(rt, caster, primaryTarget, result.delayedFollowUpEffects, GetPopups());
+
+        if (result.hadPrimaryDamageStep && result.delayedBurnConsumeDamage > 0 && GlobalDelayedSecondaryStep > 0f)
+            yield return new WaitForSeconds(GlobalDelayedSecondaryStep);
+
+        if (result.delayedBurnConsumeDamage > 0)
+            ApplyDelayedBurnConsumeDamage(caster, primaryTarget, result.delayedBurnConsumeDamage);
+
+        if (result.lightningShockProcCount > 0 && result.lightningShockDamage > 0)
+        {
+            if (result.hadPrimaryDamageStep && GlobalDelayedSecondaryStep > 0f)
+                yield return new WaitForSeconds(GlobalDelayedSecondaryStep);
+
+            yield return ApplyLightningMarkShockSequence(caster, result.lightningShockDamage, result.lightningShockProcCount);
+        }
+    }
 
     private IEnumerator ApplyLightningMarkShockSequence(CombatActor caster, int damage, int procCount)
     {
@@ -523,8 +495,8 @@ public class SkillExecutor : MonoBehaviour
         for (int i = 0; i < procCount; i++)
         {
             ApplyLightningMarkShock(caster, damage);
-            if (i < procCount - 1 && lightningMarkShockInterval > 0f)
-                yield return new WaitForSeconds(lightningMarkShockInterval);
+            if (i < procCount - 1 && GlobalDelayedSecondaryStep > 0f)
+                yield return new WaitForSeconds(GlobalDelayedSecondaryStep);
         }
     }
 

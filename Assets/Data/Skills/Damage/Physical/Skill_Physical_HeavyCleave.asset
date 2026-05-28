@@ -25,7 +25,7 @@ MonoBehaviour:
       status: 1
       value:
         baseAmount: 0
-        mode: 7
+        mode: 6
         status: 1
         divisor: 1
         matchBaseValue: 7
@@ -55,7 +55,7 @@ MonoBehaviour:
   range: 0
   hitAllEnemies: 0
   hitAllAllies: 0
-  slotsRequired: 2
+  slotsRequired: 3
   hasCondition: 0
   conditionEditorMode: 0
   useSystemConditionPreset: 1

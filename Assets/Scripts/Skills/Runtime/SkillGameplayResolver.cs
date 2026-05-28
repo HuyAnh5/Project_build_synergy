@@ -22,6 +22,7 @@ public class ResolvedEffect
     public int value;
     public bool isBlueValue;
     public bool previewable;
+    public bool sameActionFollowUp;
     public SkillEffectData source;
 }
 
@@ -82,7 +83,7 @@ public static class SkillGameplayResolver
         if (!CheckRequirements(gameplay, context, result))
             return result;
 
-        ResolveEffects(gameplay.baseEffects, context, result);
+        ResolveEffects(gameplay.baseEffects, context, result, sameActionFollowUp: false);
 
         if (gameplay.conditionalOutcomes != null)
         {
@@ -92,7 +93,7 @@ public static class SkillGameplayResolver
                 if (branch == null || branch.condition == null || !branch.condition.Evaluate(context.conditionContext))
                     continue;
 
-                ResolveEffects(branch.effects, context, result);
+                ResolveEffects(branch.effects, context, result, sameActionFollowUp: true);
             }
         }
 
@@ -261,7 +262,7 @@ public static class SkillGameplayResolver
         return true;
     }
 
-    private static void ResolveEffects(List<SkillEffectData> effects, SkillResolveContext context, SkillResolvedResult result)
+    private static void ResolveEffects(List<SkillEffectData> effects, SkillResolveContext context, SkillResolvedResult result, bool sameActionFollowUp)
     {
         if (effects == null)
             return;
@@ -293,8 +294,11 @@ public static class SkillGameplayResolver
                     targetActor = effectTarget,
                     status = effect.status,
                     value = resolvedValue,
-                    isBlueValue = effect.value != null && effect.value.mode == SkillValueMode.AddedValueScaled,
+                    isBlueValue = effect.value != null &&
+                                  (effect.value.mode == SkillValueMode.AddedValueScaled ||
+                                   effect.value.mode == SkillValueMode.ActionX),
                     previewable = effect.previewable,
+                    sameActionFollowUp = sameActionFollowUp,
                     source = effect
                 };
                 result.effects.Add(resolved);

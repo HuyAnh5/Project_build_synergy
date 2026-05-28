@@ -35,15 +35,15 @@ MonoBehaviour:
         scope: 0
         logic: 0
         clauses:
-        - reference: 11
-          comparison: 6
-          value: 0
+        - reference: 0
+          comparison: 0
+          value: 5
       effects:
-      - type: 0
+      - type: 4
         target: 0
         status: 1
         value:
-          baseAmount: 2
+          baseAmount: 5
           mode: 0
           status: 1
           divisor: 1
@@ -155,7 +155,7 @@ MonoBehaviour:
     lowestOutcome: 0
     highestOutcome: 0
     burnTurns: 3
-  focusCost: 2
+  focusCost: 1
   focusGainOnCast: 0
   baseDamageValueMode: 1
   dieMultiplier: 0

@@ -30,7 +30,6 @@ public class DamagePopupSystem : MonoBehaviour
     public float shrinkTime = 0.70f;     // chậm hơn chút
 
     [Header("Timing")]
-    public float secondPopupDelay = 0.08f;
     public float hpDuration = 0.90f;
     public float guardDuration = 0.85f;
     public float totalDamageDuration = 1.10f;
@@ -75,6 +74,7 @@ public class DamagePopupSystem : MonoBehaviour
 
     private readonly Queue<TMP_Text> _pool = new Queue<TMP_Text>(64);
     private readonly Dictionary<CombatActor, TotalDamageState> _activeTotalDamagePopups = new Dictionary<CombatActor, TotalDamageState>();
+    private float SecondPopupDelay => SkillExecutor.GlobalDelayedSecondaryStep;
 
     private void Awake()
     {
@@ -143,7 +143,7 @@ public class DamagePopupSystem : MonoBehaviour
 
             if (blocked > 0)
             {
-                DOVirtual.DelayedCall(secondPopupDelay, () =>
+                DOVirtual.DelayedCall(SecondPopupDelay, () =>
                 {
                     SpawnHpArc(attacker, target, hpLost.ToString(), hpColor);
                 });

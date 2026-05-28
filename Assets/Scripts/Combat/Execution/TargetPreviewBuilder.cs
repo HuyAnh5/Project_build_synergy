@@ -147,6 +147,8 @@ public static class TargetPreviewBuilder
         int shockDamagePerProc = 0;
         var markPayoffAppliedTargets = new HashSet<CombatActor>();
         var iceRewardAppliedTargets = new HashSet<CombatActor>();
+
+        var primaryDamagePreviewTargets = new HashSet<CombatActor>();
         for (int i = 0; i < resolved.effects.Count; i++)
         {
             ResolvedEffect effect = resolved.effects[i];
@@ -166,9 +168,14 @@ public static class TargetPreviewBuilder
                 case SkillEffectType.DealDamage:
                 case SkillEffectType.DealSecondaryDamage:
                     bool isPrimaryDamage = effect.type == SkillEffectType.DealDamage;
-                    bool canConsumeStagger = isPrimaryDamage && AttackPreviewCalculator.CanConsumeStagger(rt, effectTarget);
-                    bool targetHadMarkBeforeHit = isPrimaryDamage && AttackPreviewCalculator.CanUseMarkPayoff(rt, effectTarget);
-                    bool targetWasFrozenOrChilled = isPrimaryDamage &&
+                    bool isFirstPrimaryDamageForTarget = isPrimaryDamage && primaryDamagePreviewTargets.Add(effectTarget);
+                    bool canConsumeStagger = isFirstPrimaryDamageForTarget &&
+                                             !effect.sameActionFollowUp &&
+                                             (AttackPreviewCalculator.CanConsumeStagger(rt, effectTarget) || data.willBreakGuard);
+                    bool targetHadMarkBeforeHit = isFirstPrimaryDamageForTarget &&
+                                                  !effect.sameActionFollowUp &&
+                                                  AttackPreviewCalculator.CanUseMarkPayoff(rt, effectTarget);
+                    bool targetWasFrozenOrChilled = isFirstPrimaryDamageForTarget &&
                                                     effectTarget.status != null &&
                                                     (effectTarget.status.frozen || effectTarget.status.chilledTurns > 0);
                     if (canConsumeStagger)
@@ -187,16 +194,17 @@ public static class TargetPreviewBuilder
                     }
 
                     ApplyDamageToData(effectTarget, ref data, value, rt.bypassGuard, rt.clearsGuard, canBreakGuard: true, canConsumeStagger: canConsumeStagger);
-                    ApplyEmberWeaponBurnPreview(rt, caster, value, ref data);
+                    if (isFirstPrimaryDamageForTarget)
+                        ApplyEmberWeaponBurnPreview(rt, caster, value, ref data);
 
-                    if (isPrimaryDamage && applyMarkPayoffNow && rt.element == ElementType.Lightning && rt.triggerLightningMarkShock)
+                    if (isFirstPrimaryDamageForTarget && applyMarkPayoffNow && rt.element == ElementType.Lightning && rt.triggerLightningMarkShock)
                     {
                         markPayoffAppliedTargets.Add(effectTarget);
                         shockDamagePerProc = Mathf.Max(shockDamagePerProc, GetLightningShockDamagePerProc(rt, caster));
                         totalShockProcCount++;
                     }
 
-                    if (isPrimaryDamage &&
+                    if (isFirstPrimaryDamageForTarget &&
                         rt.element == ElementType.Ice &&
                         rt.gainIceRewardOnFrozenOrChilledHit &&
                         targetWasFrozenOrChilled &&
@@ -231,6 +239,9 @@ public static class TargetPreviewBuilder
                 case SkillEffectType.GainAP:
                     if (effectTarget == caster)
                         data.selfFocusGain += value;
+                    break;
+                case SkillEffectType.ClearGuard:
+                    ApplyClearGuardToData(ref data);
                     break;
             }
 
@@ -665,6 +676,17 @@ public static class TargetPreviewBuilder
             data.willBreakGuard = true;
         if (canConsumeStagger)
             data.willConsumeStagger = true;
+    }
+
+    private static void ApplyClearGuardToData(ref TargetPreviewData data)
+    {
+        int guardBefore = Mathf.Max(0, data.previewGuardAfter);
+        if (guardBefore <= 0)
+            return;
+
+        data.previewGuardAfter = 0;
+        data.guardLost = data.currentGuard - data.previewGuardAfter;
+        data.willBreakGuard = true;
     }
 
     private static bool ShouldTriggerLightningShock(SkillRuntime rt, CombatActor target)

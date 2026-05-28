@@ -26,8 +26,9 @@ public static class AttackPreviewCalculator
         if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
         {
             SkillResolvedResult resolved = SkillGameplayResolver.Resolve(rt, caster, target);
-            int primaryDamage = 0;
-            int secondaryDamage = 0;
+            int immediatePrimaryDamage = 0;
+            int immediateSecondaryDamage = 0;
+            int followUpDamage = 0;
             if (resolved != null && resolved.effects != null)
             {
                 for (int i = 0; i < resolved.effects.Count; i++)
@@ -38,27 +39,35 @@ public static class AttackPreviewCalculator
                     if (effect.targetActor != null && effect.targetActor != target)
                         continue;
 
-                    if (effect.type == SkillEffectType.DealDamage)
-                        primaryDamage += Mathf.Max(0, effect.value);
+                    if (effect.sameActionFollowUp)
+                    {
+                        followUpDamage += Mathf.Max(0, effect.value);
+                    }
+                    else if (effect.type == SkillEffectType.DealDamage)
+                    {
+                        immediatePrimaryDamage += Mathf.Max(0, effect.value);
+                    }
                     else
-                        secondaryDamage += Mathf.Max(0, effect.value);
+                    {
+                        immediateSecondaryDamage += Mathf.Max(0, effect.value);
+                    }
                 }
             }
 
             if (CanUseMarkPayoff(rt, target) && rt.element != ElementType.Lightning)
-                primaryDamage += MarkDirectBonusDamage;
+                immediatePrimaryDamage += MarkDirectBonusDamage;
 
-            preview.baseDamage = Mathf.Max(0, primaryDamage + secondaryDamage);
-            bool resolvedAttemptedPrimaryDamage = primaryDamage > 0;
+            preview.baseDamage = Mathf.Max(0, immediatePrimaryDamage + immediateSecondaryDamage + followUpDamage);
+            bool resolvedAttemptedPrimaryDamage = immediatePrimaryDamage > 0;
             if (resolvedAttemptedPrimaryDamage && CanConsumeStagger(rt, target))
             {
-                primaryDamage = Mathf.FloorToInt(primaryDamage * 1.2f);
-                if (primaryDamage < 1)
-                    primaryDamage = 1;
+                immediatePrimaryDamage = Mathf.FloorToInt(immediatePrimaryDamage * 1.2f);
+                if (immediatePrimaryDamage < 1)
+                    immediatePrimaryDamage = 1;
                 preview.consumesStagger = true;
             }
-            preview.finalDamage = Mathf.Max(0, primaryDamage + secondaryDamage);
-            preview.primaryDamage = preview.finalDamage;
+            preview.primaryDamage = Mathf.Max(0, immediatePrimaryDamage + immediateSecondaryDamage);
+            preview.finalDamage = Mathf.Max(0, preview.primaryDamage + followUpDamage);
             preview.canDealDamage = preview.finalDamage > 0;
             return preview;
         }

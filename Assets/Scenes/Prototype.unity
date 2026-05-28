@@ -3292,7 +3292,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::SkillExecutor
   delayBetweenActions: 0.25
-  delayedSecondaryDamageStep: 0.2
+  delayedSecondaryDamageStep: 0
   projectileMaxWaitSeconds: 2.5
   meleeLungeDistanceX: 1.3
   meleeLungeTime: 0.1
