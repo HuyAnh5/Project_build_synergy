@@ -43,7 +43,6 @@ public class CombatHitFeedback : MonoBehaviour
     private Coroutine _flashRoutine;
     private Coroutine _shakeRoutine;
     private Vector3 _baseLocalPosition;
-    private bool _hasBaseLocalPosition;
 
     private void Awake()
     {
@@ -85,14 +84,13 @@ public class CombatHitFeedback : MonoBehaviour
 
     private void StartShake()
     {
-        if (!_hasBaseLocalPosition)
+        if (_shakeRoutine != null)
         {
-            _baseLocalPosition = transform.localPosition;
-            _hasBaseLocalPosition = true;
+            StopCoroutine(_shakeRoutine);
+            transform.localPosition = _baseLocalPosition;
         }
 
-        if (_shakeRoutine != null)
-            StopCoroutine(_shakeRoutine);
+        _baseLocalPosition = transform.localPosition;
         _shakeRoutine = StartCoroutine(ShakeRoutine());
     }
 

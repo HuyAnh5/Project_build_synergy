@@ -286,7 +286,7 @@ public class CombatHUD : MonoBehaviour
     private Color ResolveFocusGainColor()
     {
         DamagePopupSystem popups = FindObjectOfType<DamagePopupSystem>();
-        return popups != null ? popups.focusGainColor : new Color(0.22f, 0.74f, 1f, 1f);
+        return popups != null ? popups.FocusGainColor : new Color(0.22f, 0.74f, 1f, 1f);
     }
 
     private static Color WithAlpha(Color color, float alpha)

@@ -1,74 +1,56 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class SkillResolveContext
+/// <summary>
+/// Resolves authored skill gameplay data into concrete effects for preview and execution.
+/// </summary>
+public static partial class SkillGameplayResolver
 {
-    public SkillDamageSO skill;
-    public SkillRuntime runtime;
-    public CombatActor caster;
-    public CombatActor target;
-    public SkillConditionContext conditionContext;
-    public int totalAddedValue;
-    public int consumedBurnStacks;
-    public int consumedBleedStacks;
-}
-
-public class ResolvedEffect
-{
-    public SkillEffectType type;
-    public SkillEffectTarget target;
-    public CombatActor targetActor;
-    public StatusKind status;
-    public int value;
-    public bool isBlueValue;
-    public bool previewable;
-    public bool sameActionFollowUp;
-    public SkillEffectData source;
-}
-
-public struct StatusDelta
-{
-    public SkillEffectTarget target;
-    public StatusKind status;
-    public int amount;
-}
-
-public class SkillResolvedResult
-{
-    public bool canCast = true;
-    public string failureReason = string.Empty;
-    public int resolvedAPCost;
-    public int resolvedDiceCost;
-    public readonly List<ResolvedEffect> effects = new List<ResolvedEffect>();
-    public int damageDelta;
-    public int guardDelta;
-    public int healDelta;
-    public readonly List<StatusDelta> statusDeltas = new List<StatusDelta>();
-}
-
-public static class SkillGameplayResolver
-{
+    /// <summary>
+    /// Returns true when the skill should use the authored gameplay pipeline instead of legacy logic.
+    /// </summary>
     public static bool CanResolveWithNewPipeline(SkillDamageSO skill)
-        => skill != null && skill.gameplay != null && skill.gameplay.useNewGameplayPipeline;
-
-    public static SkillResolvedResult Resolve(SkillDamageSO skill, SkillRuntime runtime, CombatActor caster, CombatActor target, SkillConditionContext conditionContext)
     {
-        var context = BuildContext(skill, runtime, caster, target, conditionContext);
+        return skill != null && skill.gameplay != null && skill.gameplay.useNewGameplayPipeline;
+    }
+
+    /// <summary>
+    /// Resolves a skill using an explicit condition context.
+    /// </summary>
+    public static SkillResolvedResult Resolve(
+        SkillDamageSO skill,
+        SkillRuntime runtime,
+        CombatActor caster,
+        CombatActor target,
+        SkillConditionContext conditionContext)
+    {
+        SkillResolveContext context = BuildContext(skill, runtime, caster, target, conditionContext);
         return Resolve(context);
     }
 
+    /// <summary>
+    /// Resolves a runtime skill by building the local condition context from current combat state.
+    /// </summary>
     public static SkillResolvedResult Resolve(SkillRuntime runtime, CombatActor caster, CombatActor target)
     {
         SkillDamageSO skill = GetSourceSkill(runtime);
         return Resolve(skill, runtime, caster, target, BuildConditionContext(runtime, caster, target));
     }
 
+    /// <summary>
+    /// Extracts the authored damage skill from a runtime instance when available.
+    /// </summary>
     public static SkillDamageSO GetSourceSkill(SkillRuntime runtime)
-        => runtime != null ? runtime.sourceAsset as SkillDamageSO : null;
+    {
+        return runtime != null ? runtime.sourceAsset as SkillDamageSO : null;
+    }
 
+    /// <summary>
+    /// Resolves the full set of effects for the provided resolve context.
+    /// </summary>
     public static SkillResolvedResult Resolve(SkillResolveContext context)
     {
-        var result = new SkillResolvedResult();
+        SkillResolvedResult result = new SkillResolvedResult();
         if (context == null || context.skill == null || context.skill.gameplay == null)
         {
             result.canCast = false;
@@ -77,142 +59,47 @@ public static class SkillGameplayResolver
         }
 
         SkillGameplayData gameplay = context.skill.gameplay;
-        result.resolvedAPCost = context.runtime != null ? Mathf.Max(0, context.runtime.focusCost) : Mathf.Max(0, context.skill.focusCost);
-        result.resolvedDiceCost = context.runtime != null ? Mathf.Clamp(context.runtime.slotsRequired, 1, 3) : Mathf.Clamp(context.skill.slotsRequired, 1, 3);
+        result.resolvedAPCost = context.runtime != null
+            ? Mathf.Max(0, context.runtime.focusCost)
+            : Mathf.Max(0, context.skill.focusCost);
+        result.resolvedDiceCost = context.runtime != null
+            ? Mathf.Clamp(context.runtime.slotsRequired, 1, 3)
+            : Mathf.Clamp(context.skill.slotsRequired, 1, 3);
 
         if (!CheckRequirements(gameplay, context, result))
+        {
             return result;
+        }
 
         ResolveEffects(gameplay.baseEffects, context, result, sameActionFollowUp: false);
 
         SkillConditionContext followUpConditionContext = BuildFollowUpConditionContext(context, result.effects);
-
-        if (gameplay.conditionalOutcomes != null)
+        if (gameplay.conditionalOutcomes == null)
         {
-            for (int i = 0; i < gameplay.conditionalOutcomes.Count; i++)
-            {
-                SkillConditionalOutcomeDataV2 branch = gameplay.conditionalOutcomes[i];
-                if (branch == null || branch.condition == null || !branch.condition.Evaluate(followUpConditionContext))
-                    continue;
+            return result;
+        }
 
-                ResolveEffects(branch.effects, context, result, sameActionFollowUp: true);
+        for (int i = 0; i < gameplay.conditionalOutcomes.Count; i++)
+        {
+            SkillConditionalOutcomeDataV2 branch = gameplay.conditionalOutcomes[i];
+            if (branch == null || branch.condition == null || !branch.condition.Evaluate(followUpConditionContext))
+            {
+                continue;
             }
+
+            ResolveEffects(branch.effects, context, result, sameActionFollowUp: true);
         }
 
         return result;
     }
 
-    public static int ResolveValue(SkillValueData value, SkillResolveContext context)
-    {
-        if (value == null)
-            return 0;
-
-        int baseAmount = Mathf.Max(0, value.baseAmount);
-        switch (value.mode)
-        {
-            case SkillValueMode.AddedValueScaled:
-                return SkillOutputValueUtility.AddActionAddedValue(baseAmount, context != null ? context.runtime : null);
-            case SkillValueMode.TargetStatusStacksScaled:
-                return Mathf.Max(0, baseAmount * GetTargetStatusStacks(value.status, context));
-            case SkillValueMode.ConsumedStatusStacksScaled:
-                return Mathf.Max(0, baseAmount * GetConsumedStatusStacks(value.status, context));
-            case SkillValueMode.ConsumedStatusStacksDividedScaled:
-                return Mathf.Max(0, baseAmount * (GetConsumedStatusStacks(value.status, context) / Mathf.Max(1, value.divisor)));
-            case SkillValueMode.MatchingBaseValueCountScaled:
-                return Mathf.Max(0, baseAmount * CountMatchingBaseValues(value.matchBaseValue, context));
-            case SkillValueMode.ActionX:
-                return context != null ? SkillOutputValueUtility.ResolveXValue(0, context.runtime) : 0;
-            case SkillValueMode.HighestBaseValueScaled:
-                return SkillOutputValueUtility.AddActionAddedValue(GetHighestBaseValue(context), context != null ? context.runtime : null);
-            case SkillValueMode.FirstResolvedValueInGroup:
-                return GetResolvedValueAtIndex(context, 0);
-            case SkillValueMode.LastResolvedValueInGroup:
-                return GetResolvedValueAtIndex(context, GetLastResolvedIndex(context));
-            case SkillValueMode.TotalBleedOnBoardScaled:
-                return SkillOutputValueUtility.AddActionAddedValue(GetTotalBleedOnBoard(context), context != null ? context.runtime : null);
-            case SkillValueMode.LastEnemyTurnHpLostScaled:
-                return SkillOutputValueUtility.AddActionAddedValue(GetLastEnemyTurnHpLost(context), context != null ? context.runtime : null);
-            case SkillValueMode.Fixed:
-            default:
-                return baseAmount;
-        }
-    }
-
-    private static int GetHighestBaseValue(SkillResolveContext context)
-    {
-        if (context == null || context.runtime == null)
-            return 0;
-
-        return Mathf.Max(0, SkillBehaviorRuntimeUtility.GetHighestBaseValue(context.runtime));
-    }
-
-    private static int GetResolvedValueAtIndex(SkillResolveContext context, int index)
-    {
-        if (context == null || context.runtime == null || index < 0)
-            return 0;
-
-        return Mathf.Max(0, SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(context.runtime, index));
-    }
-
-    private static int GetLastResolvedIndex(SkillResolveContext context)
-    {
-        if (context == null || context.runtime == null || context.runtime.localResolvedValues == null)
-            return -1;
-
-        return context.runtime.localResolvedValues.Count - 1;
-    }
-
-    private static int GetTotalBleedOnBoard(SkillResolveContext context)
-    {
-        if (context != null && context.conditionContext != null)
-            return Mathf.Max(0, context.conditionContext.totalBleedOnBoard);
-
-        return CountTotalBleed(context != null ? context.caster : null);
-    }
-
-    private static int GetLastEnemyTurnHpLost(SkillResolveContext context)
-    {
-        if (context == null || context.caster == null)
-            return 0;
-
-        SkillCombatState state = context.caster.GetComponent<SkillCombatState>();
-        return state == null ? 0 : Mathf.Max(0, state.LastEnemyTurnHpLost);
-    }
-
-    private static int CountMatchingBaseValues(int matchBaseValue, SkillResolveContext context)
-    {
-        if (context == null || context.conditionContext == null || context.conditionContext.localBaseValues == null)
-            return 0;
-
-        int count = 0;
-        IReadOnlyList<int> bases = context.conditionContext.localBaseValues;
-        IReadOnlyList<bool> numericFlags = context.conditionContext.localNumericFlags;
-        for (int i = 0; i < bases.Count; i++)
-        {
-            if (numericFlags != null && i < numericFlags.Count && !numericFlags[i])
-                continue;
-            if (bases[i] == matchBaseValue)
-                count++;
-        }
-
-        return count;
-    }
-
-    private static SkillResolveContext BuildContext(SkillDamageSO skill, SkillRuntime runtime, CombatActor caster, CombatActor target, SkillConditionContext conditionContext)
-    {
-        return new SkillResolveContext
-        {
-            skill = skill,
-            runtime = runtime,
-            caster = caster,
-            target = target,
-            conditionContext = conditionContext,
-            totalAddedValue = SkillOutputValueUtility.GetTotalActionAddedValue(runtime)
-        };
-    }
-
+    /// <summary>
+    /// Builds a context snapshot used by condition checks for a specific action.
+    /// </summary>
     public static SkillConditionContext BuildConditionContext(SkillRuntime runtime, CombatActor caster, CombatActor target)
     {
+        int occupiedSlots = runtime != null ? Mathf.Clamp(runtime.slotsRequired, 1, 3) : 0;
+
         return new SkillConditionContext
         {
             scope = SkillConditionScope.SlotBound,
@@ -224,8 +111,8 @@ public static class SkillGameplayResolver
             currentFocus = caster != null ? caster.focus : 0,
             currentGuard = caster != null ? caster.guardPool : 0,
             targetGuard = target != null ? target.guardPool : 0,
-            occupiedSlots = runtime != null ? Mathf.Clamp(runtime.slotsRequired, 1, 3) : 0,
-            remainingSlots = runtime != null ? Mathf.Max(0, 3 - Mathf.Clamp(runtime.slotsRequired, 1, 3)) : 0,
+            occupiedSlots = occupiedSlots,
+            remainingSlots = runtime != null ? Mathf.Max(0, 3 - occupiedSlots) : 0,
             aliveEnemiesCount = CountAliveEnemies(caster),
             enemiesWithBurnCount = CountEnemiesWithStatus(caster, StatusKind.Burn),
             markedEnemiesCount = CountEnemiesWithStatus(caster, StatusKind.Mark),
@@ -240,16 +127,38 @@ public static class SkillGameplayResolver
         };
     }
 
+    private static SkillResolveContext BuildContext(
+        SkillDamageSO skill,
+        SkillRuntime runtime,
+        CombatActor caster,
+        CombatActor target,
+        SkillConditionContext conditionContext)
+    {
+        return new SkillResolveContext
+        {
+            skill = skill,
+            runtime = runtime,
+            caster = caster,
+            target = target,
+            conditionContext = conditionContext,
+            totalAddedValue = SkillOutputValueUtility.GetTotalActionAddedValue(runtime)
+        };
+    }
+
     private static bool CheckRequirements(SkillGameplayData gameplay, SkillResolveContext context, SkillResolvedResult result)
     {
         if (gameplay.requirements == null)
+        {
             return true;
+        }
 
         for (int i = 0; i < gameplay.requirements.Count; i++)
         {
             SkillRequirementData requirement = gameplay.requirements[i];
             if (requirement == null || requirement.condition == null)
+            {
                 continue;
+            }
 
             if (!requirement.condition.Evaluate(context.conditionContext))
             {
@@ -264,16 +173,24 @@ public static class SkillGameplayResolver
         return true;
     }
 
-    private static void ResolveEffects(List<SkillEffectData> effects, SkillResolveContext context, SkillResolvedResult result, bool sameActionFollowUp)
+    private static void ResolveEffects(
+        List<SkillEffectData> effects,
+        SkillResolveContext context,
+        SkillResolvedResult result,
+        bool sameActionFollowUp)
     {
         if (effects == null)
+        {
             return;
+        }
 
         for (int i = 0; i < effects.Count; i++)
         {
             SkillEffectData effect = effects[i];
             if (effect == null)
+            {
                 continue;
+            }
 
             List<CombatActor> targets = ResolveEffectTargets(effect.target, context);
             for (int targetIndex = 0; targetIndex < targets.Count; targetIndex++)
@@ -289,7 +206,7 @@ public static class SkillGameplayResolver
                     context.consumedBleedStacks = targetContext.consumedBleedStacks;
                 }
 
-                var resolved = new ResolvedEffect
+                ResolvedEffect resolved = new ResolvedEffect
                 {
                     type = effect.type,
                     target = effect.target,
@@ -303,6 +220,7 @@ public static class SkillGameplayResolver
                     sameActionFollowUp = sameActionFollowUp,
                     source = effect
                 };
+
                 result.effects.Add(resolved);
                 AccumulateResult(resolved, result);
             }
@@ -312,7 +230,9 @@ public static class SkillGameplayResolver
     private static SkillResolveContext WithTarget(SkillResolveContext context, CombatActor target)
     {
         if (context == null)
+        {
             return null;
+        }
 
         return new SkillResolveContext
         {
@@ -327,178 +247,6 @@ public static class SkillGameplayResolver
         };
     }
 
-    private static SkillConditionContext BuildFollowUpConditionContext(SkillResolveContext context, IReadOnlyList<ResolvedEffect> resolvedEffects)
-    {
-        SkillConditionContext baseContext = context != null ? context.conditionContext : null;
-        SkillConditionContext followUpContext = CloneConditionContext(baseContext);
-        if (context == null || followUpContext == null || context.target == null)
-            return followUpContext;
-
-        int simulatedGuard = Mathf.Max(0, followUpContext.targetGuard);
-        bool willBreakGuard = false;
-
-        if (resolvedEffects != null)
-        {
-            for (int i = 0; i < resolvedEffects.Count; i++)
-            {
-                ResolvedEffect effect = resolvedEffects[i];
-                if (effect == null || effect.sameActionFollowUp)
-                    continue;
-
-                CombatActor effectTarget = effect.targetActor != null ? effect.targetActor : context.target;
-                if (effectTarget != context.target)
-                    continue;
-
-                switch (effect.type)
-                {
-                    case SkillEffectType.DealDamage:
-                    case SkillEffectType.DealSecondaryDamage:
-                    {
-                        int incoming = Mathf.Max(0, effect.value);
-                        if (incoming <= 0)
-                            break;
-
-                        if (simulatedGuard > 0)
-                        {
-                            int blocked = Mathf.Min(simulatedGuard, incoming);
-                            simulatedGuard -= blocked;
-                            if (blocked > 0 && simulatedGuard <= 0)
-                                willBreakGuard = true;
-                        }
-
-                        break;
-                    }
-
-                    case SkillEffectType.ClearGuard:
-                        if (simulatedGuard > 0)
-                            willBreakGuard = true;
-                        simulatedGuard = 0;
-                        break;
-                }
-            }
-        }
-
-        followUpContext.targetGuard = simulatedGuard;
-        followUpContext.targetHasStagger = followUpContext.targetHasStagger || willBreakGuard;
-        return followUpContext;
-    }
-
-    private static SkillConditionContext CloneConditionContext(SkillConditionContext source)
-    {
-        if (source == null)
-            return null;
-
-        return new SkillConditionContext
-        {
-            scope = source.scope,
-            localBaseValues = source.localBaseValues,
-            localNumericFlags = source.localNumericFlags,
-            localResolvedValues = source.localResolvedValues,
-            localCritFlags = source.localCritFlags,
-            localFailFlags = source.localFailFlags,
-            currentFocus = source.currentFocus,
-            currentGuard = source.currentGuard,
-            targetGuard = source.targetGuard,
-            occupiedSlots = source.occupiedSlots,
-            remainingSlots = source.remainingSlots,
-            enemiesWithBurnCount = source.enemiesWithBurnCount,
-            markedEnemiesCount = source.markedEnemiesCount,
-            totalBleedOnBoard = source.totalBleedOnBoard,
-            aliveEnemiesCount = source.aliveEnemiesCount,
-            enemiesWithStatusCount = source.enemiesWithStatusCount,
-            isLeftmostAction = source.isLeftmostAction,
-            isRightmostAction = source.isRightmostAction,
-            targetHasBurn = source.targetHasBurn,
-            targetHasFreeze = source.targetHasFreeze,
-            targetHasChilled = source.targetHasChilled,
-            targetHasMark = source.targetHasMark,
-            targetHasBleed = source.targetHasBleed,
-            targetHasStagger = source.targetHasStagger
-        };
-    }
-
-    public static List<CombatActor> ResolveEffectTargets(SkillEffectTarget effectTarget, SkillResolveContext context)
-    {
-        var targets = new List<CombatActor>();
-        if (context == null)
-            return targets;
-
-        switch (effectTarget)
-        {
-            case SkillEffectTarget.Self:
-                AddTarget(targets, context.caster);
-                break;
-
-            case SkillEffectTarget.RowEnemies:
-                AddEnemyRowTargets(targets, context.caster, context.target);
-                break;
-
-            case SkillEffectTarget.AllEnemies:
-                AddAllEnemyTargets(targets, context.caster, context.target);
-                break;
-
-            case SkillEffectTarget.SelectedEnemy:
-            default:
-                AddTarget(targets, context.target);
-                break;
-        }
-
-        return targets;
-    }
-
-    private static void AddAllEnemyTargets(List<CombatActor> targets, CombatActor caster, CombatActor fallbackTarget)
-    {
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>(true);
-        for (int i = 0; i < actors.Length; i++)
-        {
-            CombatActor actor = actors[i];
-            if (actor == null || actor.IsDead)
-                continue;
-            if (caster != null && actor.team == caster.team)
-                continue;
-            if (caster == null && fallbackTarget != null && actor.team != fallbackTarget.team)
-                continue;
-            AddTarget(targets, actor);
-        }
-
-        if (targets.Count == 0)
-            AddTarget(targets, fallbackTarget);
-    }
-
-    private static void AddEnemyRowTargets(List<CombatActor> targets, CombatActor caster, CombatActor rowAnchor)
-    {
-        if (rowAnchor == null)
-        {
-            AddTarget(targets, null);
-            return;
-        }
-
-        CombatActor.RowTag row = rowAnchor.row;
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>(true);
-        for (int i = 0; i < actors.Length; i++)
-        {
-            CombatActor actor = actors[i];
-            if (actor == null || actor.IsDead || actor.row != row)
-                continue;
-            if (caster != null && actor.team == caster.team)
-                continue;
-            if (caster == null && actor.team != rowAnchor.team)
-                continue;
-            AddTarget(targets, actor);
-        }
-
-        if (targets.Count == 0)
-            AddTarget(targets, rowAnchor);
-    }
-
-    private static void AddTarget(List<CombatActor> targets, CombatActor target)
-    {
-        if (target == null || target.IsDead || targets.Contains(target))
-            return;
-
-        targets.Add(target);
-    }
-
     private static void AccumulateResult(ResolvedEffect effect, SkillResolvedResult result)
     {
         switch (effect.type)
@@ -507,12 +255,15 @@ public static class SkillGameplayResolver
             case SkillEffectType.DealSecondaryDamage:
                 result.damageDelta += Mathf.Max(0, effect.value);
                 break;
+
             case SkillEffectType.GainGuard:
                 result.guardDelta += Mathf.Max(0, effect.value);
                 break;
+
             case SkillEffectType.Heal:
                 result.healDelta += Mathf.Max(0, effect.value);
                 break;
+
             case SkillEffectType.ApplyStatus:
                 result.statusDeltas.Add(new StatusDelta
                 {
@@ -521,6 +272,7 @@ public static class SkillGameplayResolver
                     amount = Mathf.Max(0, effect.value)
                 });
                 break;
+
             case SkillEffectType.ConsumeStatus:
                 result.statusDeltas.Add(new StatusDelta
                 {
@@ -535,7 +287,9 @@ public static class SkillGameplayResolver
     private static void CaptureConsumedStacks(StatusKind status, SkillResolveContext context)
     {
         if (context == null)
+        {
             return;
+        }
 
         int stacks = GetTargetStatusStacks(status, context);
         switch (status)
@@ -543,6 +297,7 @@ public static class SkillGameplayResolver
             case StatusKind.Burn:
                 context.consumedBurnStacks = Mathf.Max(context.consumedBurnStacks, stacks);
                 break;
+
             case StatusKind.Bleed:
                 context.consumedBleedStacks = Mathf.Max(context.consumedBleedStacks, stacks);
                 break;
@@ -552,7 +307,9 @@ public static class SkillGameplayResolver
     private static int GetTargetStatusStacks(StatusKind status, SkillResolveContext context)
     {
         if (context == null || context.target == null || context.target.status == null)
+        {
             return 0;
+        }
 
         switch (status)
         {
@@ -574,7 +331,9 @@ public static class SkillGameplayResolver
     private static int GetConsumedStatusStacks(StatusKind status, SkillResolveContext context)
     {
         if (context == null)
+        {
             return 0;
+        }
 
         switch (status)
         {
@@ -586,64 +345,4 @@ public static class SkillGameplayResolver
                 return 0;
         }
     }
-
-    private static int CountAliveEnemies(CombatActor caster)
-    {
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>();
-        int count = 0;
-        for (int i = 0; i < actors.Length; i++)
-        {
-            CombatActor actor = actors[i];
-            if (actor != null && actor != caster && !actor.IsDead && actor.team == CombatActor.TeamSide.Enemy)
-                count++;
-        }
-        return count;
-    }
-
-    private static int CountEnemiesWithStatus(CombatActor caster, StatusKind status)
-    {
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>();
-        int count = 0;
-        for (int i = 0; i < actors.Length; i++)
-        {
-            CombatActor actor = actors[i];
-            if (actor == null || actor == caster || actor.IsDead || actor.team != CombatActor.TeamSide.Enemy || actor.status == null)
-                continue;
-            if (status == StatusKind.Burn && actor.status.burnStacks > 0) count++;
-            else if (status == StatusKind.Mark && actor.status.marked) count++;
-            else if (status == StatusKind.Bleed && actor.status.bleedStacks > 0) count++;
-            else if (status == StatusKind.Freeze && actor.status.frozen) count++;
-            else if (status == StatusKind.Chilled && actor.status.chilledTurns > 0) count++;
-        }
-        return count;
-    }
-
-    private static int CountTotalBleed(CombatActor caster)
-    {
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>();
-        int total = 0;
-        for (int i = 0; i < actors.Length; i++)
-        {
-            CombatActor actor = actors[i];
-            if (actor != null && actor != caster && !actor.IsDead && actor.team == CombatActor.TeamSide.Enemy && actor.status != null)
-                total += Mathf.Max(0, actor.status.bleedStacks);
-        }
-        return total;
-    }
-
-    private static int CountEnemiesWithAnyStatus(CombatActor caster)
-    {
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>();
-        int count = 0;
-        for (int i = 0; i < actors.Length; i++)
-        {
-            CombatActor actor = actors[i];
-            if (actor == null || actor == caster || actor.IsDead || actor.team != CombatActor.TeamSide.Enemy || actor.status == null)
-                continue;
-            if (actor.status.burnStacks > 0 || actor.status.marked || actor.status.bleedStacks > 0 || actor.status.frozen || actor.status.chilledTurns > 0 || actor.status.staggered)
-                count++;
-        }
-        return count;
-    }
 }
-

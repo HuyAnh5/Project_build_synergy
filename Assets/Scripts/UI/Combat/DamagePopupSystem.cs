@@ -1,9 +1,12 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+using System.Collections.Generic;
 using DG.Tweening;
 using TMPro;
+using UnityEngine;
 
-public class DamagePopupSystem : MonoBehaviour
+/// <summary>
+/// Spawns and recycles combat popup texts for damage, guard, healing, and focus gain.
+/// </summary>
+public partial class DamagePopupSystem : MonoBehaviour
 {
     private sealed class TotalDamageState
     {
@@ -15,129 +18,113 @@ public class DamagePopupSystem : MonoBehaviour
 
     [Header("Prefab & Parent (UI or World)")]
     [Tooltip("Prefab nên là TextMeshProUGUI (UI) hoặc TMP_Text (world).")]
-    public TMP_Text popupPrefab;
+    [SerializeField] private TMP_Text popupPrefab;
 
-    [Tooltip("Nếu popup là UI TextMeshProUGUI: đặt spawnParent là RectTransform dưới Canvas (PopUpDMG). " +
-             "Nếu để null: sẽ spawn theo transform của DamagePopupSystem.")]
-    public Transform spawnParent;
+    [Tooltip("Nếu popup là UI TextMeshProUGUI: đặt spawnParent là RectTransform dưới Canvas (PopUpDMG). Nếu để null: sẽ spawn theo transform của DamagePopupSystem.")]
+    [SerializeField] private Transform spawnParent;
 
     [Header("Pool")]
-    public int prewarmCount = 30;
-    public bool allowExpand = true;
+    [SerializeField] private int prewarmCount = 30;
+    [SerializeField] private bool allowExpand = true;
 
     [Header("Scale (ALL types): normal -> bigger -> shrink+fade")]
-    public float popUpScale = 1.25f;     // to lên
-    public float popUpTime = 0.10f;
-    public float shrinkTo = 0.75f;       // nhỏ dần
-    public float shrinkTime = 0.70f;     // chậm hơn chút
+    [SerializeField] private float popUpScale = 1.25f;
+    [SerializeField] private float popUpTime = 0.10f;
+    [SerializeField] private float shrinkTo = 0.75f;
+    [SerializeField] private float shrinkTime = 0.70f;
 
     [Header("Timing")]
-    public float hpDuration = 0.90f;
-    public float guardDuration = 0.85f;
-    public float totalDamageDuration = 1.10f;
-    public float totalDamageFadeDuration = 0.22f;
+    [SerializeField] private float hpDuration = 0.90f;
+    [SerializeField] private float guardDuration = 0.85f;
+    [SerializeField] private float totalDamageDuration = 1.10f;
+    [SerializeField] private float totalDamageFadeDuration = 0.22f;
 
     [Header("HP/Heal Arc (world or UI local units)")]
-    public float arcUp = 0.45f;          // hất lên
-    public float arcDown = 0.95f;        // rơi xuống
-    public float arcSide = 0.35f;        // random trái/phải (biên độ)
-    public float arcSideDrift = 0.10f;   // drift nhẹ theo thời gian
+    [SerializeField] private float arcUp = 0.45f;
+    [SerializeField] private float arcDown = 0.95f;
+    [SerializeField] private float arcSide = 0.35f;
+    [SerializeField] private float arcSideDrift = 0.10f;
 
     [Header("Total Damage Float")]
-    public float totalDamageUp = 0.45f;
-    public float totalDamageStartScale = 1f;
-    public float totalDamagePopScale = 1.25f;
-    public float totalDamageSettleScale = 1f;
+    [SerializeField] private float totalDamageUp = 0.45f;
+    [SerializeField] private float totalDamageStartScale = 1f;
+    [SerializeField] private float totalDamagePopScale = 1.25f;
+    [SerializeField] private float totalDamageSettleScale = 1f;
 
     [Header("Guard S-curve (world or UI local units)")]
-    public float sUp = 1.00f;            // đi lên
-    public float sAmp = 0.20f;           // độ uốn S
-    public float sSideDrift = 0.12f;     // drift trái/phải
+    [SerializeField] private float sUp = 1.00f;
+    [SerializeField] private float sAmp = 0.20f;
+    [SerializeField] private float sSideDrift = 0.12f;
 
     [Header("Colors")]
-    public Color hpColor = Color.white;
-    public Color guardColor = new Color(0.3f, 0.75f, 1f, 1f);
-    public Color totalDamageColor = new Color(1f, 0.82f, 0.22f, 1f);
-    public Color healColor = new Color(0.25f, 1f, 0.35f, 1f);
-    public Color focusGainColor = new Color(0.22f, 0.74f, 1f, 1f);
+    [SerializeField] private Color hpColor = Color.white;
+    [SerializeField] private Color guardColor = new Color(0.3f, 0.75f, 1f, 1f);
+    [SerializeField] private Color totalDamageColor = new Color(1f, 0.82f, 0.22f, 1f);
+    [SerializeField] private Color healColor = new Color(0.25f, 1f, 0.35f, 1f);
+    [SerializeField] private Color focusGainColor = new Color(0.22f, 0.74f, 1f, 1f);
 
     [Header("Spawn Offsets")]
     [Tooltip("Điểm bắt đầu popup HP/Heal tính từ uiAnchor hoặc transform của target.")]
-    public Vector3 hpSpawnOffset = new Vector3(0f, 1.2f, 0f);
+    [SerializeField] private Vector3 hpSpawnOffset = new Vector3(0f, 1.2f, 0f);
 
     [Tooltip("Điểm bắt đầu popup Guard/Focus tính từ uiAnchor hoặc transform của target.")]
-    public Vector3 guardSpawnOffset = new Vector3(-0.25f, 1f, 0f);
+    [SerializeField] private Vector3 guardSpawnOffset = new Vector3(-0.25f, 1f, 0f);
 
     [Tooltip("Điểm bắt đầu popup vàng tổng damage tính từ uiAnchor hoặc transform của target.")]
-    public Vector3 totalDamageSpawnOffset = new Vector3(0f, 1.65f, 0f);
+    [SerializeField] private Vector3 totalDamageSpawnOffset = new Vector3(0f, 1.65f, 0f);
 
     [Header("Debug")]
-    public bool logIfSpawnFails = true;
+    [SerializeField] private bool logIfSpawnFails = true;
 
-    private readonly Queue<TMP_Text> _pool = new Queue<TMP_Text>(64);
-    private readonly Dictionary<CombatActor, TotalDamageState> _activeTotalDamagePopups = new Dictionary<CombatActor, TotalDamageState>();
+    private readonly Queue<TMP_Text> m_pool = new Queue<TMP_Text>(64);
+    private readonly Dictionary<CombatActor, TotalDamageState> m_activeTotalDamagePopups = new Dictionary<CombatActor, TotalDamageState>();
+
+    /// <summary>
+    /// Exposes the focus-gain color to other UI components without reopening the serialized field.
+    /// </summary>
+    public Color FocusGainColor
+    {
+        get { return focusGainColor; }
+    }
 
     private void Awake()
     {
         Prewarm();
     }
 
+    /// <summary>
+    /// Pre-instantiates popup instances so combat does not allocate on the first few hits.
+    /// </summary>
     public void Prewarm()
     {
         if (popupPrefab == null)
         {
-            if (logIfSpawnFails) Debug.LogWarning("[DamagePopupSystem] popupPrefab is NULL.", this);
+            LogMissingPrefabWarning();
             return;
         }
 
-        while (_pool.Count < prewarmCount)
+        while (m_pool.Count < prewarmCount)
         {
-            var t = Instantiate(popupPrefab, spawnParent != null ? spawnParent : transform);
-            t.gameObject.SetActive(false);
-            _pool.Enqueue(t);
+            TMP_Text popup = InstantiatePopupInstance();
+            popup.gameObject.SetActive(false);
+            m_pool.Enqueue(popup);
         }
     }
 
-    private TMP_Text Rent()
-    {
-        if (_pool.Count > 0) return _pool.Dequeue();
-        if (!allowExpand) return null;
-
-        if (popupPrefab == null) return null;
-        var t = Instantiate(popupPrefab, spawnParent != null ? spawnParent : transform);
-        t.gameObject.SetActive(false);
-        return t;
-    }
-
-    private void Return(TMP_Text t)
-    {
-        if (t == null) return;
-
-        t.DOKill();
-        t.transform.DOKill();
-
-        // reset alpha/scale for next use
-        var c = t.color; c.a = 1f; t.color = c;
-        t.transform.localScale = Vector3.one;
-        t.raycastTarget = false;
-
-        t.gameObject.SetActive(false);
-        _pool.Enqueue(t);
-    }
-
-    // ======================
-    // PUBLIC API
-    // ======================
-
     /// <summary>
-    /// Spawn split: Guard và HP popup xuất hiện ngay khi có kết quả damage.
+    /// Spawns guard and HP popups for a split damage result.
     /// </summary>
     public void SpawnDamageSplit(CombatActor attacker, CombatActor target, int blocked, int hpLost)
     {
-        if (target == null) return;
+        if (target == null)
+        {
+            return;
+        }
 
         if (blocked > 0)
+        {
             SpawnGuardSCurve(attacker, target, blocked.ToString());
+        }
 
         if (hpLost > 0)
         {
@@ -146,27 +133,118 @@ public class DamagePopupSystem : MonoBehaviour
         }
     }
 
-    private void RegisterTotalDamageHit(CombatActor attacker, CombatActor target, int amount)
+    /// <summary>
+    /// Spawns a healing popup using the HP animation path but a dedicated color.
+    /// </summary>
+    public void SpawnHeal(CombatActor healer, CombatActor target, int amount)
     {
-        if (attacker == null || !attacker.isPlayer || target == null)
+        if (target == null)
+        {
             return;
+        }
 
         int safeAmount = Mathf.Max(0, amount);
         if (safeAmount <= 0)
+        {
             return;
+        }
+
+        SpawnHpArc(healer, target, safeAmount.ToString(), healColor);
+    }
+
+    /// <summary>
+    /// Spawns the popup used when the player gains focus from gameplay effects.
+    /// </summary>
+    public void SpawnFocusGain(CombatActor source, CombatActor target, int amount)
+    {
+        if (target == null)
+        {
+            return;
+        }
+
+        int safeAmount = Mathf.Max(0, amount);
+        if (safeAmount <= 0)
+        {
+            return;
+        }
+
+        SpawnGuardSCurve(source, target, safeAmount.ToString(), focusGainColor);
+    }
+
+    private TMP_Text Rent()
+    {
+        if (m_pool.Count > 0)
+        {
+            return m_pool.Dequeue();
+        }
+
+        if (!allowExpand)
+        {
+            return null;
+        }
+
+        if (popupPrefab == null)
+        {
+            return null;
+        }
+
+        TMP_Text popup = InstantiatePopupInstance();
+        popup.gameObject.SetActive(false);
+        return popup;
+    }
+
+    private void Return(TMP_Text popup)
+    {
+        if (popup == null)
+        {
+            return;
+        }
+
+        popup.DOKill();
+        popup.transform.DOKill();
+
+        Color color = popup.color;
+        color.a = 1f;
+        popup.color = color;
+        popup.transform.localScale = Vector3.one;
+        popup.raycastTarget = false;
+        popup.gameObject.SetActive(false);
+
+        m_pool.Enqueue(popup);
+    }
+
+    private TMP_Text InstantiatePopupInstance()
+    {
+        return Instantiate(popupPrefab, spawnParent != null ? spawnParent : transform);
+    }
+
+    private void RegisterTotalDamageHit(CombatActor attacker, CombatActor target, int amount)
+    {
+        if (attacker == null || !attacker.isPlayer || target == null)
+        {
+            return;
+        }
+
+        int safeAmount = Mathf.Max(0, amount);
+        if (safeAmount <= 0)
+        {
+            return;
+        }
 
         float now = Time.unscaledTime;
         float comboWindow = Mathf.Max(0.01f, totalDamageDuration);
 
-        if (!_activeTotalDamagePopups.TryGetValue(target, out TotalDamageState state) || state == null)
+        if (!m_activeTotalDamagePopups.TryGetValue(target, out TotalDamageState state) || state == null)
         {
             state = new TotalDamageState();
-            _activeTotalDamagePopups[target] = state;
+            m_activeTotalDamagePopups[target] = state;
         }
         else if (now - state.lastHitTime > comboWindow)
         {
             if (state.popup != null)
+            {
                 Return(state.popup);
+            }
 
             state.popup = null;
             state.total = 0;
@@ -178,257 +256,16 @@ public class DamagePopupSystem : MonoBehaviour
         state.lastHitTime = now;
 
         if (state.hitCount >= 2)
+        {
             SpawnTotalDamage(target, state.total);
-    }
-
-    /// <summary>
-    /// Heal: giống HP Arc, chỉ khác màu, KHÔNG dấu +.
-    /// </summary>
-    public void SpawnHeal(CombatActor healer, CombatActor target, int amount)
-    {
-        if (target == null) return;
-        int a = Mathf.Max(0, amount);
-        if (a <= 0) return;
-
-        SpawnHpArc(healer, target, a.ToString(), healColor);
-    }
-
-    public void SpawnFocusGain(CombatActor source, CombatActor target, int amount)
-    {
-        if (target == null) return;
-        int a = Mathf.Max(0, amount);
-        if (a <= 0) return;
-
-        SpawnGuardSCurve(source, target, a.ToString(), focusGainColor);
-    }
-
-    // ======================
-    // INTERNAL (ANIM)
-    // ======================
-
-    private enum PopupSpawnKind
-    {
-        Hp,
-        Guard,
-        TotalDamage
-    }
-
-    private Vector3 GetCenter(CombatActor target, PopupSpawnKind kind)
-    {
-        if (target == null) return Vector3.zero;
-
-        Vector3 anchor = target.uiAnchor != null ? target.uiAnchor.position : target.transform.position;
-        return anchor + GetSpawnOffset(kind);
-    }
-
-    private Vector3 GetSpawnOffset(PopupSpawnKind kind)
-    {
-        switch (kind)
-        {
-            case PopupSpawnKind.Guard:
-                return guardSpawnOffset;
-            case PopupSpawnKind.TotalDamage:
-                return totalDamageSpawnOffset;
-            case PopupSpawnKind.Hp:
-            default:
-                return hpSpawnOffset;
         }
     }
 
-    private float RandomSideSign()
+    private void LogMissingPrefabWarning()
     {
-        // random -1 or +1
-        return Random.value < 0.5f ? -1f : 1f;
-    }
-
-    private void ApplyScalePopAndShrink(Sequence seq, Transform tr)
-    {
-        // start normal
-        tr.localScale = Vector3.one;
-
-        // to lên rồi shrink dần
-        seq.Append(tr.DOScale(popUpScale, popUpTime).SetEase(Ease.OutBack));
-        seq.Append(tr.DOScale(shrinkTo, shrinkTime).SetEase(Ease.InQuad));
-    }
-
-    /// <summary>
-    /// HP/Heal: Arc rơi xuống (parabola) + random trái phải, đồng thời scale pop -> shrink + fade.
-    /// </summary>
-    private void SpawnHpArc(CombatActor source, CombatActor target, string text, Color color, PopupSpawnKind kind = PopupSpawnKind.Hp)
-    {
-        TMP_Text t = Rent();
-        if (t == null) return;
-
-        if (spawnParent != null)
-            t.transform.SetParent(spawnParent, false);
-
-        t.gameObject.SetActive(true);
-        t.raycastTarget = false;
-        t.text = text;
-        t.color = color;
-
-        Vector3 start = GetCenter(target, kind);
-        t.transform.position = start;
-
-        float side = Random.value < 0.5f ? -1f : 1f;
-        float duration = Mathf.Max(0.01f, hpDuration);
-
-        // Single arc controlled only by total duration and spatial offsets.
-        float peakX = side * (arcSide * 0.5f);
-        float peakY = arcUp;
-        float endX = side * (arcSide + arcSideDrift);
-        float endY = -arcDown;
-        Vector3 control = start + new Vector3(peakX, peakY, 0f);
-        Vector3 end = start + new Vector3(endX, endY, 0f);
-
-        Sequence seq = DOTween.Sequence();
-
-        // Scale animation
-        t.transform.localScale = Vector3.one;
-        seq.Append(t.transform.DOScale(popUpScale, popUpTime).SetEase(Ease.OutBack));
-        seq.Append(t.transform.DOScale(shrinkTo, shrinkTime).SetEase(Ease.InQuad));
-
-        seq.Join(DOTween.To(() => 0f, v =>
+        if (logIfSpawnFails)
         {
-            float oneMinusT = 1f - v;
-            Vector3 position =
-                (oneMinusT * oneMinusT * start) +
-                (2f * oneMinusT * v * control) +
-                (v * v * end);
-
-            t.transform.position = position;
-        }, 1f, duration).SetEase(Ease.OutQuad));
-
-        seq.Join(t.DOFade(0f, duration).SetEase(Ease.InQuad));
-
-        seq.OnComplete(() => Return(t));
-    }
-
-    private void SpawnTotalDamage(CombatActor target, int amount)
-    {
-        if (target == null) return;
-
-        int safeAmount = Mathf.Max(0, amount);
-        if (safeAmount <= 0) return;
-
-        _activeTotalDamagePopups.TryGetValue(target, out TotalDamageState activeState);
-        if (activeState != null)
-        {
-            if (activeState.popup != null)
-                Return(activeState.popup);
+            Debug.LogWarning("[DamagePopupSystem] popupPrefab is NULL.", this);
         }
-
-        TMP_Text t = Rent();
-        if (t == null) return;
-
-        if (spawnParent != null)
-            t.transform.SetParent(spawnParent, false);
-
-        t.gameObject.SetActive(true);
-        t.raycastTarget = false;
-        t.text = safeAmount.ToString();
-        t.color = totalDamageColor;
-
-        Vector3 start = GetCenter(target, PopupSpawnKind.TotalDamage);
-        t.transform.position = start;
-
-        float duration = Mathf.Max(0.01f, totalDamageDuration);
-        float fadeDuration = Mathf.Clamp(totalDamageFadeDuration, 0.01f, duration);
-        float fadeStart = Mathf.Max(0f, duration - fadeDuration);
-
-        Sequence seq = DOTween.Sequence();
-        t.transform.localScale = Vector3.one * Mathf.Max(0.01f, totalDamageStartScale);
-        seq.Append(t.transform.DOScale(Mathf.Max(0.01f, totalDamagePopScale), popUpTime).SetEase(Ease.OutBack));
-        seq.Append(t.transform.DOScale(Mathf.Max(0.01f, totalDamageSettleScale), shrinkTime).SetEase(Ease.OutQuad));
-        seq.Join(t.transform.DOMoveY(start.y + totalDamageUp, duration).SetEase(Ease.OutQuad));
-        seq.Join(t.DOFade(1f, 0f));
-        if (fadeStart > 0f)
-        {
-            seq.Insert(fadeStart, t.DOFade(0f, fadeDuration).SetEase(Ease.InQuad));
-        }
-        else
-        {
-            seq.Join(t.DOFade(0f, fadeDuration).SetEase(Ease.InQuad));
-        }
-        TotalDamageState state = new TotalDamageState
-        {
-            popup = t,
-            total = activeState != null ? activeState.total : safeAmount,
-            hitCount = activeState != null ? activeState.hitCount : 2,
-            lastHitTime = activeState != null ? activeState.lastHitTime : Time.unscaledTime
-        };
-        _activeTotalDamagePopups[target] = state;
-        seq.OnComplete(() =>
-        {
-            if (_activeTotalDamagePopups.TryGetValue(target, out TotalDamageState current) &&
-                current != null &&
-                current.popup == t)
-            {
-                current.popup = null;
-                if (Time.unscaledTime - current.lastHitTime > Mathf.Max(0.01f, totalDamageDuration))
-                    _activeTotalDamagePopups.Remove(target);
-            }
-            Return(t);
-        });
     }
-
-    /// <summary>
-    /// Guard: S-curve đi lên + random trái phải, scale pop -> shrink + fade.
-    /// </summary>
-    private void SpawnGuardSCurve(CombatActor source, CombatActor target, string text)
-    {
-        SpawnGuardSCurve(source, target, text, guardColor);
-    }
-
-    private void SpawnGuardSCurve(CombatActor source, CombatActor target, string text, Color color)
-    {
-        if (popupPrefab == null)
-        {
-            if (logIfSpawnFails) Debug.LogWarning("[DamagePopupSystem] popupPrefab is NULL.", this);
-            return;
-        }
-
-        TMP_Text t = Rent();
-        if (t == null)
-        {
-            if (logIfSpawnFails) Debug.LogWarning("[DamagePopupSystem] pool empty and allowExpand=false.", this);
-            return;
-        }
-
-        // ensure parent
-        if (spawnParent != null) t.transform.SetParent(spawnParent, false);
-
-        t.gameObject.SetActive(true);
-        t.raycastTarget = false;
-        t.text = text;
-        t.color = color;
-
-        Vector3 start = GetCenter(target, PopupSpawnKind.Guard);
-        t.transform.position = start;
-
-        float side = RandomSideSign();
-        float tv = 0f;
-
-        Sequence seq = DOTween.Sequence();
-
-        ApplyScalePopAndShrink(seq, t.transform);
-
-        seq.Join(DOTween.To(() => tv, v =>
-        {
-            tv = v;
-
-            // S-curve in X + drift
-            float x = Mathf.Sin(tv * Mathf.PI * 2f) * sAmp + (sSideDrift * side) * tv;
-
-            // go up
-            float y = tv * sUp;
-
-            t.transform.position = start + new Vector3(x, y, 0f);
-        }, 1f, guardDuration).SetEase(Ease.OutQuad));
-
-        seq.Join(t.DOFade(0f, guardDuration).SetEase(Ease.InQuad));
-
-        seq.OnComplete(() => Return(t));
-    }
-
 }

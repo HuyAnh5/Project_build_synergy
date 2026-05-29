@@ -12,50 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a042d137857b6b447b1a911238dc40d8, type: 3}
   m_Name: Basic_Guard
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
-  icon: {fileID: 0}
-  displayName: Basic_Guard
-  description: 
-  gameplay:
-    useNewGameplayPipeline: 1
-    descriptionTemplate: 
-    requirements: []
-    baseEffects:
-    - type: 4
-      target: 1
-      status: 1
-      value:
-        baseAmount: 6
-        mode: 1
-        status: 1
-        divisor: 1
-        matchBaseValue: 7
-      previewable: 1
-    conditionalOutcomes: []
-    customHook:
-      kind: 0
-      reason: 
-  spec:
-    rarity: 0
-    specState: 0
-    buildRole: 1
-    implementationCoverage: 0
-    normalizedText: 
-    designIntent: 
-  behaviorFamily: 0
-  fireBehaviorId: 0
-  iceBehaviorId: 0
-  lightningBehaviorId: 0
-  bleedBehaviorId: 0
-  physicalBehaviorId: 0
-  kind: 1
-  coreAction: 2
-  target: 0
-  group: 0
-  element: 0
-  range: 1
-  hitAllEnemies: 0
-  hitAllAllies: 0
-  slotsRequired: 1
   hasCondition: 0
   conditionEditorMode: 0
   useSystemConditionPreset: 1
@@ -137,7 +93,51 @@ MonoBehaviour:
     lowestOutcome: 0
     highestOutcome: 0
     burnTurns: 3
-  focusCost: 0
+  icon: {fileID: 412434694075372973, guid: 20cc956aa78757d4085a0944de8d0612, type: 3}
+  displayName: Basic_Guard
+  description: 
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: 
+    requirements: []
+    baseEffects:
+    - type: 4
+      target: 1
+      status: 1
+      value:
+        baseAmount: 6
+        mode: 1
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes: []
+    customHook:
+      kind: 0
+      reason: 
+  spec:
+    rarity: 0
+    specState: 0
+    buildRole: 1
+    implementationCoverage: 0
+    normalizedText: 
+    designIntent: 
+  behaviorFamily: 0
+  fireBehaviorId: 0
+  iceBehaviorId: 0
+  lightningBehaviorId: 0
+  bleedBehaviorId: 0
+  physicalBehaviorId: 0
+  kind: 1
+  coreAction: 2
+  target: 0
+  group: 0
+  element: 0
+  range: 1
+  hitAllEnemies: 0
+  hitAllAllies: 0
+  slotsRequired: 1
+  focusCost: 1
   focusGainOnCast: 0
   baseDamageValueMode: 0
   dieMultiplier: 1

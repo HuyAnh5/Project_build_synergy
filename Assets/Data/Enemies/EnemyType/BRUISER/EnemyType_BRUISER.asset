@@ -20,7 +20,7 @@ MonoBehaviour:
   startingGuard: 0
   damageScalar: 1
   intentSelectionMode: 1
-  loopBackToMoveNumber: 2
+  loopBackToMoveNumber: 1
   burstCapPercent: 0.8
   noRepeatTwice: 1
   historyWindow: 2
