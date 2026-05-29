@@ -76,7 +76,6 @@ public class DamagePopupSystem : MonoBehaviour
 
     private readonly Queue<TMP_Text> _pool = new Queue<TMP_Text>(64);
     private readonly Dictionary<CombatActor, TotalDamageState> _activeTotalDamagePopups = new Dictionary<CombatActor, TotalDamageState>();
-    private float SecondPopupDelay => SkillExecutor.GlobalDelayedSecondaryStep;
 
     private void Awake()
     {
@@ -131,7 +130,7 @@ public class DamagePopupSystem : MonoBehaviour
     // ======================
 
     /// <summary>
-    /// Spawn split: Guard trước (S), rồi HP sau (Arc).
+    /// Spawn split: Guard và HP popup xuất hiện ngay khi có kết quả damage.
     /// </summary>
     public void SpawnDamageSplit(CombatActor attacker, CombatActor target, int blocked, int hpLost)
     {
@@ -143,18 +142,7 @@ public class DamagePopupSystem : MonoBehaviour
         if (hpLost > 0)
         {
             RegisterTotalDamageHit(attacker, target, hpLost);
-
-            if (blocked > 0)
-            {
-                DOVirtual.DelayedCall(SecondPopupDelay, () =>
-                {
-                    SpawnHpArc(attacker, target, hpLost.ToString(), hpColor);
-                });
-            }
-            else
-            {
-                SpawnHpArc(attacker, target, hpLost.ToString(), hpColor);
-            }
+            SpawnHpArc(attacker, target, hpLost.ToString(), hpColor);
         }
     }
 

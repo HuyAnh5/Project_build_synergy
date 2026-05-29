@@ -480,10 +480,20 @@ internal static class SkillAttackResolutionUtility
                 if (damage <= 0)
                     continue;
 
+                bool consumesStagger = AttackPreviewCalculator.CanConsumeStagger(rt, effectTarget);
+                if (consumesStagger)
+                {
+                    damage = Mathf.FloorToInt(damage * 1.2f);
+                    if (damage < 1)
+                        damage = 1;
+                }
+
                 CombatActor.DamageResult damageResult = effectTarget.TakeDamageDetailed(damage, bypassGuard: rt.bypassGuard);
                 CombatHitFeedback.Play(effectTarget, CombatHitFeedback.FeedbackKind.Hit);
                 if (damageResult.guardBroken && effectTarget.status != null)
                     effectTarget.status.ApplyStagger();
+                else if (consumesStagger && effectTarget.status != null)
+                    effectTarget.status.ClearStagger();
                 if (popups != null)
                     popups.SpawnDamageSplit(caster, effectTarget, damageResult.blocked, damageResult.hpLost);
             }

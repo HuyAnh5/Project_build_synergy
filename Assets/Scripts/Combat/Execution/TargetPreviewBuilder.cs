@@ -169,9 +169,10 @@ public static class TargetPreviewBuilder
                 case SkillEffectType.DealSecondaryDamage:
                     bool isPrimaryDamage = effect.type == SkillEffectType.DealDamage;
                     bool isFirstPrimaryDamageForTarget = isPrimaryDamage && primaryDamagePreviewTargets.Add(effectTarget);
-                    bool canConsumeStagger = isFirstPrimaryDamageForTarget &&
-                                             !effect.sameActionFollowUp &&
-                                             (AttackPreviewCalculator.CanConsumeStagger(rt, effectTarget) || data.willBreakGuard);
+                    bool canConsumeStagger = effect.sameActionFollowUp
+                        ? (AttackPreviewCalculator.CanConsumeStagger(rt, effectTarget) || data.willBreakGuard)
+                        : (isFirstPrimaryDamageForTarget &&
+                           (AttackPreviewCalculator.CanConsumeStagger(rt, effectTarget) || data.willBreakGuard));
                     bool targetHadMarkBeforeHit = isFirstPrimaryDamageForTarget &&
                                                   !effect.sameActionFollowUp &&
                                                   AttackPreviewCalculator.CanUseMarkPayoff(rt, effectTarget);

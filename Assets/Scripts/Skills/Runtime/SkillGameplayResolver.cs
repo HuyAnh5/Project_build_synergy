@@ -85,12 +85,14 @@ public static class SkillGameplayResolver
 
         ResolveEffects(gameplay.baseEffects, context, result, sameActionFollowUp: false);
 
+        SkillConditionContext followUpConditionContext = BuildFollowUpConditionContext(context, result.effects);
+
         if (gameplay.conditionalOutcomes != null)
         {
             for (int i = 0; i < gameplay.conditionalOutcomes.Count; i++)
             {
                 SkillConditionalOutcomeDataV2 branch = gameplay.conditionalOutcomes[i];
-                if (branch == null || branch.condition == null || !branch.condition.Evaluate(context.conditionContext))
+                if (branch == null || branch.condition == null || !branch.condition.Evaluate(followUpConditionContext))
                     continue;
 
                 ResolveEffects(branch.effects, context, result, sameActionFollowUp: true);
@@ -322,6 +324,96 @@ public static class SkillGameplayResolver
             totalAddedValue = context.totalAddedValue,
             consumedBurnStacks = context.consumedBurnStacks,
             consumedBleedStacks = context.consumedBleedStacks
+        };
+    }
+
+    private static SkillConditionContext BuildFollowUpConditionContext(SkillResolveContext context, IReadOnlyList<ResolvedEffect> resolvedEffects)
+    {
+        SkillConditionContext baseContext = context != null ? context.conditionContext : null;
+        SkillConditionContext followUpContext = CloneConditionContext(baseContext);
+        if (context == null || followUpContext == null || context.target == null)
+            return followUpContext;
+
+        int simulatedGuard = Mathf.Max(0, followUpContext.targetGuard);
+        bool willBreakGuard = false;
+
+        if (resolvedEffects != null)
+        {
+            for (int i = 0; i < resolvedEffects.Count; i++)
+            {
+                ResolvedEffect effect = resolvedEffects[i];
+                if (effect == null || effect.sameActionFollowUp)
+                    continue;
+
+                CombatActor effectTarget = effect.targetActor != null ? effect.targetActor : context.target;
+                if (effectTarget != context.target)
+                    continue;
+
+                switch (effect.type)
+                {
+                    case SkillEffectType.DealDamage:
+                    case SkillEffectType.DealSecondaryDamage:
+                    {
+                        int incoming = Mathf.Max(0, effect.value);
+                        if (incoming <= 0)
+                            break;
+
+                        if (simulatedGuard > 0)
+                        {
+                            int blocked = Mathf.Min(simulatedGuard, incoming);
+                            simulatedGuard -= blocked;
+                            if (blocked > 0 && simulatedGuard <= 0)
+                                willBreakGuard = true;
+                        }
+
+                        break;
+                    }
+
+                    case SkillEffectType.ClearGuard:
+                        if (simulatedGuard > 0)
+                            willBreakGuard = true;
+                        simulatedGuard = 0;
+                        break;
+                }
+            }
+        }
+
+        followUpContext.targetGuard = simulatedGuard;
+        followUpContext.targetHasStagger = followUpContext.targetHasStagger || willBreakGuard;
+        return followUpContext;
+    }
+
+    private static SkillConditionContext CloneConditionContext(SkillConditionContext source)
+    {
+        if (source == null)
+            return null;
+
+        return new SkillConditionContext
+        {
+            scope = source.scope,
+            localBaseValues = source.localBaseValues,
+            localNumericFlags = source.localNumericFlags,
+            localResolvedValues = source.localResolvedValues,
+            localCritFlags = source.localCritFlags,
+            localFailFlags = source.localFailFlags,
+            currentFocus = source.currentFocus,
+            currentGuard = source.currentGuard,
+            targetGuard = source.targetGuard,
+            occupiedSlots = source.occupiedSlots,
+            remainingSlots = source.remainingSlots,
+            enemiesWithBurnCount = source.enemiesWithBurnCount,
+            markedEnemiesCount = source.markedEnemiesCount,
+            totalBleedOnBoard = source.totalBleedOnBoard,
+            aliveEnemiesCount = source.aliveEnemiesCount,
+            enemiesWithStatusCount = source.enemiesWithStatusCount,
+            isLeftmostAction = source.isLeftmostAction,
+            isRightmostAction = source.isRightmostAction,
+            targetHasBurn = source.targetHasBurn,
+            targetHasFreeze = source.targetHasFreeze,
+            targetHasChilled = source.targetHasChilled,
+            targetHasMark = source.targetHasMark,
+            targetHasBleed = source.targetHasBleed,
+            targetHasStagger = source.targetHasStagger
         };
     }
 

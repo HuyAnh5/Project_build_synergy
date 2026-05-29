@@ -97,7 +97,7 @@ internal static class EnemyIntentSelectionUtility
     {
         int moveCount = definition.moves.Count;
         int currentIndex = Mathf.Clamp(scriptedLoopCursor, 0, moveCount - 1);
-        int loopBackIndex = Mathf.Clamp(definition.loopBackToMoveNumber - 1, 0, moveCount - 1);
+        int loopBackIndex = Mathf.Clamp(definition.loopBackToMoveNumber, 0, moveCount - 1);
 
         for (int checkedCount = 0; checkedCount < moveCount; checkedCount++)
         {

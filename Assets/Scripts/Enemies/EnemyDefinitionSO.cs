@@ -89,14 +89,14 @@ public class EnemyDefinitionSO : ScriptableObject
     }
 
     [BoxGroup("AI"), LabelText("Intent Selection Mode")]
-    [Tooltip("WeightedPercent = chọn theo %/weight như hiện tại. ScriptedLoop = chạy Move 1 -> Move 2 -> ... rồi quay lại Loop Back To Move Number.")]
+    [Tooltip("WeightedPercent = chọn theo %/weight như hiện tại. ScriptedLoop = chạy Move 0 -> Move 1 -> ... rồi quay lại Loop Back To Move Index.")]
     public EnemyIntentSelectionMode intentSelectionMode = EnemyIntentSelectionMode.WeightedPercent;
 
-    [BoxGroup("AI/Scripted Loop"), LabelText("Loop Back To Move Number")]
+    [BoxGroup("AI/Scripted Loop"), LabelText("Loop Back To Move Index")]
     [ShowIf(nameof(IsScriptedLoopMode))]
-    [MinValue(1)]
-    [Tooltip("Dùng khi Intent Selection Mode = ScriptedLoop. 1 = hết chuỗi quay lại Move 1, 2 = quay lại Move 2, 3 = quay lại Move 3...")]
-    public int loopBackToMoveNumber = 1;
+    [MinValue(0)]
+    [Tooltip("Dùng khi Intent Selection Mode = ScriptedLoop. 0 = hết chuỗi quay lại Move index 0, 1 = quay lại Move index 1, 2 = quay lại Move index 2...")]
+    public int loopBackToMoveNumber = 0;
 
     private bool IsScriptedLoopMode => intentSelectionMode == EnemyIntentSelectionMode.ScriptedLoop;
     private bool IsWeightedPercentMode => intentSelectionMode == EnemyIntentSelectionMode.WeightedPercent;
