@@ -67,6 +67,17 @@ public partial class TurnManager
         int span = _board.GetAnchorSpan(_cursor);
         int rawSum = _board.GetDieSumForAnchor(_cursor, diceRig);
         ElementType dieElement = GetResolvedDiceElement(rt, asset);
+        DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan paymentPlan =
+            DiceCombatEnchantRuntimeUtility.BuildPaymentPlan(diceRig, start0, span);
+        if (span > 0 && paymentPlan.selectedMask == 0)
+        {
+            if (logPhase)
+                Debug.LogWarning("[TM] No usable dice face available to pay this skill cost.", this);
+            SetPhase(Phase.Planning);
+            RefreshAllViews();
+            RefreshPlanningInteractivity();
+            return;
+        }
         int resolvedSum = ComputeResolvedDieSum(start0, span, dieElement);
         int maxFace = ComputeMaxFace(start0, span);
 
@@ -75,7 +86,7 @@ public partial class TurnManager
             Debug.Log($"[TM] Execute cursor={_cursor} asset={(asset ? asset.name : "NULL")} type={(asset ? asset.GetType().Name : "NULL")} rt.kind={rt.kind} rt.target={rt.target} span={span} start0={start0} rawSum={rawSum} resolvedSum={resolvedSum} maxFace={maxFace} playerFocus={(player ? player.focus : -999)}", this);
         }
 
-        MarkDiceSpentInRange(start0, span);
+        MarkDiceSpentInRange(start0, span, paymentPlan.selectedMask);
         _board.ConsumeGroupAtAnchor_NoRefund(_cursor);
         _queuedPlayerCommands.Enqueue(new TurnManagerQueuedPlayerCommand
         {
@@ -87,6 +98,7 @@ public partial class TurnManager
             maxFace = maxFace,
             start0 = start0,
             span = span,
+            paymentMask = paymentPlan.selectedMask,
         });
 
         _cursor = FindNextExecutableAnchor();
@@ -131,7 +143,7 @@ public partial class TurnManager
     private IEnumerator ExecuteQueuedCommand(TurnManagerQueuedPlayerCommand command)
     {
         yield return TurnManagerCommandExecutionUtility.ExecuteQueuedCommand(command, executor, player, party, enemy, diceRig, _playerContext, logPhase, this);
-        FinalizePendingUsedVisualRange(command.start0, command.span);
+        FinalizePendingUsedVisualRange(command.start0, command.span, command.paymentMask);
 
         if (TryHandleCombatDefeat())
             yield break;

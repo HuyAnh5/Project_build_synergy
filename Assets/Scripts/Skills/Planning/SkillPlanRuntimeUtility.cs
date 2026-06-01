@@ -175,6 +175,7 @@ internal static class SkillPlanRuntimeUtility
         span = Mathf.Clamp(span, 1, 3);
 
         rt.localBaseValues = new List<int>(span);
+        rt.localOutputBaseValues = new List<int>(span);
         rt.localResolvedValues = new List<int>(span);
         rt.localNumericFlags = new List<bool>(span);
         rt.localCritFlags = new List<bool>(span);
@@ -183,7 +184,8 @@ internal static class SkillPlanRuntimeUtility
 
         for (int i = start0; i < start0 + span && i < 3; i++)
         {
-            rt.localBaseValues.Add(diceRig.GetBaseValue(i));
+            rt.localBaseValues.Add(diceRig.IsNumericFaceForConditions(i) ? diceRig.GetBaseValue(i) : 0);
+            rt.localOutputBaseValues.Add(diceRig.GetOutputBaseValue(i));
             rt.localResolvedValues.Add(diceRig.GetResolvedDieValue(i, owner));
             rt.localNumericFlags.Add(diceRig.IsNumericFaceForConditions(i));
             bool isCrit = diceRig.IsCrit(i);

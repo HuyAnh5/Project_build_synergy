@@ -32,19 +32,25 @@ internal static class DiceEquipWorldSyncUtility
             d.GetRollExtents(out int minFace, out int maxFace);
             int rolled = d.GetDisplayedRolledValue();
             DiceFaceEnchantKind faceEnchant = d.GetCurrentFaceEnchant();
-            bool isCrit = d.IsCritValue(rolled) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant);
-            bool isFail = d.IsFailValue(rolled) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant);
+            bool isBrokenFace = d.IsCurrentFaceBroken();
+            bool isNumericFace = !isBrokenFace && DiceFaceEnchantUtility.IsNumericFace(faceEnchant);
+            bool isUsable = !isBrokenFace;
+            bool isCrit = isUsable && isNumericFace && (d.IsCritValue(rolled) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant));
+            bool isFail = isUsable && isNumericFace && (d.IsFailValue(rolled) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant));
             bool grantsCritBonus = isCrit && !DiceFaceEnchantUtility.SuppressesCritBonus(faceEnchant);
             bool appliesFailPenalty = isFail && !DiceFaceEnchantUtility.SuppressesFailPenalty(faceEnchant);
-            bool isNumericFace = DiceFaceEnchantUtility.IsNumericFace(faceEnchant);
 
             int genericAdded = 0;
             if (grantsCritBonus) genericAdded = Mathf.FloorToInt(rolled * DiceSlotRig.GenericCritPercent);
-            genericAdded += DiceFaceEnchantUtility.GetFlatAddedValue(faceEnchant);
+            genericAdded += d.GetCurrentPhaseValueModifier();
+            genericAdded += DiceFaceEnchantUtility.GetOnUseAddedValue(faceEnchant);
 
-            int genericResolved = rolled + genericAdded;
+            int baseValueForOutput = faceEnchant == DiceFaceEnchantKind.Stone ? 0 : rolled;
+            int genericResolved = isUsable ? baseValueForOutput + genericAdded : 0;
             if (genericResolved < 1)
                 genericResolved = 1;
+            if (!isUsable)
+                genericResolved = 0;
 
             diceRig.LastRollInfos[i] = new DiceSlotRig.RollInfo
             {
@@ -57,6 +63,8 @@ internal static class DiceEquipWorldSyncUtility
                 grantsCritBonus = grantsCritBonus,
                 appliesFailPenalty = appliesFailPenalty,
                 isNumericFace = isNumericFace,
+                isBrokenFace = isBrokenFace,
+                isUsable = isUsable,
                 genericAddedValue = genericAdded,
                 genericResolvedValue = genericResolved,
             };

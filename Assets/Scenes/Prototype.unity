@@ -8090,7 +8090,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cd1d59d93ddcb04468c3839cce3a8e44, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CombatLabPrototypeController
-  config: {fileID: 11400000, guid: dcdac18eb752ad54f972bdb317cd6a2a, type: 2}
+  config: {fileID: 0}
   party: {fileID: 733054730}
   runInventory: {fileID: 1082519198}
   turnManager: {fileID: 733054728}

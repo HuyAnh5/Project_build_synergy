@@ -118,6 +118,7 @@ public static partial class SkillGameplayResolver
         {
             scope = source.scope,
             localBaseValues = source.localBaseValues,
+            localOutputBaseValues = source.localOutputBaseValues,
             localNumericFlags = source.localNumericFlags,
             localResolvedValues = source.localResolvedValues,
             localCritFlags = source.localCritFlags,

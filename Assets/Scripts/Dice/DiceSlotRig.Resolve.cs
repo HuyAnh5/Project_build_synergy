@@ -26,6 +26,7 @@ public partial class DiceSlotRig
     public bool IsFail(int slot0) => GetRollInfo(slot0).isFail;
     public bool AppliesFailPenalty(int slot0) => GetRollInfo(slot0).appliesFailPenalty;
     public bool IsNumericFaceForConditions(int slot0) => GetRollInfo(slot0).isNumericFace;
+    public bool IsCurrentFaceUsableForPayment(int slot0) => GetRollInfo(slot0).isUsable;
 
     public int GetAddedValue(int slot0, CombatActor owner, ElementType skillElement = ElementType.Neutral)
     {
@@ -48,21 +49,26 @@ public partial class DiceSlotRig
     public ResolvedDieBreakdown GetResolvedBreakdown(int slot0, CombatActor owner, ElementType skillElement = ElementType.Neutral)
     {
         RollInfo info = GetRollInfo(slot0);
-        if (!HasRolledThisTurn) return default;
+        if (!HasRolledThisTurn || !info.isUsable) return default;
 
-        int critFailAdded = ComputeCritFailAddedValue(info, skillElement);
+        int outputBaseValue = ComputeOutputBaseValue(slot0, info);
+        int critFailAdded = ComputeCritFailAddedValue(info, skillElement, outputBaseValue);
         int faceEnchantAdded = ComputeFaceEnchantAddedValue(slot0);
         int passiveAdded = ComputeAllDiceDelta(owner);
         PassiveSystem ps = owner != null ? owner.GetComponent<PassiveSystem>() : null;
         if (ps != null)
             passiveAdded += ps.GetAddedValueForDie(this, slot0);
         int totalAdded = critFailAdded + faceEnchantAdded + passiveAdded;
-        int resolved = info.rolledValue + totalAdded;
+        int baseValue = GetEffectiveCurrentFaceEnchant(slot0) == DiceFaceEnchantKind.Stone
+            ? 0
+            : info.rolledValue;
+        int resolved = outputBaseValue + totalAdded;
         if (resolved < 1) resolved = 1;
 
         return new ResolvedDieBreakdown
         {
-            baseValue = info.rolledValue,
+            baseValue = baseValue,
+            outputBaseValue = outputBaseValue,
             critFailAddedValue = critFailAdded,
             faceEnchantAddedValue = faceEnchantAdded,
             passiveAddedValue = passiveAdded,
@@ -205,14 +211,33 @@ public partial class DiceSlotRig
         return delta;
     }
 
-    private int ComputeCritFailAddedValue(RollInfo info, ElementType skillElement)
+    public int GetOutputBaseValue(int slot0)
     {
-        if (info.rolledValue <= 0) return 0;
+        RollInfo info = GetRollInfo(slot0);
+        if (!HasRolledThisTurn || !info.isUsable)
+            return 0;
+
+        return ComputeOutputBaseValue(slot0, info);
+    }
+
+    private int ComputeOutputBaseValue(int slot0, RollInfo info)
+    {
+        DiceFaceEnchantKind effective = GetEffectiveCurrentFaceEnchant(slot0);
+        if (effective == DiceFaceEnchantKind.Stone)
+            return 0;
+        if (effective == DiceFaceEnchantKind.Double)
+            return Mathf.Max(0, info.rolledValue * 2);
+        return Mathf.Max(0, info.rolledValue);
+    }
+
+    private int ComputeCritFailAddedValue(RollInfo info, ElementType skillElement, int outputBaseValue)
+    {
+        if (outputBaseValue <= 0) return 0;
         if (!info.grantsCritBonus) return 0;
         if (!info.isCrit) return 0;
 
         float critPercent = (skillElement == ElementType.Physical) ? PhysicalCritPercent : GenericCritPercent;
-        return FloorScaled(info.rolledValue, critPercent);
+        return FloorScaled(outputBaseValue, critPercent);
     }
 
     private int ComputeFaceEnchantAddedValue(int slot0)
@@ -221,7 +246,31 @@ public partial class DiceSlotRig
         if (die == null)
             return 0;
 
-        return die.GetCurrentFaceAddedValue();
+        DiceFaceEnchantKind effective = GetEffectiveCurrentFaceEnchant(slot0);
+        if (effective == DiceFaceEnchantKind.Stone)
+            return DiceFaceEnchantUtility.StoneAddedValue + die.GetCurrentPhaseValueModifier();
+
+        int added = die.GetCurrentPhaseValueModifier();
+        added += DiceFaceEnchantUtility.GetOnUseAddedValue(effective);
+        return added;
+    }
+
+    public DiceFaceEnchantKind GetEffectiveCurrentFaceEnchant(int slot0)
+    {
+        DiceSpinnerGeneric die = GetDice(slot0);
+        if (die == null || !die.IsCurrentFaceUsable())
+            return DiceFaceEnchantKind.None;
+
+        DiceFaceEnchantKind stored = die.GetCurrentFaceEnchant();
+        if (stored != DiceFaceEnchantKind.Echo)
+            return stored;
+
+        DiceSpinnerGeneric left = GetDice(slot0 - 1);
+        if (left == null || !left.IsCurrentFaceUsable())
+            return DiceFaceEnchantKind.None;
+
+        DiceFaceEnchantKind source = left.GetCurrentFaceEnchant();
+        return DiceFaceEnchantUtility.IsEchoCopyable(source) ? source : DiceFaceEnchantKind.None;
     }
 
     private static int FloorScaled(int value, float factor)

@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c4b92963ff6d82d49a8b2e6eb254de8c, type: 3}
-  m_Name: Guard Boost
+  m_Name: Guard
   m_EditorClassIdentifier: Assembly-CSharp::ConsumableDataSO
   icon: {fileID: 6453661803084663350, guid: b5de9fcfd196c1a47b1068ac12138a6c, type: 3}
-  displayName: Guard Boost
-  description: Apply Guard Boost enchant to 1-2 faces permanently.
+  displayName: Guard
+  description: Apply Guard enchant to 1 face permanently.
   family: 0
   useContext: 2
   targetKind: 3
   effectId: 2
-  charges: 2
+  charges: 1
   valueA: 0
   minSelectedDice: 1
   maxSelectedDice: 1
-  faceEnchant: 4
+  faceEnchant: 2

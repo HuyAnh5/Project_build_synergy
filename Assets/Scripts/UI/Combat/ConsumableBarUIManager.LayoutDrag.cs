@@ -419,23 +419,36 @@ public partial class ConsumableBarUIManager
             return;
 
         VerticalLayoutGroup layout = tooltip.GetComponent<VerticalLayoutGroup>();
+        RectOffset padding = layout != null ? layout.padding : new RectOffset();
+        float spacing = layout != null ? layout.spacing : 0f;
         if (layout != null)
-        {
-            layout.childControlHeight = true;
-            layout.childForceExpandHeight = false;
-        }
+            layout.enabled = false;
 
         ContentSizeFitter fitter = tooltip.GetComponent<ContentSizeFitter>();
-        if (fitter == null)
-            fitter = tooltip.gameObject.AddComponent<ContentSizeFitter>();
-
-        fitter.horizontalFit = ContentSizeFitter.FitMode.Unconstrained;
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+        if (fitter != null)
+            fitter.enabled = false;
 
         EnsureTooltipTextLayout(title);
         EnsureTooltipTextLayout(body);
+        float contentWidth = Mathf.Max(120f, tooltip.rect.width - padding.left - padding.right);
+        float titleHeight = GetPreferredHeight(title, contentWidth);
+        float bodyHeight = GetPreferredHeight(body, contentWidth);
 
-        LayoutRebuilder.ForceRebuildLayoutImmediate(tooltip);
+        LayoutTooltipBlock(title, padding.left, padding.top, contentWidth, titleHeight);
+        float bodyTop = padding.top + titleHeight + (title != null && title.gameObject.activeSelf && body != null && body.gameObject.activeSelf ? spacing : 0f);
+        LayoutTooltipBlock(body, padding.left, bodyTop, contentWidth, bodyHeight);
+
+        float totalHeight = padding.top + padding.bottom;
+        if (title != null && title.gameObject.activeSelf)
+            totalHeight += titleHeight;
+        if (body != null && body.gameObject.activeSelf)
+        {
+            if (title != null && title.gameObject.activeSelf)
+                totalHeight += spacing;
+            totalHeight += bodyHeight;
+        }
+
+        tooltip.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Ceil(totalHeight));
     }
 
     private static void EnsureTooltipTextLayout(TMP_Text text)
@@ -453,6 +466,28 @@ public partial class ConsumableBarUIManager
         layout.ignoreLayout = false;
         layout.flexibleHeight = 0f;
         layout.preferredHeight = -1f;
+    }
+
+    private static void LayoutTooltipBlock(TMP_Text text, float left, float top, float width, float height)
+    {
+        if (text == null)
+            return;
+
+        RectTransform rect = text.rectTransform;
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(left, -top);
+        rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+        rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, Mathf.Ceil(height));
+    }
+
+    private static float GetPreferredHeight(TMP_Text text, float width)
+    {
+        if (text == null || !text.gameObject.activeSelf)
+            return 0f;
+
+        return text.GetPreferredValues(text.text ?? string.Empty, width, 0f).y;
     }
 
     private Vector2 GetPresentationOffset(bool isTooltip)

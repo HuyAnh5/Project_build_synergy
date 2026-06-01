@@ -14,6 +14,8 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
     private Camera _uiCam;
 
     private RectTransform _ghostRT;
+    private Image _ghostImage;
+    private CanvasGroup _ghostCanvasGroup;
     private DiceEquipUIManager _diceUiManager;
     private bool _groupReorderDrag;
     private bool _dragRegistered;
@@ -42,6 +44,7 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
         }
 
         _pointerInside = false;
+        ReleaseGhost();
         SkillTooltipUI.HideCurrent();
     }
 
@@ -101,8 +104,7 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
             _dragRegistered = false;
         }
 
-        if (_ghostRT) Destroy(_ghostRT.gameObject);
-        _ghostRT = null;
+        ReleaseGhost();
 
         if (!turn || !turn.CanInteractWithSkills) return;
 
@@ -127,24 +129,28 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
 
     private void CreateGhost()
     {
-        var go = new GameObject("SlotDragGhost", typeof(RectTransform), typeof(CanvasGroup), typeof(Image));
-        go.transform.SetParent(_canvas.transform, false);
-        go.transform.SetAsLastSibling();
+        if (_ghostRT == null)
+        {
+            var go = new GameObject("SlotDragGhost", typeof(RectTransform), typeof(CanvasGroup), typeof(Image));
+            go.transform.SetParent(_canvas.transform, false);
+            _ghostRT = (RectTransform)go.transform;
+            _ghostImage = go.GetComponent<Image>();
+            _ghostCanvasGroup = go.GetComponent<CanvasGroup>();
+        }
 
-        _ghostRT = (RectTransform)go.transform;
+        _ghostRT.SetParent(_canvas.transform, false);
+        _ghostRT.gameObject.SetActive(true);
+        _ghostRT.SetAsLastSibling();
         _ghostRT.sizeDelta = ((RectTransform)iconPreview.transform).rect.size;
         _ghostRT.pivot = new Vector2(0.5f, 0.5f);
         _ghostRT.anchorMin = new Vector2(0.5f, 0.5f);
         _ghostRT.anchorMax = new Vector2(0.5f, 0.5f);
 
-        var img = go.GetComponent<Image>();
-        img.sprite = iconPreview.sprite;
-        img.preserveAspect = true;
-        img.raycastTarget = false;
-
-        var cg = go.GetComponent<CanvasGroup>();
-        cg.blocksRaycasts = false;
-        cg.alpha = 0.9f;
+        _ghostImage.sprite = iconPreview.sprite;
+        _ghostImage.preserveAspect = true;
+        _ghostImage.raycastTarget = false;
+        _ghostCanvasGroup.blocksRaycasts = false;
+        _ghostCanvasGroup.alpha = 0.9f;
     }
 
     private void MoveGhost(Vector2 screenPos)
@@ -155,6 +161,14 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
             _canvasRT, screenPos, _uiCam, out var localPoint);
 
         _ghostRT.anchoredPosition = localPoint;
+    }
+
+    private void ReleaseGhost()
+    {
+        if (_ghostRT == null)
+            return;
+
+        _ghostRT.gameObject.SetActive(false);
     }
 
     public void OnDrop(PointerEventData eventData)

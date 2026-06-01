@@ -96,6 +96,7 @@ public partial class DiceSpinnerGeneric
 
         DiceFace face = faces[faceIndex];
         face.enchant = enchant;
+        face.broken = false;
         faces[faceIndex] = face;
 
         RefreshFaceValueText(faceIndex);
@@ -168,7 +169,11 @@ public partial class DiceSpinnerGeneric
 
         int min = int.MaxValue;
         for (int i = 0; i < faces.Length; i++)
+        {
+            if (faces[i].broken || !DiceFaceEnchantUtility.IsNumericFace(faces[i].enchant))
+                continue;
             min = Mathf.Min(min, faces[i].value);
+        }
 
         return min == int.MaxValue ? 1 : min;
     }
@@ -180,7 +185,11 @@ public partial class DiceSpinnerGeneric
 
         int max = int.MinValue;
         for (int i = 0; i < faces.Length; i++)
+        {
+            if (faces[i].broken || !DiceFaceEnchantUtility.IsNumericFace(faces[i].enchant))
+                continue;
             max = Mathf.Max(max, faces[i].value);
+        }
 
         return max == int.MinValue ? 6 : max;
     }
@@ -213,7 +222,7 @@ public partial class DiceSpinnerGeneric
 
     public int GetCritDisplayAddedValue(int baseValue)
     {
-        return Mathf.FloorToInt(Mathf.Max(0f, baseValue) * 0.20f);
+        return Mathf.FloorToInt(Mathf.Max(0f, baseValue) * DiceSlotRig.GenericCritPercent);
     }
 
     public int GetFailDisplayAddedValueMagnitude(int baseValue)

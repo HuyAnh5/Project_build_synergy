@@ -124,38 +124,126 @@ public partial class DiceSpinnerGeneric
                 steps.Add(new RollPopupStep("/2", new Color(1f, 0.45f, 0.45f, 1f)));
         }
 
-        AppendEnchantPopupStep(steps, enchant);
         return steps;
     }
 
-    private void AppendEnchantPopupStep(List<RollPopupStep> steps, DiceFaceEnchantKind enchant)
+    public void PlayFaceEnchantPopup(DiceFaceEnchantKind enchant, string effectText = null)
+    {
+        if (!Application.isPlaying || enchant == DiceFaceEnchantKind.None || enchant == DiceFaceEnchantKind.Gum)
+            return;
+
+        List<RollPopupStep> steps = new List<RollPopupStep>(2)
+        {
+            new RollPopupStep(DiceFaceEnchantUtility.GetDisplayName(enchant), new Color(0.36f, 0.88f, 1f, 1f))
+        };
+
+        if (!string.IsNullOrWhiteSpace(effectText))
+            steps.Add(new RollPopupStep(effectText, new Color(0.36f, 0.88f, 1f, 1f)));
+
+        PlayPopupSteps(steps);
+    }
+
+    public void PlayFaceEnchantEffectPopup(string effectText)
+    {
+        if (!Application.isPlaying || string.IsNullOrWhiteSpace(effectText))
+            return;
+
+        List<RollPopupStep> steps = new List<RollPopupStep>(1)
+        {
+            new RollPopupStep(effectText, new Color(0.36f, 0.88f, 1f, 1f))
+        };
+
+        PlayPopupSteps(steps);
+    }
+
+    private void PlayPopupSteps(List<RollPopupStep> steps)
+    {
+        if (steps == null || steps.Count == 0)
+            return;
+
+        TMP_Text popup = GetOrCreateRollStatePopupInstance();
+        if (popup == null)
+            return;
+
+        _rollStatePopupTween?.Kill();
+
+        PositionRollStatePopup(popup);
+        popup.gameObject.SetActive(true);
+
+        Sequence seq = DOTween.Sequence().SetUpdate(true);
+        RectTransform popupRect = popup.rectTransform;
+        if (popupRect != null)
+        {
+            Vector2 start = popupRect.anchoredPosition;
+            float perStepDuration = Mathf.Max(0.12f, rollStatePopupDuration);
+            float risePerStep = rollStatePopupRiseDistance / Mathf.Max(1, steps.Count);
+            popupRect.anchoredPosition = start;
+
+            for (int i = 0; i < steps.Count; i++)
+            {
+                RollPopupStep step = steps[i];
+                seq.AppendCallback(() =>
+                {
+                    popup.text = step.Text;
+                    Color c = step.Color;
+                    c.a = 1f;
+                    popup.color = c;
+                });
+                seq.Append(popupRect.DOAnchorPosY(start.y + (risePerStep * (i + 1)), perStepDuration).SetEase(Ease.OutQuad));
+                seq.Join(popup.DOFade(0f, perStepDuration).From(1f).SetEase(Ease.OutQuad));
+                if (i < steps.Count - 1)
+                    seq.AppendInterval(0.03f);
+            }
+        }
+        else
+        {
+            Vector3 start = popup.transform.position;
+            float perStepDuration = Mathf.Max(0.12f, rollStatePopupDuration);
+            float risePerStep = rollStatePopupRiseDistance / Mathf.Max(1, steps.Count);
+            popup.transform.position = start;
+
+            for (int i = 0; i < steps.Count; i++)
+            {
+                RollPopupStep step = steps[i];
+                seq.AppendCallback(() =>
+                {
+                    popup.text = step.Text;
+                    Color c = step.Color;
+                    c.a = 1f;
+                    popup.color = c;
+                });
+                seq.Append(popup.transform.DOMoveY(start.y + (risePerStep * (i + 1)), perStepDuration).SetEase(Ease.OutQuad));
+                seq.Join(popup.DOFade(0f, perStepDuration).From(1f).SetEase(Ease.OutQuad));
+                if (i < steps.Count - 1)
+                    seq.AppendInterval(0.03f);
+            }
+        }
+
+        seq.OnComplete(() =>
+        {
+            ClearRollStatePopupVisuals(clearText: true);
+            _rollStatePopupTween = null;
+        });
+        _rollStatePopupTween = seq;
+    }
+
+    private static string GetEnchantShortLabel(DiceFaceEnchantKind enchant)
     {
         switch (enchant)
         {
-            case DiceFaceEnchantKind.None:
-                return;
-            case DiceFaceEnchantKind.ValuePlusN:
-                steps.Add(new RollPopupStep($"+{DiceFaceEnchantUtility.ValuePlusNAddedValue}", new Color(0.36f, 0.88f, 1f, 1f)));
-                return;
-            case DiceFaceEnchantKind.GuardBoost:
-                steps.Add(new RollPopupStep($"+{DiceFaceEnchantUtility.GuardBoostAmount} Guard", new Color(0.36f, 0.88f, 1f, 1f)));
-                return;
-            case DiceFaceEnchantKind.GoldProc:
-                steps.Add(new RollPopupStep($"+{DiceFaceEnchantUtility.GoldProcAmount} Gold", new Color(0.36f, 0.88f, 1f, 1f)));
-                return;
-            case DiceFaceEnchantKind.Fire:
-                steps.Add(new RollPopupStep("Fire", new Color(0.36f, 0.88f, 1f, 1f)));
-                return;
-            case DiceFaceEnchantKind.Bleed:
-                steps.Add(new RollPopupStep("Bleed", new Color(0.36f, 0.88f, 1f, 1f)));
-                return;
-            case DiceFaceEnchantKind.Ice:
-                steps.Add(new RollPopupStep($"+{DiceFaceEnchantUtility.IceAddedValue}", new Color(0.36f, 0.88f, 1f, 1f)));
-                steps.Add(new RollPopupStep("Ice", new Color(0.36f, 0.88f, 1f, 1f)));
-                return;
-            case DiceFaceEnchantKind.Lightning:
-                steps.Add(new RollPopupStep("Lightning", new Color(0.36f, 0.88f, 1f, 1f)));
-                return;
+            case DiceFaceEnchantKind.Power: return "Pwr";
+            case DiceFaceEnchantKind.Guard: return "Guard";
+            case DiceFaceEnchantKind.Charge: return "AP";
+            case DiceFaceEnchantKind.Gold: return "Gold";
+            case DiceFaceEnchantKind.Gum: return "Gum";
+            case DiceFaceEnchantKind.Relay: return "Relay";
+            case DiceFaceEnchantKind.Double: return "x2";
+            case DiceFaceEnchantKind.Repeat: return "Rpt";
+            case DiceFaceEnchantKind.Reload: return "Load";
+            case DiceFaceEnchantKind.Heavy: return "Heavy";
+            case DiceFaceEnchantKind.Echo: return "Echo";
+            case DiceFaceEnchantKind.Stone: return "Stone";
+            default: return DiceFaceEnchantUtility.GetDisplayName(enchant);
         }
     }
 
@@ -495,26 +583,4 @@ public partial class DiceSpinnerGeneric
         }
     }
 
-    private static string GetEnchantShortLabel(DiceFaceEnchantKind enchant)
-    {
-        switch (enchant)
-        {
-            case DiceFaceEnchantKind.ValuePlusN:
-                return "Plus";
-            case DiceFaceEnchantKind.GuardBoost:
-                return "Guard";
-            case DiceFaceEnchantKind.Fire:
-                return "Fire";
-            case DiceFaceEnchantKind.Bleed:
-                return "Bleed";
-            case DiceFaceEnchantKind.Ice:
-                return "Ice";
-            case DiceFaceEnchantKind.Lightning:
-                return "Bolt";
-            case DiceFaceEnchantKind.GoldProc:
-                return "Gold";
-            default:
-                return DiceFaceEnchantUtility.GetDisplayName(enchant);
-        }
-    }
 }

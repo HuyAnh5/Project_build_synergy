@@ -40,6 +40,7 @@ public class CombatHUD : MonoBehaviour
     private Image _focusBarBackgroundImage;
     private Color _focusBarBackgroundOriginalColor;
     private Color _playerFocusTextOriginalColor = Color.white;
+    private string _lastFocusTextValue = string.Empty;
 
     private void Awake()
     {
@@ -140,7 +141,7 @@ public class CombatHUD : MonoBehaviour
         _lastMaxFocus = player.maxFocus;
         if (playerFocusText != null)
         {
-            playerFocusText.text = player.focus.ToString();
+            SetPlayerFocusText(player.focus.ToString());
             playerFocusText.color = _playerFocusTextOriginalColor;
         }
 
@@ -172,6 +173,7 @@ public class CombatHUD : MonoBehaviour
             playerFocusSegmentsRoot = CreateSegmentsRoot(playerFocusBarRoot);
 
         EnsureFocusSegments();
+        LayoutFocusSegments();
     }
 
     private RectTransform CreateFocusBarRoot(RectTransform parent)
@@ -187,21 +189,13 @@ public class CombatHUD : MonoBehaviour
 
     private RectTransform CreateSegmentsRoot(RectTransform parent)
     {
-        GameObject root = new GameObject("Segments", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        GameObject root = new GameObject("Segments", typeof(RectTransform));
         RectTransform rect = root.GetComponent<RectTransform>();
         rect.SetParent(parent, false);
         rect.anchorMin = Vector2.zero;
         rect.anchorMax = Vector2.one;
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
-
-        HorizontalLayoutGroup layout = root.GetComponent<HorizontalLayoutGroup>();
-        layout.childAlignment = TextAnchor.MiddleCenter;
-        layout.childControlHeight = false;
-        layout.childControlWidth = false;
-        layout.childForceExpandHeight = false;
-        layout.childForceExpandWidth = false;
-        layout.spacing = focusSegmentSpacing;
         return rect;
     }
 
@@ -228,6 +222,8 @@ public class CombatHUD : MonoBehaviour
             rect.sizeDelta = focusSegmentSize;
             playerFocusSegments[i] = segment.GetComponent<Image>();
         }
+
+        LayoutFocusSegments();
     }
 
     private void RefreshPlayerFocusSegments()
@@ -242,7 +238,7 @@ public class CombatHUD : MonoBehaviour
 
         if (playerFocusText != null)
         {
-            playerFocusText.text = _previewFocusActive ? previewFinalFocus.ToString() : current.ToString();
+            SetPlayerFocusText((_previewFocusActive ? previewFinalFocus : current).ToString());
             playerFocusText.color = _previewFocusInvalid ? playerFocusInvalidColor : (_previewFocusActive ? playerFocusPreviewColor : _playerFocusTextOriginalColor);
         }
 
@@ -274,6 +270,54 @@ public class CombatHUD : MonoBehaviour
             else
                 segment.color = filled ? playerFocusFilledColor : playerFocusEmptyColor;
         }
+    }
+
+    private void LayoutFocusSegments()
+    {
+        if (playerFocusSegmentsRoot == null || playerFocusSegments == null || playerFocusSegments.Length == 0)
+            return;
+
+        float totalWidth = 0f;
+
+        for (int i = 0; i < playerFocusSegments.Length; i++)
+        {
+            Image segment = playerFocusSegments[i];
+            if (segment == null)
+                continue;
+
+            RectTransform rect = segment.rectTransform;
+            float width = rect.sizeDelta.x > 0f ? rect.sizeDelta.x : focusSegmentSize.x;
+            if (i < playerFocusSegments.Length - 1)
+                totalWidth += width + focusSegmentSpacing;
+            else
+                totalWidth += width;
+        }
+
+        float currentX = -totalWidth * 0.5f;
+
+        for (int i = 0; i < playerFocusSegments.Length; i++)
+        {
+            Image segment = playerFocusSegments[i];
+            if (segment == null)
+                continue;
+
+            RectTransform rect = segment.rectTransform;
+            Vector2 segmentVisualSize = rect.sizeDelta.x > 0f && rect.sizeDelta.y > 0f ? rect.sizeDelta : focusSegmentSize;
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(currentX + segmentVisualSize.x * 0.5f, 0f);
+            currentX += segmentVisualSize.x + focusSegmentSpacing;
+        }
+    }
+
+    private void SetPlayerFocusText(string value)
+    {
+        if (playerFocusText == null || string.Equals(_lastFocusTextValue, value, System.StringComparison.Ordinal))
+            return;
+
+        _lastFocusTextValue = value;
+        playerFocusText.text = value;
     }
 
     private void UpdateFocusPreviewBlink()

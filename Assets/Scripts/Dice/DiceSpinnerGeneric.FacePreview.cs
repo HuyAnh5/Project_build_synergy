@@ -73,10 +73,15 @@ public partial class DiceSpinnerGeneric
 
         DiceFace face = faces[faceIndex];
         int displayedValue = face.value;
-        if (face.enchant == DiceFaceEnchantKind.None)
+        DiceFaceEnchantKind enchant = face.enchant;
+        if (face.broken)
+            return $"Broken {GetEnchantShortLabel(enchant)}";
+        if (enchant == DiceFaceEnchantKind.Stone)
+            return $"Stone {GetEnchantShortLabel(enchant)}";
+        if (enchant == DiceFaceEnchantKind.None)
             return displayedValue.ToString();
 
-        return $"{displayedValue} {GetEnchantShortLabel(face.enchant)}";
+        return $"{displayedValue} {GetEnchantShortLabel(enchant)}";
     }
 
     public string GetCurrentFaceDebugLabel()
@@ -167,9 +172,22 @@ public partial class DiceSpinnerGeneric
             ? _facePreviewTexts[faceIndex]
             : null;
 
-        faceText.text = string.IsNullOrEmpty(previewText)
-            ? faces[faceIndex].value.ToString()
-            : previewText;
+        if (!string.IsNullOrEmpty(previewText))
+        {
+            faceText.text = previewText;
+        }
+        else if (faces[faceIndex].broken)
+        {
+            faceText.text = "X";
+        }
+        else if (faces[faceIndex].enchant == DiceFaceEnchantKind.Stone)
+        {
+            faceText.text = "STONE";
+        }
+        else
+        {
+            faceText.text = faces[faceIndex].value.ToString();
+        }
 
         bool shouldBlink = _facePreviewBlink != null &&
                            faceIndex < _facePreviewBlink.Length &&

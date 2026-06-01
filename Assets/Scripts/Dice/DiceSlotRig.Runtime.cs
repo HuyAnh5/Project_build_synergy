@@ -33,18 +33,29 @@ public partial class DiceSlotRig
         d.GetRollExtents(out int minFace, out int maxFace);
         int rolled = d.GetDisplayedRolledValue();
         DiceFaceEnchantKind faceEnchant = d.GetCurrentFaceEnchant();
-        bool isCrit = d.IsCritValue(rolled) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant);
-        bool isFail = d.IsFailValue(rolled) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant);
+        DiceFaceEnchantKind effectiveEnchant = GetEffectiveCurrentFaceEnchant(slot0);
+        bool isBrokenFace = d.IsCurrentFaceBroken();
+        bool isNumericFace = !isBrokenFace && DiceFaceEnchantUtility.IsNumericFace(faceEnchant);
+        bool isUsable = !isBrokenFace;
+        bool isCrit = isUsable && isNumericFace && (d.IsCritValue(rolled) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant));
+        bool isFail = isUsable && isNumericFace && (d.IsFailValue(rolled) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant));
         bool grantsCritBonus = isCrit && !DiceFaceEnchantUtility.SuppressesCritBonus(faceEnchant);
         bool appliesFailPenalty = isFail && !DiceFaceEnchantUtility.SuppressesFailPenalty(faceEnchant);
-        bool isNumericFace = DiceFaceEnchantUtility.IsNumericFace(faceEnchant);
+
+        int outputBaseValue = effectiveEnchant == DiceFaceEnchantKind.Stone
+            ? 0
+            : effectiveEnchant == DiceFaceEnchantKind.Double
+                ? Mathf.Max(0, rolled * 2)
+                : rolled;
 
         int genericAdded = 0;
-        if (grantsCritBonus) genericAdded = FloorScaled(rolled, GenericCritPercent);
-        genericAdded += DiceFaceEnchantUtility.GetFlatAddedValue(faceEnchant);
+        if (grantsCritBonus) genericAdded = FloorScaled(outputBaseValue, GenericCritPercent);
+        genericAdded += d.GetCurrentPhaseValueModifier();
+        genericAdded += DiceFaceEnchantUtility.GetOnUseAddedValue(effectiveEnchant);
 
-        int genericResolved = rolled + genericAdded;
+        int genericResolved = isUsable ? outputBaseValue + genericAdded : 0;
         if (genericResolved < 1) genericResolved = 1;
+        if (!isUsable) genericResolved = 0;
 
         LastRollInfos[slot0] = new RollInfo
         {
@@ -57,6 +68,8 @@ public partial class DiceSlotRig
             grantsCritBonus = grantsCritBonus,
             appliesFailPenalty = appliesFailPenalty,
             isNumericFace = isNumericFace,
+            isBrokenFace = isBrokenFace,
+            isUsable = isUsable,
             genericAddedValue = genericAdded,
             genericResolvedValue = genericResolved
         };
@@ -135,7 +148,7 @@ public partial class DiceSlotRig
                 continue;
 
             RollInfo info = LastRollInfos[i];
-            if (info.isCrit || info.isFail || info.faceEnchant != DiceFaceEnchantKind.None)
+            if (info.isCrit || info.isFail || info.faceEnchant != DiceFaceEnchantKind.None || info.isBrokenFace)
                 return true;
         }
 
@@ -251,6 +264,7 @@ public partial class DiceSlotRig
             DiceSpinnerGeneric die = GetDice(i);
             if (die == null) continue;
             if (spentDice != null && spentDice.Contains(die)) continue;
+            if (!die.IsCurrentFaceUsable()) continue;
             available++;
         }
 
@@ -280,6 +294,7 @@ public partial class DiceSlotRig
             if (ui != null)
             {
                 ui.ClearPreviewTint();
+                die.ClearAllFacePreviews();
                 bool keepSpentLike = keepPreviewSpentLikeDice != null && keepPreviewSpentLikeDice.Contains(die);
                 if (!keepSpentLike)
                     ui.ClearPreviewSpentLike(true);
@@ -331,12 +346,22 @@ public partial class DiceSlotRig
             if (spentDice != null && spentDice.Contains(die))
             {
                 ui.ClearPreviewTint();
+                die.ClearAllFacePreviews();
                 ui.ClearPreviewSpentLike(true);
+                continue;
+            }
+
+            if (!die.IsCurrentFaceUsable())
+            {
+                ui.SetPreviewTint(new Color(0.55f, 0.1f, 0.1f, 0.85f), true);
+                ui.SetPreviewSpentLike(true, false);
                 continue;
             }
 
             if (consumed < _consumePreviewCount)
             {
+                if (die.GetCurrentFaceEnchant() == DiceFaceEnchantKind.Double && die.LastFaceIndex >= 0)
+                    die.SetFacePreviewValue(die.LastFaceIndex, die.GetDisplayedRolledValue() * 2, true);
                 // Dice sẽ bị consume: vàng nhấp nháy
                 float alpha = Mathf.Lerp(minAlpha, 1f, t);
                 ui.SetPreviewTint(new Color(0.62f, 0.62f, 0.62f, alpha), false);
@@ -345,6 +370,7 @@ public partial class DiceSlotRig
             }
             else
             {
+                die.ClearAllFacePreviews();
                 // Dice không bị consume: bình thường
                 ui.ClearPreviewTint();
                 ui.ClearPreviewSpentLike(true);

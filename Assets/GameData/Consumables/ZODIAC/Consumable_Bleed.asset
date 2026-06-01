@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c4b92963ff6d82d49a8b2e6eb254de8c, type: 3}
-  m_Name: Bleed
+  m_Name: Gum
   m_EditorClassIdentifier: Assembly-CSharp::ConsumableDataSO
   icon: {fileID: 1192862653530567456, guid: 5a0d3fd8e60fcda41b083875f9a9dffd, type: 3}
-  displayName: Bleed
-  description: Apply Bleed enchant to 1-2 faces permanently.
+  displayName: Gum
+  description: Apply Gum enchant to 1 face permanently.
   family: 0
   useContext: 2
   targetKind: 3
   effectId: 2
-  charges: 2
+  charges: 1
   valueA: 0
   minSelectedDice: 1
   maxSelectedDice: 1
-  faceEnchant: 6
+  faceEnchant: 5

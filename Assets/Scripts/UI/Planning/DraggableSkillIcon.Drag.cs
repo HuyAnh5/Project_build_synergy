@@ -67,8 +67,7 @@ public partial class DraggableSkillIcon
 
         if (_dropAccepted)
         {
-            Destroy(_ghostRT.gameObject);
-            _ghostRT = null;
+            ReleaseGhost();
             return;
         }
 
@@ -77,9 +76,7 @@ public partial class DraggableSkillIcon
             .SetEase(Ease.OutCubic)
             .OnComplete(() =>
             {
-                if (_ghostRT != null)
-                    Destroy(_ghostRT.gameObject);
-                _ghostRT = null;
+                ReleaseGhost();
             });
     }
 
@@ -90,11 +87,18 @@ public partial class DraggableSkillIcon
 
     private void CreateGhost()
     {
-        var go = new GameObject("DragGhost", typeof(RectTransform), typeof(CanvasGroup), typeof(Image));
-        go.transform.SetParent(_canvas.transform, false);
-        go.transform.SetAsLastSibling();
+        if (_ghostRT == null)
+        {
+            var go = new GameObject("DragGhost", typeof(RectTransform), typeof(CanvasGroup), typeof(Image));
+            go.transform.SetParent(_canvas.transform, false);
+            _ghostRT = (RectTransform)go.transform;
+            _ghostImage = go.GetComponent<Image>();
+            _ghostCanvasGroup = go.GetComponent<CanvasGroup>();
+        }
 
-        _ghostRT = (RectTransform)go.transform;
+        _ghostRT.SetParent(_canvas.transform, false);
+        _ghostRT.gameObject.SetActive(true);
+        _ghostRT.SetAsLastSibling();
         _ghostRT.sizeDelta = ((RectTransform)transform).rect.size;
         _ghostRT.pivot = new Vector2(0.5f, 0.5f);
         _ghostRT.anchorMin = new Vector2(0.5f, 0.5f);
@@ -111,14 +115,11 @@ public partial class DraggableSkillIcon
             _ghostHomeAnchoredPos = Vector2.zero;
         }
 
-        var img = go.GetComponent<Image>();
-        img.sprite = _img ? _img.sprite : null;
-        img.preserveAspect = true;
-        img.raycastTarget = false;
-
-        var cg = go.GetComponent<CanvasGroup>();
-        cg.blocksRaycasts = false;
-        cg.alpha = 0.9f;
+        _ghostImage.sprite = _img ? _img.sprite : null;
+        _ghostImage.preserveAspect = true;
+        _ghostImage.raycastTarget = false;
+        _ghostCanvasGroup.blocksRaycasts = false;
+        _ghostCanvasGroup.alpha = 0.9f;
     }
 
     private void MoveGhost(Vector2 screenPos)
@@ -129,6 +130,15 @@ public partial class DraggableSkillIcon
             _canvasRT, screenPos, _uiCam, out var localPoint);
 
         _ghostRT.anchoredPosition = localPoint;
+    }
+
+    private void ReleaseGhost()
+    {
+        if (_ghostRT == null)
+            return;
+
+        _ghostRT.DOKill();
+        _ghostRT.gameObject.SetActive(false);
     }
 
     public void SetBindToInventory(RunInventoryManager inv, bool isFixed, int index)

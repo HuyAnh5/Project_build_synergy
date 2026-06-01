@@ -75,6 +75,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
     private Tween _tween;
     private bool _doubleValueActiveForTurn;
     private int[] _doubleValueOriginalFaceValues;
+    private int _phaseValueModifier;
     private string[] _facePreviewTexts;
     private bool[] _facePreviewBlink;
     private Tween[] _facePreviewTweens;
@@ -97,8 +98,8 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
     public int LastFaceIndex { get; private set; } = -1;
     public bool IsRolling { get; private set; }
 
-    public bool LastRollIsCrit => IsCritValue(LastRolledValue) || DiceFaceEnchantUtility.CountsAsCritForConditions(GetCurrentFaceEnchant());
-    public bool LastRollIsFail => IsFailValue(LastRolledValue) || DiceFaceEnchantUtility.CountsAsFailForConditions(GetCurrentFaceEnchant());
+    public bool LastRollIsCrit => IsCurrentFaceUsable() && IsCurrentFaceNumeric() && (IsCritValue(LastRolledValue) || DiceFaceEnchantUtility.CountsAsCritForConditions(GetCurrentFaceEnchant()));
+    public bool LastRollIsFail => IsCurrentFaceUsable() && IsCurrentFaceNumeric() && (IsFailValue(LastRolledValue) || DiceFaceEnchantUtility.CountsAsFailForConditions(GetCurrentFaceEnchant()));
     public Tween ActiveTween => _tween;
     public Transform FlightSpinTarget => flightSpinTarget != null ? flightSpinTarget : pivot;
 
@@ -140,7 +141,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
         if (!ValidateFaces())
             return 0;
 
-        int idx = Random.Range(0, faces.Length);
+        int idx = RollWeightedFaceIndex();
         RollToFaceIndex(idx);
         return faces[idx].value;
     }
@@ -150,7 +151,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
         if (!ValidateFaces())
             return 0;
 
-        int idx = Random.Range(0, faces.Length);
+        int idx = RollWeightedFaceIndex();
         RollToFaceIndexWithTiming(idx, accelDuration, totalDuration);
         return faces[idx].value;
     }
@@ -160,7 +161,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
         if (!ValidateFaces())
             return 0;
 
-        int idx = Random.Range(0, faces.Length);
+        int idx = RollWeightedFaceIndex();
         RollToFaceIndexTurnStartProfile(idx, accelDuration, baseTotalDuration, tailDuration, extraTailLoops, sharedBaseLoops);
         return faces[idx].value;
     }
@@ -170,7 +171,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
         if (!ValidateFaces())
             return -1;
 
-        int idx = Random.Range(0, faces.Length);
+        int idx = RollWeightedFaceIndex();
         SnapToFaceIndexImmediate(idx, syncRollState: false);
         return idx;
     }
@@ -479,6 +480,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
 
         _doubleValueActiveForTurn = false;
         _doubleValueOriginalFaceValues = null;
+        _phaseValueModifier = 0;
         if (LastFaceIndex >= 0 && LastFaceIndex < faces.Length)
             LastRolledValue = faces[LastFaceIndex].value;
         RefreshAllFaceValueTexts();
@@ -487,12 +489,120 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
 
     public int GetModifiedFaceValue(int baseValue)
     {
-        return ClampFaceValue(baseValue);
+        return ClampFaceValue(baseValue + _phaseValueModifier);
     }
 
     public int GetDisplayedRolledValue()
     {
         return ClampFaceValue(LastRolledValue);
+    }
+
+    public int GetCurrentPhaseValueModifier()
+    {
+        return _phaseValueModifier;
+    }
+
+    public void AddPhaseValueModifier(int amount)
+    {
+        _phaseValueModifier += amount;
+        RefreshDisplayedState();
+    }
+
+    public bool IsCurrentFaceUsable()
+    {
+        return ValidateFaces() && LastFaceIndex >= 0 && LastFaceIndex < faces.Length && !faces[LastFaceIndex].broken;
+    }
+
+    public bool IsFaceBroken(int faceIndex)
+    {
+        if (!ValidateFaces() || faceIndex < 0 || faceIndex >= faces.Length)
+            return false;
+
+        return faces[faceIndex].broken;
+    }
+
+    public bool IsCurrentFaceBroken()
+    {
+        return ValidateFaces() && LastFaceIndex >= 0 && LastFaceIndex < faces.Length && faces[LastFaceIndex].broken;
+    }
+
+    public bool IsCurrentFaceNumeric()
+    {
+        return DiceFaceEnchantUtility.IsNumericFace(GetCurrentFaceEnchant());
+    }
+
+    public bool SetFaceBroken(int faceIndex, bool broken)
+    {
+        if (!ValidateFaces() || faceIndex < 0 || faceIndex >= faces.Length)
+            return false;
+
+        DiceFace face = faces[faceIndex];
+        face.broken = broken;
+        faces[faceIndex] = face;
+        RefreshFaceValueText(faceIndex);
+        if (faceIndex == LastFaceIndex)
+            RefreshDisplayedState();
+        return true;
+    }
+
+    public bool BreakCurrentFace()
+    {
+        if (!ValidateFaces() || LastFaceIndex < 0 || LastFaceIndex >= faces.Length)
+            return false;
+
+        return SetFaceBroken(LastFaceIndex, true);
+    }
+
+    private int RollWeightedFaceIndex()
+    {
+        if (!ValidateFaces())
+            return 0;
+
+        int totalWeight = 0;
+        int[] weights = new int[faces.Length];
+        for (int i = 0; i < faces.Length; i++)
+        {
+            int weight = 1 + CountGumSourcesForFace(i);
+            weights[i] = Mathf.Max(0, weight);
+            totalWeight += weights[i];
+        }
+
+        if (totalWeight <= 0)
+            return Random.Range(0, faces.Length);
+
+        int roll = Random.Range(0, totalWeight);
+        for (int i = 0; i < weights.Length; i++)
+        {
+            if (roll < weights[i])
+                return i;
+            roll -= weights[i];
+        }
+
+        return weights.Length - 1;
+    }
+
+    private int CountGumSourcesForFace(int faceIndex)
+    {
+        int count = 0;
+        for (int i = 0; i < faces.Length; i++)
+        {
+            if (faces[i].broken)
+                continue;
+            if (faces[i].enchant != DiceFaceEnchantKind.Gum)
+                continue;
+            if (GetOppositeFaceIndex(i) == faceIndex)
+                count++;
+        }
+
+        return count;
+    }
+
+    private int GetOppositeFaceIndex(int faceIndex)
+    {
+        if (faces == null || faces.Length <= 0)
+            return faceIndex;
+
+        return Mathf.Clamp(faces.Length - 1 - faceIndex, 0, faces.Length - 1);
     }
 
 }

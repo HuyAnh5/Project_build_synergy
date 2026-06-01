@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public static class SkillOutputValueUtility
@@ -22,11 +23,14 @@ public static class SkillOutputValueUtility
         if (rt == null || rt.localBaseValues == null || rt.localResolvedValues == null)
             return 0;
 
-        int count = Mathf.Min(rt.localBaseValues.Count, rt.localResolvedValues.Count);
+        IReadOnlyList<int> outputBaseValues = rt.localOutputBaseValues != null && rt.localOutputBaseValues.Count == rt.localResolvedValues.Count
+            ? rt.localOutputBaseValues
+            : rt.localBaseValues;
+        int count = Mathf.Min(outputBaseValues.Count, rt.localResolvedValues.Count);
         int total = 0;
         for (int i = 0; i < count; i++)
         {
-            total += Mathf.Max(0, rt.localResolvedValues[i] - rt.localBaseValues[i]);
+            total += Mathf.Max(0, rt.localResolvedValues[i] - outputBaseValues[i]);
         }
 
         if (rt.coreAction == CoreAction.BasicStrike)

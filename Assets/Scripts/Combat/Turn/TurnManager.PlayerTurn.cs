@@ -66,8 +66,6 @@ public partial class TurnManager
 
     private void OnDiceRolled()
     {
-        DiceCombatEnchantRuntimeUtility.ResolveOnRollFaceEnchants(diceRig, player, party, enemy);
-
         _playerContext.Bind(player);
         if (_playerContext.PassiveSystem != null)
             _playerContext.PassiveSystem.OnDiceRolled(player, diceRig);

@@ -111,6 +111,7 @@ public class SkillRuntime
 
     // Snapshot of base dice values for the skill's local group this turn.
     public List<int> localBaseValues;
+    public List<int> localOutputBaseValues;
     public List<int> localResolvedValues;
     public List<bool> localNumericFlags;
     public List<bool> localCritFlags;
@@ -212,6 +213,7 @@ public class SkillRuntime
             splitRoleHighestOutcome = s.splitRole != null ? s.splitRole.highestOutcome : SplitRoleBranchOutcome.None,
             splitRoleBurnTurns = s.splitRole != null ? s.splitRole.burnTurns : 3,
             localBaseValues = null,
+            localOutputBaseValues = null,
             localResolvedValues = null,
             localNumericFlags = null,
             localCritFlags = null,

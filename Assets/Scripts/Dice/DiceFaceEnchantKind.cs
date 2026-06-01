@@ -1,11 +1,16 @@
 public enum DiceFaceEnchantKind
 {
     None = 0,
-    ValuePlusN = 1,
-    GuardBoost = 4,
-    Fire = 5,
-    Bleed = 6,
-    Ice = 7,
-    Lightning = 8,
-    GoldProc = 9
+    Power = 1,
+    Guard = 2,
+    Charge = 3,
+    Gold = 4,
+    Gum = 5,
+    Relay = 6,
+    Double = 7,
+    Repeat = 8,
+    Reload = 9,
+    Heavy = 10,
+    Echo = 11,
+    Stone = 12
 }

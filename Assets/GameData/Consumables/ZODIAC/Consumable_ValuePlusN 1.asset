@@ -10,17 +10,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c4b92963ff6d82d49a8b2e6eb254de8c, type: 3}
-  m_Name: Consumable_ValuePlusN 1
+  m_Name: Double
   m_EditorClassIdentifier: Assembly-CSharp::ConsumableDataSO
   icon: {fileID: -8939101552625722761, guid: 422d8f3fa3ef44841b1b50e7af231af9, type: 3}
-  displayName: Value +N
-  description: Apply Value +N enchant to 1-2 faces permanently.
+  displayName: Double
+  description: Apply Double enchant to 1 face permanently.
   family: 0
   useContext: 2
   targetKind: 3
   effectId: 16
-  charges: 2
+  charges: 1
   valueA: 0
   minSelectedDice: 1
   maxSelectedDice: 1
-  faceEnchant: 1
+  faceEnchant: 7

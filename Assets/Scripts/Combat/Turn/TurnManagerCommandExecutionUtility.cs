@@ -20,6 +20,12 @@ internal static class TurnManagerCommandExecutionUtility
 
         if (command.asset is SkillBuffDebuffSO buffSkill)
         {
+            DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan faceUsePlan =
+                DiceCombatEnchantRuntimeUtility.BuildPaymentPlan(diceRig, command.start0, command.span);
+            faceUsePlan.selectedMask = command.paymentMask;
+            yield return ResolveCommittedPreSkillFaceEnchants(diceRig, faceUsePlan, player);
+
+            int resolvedSum = TurnManagerCombatUtility.ComputeResolvedDieSum(diceRig, player, command.start0, command.span, ElementType.Neutral);
             IReadOnlyList<CombatActor> aoeTargets = SkillTargetRuleUtility.IsMultiTarget(buffSkill.target)
                 ? TurnManagerCombatUtility.ResolveTargets(buffSkill.target, player, command.target, party, fallbackEnemy)
                 : null;
@@ -31,22 +37,74 @@ internal static class TurnManagerCommandExecutionUtility
                     context);
             }
 
-            yield return executor.ExecuteSkill(buffSkill, player, command.target, command.resolvedSum, command.maxFace, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span);
+            yield return executor.ExecuteSkill(buffSkill, player, command.target, resolvedSum, command.maxFace, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span);
+
+            for (int i = 0; i < Mathf.Max(0, faceUsePlan.repeatCount); i++)
+            {
+                if (DiceCombatEnchantRuntimeUtility.PlayRepeatAgainPopup(diceRig, faceUsePlan))
+                    yield return WaitForEnchantPopupBeat();
+                yield return executor.ExecuteSkill(buffSkill, player, command.target, resolvedSum, command.maxFace, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span);
+            }
+
+            DiceCombatEnchantRuntimeUtility.ResolveCommittedPostSkillFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
         }
         else
         {
-            IReadOnlyList<CombatActor> aoeTargets = TurnManagerCombatUtility.ResolveAoeTargets(command.runtime, player, command.target, party, fallbackEnemy);
+            DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan faceUsePlan =
+                DiceCombatEnchantRuntimeUtility.BuildPaymentPlan(diceRig, command.start0, command.span);
+            faceUsePlan.selectedMask = command.paymentMask;
+            yield return ResolveCommittedPreSkillFaceEnchants(diceRig, faceUsePlan, player);
+
+            ElementType dieElement = TurnManagerCombatUtility.GetResolvedDiceElement(command.runtime, command.asset);
+            SkillRuntime executionRuntime = SkillPlanRuntimeUtility.EvaluateRuntimeForSkillAsset(command.asset, player, diceRig, command.start0, command.span, command.start0);
+            if (executionRuntime == null)
+                executionRuntime = command.runtime;
+            int resolvedSum = TurnManagerCombatUtility.ComputeResolvedDieSum(diceRig, player, command.start0, command.span, dieElement);
+            IReadOnlyList<CombatActor> aoeTargets = TurnManagerCombatUtility.ResolveAoeTargets(executionRuntime, player, command.target, party, fallbackEnemy);
 
             if (logPhase)
-                Debug.Log($"[TM] Branch=Runtime (Attack/Guard/Legacy) -> rt.kind={command.runtime.kind}", context);
+                Debug.Log($"[TM] Branch=Runtime (Attack/Guard/Legacy) -> rt.kind={executionRuntime.kind}", context);
 
-            yield return executor.ExecuteSkill(command.runtime, player, command.target, command.resolvedSum, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span);
+            yield return executor.ExecuteSkill(executionRuntime, player, command.target, resolvedSum, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span);
 
-            if (IsBasicStrikeRuntime(command.runtime))
+            for (int i = 0; i < Mathf.Max(0, faceUsePlan.repeatCount); i++)
+            {
+                if (DiceCombatEnchantRuntimeUtility.PlayRepeatAgainPopup(diceRig, faceUsePlan))
+                    yield return WaitForEnchantPopupBeat();
+                yield return executor.ExecuteSkill(executionRuntime, player, command.target, resolvedSum, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span);
+            }
+
+            if (IsBasicStrikeRuntime(executionRuntime))
                 playerContext?.HandleBasicStrikeUse(diceRig, command.start0);
+
+            DiceCombatEnchantRuntimeUtility.ResolveCommittedPostSkillFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
         }
     }
 
     private static bool IsBasicStrikeRuntime(SkillRuntime rt)
         => rt != null && rt.coreAction == CoreAction.BasicStrike;
+
+    private static IEnumerator WaitForEnchantPopupBeat()
+    {
+        yield return new WaitForSeconds(0.18f);
+    }
+
+    private static IEnumerator WaitForPreSkillEnchantPopupBeat()
+    {
+        yield return new WaitForSeconds(0.25f);
+    }
+
+    private static IEnumerator ResolveCommittedPreSkillFaceEnchants(
+        DiceSlotRig diceRig,
+        DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan faceUsePlan,
+        CombatActor player)
+    {
+        int selfPopups = DiceCombatEnchantRuntimeUtility.ResolveCommittedSelfFaceEnchants(diceRig, faceUsePlan, player);
+        if (selfPopups > 0)
+            yield return WaitForPreSkillEnchantPopupBeat();
+
+        int relayPopups = DiceCombatEnchantRuntimeUtility.ResolveCommittedRelayFaceEnchants(diceRig, faceUsePlan);
+        if (relayPopups > 0)
+            yield return WaitForPreSkillEnchantPopupBeat();
+    }
 }

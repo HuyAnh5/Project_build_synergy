@@ -144,9 +144,8 @@ public partial class DiceSlotRig
             if (die == null)
                 continue;
 
-            // Turn-start roll uses its own timing profile from code so inspector tweaks on
-            // individual dice do not change the opening cascade feel.
-            float totalDuration = OpeningRollBaseTotalTime + (OpeningRollFinishStaggerPerSlot * i);
+            // Temporarily disable opening finish stagger so every die resolves with the same timing.
+            float totalDuration = OpeningRollBaseTotalTime;
             die.RollRandomFaceWithTiming(OpeningRollAccelTime, totalDuration);
             rolledAny = true;
         }

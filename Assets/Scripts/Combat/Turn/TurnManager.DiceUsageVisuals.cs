@@ -38,13 +38,35 @@ public partial class TurnManager
         return true;
     }
 
-    private void FinalizePendingUsedVisualRange(int start0, int span)
+    public void RefreshPlanningAfterDiceAvailabilityChanged()
+    {
+        if (diceRig != null)
+            diceRig.RefreshRollInfoCache();
+
+        if (IsPlanning)
+        {
+            _board.RecalculateRuntimesAndRebalance(player, diceRig);
+            RefreshAllViews();
+            RefreshPlanningInteractivity();
+        }
+    }
+
+    public void RefreshPlanningAfterDiceAvailabilityChanged(DiceSpinnerGeneric die)
+    {
+        if (die != null)
+            die.onRollComplete -= RefreshPlanningAfterDiceAvailabilityChanged;
+        RefreshPlanningAfterDiceAvailabilityChanged();
+    }
+
+    private void FinalizePendingUsedVisualRange(int start0, int span, int paymentMask = -1)
     {
         if (diceRig == null || diceRig.slots == null)
             return;
 
         for (int i = start0; i < start0 + span && i < diceRig.slots.Length; i++)
         {
+            if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0)
+                continue;
             DiceSpinnerGeneric die = diceRig.slots[i] != null ? diceRig.slots[i].dice : null;
             if (die != null)
                 _pendingUsedVisualDiceThisTurn.Remove(die);

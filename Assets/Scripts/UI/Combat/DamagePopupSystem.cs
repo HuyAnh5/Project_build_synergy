@@ -2,12 +2,15 @@ using System.Collections.Generic;
 using DG.Tweening;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
 /// Spawns and recycles combat popup texts for damage, guard, healing, and focus gain.
 /// </summary>
 public partial class DamagePopupSystem : MonoBehaviour
 {
+    private const string PopupCanvasName = "CombatPopupCanvas";
+
     private sealed class TotalDamageState
     {
         public TMP_Text popup;
@@ -89,6 +92,7 @@ public partial class DamagePopupSystem : MonoBehaviour
 
     private void Awake()
     {
+        EnsureSpawnParent();
         Prewarm();
     }
 
@@ -216,6 +220,53 @@ public partial class DamagePopupSystem : MonoBehaviour
     private TMP_Text InstantiatePopupInstance()
     {
         return Instantiate(popupPrefab, spawnParent != null ? spawnParent : transform);
+    }
+
+    private void EnsureSpawnParent()
+    {
+        if (spawnParent != null || popupPrefab == null)
+            return;
+
+        if (!(popupPrefab is TextMeshProUGUI))
+            return;
+
+        Canvas existing = FindPopupCanvas();
+        if (existing == null)
+        {
+            GameObject canvasGo = new GameObject(
+                PopupCanvasName,
+                typeof(RectTransform),
+                typeof(Canvas),
+                typeof(CanvasScaler),
+                typeof(UnityEngine.UI.GraphicRaycaster));
+
+            existing = canvasGo.GetComponent<Canvas>();
+            existing.renderMode = RenderMode.ScreenSpaceOverlay;
+            existing.overrideSorting = true;
+            existing.sortingOrder = 31000;
+            existing.pixelPerfect = false;
+
+            CanvasScaler scaler = canvasGo.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
+        }
+
+        spawnParent = existing.transform;
+    }
+
+    private static Canvas FindPopupCanvas()
+    {
+        Canvas[] canvases = FindObjectsOfType<Canvas>(true);
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            Canvas canvas = canvases[i];
+            if (canvas != null && canvas.name == PopupCanvasName)
+                return canvas;
+        }
+
+        return null;
     }
 
     private void RegisterTotalDamageHit(CombatActor attacker, CombatActor target, int amount)

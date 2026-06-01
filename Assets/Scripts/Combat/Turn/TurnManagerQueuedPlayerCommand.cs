@@ -16,4 +16,5 @@ internal struct TurnManagerQueuedPlayerCommand
     public int maxFace;
     public int start0;
     public int span;
+    public int paymentMask;
 }

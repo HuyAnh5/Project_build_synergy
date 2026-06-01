@@ -104,6 +104,7 @@ public static partial class SkillGameplayResolver
         {
             scope = SkillConditionScope.SlotBound,
             localBaseValues = runtime != null ? runtime.localBaseValues : null,
+            localOutputBaseValues = runtime != null ? runtime.localOutputBaseValues : null,
             localNumericFlags = runtime != null ? runtime.localNumericFlags : null,
             localResolvedValues = runtime != null ? runtime.localResolvedValues : null,
             localCritFlags = runtime != null ? runtime.localCritFlags : null,

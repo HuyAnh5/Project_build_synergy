@@ -19,6 +19,7 @@ public static class UiDragState
         SelectedSkill = icon;
         prev?.OnDeselected();
         SelectedSkill?.OnSelected();
+        TargetingArrowUI.EnsureFor(SelectedSkill);
         SelectedSkillChanged?.Invoke();
     }
 
@@ -28,6 +29,7 @@ public static class UiDragState
         DraggableSkillIcon prev = SelectedSkill;
         SelectedSkill = null;
         prev?.OnDeselected();
+        TargetingArrowUI.Hide();
         SelectedSkillChanged?.Invoke();
     }
 

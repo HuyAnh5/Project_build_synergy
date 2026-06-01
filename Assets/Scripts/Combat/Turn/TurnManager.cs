@@ -250,7 +250,7 @@ public partial class TurnManager : MonoBehaviour
             return true;
 
         DiceSpinnerGeneric die = diceRig.slots[i0].dice;
-        return die == null || !_spentDiceThisTurn.Contains(die);
+        return die == null || (!_spentDiceThisTurn.Contains(die) && die.IsCurrentFaceUsable());
     }
 
     private bool AreSlotsActiveInRange(int start0, int span)
@@ -389,13 +389,15 @@ public partial class TurnManager : MonoBehaviour
         }
     }
 
-    private void MarkDiceSpentInRange(int start0, int span)
+    private void MarkDiceSpentInRange(int start0, int span, int paymentMask = -1)
     {
         if (diceRig == null || diceRig.slots == null)
             return;
 
         for (int i = start0; i < start0 + span && i < diceRig.slots.Length; i++)
         {
+            if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0)
+                continue;
             DiceSpinnerGeneric die = diceRig.slots[i] != null ? diceRig.slots[i].dice : null;
             if (die != null)
             {

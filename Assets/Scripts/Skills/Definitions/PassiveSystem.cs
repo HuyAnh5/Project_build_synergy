@@ -250,7 +250,7 @@ public class PassiveSystem : MonoBehaviour
                 if (!diceRig.IsSlotActive(i))
                     continue;
 
-                localBaseValues.Add(diceRig.GetBaseValue(i));
+                localBaseValues.Add(diceRig.IsNumericFaceForConditions(i) ? diceRig.GetBaseValue(i) : 0);
                 localResolvedValues.Add(diceRig.GetResolvedDieValue(i, owner));
                 localNumericFlags.Add(diceRig.IsNumericFaceForConditions(i));
                 localCritFlags.Add(diceRig.IsCrit(i));

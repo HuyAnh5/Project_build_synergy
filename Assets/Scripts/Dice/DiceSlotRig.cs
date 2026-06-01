@@ -5,9 +5,9 @@ using Sirenix.OdinInspector;
 
 public partial class DiceSlotRig : MonoBehaviour
 {
-    public const float GenericCritPercent = 0.20f;
+    public const float GenericCritPercent = 0.30f;
     public const float GenericFailPercent = 0.00f;
-    public const float PhysicalCritPercent = 0.50f;
+    public const float PhysicalCritPercent = 0.30f;
     private const float OpeningRollAccelTime = 0.10f;
     private const float OpeningRollBaseTotalTime = 1.25f;
     private const float OpeningRollFinishStaggerPerSlot = 0.75f;
@@ -40,6 +40,8 @@ public partial class DiceSlotRig : MonoBehaviour
         public bool grantsCritBonus;
         public bool appliesFailPenalty;
         public bool isNumericFace;
+        public bool isBrokenFace;
+        public bool isUsable;
 
         [LabelText("Generic Added")]
         public int genericAddedValue;
@@ -47,13 +49,14 @@ public partial class DiceSlotRig : MonoBehaviour
         [LabelText("Generic Resolved")]
         public int genericResolvedValue;
 
-        public int Contribution => genericResolvedValue;
+        public int Contribution => isUsable ? genericResolvedValue : 0;
     }
 
     [Serializable]
     public struct ResolvedDieBreakdown
     {
         public int baseValue;
+        public int outputBaseValue;
         public int critFailAddedValue;
         public int faceEnchantAddedValue;
         public int passiveAddedValue;

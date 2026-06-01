@@ -87,6 +87,8 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         if (!TurnManagerTargetingUtility.IsValidTargetForPendingSkill(rt, _actor, turn.player, turn.party, turn.enemy))
             return;
 
+        TargetingArrowUI.SetWorldTarget(_actor.transform);
+
         int dieValue = skillSource.GetPublicPreviewDieValue(rt);
         TargetPreviewBuilder.ActionPreviewBundle bundle =
             TargetPreviewBuilder.BuildActionBundle(rt, turn.player, _actor, dieValue, turn.party, turn.enemy);
@@ -101,6 +103,8 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
 
     public void OnPointerExit(PointerEventData eventData)
     {
+        TargetingArrowUI.ClearWorldTarget();
+
         ActorWorldUI[] allUIs = FindObjectsOfType<ActorWorldUI>(true);
         ClearAllPreviews(allUIs);
 

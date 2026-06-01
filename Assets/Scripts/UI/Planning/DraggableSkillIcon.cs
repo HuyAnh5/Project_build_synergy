@@ -88,6 +88,8 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     private Image _img;
     private CanvasGroup _cg;
     private RectTransform _ghostRT;
+    private Image _ghostImage;
+    private CanvasGroup _ghostCanvasGroup;
     private ScriptableObject _resolvedAsset;
     private bool _dropAccepted;
     private Vector2 _ghostHomeAnchoredPos;
@@ -176,6 +178,8 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         // Deselect nếu icon bị disable
         if (_selected)
             UiDragState.DeselectSkill();
+
+        ReleaseGhost();
 
         StopBlinkCoroutine();
         _transientAffectedAuraSequence?.Kill();
@@ -434,6 +438,10 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     {
         if (turn == null || turn.diceRig == null || rt == null || !turn.diceRig.HasRolledThisTurn)
             return 0;
+
+        ScriptableObject asset = GetSkillAsset();
+        if (turn.TryGetPrototypeSkillPreviewDieValue(asset, rt, out int committedPreviewValue))
+            return committedPreviewValue;
 
         var spentDice = new HashSet<DiceSpinnerGeneric>();
         if (turn.SpentDiceThisTurn != null)

@@ -55,6 +55,23 @@ public partial class TurnManager
         return ok && runtime != null;
     }
 
+    public bool TryGetPrototypeSkillPreviewDieValue(ScriptableObject activeSkill, SkillRuntime runtime, out int dieValue)
+    {
+        dieValue = 0;
+        if (activeSkill == null || runtime == null || diceRig == null || player == null || !diceRig.HasRolledThisTurn)
+            return false;
+
+        if (!TryResolvePrototypeCastPlacement(activeSkill, out int start0, out _, commit: false))
+            return false;
+
+        int slotsNeeded = Mathf.Clamp(runtime.slotsRequired, 1, 3);
+        ElementType skillElement = runtime.kind == SkillKind.Attack
+            ? runtime.element
+            : TurnManagerCombatUtility.GetResolvedDiceElement(runtime, activeSkill);
+        dieValue = DiceCombatEnchantRuntimeUtility.ComputeCommittedPreviewDieSum(diceRig, player, start0, slotsNeeded, skillElement);
+        return true;
+    }
+
     public bool TryCastDraggedSkillToTarget(ScriptableObject activeSkill, CombatActor clicked)
     {
         if (!CanInteractWithSkills || player == null || activeSkill == null || clicked == null)
