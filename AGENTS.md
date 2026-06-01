@@ -124,7 +124,7 @@ Skill 2-3 slot có text "die cao nhất / thấp nhất / exact value trong nhó
 
 Hệ số đã chốt:
 
-- **Crit thường = +20% Base**
+- **Crit thường = +30% Base**
 - **Crit Physical = +50% Base**
 - **Fail = -50% Base**
 

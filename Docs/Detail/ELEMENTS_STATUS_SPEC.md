@@ -159,7 +159,7 @@ Physical tồn tại để cho player một trục:
 
 ### 5.2 Rule đã chốt
 
-- Crit của Physical dùng **`+50% Base`** thay vì `+20% Base` như hệ thường. Có thể hiểu ở gameplay level là Physical crit gây khoảng **`x1.5` damage trên Base component**.
+- Crit của Physical dùng **`+50% Base`** thay vì `+30% Base` như hệ thường. Có thể hiểu ở gameplay level là Physical crit gây khoảng **`x1.5` damage trên Base component**.
 
 ### 5.3 Ý nghĩa thiết kế
 

@@ -94,7 +94,7 @@ Ví dụ:
 Crit / Fail luôn được xác định theo **die riêng lẻ**, không theo các die khác đang equip.
 
 Crit tạo Added Value theo rule của action:
-- thường = `+20% Base Value`
+- thường = `+30% Base Value`
 - Physical = `+50% Base Value`
 
 Fail không làm thay đổi Base Value và không trừ vào Added Value.

@@ -307,7 +307,7 @@ Current locked rules:
 
 Hệ số đang dùng ở mức current spec:
 
-- **Crit thường = +20% Base**
+- **Crit thường = +30% Base**
 - **Crit Physical = +50% Base**
 - **Fail = 50% damage gốc của skill**
 
@@ -316,7 +316,7 @@ Rule áp dụng với skill nhiều slot:
 - Mỗi die trong local group tự check Crit / Fail theo chính die đó.
 - Nếu nhiều die cùng Crit, Added Value từ các die đó **cộng dồn** vào cùng action.
 - Nếu action là `Physical`, mỗi die Crit đóng góp Added Value theo hệ số `+50% Base` của chính nó.
-- Nếu action không phải `Physical`, mỗi die Crit đóng góp Added Value theo hệ số `+20% Base` của chính nó.
+- Nếu action không phải `Physical`, mỗi die Crit đóng góp Added Value theo hệ số `+30% Base` của chính nó.
 - Nếu local group có **ít nhất 1 Fail**, action đó chỉ ăn **1 lần** fail penalty: `damage gốc / 2`.
 - `2 Fail` hoặc `3 Fail` trong cùng một action **không stack thêm** fail penalty.
 - Fail không làm mất Added Value do die Crit khác hoặc do relic/skill đã cấp cho action đó.
