@@ -148,7 +148,7 @@ public partial class DiceSpinnerGeneric
 
             if (!showAddedValueInRollState)
                 return critText;
-            int added = GetCritDisplayAddedValue(LastRolledValue);
+            int added = GetCritDisplayAddedValue(GetCritFailDisplayValue());
             return $"{critText}: +{added}";
         }
 

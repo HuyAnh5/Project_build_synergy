@@ -4455,9 +4455,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RunInventoryManager
   diceRig: {fileID: 1499909187}
   equippedDicePrefabs:
-  - {fileID: 4134805224854751960, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
   - {fileID: 3696089616036826389, guid: 650ae2f331cdc1848bf2007cff33bdf1, type: 3}
-  - {fileID: 4134805224854751960, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+  - {fileID: 3696089616036826389, guid: 650ae2f331cdc1848bf2007cff33bdf1, type: 3}
+  - {fileID: 3696089616036826389, guid: 650ae2f331cdc1848bf2007cff33bdf1, type: 3}
   equippedDice:
   - {fileID: 0}
   - {fileID: 8067042561129760585, guid: 7aaf560a33ab25e4db411166973d2730, type: 3}

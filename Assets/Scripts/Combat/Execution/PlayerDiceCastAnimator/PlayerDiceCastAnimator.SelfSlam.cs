@@ -102,5 +102,8 @@ public partial class PlayerDiceCastAnimator
         {
             RestoreWorldSyncForCast(die, plate);
         }
+
+        ForgetTransformState(die);
+        ForgetTransformState(plate);
     }
 }

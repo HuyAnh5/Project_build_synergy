@@ -2,6 +2,20 @@ using UnityEngine;
 
 public partial class TurnManager
 {
+    public struct PreviewPaymentPlan
+    {
+        public bool valid;
+        public int start0;
+        public int paymentCost;
+        public int placementSpan;
+        public int anchor0;
+        public int selectedMask;
+        public int paidCost;
+        public int repeatCount;
+        public int resolvedDieValue;
+        public SkillRuntime runtime;
+    }
+
     public bool CanPrototypeCastSkillNow(ScriptableObject activeSkill)
     {
         if (!CanInteractWithSkills)
@@ -61,14 +75,58 @@ public partial class TurnManager
         if (activeSkill == null || runtime == null || diceRig == null || player == null || !diceRig.HasRolledThisTurn)
             return false;
 
-        if (!TryResolvePrototypeCastPlacement(activeSkill, out int start0, out _, commit: false))
+        if (!TryGetPrototypePreviewPaymentPlan(activeSkill, out PreviewPaymentPlan plan))
             return false;
 
-        int slotsNeeded = Mathf.Clamp(runtime.slotsRequired, 1, 3);
+        dieValue = plan.resolvedDieValue;
+        return true;
+    }
+
+    public bool TryGetPrototypePreviewPaymentPlan(ScriptableObject activeSkill, out PreviewPaymentPlan plan)
+    {
+        plan = default;
+        if (activeSkill == null || activeSkill is SkillPassiveSO || diceRig == null || player == null || !diceRig.HasRolledThisTurn)
+            return false;
+
+        int paymentCost = GetSkillSpan(activeSkill);
+        if (paymentCost <= 0)
+            return false;
+
+        if (!TryFindPrototypePaymentPlacement(paymentCost, out int start0, out int anchor0, out int placementSpan))
+            return false;
+        if (!AreSlotsActiveInRange(start0, placementSpan))
+            return false;
+
+        DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan paymentPlan =
+            DiceCombatEnchantRuntimeUtility.BuildPaymentPlan(diceRig, start0, paymentCost);
+        if (paymentPlan.paidCost < paymentCost)
+            return false;
+
+        var snap = _board.Capture(player);
+        _board.PlaceGroup(start0, anchor0, placementSpan, activeSkill);
+        bool ok = _board.RecalculateRuntimesAndRebalance(player, diceRig);
+        SkillRuntime runtime = ok ? _board.GetAnchorRuntime(anchor0) : null;
+        _board.Restore(snap, player);
+        if (!ok || runtime == null)
+            return false;
+
         ElementType skillElement = runtime.kind == SkillKind.Attack
             ? runtime.element
             : TurnManagerCombatUtility.GetResolvedDiceElement(runtime, activeSkill);
-        dieValue = DiceCombatEnchantRuntimeUtility.ComputeCommittedPreviewDieSum(diceRig, player, start0, slotsNeeded, skillElement);
+
+        plan = new PreviewPaymentPlan
+        {
+            valid = true,
+            start0 = start0,
+            paymentCost = paymentCost,
+            placementSpan = placementSpan,
+            anchor0 = anchor0,
+            selectedMask = paymentPlan.selectedMask,
+            paidCost = paymentPlan.paidCost,
+            repeatCount = paymentPlan.repeatCount,
+            resolvedDieValue = DiceCombatEnchantRuntimeUtility.ComputeCommittedPreviewDieSum(diceRig, player, start0, paymentCost, skillElement),
+            runtime = runtime
+        };
         return true;
     }
 

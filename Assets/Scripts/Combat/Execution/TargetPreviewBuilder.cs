@@ -132,4 +132,60 @@ public static partial class TargetPreviewBuilder
         return bundle;
     }
 
+    public static void ApplyRepeatPreviewMultiplier(ref ActionPreviewBundle bundle, int multiplier)
+    {
+        if (multiplier <= 1 || bundle.targetPreviews == null)
+            return;
+
+        var keys = new List<CombatActor>(bundle.targetPreviews.Keys);
+        for (int i = 0; i < keys.Count; i++)
+        {
+            CombatActor actor = keys[i];
+            TargetPreviewData data = bundle.targetPreviews[actor];
+            data.previewHpAfter = Mathf.Clamp(data.currentHp - ((data.currentHp - data.previewHpAfter) * multiplier), 0, data.currentMaxHp);
+            data.previewGuardAfter = Mathf.Max(0, data.currentGuard + ((data.previewGuardAfter - data.currentGuard) * multiplier));
+            data.hpLost = data.currentHp - data.previewHpAfter;
+            data.guardLost = data.currentGuard - data.previewGuardAfter;
+            data.previewBurnAfter = Mathf.Max(0, data.currentBurn + ((data.previewBurnAfter - data.currentBurn) * multiplier));
+            data.previewBleedAfter = Mathf.Max(0, data.currentBleed + ((data.previewBleedAfter - data.currentBleed) * multiplier));
+            data.selfGuardGain *= multiplier;
+            data.selfFocusGain *= multiplier;
+            data.selfHealGain *= multiplier;
+            bundle.targetPreviews[actor] = data;
+        }
+
+        bundle.totalSelfFocusGain *= multiplier;
+        bundle.totalSelfGuardGain *= multiplier;
+        bundle.totalSelfHealGain *= multiplier;
+    }
+
+    public static void AddSelfResourcePreview(CombatActor caster, int guardGain, int healGain, ref ActionPreviewBundle bundle)
+    {
+        if (caster == null || bundle.targetPreviews == null)
+            return;
+
+        TargetPreviewData data = bundle.targetPreviews.TryGetValue(caster, out TargetPreviewData existing)
+            ? existing
+            : CreateBaselineData(caster, caster);
+
+        if (guardGain > 0)
+        {
+            data.selfGuardGain += guardGain;
+            data.previewGuardAfter += guardGain;
+            bundle.totalSelfGuardGain += guardGain;
+        }
+
+        if (healGain > 0)
+        {
+            data.selfHealGain += healGain;
+            int hpAfter = Mathf.Min(data.currentMaxHp, data.previewHpAfter + healGain);
+            data.previewHpAfter = hpAfter;
+            data.hpLost = data.currentHp - hpAfter;
+            bundle.totalSelfHealGain += healGain;
+        }
+
+        bundle.targetPreviews[caster] = data;
+        bundle.valid |= data.valid;
+    }
+
 }

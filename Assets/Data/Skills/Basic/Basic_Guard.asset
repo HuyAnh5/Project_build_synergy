@@ -136,7 +136,7 @@ MonoBehaviour:
   range: 1
   hitAllEnemies: 0
   hitAllAllies: 0
-  slotsRequired: 1
+  slotsRequired: 2
   focusCost: 1
   focusGainOnCast: 0
   baseDamageValueMode: 0

@@ -161,5 +161,9 @@ public partial class PlayerDiceCastAnimator
             RestoreWorldSyncForCast(die, plate);
             SnapToUsedState(die, plate, dieBase, plateBase);
         }
+
+        ForgetTransformState(moveTarget);
+        ForgetTransformState(die);
+        ForgetTransformState(plate);
     }
 }

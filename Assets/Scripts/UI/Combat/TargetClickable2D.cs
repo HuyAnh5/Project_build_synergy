@@ -89,9 +89,22 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
 
         TargetingArrowUI.SetWorldTarget(_actor.transform);
 
-        int dieValue = skillSource.GetPublicPreviewDieValue(rt);
+        TurnManager.PreviewPaymentPlan previewPlan = default;
+        ScriptableObject selectedAsset = skillSource.GetSkillAsset();
+        bool hasPreviewPlan = turn != null && turn.TryGetPrototypePreviewPaymentPlan(selectedAsset, out previewPlan);
+        if (hasPreviewPlan && previewPlan.runtime != null)
+            rt = previewPlan.runtime;
+
+        int dieValue = hasPreviewPlan ? previewPlan.resolvedDieValue : skillSource.GetPublicPreviewDieValue(rt);
         TargetPreviewBuilder.ActionPreviewBundle bundle =
             TargetPreviewBuilder.BuildActionBundle(rt, turn.player, _actor, dieValue, turn.party, turn.enemy);
+        if (hasPreviewPlan && previewPlan.repeatCount > 0)
+            TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, previewPlan.repeatCount + 1);
+        if (selectedAsset != null && SkillUiMetadataUtility.TryGetSkillCosts(selectedAsset, out _, out int slotsRequired) &&
+            turn.TryGetPrototypeSkillSimpleEnchantPreview(selectedAsset, slotsRequired, out var simplePreview))
+        {
+            TargetPreviewBuilder.AddSelfResourcePreview(turn.player, simplePreview.guardGain, 0, ref bundle);
+        }
         if (!bundle.valid)
             return;
 

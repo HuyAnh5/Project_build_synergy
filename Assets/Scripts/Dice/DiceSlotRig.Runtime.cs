@@ -44,8 +44,8 @@ public partial class DiceSlotRig
                 ? Mathf.Max(0, rolled * 2)
                 : rolled;
         int critFailValue = effectiveEnchant == DiceFaceEnchantKind.Double ? outputBaseValue : rolled;
-        bool isCrit = isUsable && isNumericFace && (d.IsCritValue(critFailValue) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant));
-        bool isFail = isUsable && isNumericFace && (d.IsFailValue(critFailValue) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant));
+        bool isCrit = isUsable && isNumericFace && ((effectiveEnchant == DiceFaceEnchantKind.Double ? critFailValue >= maxFace : d.IsCritValue(critFailValue)) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant));
+        bool isFail = isUsable && isNumericFace && ((effectiveEnchant == DiceFaceEnchantKind.Double ? critFailValue <= minFace && minFace != maxFace : d.IsFailValue(critFailValue)) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant));
         bool grantsCritBonus = isCrit && !DiceFaceEnchantUtility.SuppressesCritBonus(faceEnchant);
         bool appliesFailPenalty = isFail && !DiceFaceEnchantUtility.SuppressesFailPenalty(faceEnchant);
 
@@ -228,6 +228,7 @@ public partial class DiceSlotRig
     private bool _consumePreviewActive;
     private int _consumePreviewCount;
     private bool _consumePreviewInvalid; // true = thiếu dice
+    private int _consumePreviewMask = -1;
     private CombatHUD _cachedHud;
 
     // Cache all DiceDraggableUI instances once per show/clear cycle
@@ -252,6 +253,9 @@ public partial class DiceSlotRig
     /// spentDice = set dice đã dùng trong turn này, để bỏ qua khi đếm available.
     /// </summary>
     public void ShowConsumePreview(int diceCount, System.Collections.Generic.HashSet<DiceSpinnerGeneric> spentDice = null)
+        => ShowConsumePreview(diceCount, spentDice, -1);
+
+    public void ShowConsumePreview(int diceCount, System.Collections.Generic.HashSet<DiceSpinnerGeneric> spentDice, int paymentMask)
     {
         EnsureSlots();
         _consumePreviewCount = Mathf.Max(0, diceCount);
@@ -272,8 +276,9 @@ public partial class DiceSlotRig
                 : 1;
         }
 
-        _consumePreviewInvalid = _consumePreviewCount > available;
+        _consumePreviewInvalid = paymentMask < 0 && _consumePreviewCount > available;
         _consumePreviewActive = true;
+        _consumePreviewMask = paymentMask;
     }
 
     /// <summary>
@@ -287,6 +292,7 @@ public partial class DiceSlotRig
         _consumePreviewActive = false;
         _consumePreviewCount = 0;
         _consumePreviewInvalid = false;
+        _consumePreviewMask = -1;
 
         // Restore tất cả DiceDraggableUI về trạng thái bình thường
         EnsureSlots();
@@ -327,9 +333,10 @@ public partial class DiceSlotRig
         EnsureSlots();
         float t = Mathf.PingPong(Time.time * blinkSpeed, 1f);
 
-        int previewPaymentMask = 0;
-        if (!_consumePreviewInvalid)
+        int previewPaymentMask = _consumePreviewMask;
+        if (previewPaymentMask < 0 && !_consumePreviewInvalid)
         {
+            previewPaymentMask = 0;
             int previewContribution = 0;
             for (int i = 0; i < slots.Length && previewContribution < _consumePreviewCount; i++)
             {
@@ -386,8 +393,25 @@ public partial class DiceSlotRig
                     die.SetFacePreviewValue(die.LastFaceIndex, die.GetDisplayedRolledValue() * 2, true);
                 // Dice sẽ bị consume: vàng nhấp nháy
                 float alpha = Mathf.Lerp(minAlpha, 1f, t);
-                ui.SetPreviewTint(new Color(0.62f, 0.62f, 0.62f, alpha), false);
+                if (IsRelayPreviewTarget(i, previewPaymentMask))
+                    ui.SetPreviewTint(new Color(1f, 0.86f, 0.24f, alpha), false);
+                else if (IsEchoPreviewSource(i, previewPaymentMask))
+                    ui.SetPreviewTint(new Color(0.42f, 0.72f, 1f, alpha), false);
+                else
+                    ui.SetPreviewTint(new Color(0.62f, 0.62f, 0.62f, alpha), false);
                 ui.SetPreviewSpentLike(true, false);
+            }
+            else if (IsRelayPreviewTarget(i, previewPaymentMask))
+            {
+                float alpha = Mathf.Lerp(minAlpha, 1f, t);
+                ui.SetPreviewTint(new Color(1f, 0.86f, 0.24f, alpha), false);
+                ui.ClearPreviewSpentLike(true);
+            }
+            else if (IsEchoPreviewSource(i, previewPaymentMask))
+            {
+                float alpha = Mathf.Lerp(minAlpha, 1f, t);
+                ui.SetPreviewTint(new Color(0.42f, 0.72f, 1f, alpha), false);
+                ui.ClearPreviewSpentLike(true);
             }
             else
             {
@@ -397,5 +421,33 @@ public partial class DiceSlotRig
                 ui.ClearPreviewSpentLike(true);
             }
         }
+    }
+
+    private bool IsRelayPreviewTarget(int slot0, int previewPaymentMask)
+    {
+        int leftSlot = slot0 - 1;
+        if (leftSlot < 0 || previewPaymentMask < 0)
+            return false;
+        if ((previewPaymentMask & (1 << leftSlot)) == 0)
+            return false;
+
+        DiceSpinnerGeneric left = GetDice(leftSlot);
+        return left != null && GetEffectiveCurrentFaceEnchant(leftSlot) == DiceFaceEnchantKind.Relay;
+    }
+
+    private bool IsEchoPreviewSource(int slot0, int previewPaymentMask)
+    {
+        int echoSlot = slot0 + 1;
+        if (echoSlot >= 3 || previewPaymentMask < 0)
+            return false;
+        if ((previewPaymentMask & (1 << echoSlot)) == 0)
+            return false;
+
+        DiceSpinnerGeneric echo = GetDice(echoSlot);
+        if (echo == null || echo.GetCurrentFaceEnchant() != DiceFaceEnchantKind.Echo)
+            return false;
+
+        DiceFaceEnchantKind source = GetEffectiveCurrentFaceEnchant(slot0);
+        return DiceFaceEnchantUtility.IsEchoCopyable(source);
     }
 }

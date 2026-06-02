@@ -98,10 +98,35 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
     public int LastFaceIndex { get; private set; } = -1;
     public bool IsRolling { get; private set; }
 
-    public bool LastRollIsCrit => IsCurrentFaceUsable() && IsCurrentFaceNumeric() && (IsCritValue(LastRolledValue) || DiceFaceEnchantUtility.CountsAsCritForConditions(GetCurrentFaceEnchant()));
-    public bool LastRollIsFail => IsCurrentFaceUsable() && IsCurrentFaceNumeric() && (IsFailValue(LastRolledValue) || DiceFaceEnchantUtility.CountsAsFailForConditions(GetCurrentFaceEnchant()));
+    public bool LastRollIsCrit => IsCurrentFaceUsable() && IsCurrentFaceNumeric() && (IsCritPreviewValue(GetCritFailDisplayValue()) || DiceFaceEnchantUtility.CountsAsCritForConditions(GetCurrentFaceEnchant()));
+    public bool LastRollIsFail => IsCurrentFaceUsable() && IsCurrentFaceNumeric() && (IsFailPreviewValue(GetCritFailDisplayValue()) || DiceFaceEnchantUtility.CountsAsFailForConditions(GetCurrentFaceEnchant()));
     public Tween ActiveTween => _tween;
     public Transform FlightSpinTarget => flightSpinTarget != null ? flightSpinTarget : pivot;
+
+    private int GetCritFailDisplayValue()
+    {
+        int value = LastRolledValue;
+        if (GetCurrentFaceEnchant() == DiceFaceEnchantKind.Double)
+            value *= 2;
+        return ClampFaceValue(value);
+    }
+
+    private bool IsCritPreviewValue(int value)
+    {
+        return GetCurrentFaceEnchant() == DiceFaceEnchantKind.Double
+            ? value >= GetMaxFaceValue()
+            : IsCritValue(value);
+    }
+
+    private bool IsFailPreviewValue(int value)
+    {
+        if (GetCurrentFaceEnchant() != DiceFaceEnchantKind.Double)
+            return IsFailValue(value);
+
+        int min = GetMinFaceValue();
+        int max = GetMaxFaceValue();
+        return min != max && value <= min;
+    }
 
     public System.Action<DiceSpinnerGeneric> onRollComplete;
 

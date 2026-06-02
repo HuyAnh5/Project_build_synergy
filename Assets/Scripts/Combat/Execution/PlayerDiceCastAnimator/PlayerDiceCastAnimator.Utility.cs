@@ -116,6 +116,14 @@ public partial class PlayerDiceCastAnimator
         };
     }
 
+    private void ForgetTransformState(Transform target)
+    {
+        if (target == null)
+            return;
+
+        _baselineStates.Remove(target);
+    }
+
     private TransformState GetTransformState(Transform target)
     {
         if (target == null)

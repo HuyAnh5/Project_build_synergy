@@ -192,7 +192,17 @@ internal static class SkillPlanRuntimeUtility
 
             rt.localBaseValues.Add(diceRig.IsNumericFaceForConditions(i) ? diceRig.GetBaseValue(i) : 0);
             rt.localOutputBaseValues.Add(diceRig.GetOutputBaseValue(i));
-            rt.localResolvedValues.Add(diceRig.GetResolvedDieValue(i, owner));
+            int resolvedValue = diceRig.GetResolvedDieValue(i, owner);
+            int sourceSlot0 = i - 1;
+            if (sourceSlot0 >= 0 &&
+                paymentMask >= 0 &&
+                (paymentMask & (1 << i)) != 0 &&
+                (paymentMask & (1 << sourceSlot0)) != 0 &&
+                diceRig.GetEffectiveCurrentFaceEnchant(sourceSlot0) == DiceFaceEnchantKind.Relay)
+            {
+                resolvedValue += DiceFaceEnchantUtility.RelayValueModifier;
+            }
+            rt.localResolvedValues.Add(resolvedValue);
             rt.localNumericFlags.Add(diceRig.IsNumericFaceForConditions(i));
             bool isCrit = diceRig.IsCrit(i);
             bool isFail = diceRig.IsFail(i);

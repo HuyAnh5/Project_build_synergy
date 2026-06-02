@@ -20,6 +20,7 @@ internal sealed class SkillIconPreviewController
     private ActorWorldUI[] _cachedActorWorldUis;
     private bool _overlaysShown;
     private DiceCombatEnchantRuntimeUtility.SimpleEnchantPreview _simpleEnchantPreview;
+    private TurnManager.PreviewPaymentPlan _previewPlan;
 
     public SkillIconPreviewController(
         TurnManager turn,
@@ -43,6 +44,8 @@ internal sealed class SkillIconPreviewController
             return;
 
         CombatHUD hud = GetCachedHud();
+        _previewPlan = default;
+        _turn.TryGetPrototypePreviewPaymentPlan(asset, out _previewPlan);
         _simpleEnchantPreview = ComputeSimpleEnchantPreview(slotsRequired);
         if (hud != null && _turn.player != null)
         {
@@ -53,7 +56,7 @@ internal sealed class SkillIconPreviewController
         if (_turn.diceRig != null)
         {
             BuildSpentDiceSet();
-            _turn.diceRig.ShowConsumePreview(slotsRequired, CachedSpentSet);
+            _turn.diceRig.ShowConsumePreview(slotsRequired, CachedSpentSet, _previewPlan.valid ? _previewPlan.selectedMask : -1);
         }
 
         ShowTargetOverlays(asset);
@@ -124,7 +127,9 @@ internal sealed class SkillIconPreviewController
             ScriptableObject asset = _getSkillAsset();
             if (asset != null && !(asset is SkillPassiveSO))
             {
-                if (!_turn.TryGetPrototypeSkillTooltipRuntime(asset, out _cachedDragRuntime))
+                if (_previewPlan.valid && _previewPlan.runtime != null)
+                    _cachedDragRuntime = _previewPlan.runtime;
+                else if (!_turn.TryGetPrototypeSkillTooltipRuntime(asset, out _cachedDragRuntime))
                 {
                     if (asset is SkillDamageSO damageSkill)
                         _cachedDragRuntime = SkillRuntime.FromDamage(damageSkill);
@@ -143,9 +148,12 @@ internal sealed class SkillIconPreviewController
             return;
         }
 
-        int dieValue = _getPreviewDieValue(_cachedDragRuntime);
+        int dieValue = _previewPlan.valid ? _previewPlan.resolvedDieValue : _getPreviewDieValue(_cachedDragRuntime);
         TargetPreviewBuilder.ActionPreviewBundle bundle =
             TargetPreviewBuilder.BuildActionBundle(_cachedDragRuntime, _turn.player, hoveredActor, dieValue, _turn.party, _turn.enemy);
+        if (_previewPlan.valid && _previewPlan.repeatCount > 0)
+            TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, _previewPlan.repeatCount + 1);
+        TargetPreviewBuilder.AddSelfResourcePreview(_turn.player, _simpleEnchantPreview.guardGain, 0, ref bundle);
 
         if (!bundle.valid)
             return;
