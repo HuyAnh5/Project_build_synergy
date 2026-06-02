@@ -72,6 +72,25 @@ public partial class TurnManager
         return true;
     }
 
+    public bool TryGetPrototypeSkillPreviewPaymentPlan(
+        ScriptableObject activeSkill,
+        out DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan paymentPlan,
+        out int slotsRequired)
+    {
+        paymentPlan = null;
+        slotsRequired = 0;
+
+        if (activeSkill == null || diceRig == null || !diceRig.HasRolledThisTurn)
+            return false;
+
+        if (!TryResolvePrototypeCastPlacement(activeSkill, out int start0, out _, commit: false))
+            return false;
+
+        slotsRequired = Mathf.Clamp(GetSkillSpan(activeSkill), 1, 3);
+        paymentPlan = DiceCombatEnchantRuntimeUtility.BuildPaymentPlan(diceRig, start0, slotsRequired);
+        return paymentPlan != null;
+    }
+
     public bool TryCastDraggedSkillToTarget(ScriptableObject activeSkill, CombatActor clicked)
     {
         if (!CanInteractWithSkills || player == null || activeSkill == null || clicked == null)

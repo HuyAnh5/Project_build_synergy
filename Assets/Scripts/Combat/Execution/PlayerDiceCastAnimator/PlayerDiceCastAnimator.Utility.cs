@@ -55,7 +55,7 @@ public partial class PlayerDiceCastAnimator
         return midpoint + Vector3.up * arcHeight + forward * forwardBias;
     }
 
-    private List<SlotVisualRefs> CollectSlotVisuals(DiceSlotRig diceRig, int start0, int span)
+    private List<SlotVisualRefs> CollectSlotVisuals(DiceSlotRig diceRig, int start0, int span, int paymentMask = -1)
     {
         List<SlotVisualRefs> results = new List<SlotVisualRefs>();
         if (diceRig == null || diceRig.slots == null)
@@ -66,8 +66,13 @@ public partial class PlayerDiceCastAnimator
         start0 = Mathf.Clamp(start0, 0, 2);
         span = Mathf.Clamp(span, 1, 3);
 
-        for (int i = start0; i < start0 + span && i < diceRig.slots.Length; i++)
+        int begin = paymentMask >= 0 ? 0 : start0;
+        int end = paymentMask >= 0 ? diceRig.slots.Length : Mathf.Min(start0 + span, diceRig.slots.Length);
+        for (int i = begin; i < end; i++)
         {
+            if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0)
+                continue;
+
             DiceSlotRig.Entry entry = diceRig.slots[i];
             if (entry == null)
             {

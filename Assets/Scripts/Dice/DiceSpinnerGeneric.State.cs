@@ -141,18 +141,18 @@ public partial class DiceSpinnerGeneric
 
         DiceFaceEnchantKind currentEnchant = GetCurrentFaceEnchant();
 
-        if (LastRollIsCrit)
+        if (HasCachedCritFeedback)
         {
             if (DiceFaceEnchantUtility.SuppressesCritBonus(currentEnchant))
                 return normalText;
 
             if (!showAddedValueInRollState)
                 return critText;
-            int added = GetCritDisplayAddedValue(LastRolledValue);
+            int added = GetCritDisplayAddedValue(GetCurrentResolvedOutputBaseValue());
             return $"{critText}: +{added}";
         }
 
-        if (LastRollIsFail)
+        if (HasCachedFailFeedback)
         {
             if (DiceFaceEnchantUtility.SuppressesFailPenalty(currentEnchant))
                 return normalText;
@@ -218,6 +218,31 @@ public partial class DiceSpinnerGeneric
             return false;
 
         return value == min && value != max;
+    }
+
+    public bool IsResolvedCritValue(int value)
+    {
+        if (!ValidateFaces())
+            return false;
+
+        int max = GetMaxFaceValue();
+        return value >= max;
+    }
+
+    public bool IsResolvedFailValue(int value)
+    {
+        if (!ValidateFaces())
+            return false;
+
+        int min = GetMinFaceValue();
+        int max = GetMaxFaceValue();
+        if (min == max)
+            return false;
+
+        if (value >= max)
+            return false;
+
+        return value <= min;
     }
 
     public int GetCritDisplayAddedValue(int baseValue)

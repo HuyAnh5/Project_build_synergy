@@ -135,7 +135,7 @@ public partial class DiceDraggableUI
                 return;
             }
 
-            if (_hasPreviewTint && _forceHideOutline)
+            if (_hasPreviewTint && _forceHideOutline && !_crit && !_fail)
             {
                 outlineEffect.enabled = false;
                 return;

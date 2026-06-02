@@ -185,6 +185,26 @@ public static class TurnManagerCombatUtility
         return sum;
     }
 
+    public static int ComputeResolvedDieSum(
+        DiceSlotRig diceRig,
+        CombatActor player,
+        DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan paymentPlan,
+        ElementType skillElement)
+    {
+        if (diceRig == null || player == null || paymentPlan == null)
+            return 0;
+
+        int sum = 0;
+        for (int i = 0; i < 3; i++)
+        {
+            if (!paymentPlan.IsSelected(i))
+                continue;
+            sum += diceRig.GetResolvedDieValue(i, player, skillElement);
+        }
+
+        return sum;
+    }
+
     public static int ComputeMaxFace(DiceSlotRig diceRig, int start0, int span)
     {
         if (diceRig == null) return 6;
@@ -194,6 +214,22 @@ public static class TurnManagerCombatUtility
         int max = 1;
         for (int i = start0; i < start0 + span; i++)
             max = Mathf.Max(max, diceRig.GetMaxFaceValue(i));
+
+        return Mathf.Max(1, max);
+    }
+
+    public static int ComputeMaxFace(DiceSlotRig diceRig, DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan paymentPlan)
+    {
+        if (diceRig == null || paymentPlan == null)
+            return 6;
+
+        int max = 1;
+        for (int i = 0; i < 3; i++)
+        {
+            if (!paymentPlan.IsSelected(i))
+                continue;
+            max = Mathf.Max(max, diceRig.GetMaxFaceValue(i));
+        }
 
         return Mathf.Max(1, max);
     }

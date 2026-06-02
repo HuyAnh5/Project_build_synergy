@@ -83,9 +83,10 @@ public partial class PlayerDiceCastAnimator : MonoBehaviour
         CombatActor primaryTarget,
         IReadOnlyList<CombatActor> aoeTargets,
         CastMode mode,
-        Action onFinalImpact)
+        Action onFinalImpact,
+        int paymentMask = -1)
     {
-        List<SlotVisualRefs> slots = CollectSlotVisuals(diceRig, start0, span);
+        List<SlotVisualRefs> slots = CollectSlotVisuals(diceRig, start0, span, paymentMask);
         if (slots.Count == 0)
         {
             onFinalImpact?.Invoke();

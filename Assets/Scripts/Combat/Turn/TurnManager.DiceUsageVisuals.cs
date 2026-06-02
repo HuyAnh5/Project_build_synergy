@@ -1,3 +1,5 @@
+using UnityEngine;
+
 public partial class TurnManager
 {
     public System.Collections.Generic.IReadOnlyCollection<DiceSpinnerGeneric> SpentDiceThisTurn => _spentDiceThisTurn;
@@ -63,7 +65,9 @@ public partial class TurnManager
         if (diceRig == null || diceRig.slots == null)
             return;
 
-        for (int i = start0; i < start0 + span && i < diceRig.slots.Length; i++)
+        int begin = paymentMask >= 0 ? 0 : start0;
+        int end = paymentMask >= 0 ? diceRig.slots.Length : Mathf.Min(start0 + span, diceRig.slots.Length);
+        for (int i = begin; i < end; i++)
         {
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0)
                 continue;

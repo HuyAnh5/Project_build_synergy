@@ -17,4 +17,5 @@ internal struct TurnManagerQueuedPlayerCommand
     public int start0;
     public int span;
     public int paymentMask;
+    public DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan paymentPlan;
 }

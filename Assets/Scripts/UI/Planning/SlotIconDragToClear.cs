@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -20,6 +21,7 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
     private bool _groupReorderDrag;
     private bool _dragRegistered;
     private bool _pointerInside;
+    private bool _resourcePreviewActive;
 
     private void Awake()
     {
@@ -70,11 +72,14 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
             return;
 
         SkillTooltipUI.Show(this);
+        ShowResourcePreview();
+        SkillTooltipUI.RefreshCurrent();
     }
 
     public void OnPointerExit(PointerEventData eventData)
     {
         _pointerInside = false;
+        ClearResourcePreview();
         SkillTooltipUI.HideCurrentUnlessPointerOverTooltip(eventData != null ? eventData.pointerCurrentRaycast.gameObject : null);
     }
 
@@ -105,6 +110,7 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
         }
 
         ReleaseGhost();
+        ClearResourcePreview();
 
         if (!turn || !turn.CanInteractWithSkills) return;
 
@@ -206,12 +212,17 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
     {
         if (UiDragState.IsDragging)
         {
+            ClearResourcePreview();
             SkillTooltipUI.HideCurrent();
             return;
         }
 
         if (_pointerInside)
+        {
             SkillTooltipUI.Show(this);
+            ShowResourcePreview();
+            SkillTooltipUI.RefreshCurrent();
+        }
     }
 
     public bool TryGetSkillTooltip(out Canvas canvas, out RectTransform target, out ScriptableObject asset, out SkillRuntime runtime)
@@ -229,6 +240,78 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
             return false;
 
         return turn.TryGetPlannedSkillTooltipAtLane(slotIndex, out asset, out runtime);
+    }
+
+    private void ShowResourcePreview()
+    {
+        if (turn == null || turn.player == null || turn.diceRig == null)
+            return;
+        if (!turn.TryGetPlannedSkillTooltipAtLane(slotIndex, out ScriptableObject asset, out SkillRuntime runtime) ||
+            asset == null || runtime == null)
+            return;
+        if (!SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out int slotsRequired))
+            return;
+
+        CombatHUD hud = FindObjectOfType<CombatHUD>(true);
+        if (hud != null)
+        {
+            bool isInvalid = turn.player.focus < focusCost;
+            hud.ShowFocusPreview(focusCost, 0, isInvalid);
+        }
+
+        HashSet<DiceSpinnerGeneric> spent = BuildSpentDiceSet();
+        if (turn.TryGetPrototypeSkillPreviewPaymentPlan(asset, out DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan previewPlan, out int previewDiceCost))
+            turn.diceRig.ShowConsumePreview(previewPlan, previewDiceCost, spent);
+        else
+            turn.diceRig.ShowConsumePreview(slotsRequired, spent);
+
+        _resourcePreviewActive = true;
+        SkillTooltipUI.RefreshCurrent();
+    }
+
+    private void ClearResourcePreview()
+    {
+        if (!_resourcePreviewActive)
+            return;
+
+        CombatHUD hud = FindObjectOfType<CombatHUD>(true);
+        if (hud != null)
+            hud.ClearFocusPreview();
+        if (turn != null && turn.diceRig != null)
+            turn.diceRig.ClearConsumePreview(BuildPendingUsedVisualSet());
+
+        _resourcePreviewActive = false;
+        SkillTooltipUI.RefreshCurrent();
+    }
+
+    private HashSet<DiceSpinnerGeneric> BuildSpentDiceSet()
+    {
+        HashSet<DiceSpinnerGeneric> spent = new HashSet<DiceSpinnerGeneric>();
+        if (turn == null || turn.SpentDiceThisTurn == null)
+            return spent;
+
+        foreach (DiceSpinnerGeneric die in turn.SpentDiceThisTurn)
+        {
+            if (die != null)
+                spent.Add(die);
+        }
+
+        return spent;
+    }
+
+    private HashSet<DiceSpinnerGeneric> BuildPendingUsedVisualSet()
+    {
+        HashSet<DiceSpinnerGeneric> pending = new HashSet<DiceSpinnerGeneric>();
+        if (turn == null || turn.SpentDiceThisTurn == null)
+            return pending;
+
+        foreach (DiceSpinnerGeneric die in turn.SpentDiceThisTurn)
+        {
+            if (die != null && turn.IsDiePendingUsedVisualThisTurn(die))
+                pending.Add(die);
+        }
+
+        return pending;
     }
 
     private void EnsurePreviewInputForwarder()

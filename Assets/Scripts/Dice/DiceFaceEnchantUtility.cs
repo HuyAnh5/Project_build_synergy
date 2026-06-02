@@ -1,6 +1,6 @@
 public static class DiceFaceEnchantUtility
 {
-    public const int PowerAddedValue = 2;
+    public const int PowerAddedValue = 3;
     public const int StoneAddedValue = 5;
     public const int RelayValueModifier = 2;
     public const int GuardGoldAmount = 5;
@@ -119,7 +119,7 @@ public static class DiceFaceEnchantUtility
         switch (enchant)
         {
             case DiceFaceEnchantKind.Power:
-                return "On Use: skill/action gains +2 Added Value.";
+                return "On Use: skill/action gains +3 Added Value.";
             case DiceFaceEnchantKind.Guard:
                 return "On Use: gain Guard equal to this face's resolved Value.";
             case DiceFaceEnchantKind.Charge:

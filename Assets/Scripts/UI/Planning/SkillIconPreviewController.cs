@@ -51,7 +51,10 @@ internal sealed class SkillIconPreviewController
         if (_turn.diceRig != null)
         {
             BuildSpentDiceSet();
-            _turn.diceRig.ShowConsumePreview(slotsRequired, CachedSpentSet);
+            if (_turn.TryGetPrototypeSkillPreviewPaymentPlan(asset, out DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan previewPlan, out int previewDiceCost))
+                _turn.diceRig.ShowConsumePreview(previewPlan, previewDiceCost, CachedSpentSet);
+            else
+                _turn.diceRig.ShowConsumePreview(slotsRequired, CachedSpentSet);
         }
 
         ShowTargetOverlays(asset);
@@ -83,7 +86,10 @@ internal sealed class SkillIconPreviewController
         if (_resourcePreviewActive && _turn != null && _turn.diceRig != null)
         {
             BuildSpentDiceSet();
-            _turn.diceRig.UpdateConsumePreviewVisuals(CachedSpentSet);
+            if (_turn.TryGetPrototypeSkillPreviewPaymentPlan(_getSkillAsset(), out DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan previewPlan, out _))
+                _turn.diceRig.UpdateConsumePreviewVisuals(CachedSpentSet, previewPlan);
+            else
+                _turn.diceRig.UpdateConsumePreviewVisuals(CachedSpentSet);
         }
     }
 

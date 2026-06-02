@@ -15,11 +15,29 @@ public static class DiceCombatEnchantRuntimeUtility
         public int breakMask;
         public int reloadMask;
         public int repeatCount;
+        public int totalContribution;
         public readonly int[] committedFaceIndices = { -1, -1, -1 };
 
         public bool IsSelected(int slot0) => (selectedMask & (1 << slot0)) != 0;
         public bool ShouldBreak(int slot0) => (breakMask & (1 << slot0)) != 0;
         public bool ShouldReload(int slot0) => (reloadMask & (1 << slot0)) != 0;
+
+        public CommittedFaceUsePlan Clone()
+        {
+            CommittedFaceUsePlan clone = new CommittedFaceUsePlan
+            {
+                selectedMask = selectedMask,
+                breakMask = breakMask,
+                reloadMask = reloadMask,
+                repeatCount = repeatCount,
+                totalContribution = totalContribution
+            };
+
+            for (int i = 0; i < committedFaceIndices.Length; i++)
+                clone.committedFaceIndices[i] = committedFaceIndices[i];
+
+            return clone;
+        }
     }
 
     private static readonly Dictionary<DiceSpinnerGeneric, WholeDieCombatState> WholeDieStates = new Dictionary<DiceSpinnerGeneric, WholeDieCombatState>();
@@ -62,8 +80,8 @@ public static class DiceCombatEnchantRuntimeUtility
             return plan;
 
         int paid = 0;
-        int end = Mathf.Min(diceRig.slots.Length, start0 + Mathf.Clamp(diceCost, 1, 3));
-        for (int i = Mathf.Clamp(start0, 0, 2); i < end && paid < diceCost; i++)
+        int required = Mathf.Clamp(diceCost, 1, 3);
+        for (int i = Mathf.Clamp(start0, 0, 2); i < diceRig.slots.Length && paid < required; i++)
         {
             if (!diceRig.IsSlotActive(i) || !diceRig.IsCurrentFaceUsableForPayment(i))
                 continue;
@@ -81,6 +99,7 @@ public static class DiceCombatEnchantRuntimeUtility
             plan.selectedMask |= 1 << i;
             plan.committedFaceIndices[i] = die.LastFaceIndex;
             paid += Mathf.Max(1, contribution);
+            plan.totalContribution = paid;
             if (DiceFaceEnchantUtility.BreaksAfterCommittedUse(stored))
                 plan.breakMask |= 1 << i;
             if (effective == DiceFaceEnchantKind.Reload)
@@ -141,32 +160,32 @@ public static class DiceCombatEnchantRuntimeUtility
         switch (effective)
         {
             case DiceFaceEnchantKind.Power:
-                die.PlayFaceEnchantPopup(stored, $"+{DiceFaceEnchantUtility.PowerAddedValue} Value");
+                PlayCommittedSelfPopup(die, stored, effective, $"+{DiceFaceEnchantUtility.PowerAddedValue} Value");
                 break;
             case DiceFaceEnchantKind.Heavy:
-                die.PlayFaceEnchantPopup(stored, "+1 dice");
+                PlayCommittedSelfPopup(die, stored, effective, "+1 dice");
                 break;
             case DiceFaceEnchantKind.Guard:
                 int guard = diceRig.GetResolvedDieValue(slot0, caster);
                 caster.AddGuard(guard);
-                die.PlayFaceEnchantPopup(stored, $"+{guard} Guard");
+                PlayCommittedSelfPopup(die, stored, effective, $"+{guard} Guard");
                 break;
             case DiceFaceEnchantKind.Charge:
                 caster.GainFocus(1);
-                die.PlayFaceEnchantPopup(stored, "+1 AP");
+                PlayCommittedSelfPopup(die, stored, effective, "+1 AP");
                 break;
             case DiceFaceEnchantKind.Gold:
                 MarkGoldFace(die);
-                die.PlayFaceEnchantPopup(stored, "+Gold");
+                PlayCommittedSelfPopup(die, stored, effective, "+Gold");
                 break;
             case DiceFaceEnchantKind.Double:
-                die.PlayFaceEnchantPopup(stored);
+                PlayCommittedSelfPopup(die, stored, effective);
                 break;
             case DiceFaceEnchantKind.Stone:
-                die.PlayFaceEnchantPopup(stored, $"+{DiceFaceEnchantUtility.StoneAddedValue} Value");
+                PlayCommittedSelfPopup(die, stored, effective, $"+{DiceFaceEnchantUtility.StoneAddedValue} Value");
                 break;
             case DiceFaceEnchantKind.Repeat:
-                die.PlayFaceEnchantPopup(stored);
+                PlayCommittedSelfPopup(die, stored, effective);
                 break;
             default:
                 return false;
@@ -192,18 +211,26 @@ public static class DiceCombatEnchantRuntimeUtility
             return 0;
 
         DiceFaceEnchantKind stored = die.GetCurrentFaceEnchant();
-        DiceSpinnerGeneric right = diceRig.GetDice(slot0 + 1);
+        int targetSlot0 = slot0 + 1;
+        DiceSpinnerGeneric right = diceRig.GetDice(targetSlot0);
+        bool hasRightTarget = HasUsableRelayTarget(diceRig, targetSlot0);
         int popupCount = 1;
-        if (right != null && right.IsCurrentFaceUsable())
+        if (hasRightTarget && right != null)
         {
             right.AddPhaseValueModifier(DiceFaceEnchantUtility.RelayValueModifier);
-            die.PlayFaceEnchantPopup(stored);
+            if (stored == DiceFaceEnchantKind.Echo && effective != DiceFaceEnchantKind.None)
+                die.PlayFaceEnchantPopupSequence(stored, DiceFaceEnchantUtility.GetDisplayName(effective));
+            else
+                die.PlayFaceEnchantPopup(stored);
             right.PlayFaceEnchantEffectPopup($"+{DiceFaceEnchantUtility.RelayValueModifier}");
             popupCount++;
         }
         else
         {
-            die.PlayFaceEnchantPopup(stored, "No target");
+            if (stored == DiceFaceEnchantKind.Echo && effective != DiceFaceEnchantKind.None)
+                die.PlayFaceEnchantPopupSequence(stored, DiceFaceEnchantUtility.GetDisplayName(effective), "No target");
+            else
+                die.PlayFaceEnchantPopup(stored, "No target");
         }
 
         return popupCount;
@@ -211,7 +238,7 @@ public static class DiceCombatEnchantRuntimeUtility
 
     public static bool PlayRepeatAgainPopup(DiceSlotRig diceRig, CommittedFaceUsePlan plan)
     {
-        return PlayPostSkillPopupForEffectiveEnchant(diceRig, plan, DiceFaceEnchantKind.Repeat, "Again");
+        return PlayPostSkillEffectPopupForEffectiveEnchant(diceRig, plan, DiceFaceEnchantKind.Repeat, "Again");
     }
 
     public static int ComputeCommittedPreviewDieSum(
@@ -275,7 +302,6 @@ public static class DiceCombatEnchantRuntimeUtility
             if (die == null)
                 continue;
 
-            die.PlayFaceEnchantPopup(die.GetCurrentFaceEnchant());
             die.SetFaceBroken(plan.committedFaceIndices[slot0], true);
 
             if (turnManager != null)
@@ -288,6 +314,30 @@ public static class DiceCombatEnchantRuntimeUtility
         }
 
         diceRig.RefreshRollInfoCache();
+    }
+
+    public static int PlayCommittedReloadFaceEnchantPopups(
+        DiceSlotRig diceRig,
+        CommittedFaceUsePlan plan)
+    {
+        if (diceRig == null || plan == null)
+            return 0;
+
+        int popupCount = 0;
+        for (int slot0 = 0; slot0 < 3; slot0++)
+        {
+            if (!plan.ShouldReload(slot0))
+                continue;
+
+            DiceSpinnerGeneric die = diceRig.GetDice(slot0);
+            if (die == null)
+                continue;
+
+            die.PlayFaceEnchantPopup(die.GetCurrentFaceEnchant());
+            popupCount++;
+        }
+
+        return popupCount;
     }
 
     private static bool PlayPostSkillPopupForEffectiveEnchant(
@@ -320,6 +370,56 @@ public static class DiceCombatEnchantRuntimeUtility
         return played;
     }
 
+    private static bool PlayPostSkillEffectPopupForEffectiveEnchant(
+        DiceSlotRig diceRig,
+        CommittedFaceUsePlan plan,
+        DiceFaceEnchantKind effectiveEnchant,
+        string effectText)
+    {
+        if (diceRig == null || plan == null || string.IsNullOrWhiteSpace(effectText))
+            return false;
+
+        bool played = false;
+        for (int slot0 = 0; slot0 < 3; slot0++)
+        {
+            if (!plan.IsSelected(slot0))
+                continue;
+
+            DiceSpinnerGeneric die = diceRig.GetDice(slot0);
+            if (die == null)
+                continue;
+
+            if (diceRig.GetEffectiveCurrentFaceEnchant(slot0) != effectiveEnchant)
+                continue;
+
+            die.PlayFaceEnchantEffectPopup(effectText);
+            played = true;
+        }
+
+        return played;
+    }
+
+    private static void PlayCommittedSelfPopup(
+        DiceSpinnerGeneric die,
+        DiceFaceEnchantKind storedEnchant,
+        DiceFaceEnchantKind effectiveEnchant,
+        string effectText = null)
+    {
+        if (die == null)
+            return;
+
+        if (storedEnchant == DiceFaceEnchantKind.Echo && effectiveEnchant != DiceFaceEnchantKind.None)
+        {
+            if (string.IsNullOrWhiteSpace(effectText))
+                die.PlayFaceEnchantPopupSequence(storedEnchant, DiceFaceEnchantUtility.GetDisplayName(effectiveEnchant));
+            else
+                die.PlayFaceEnchantPopupSequence(storedEnchant, DiceFaceEnchantUtility.GetDisplayName(effectiveEnchant), effectText);
+            return;
+        }
+
+        die.PlayFaceEnchantPopup(storedEnchant, effectText);
+    }
+
     private static int ComputePreviewResolvedDieValue(
         DiceSlotRig diceRig,
         CombatActor owner,
@@ -342,7 +442,7 @@ public static class DiceCombatEnchantRuntimeUtility
     {
         int added = 0;
         int sourceSlot0 = targetSlot0 - 1;
-        if (sourceSlot0 >= 0 && plan.IsSelected(sourceSlot0))
+        if (sourceSlot0 >= 0 && plan.IsSelected(sourceSlot0) && HasSelectedRelayTarget(diceRig, plan, targetSlot0))
         {
             DiceSpinnerGeneric target = diceRig.GetDice(targetSlot0);
             DiceFaceEnchantKind source = diceRig.GetEffectiveCurrentFaceEnchant(sourceSlot0);
@@ -351,6 +451,23 @@ public static class DiceCombatEnchantRuntimeUtility
         }
 
         return added;
+    }
+
+    private static bool HasUsableRelayTarget(DiceSlotRig diceRig, int targetSlot0)
+    {
+        if (diceRig == null || targetSlot0 < 0 || targetSlot0 >= 3)
+            return false;
+
+        DiceSpinnerGeneric target = diceRig.GetDice(targetSlot0);
+        return target != null && target.IsCurrentFaceUsable();
+    }
+
+    private static bool HasSelectedRelayTarget(DiceSlotRig diceRig, CommittedFaceUsePlan plan, int targetSlot0)
+    {
+        if (plan == null || !HasUsableRelayTarget(diceRig, targetSlot0))
+            return false;
+
+        return plan.IsSelected(targetSlot0);
     }
 
     public static bool ApplyVictoryWholeDieEffects(DiceSlotRig diceRig)

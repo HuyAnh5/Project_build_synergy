@@ -98,8 +98,10 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
     public int LastFaceIndex { get; private set; } = -1;
     public bool IsRolling { get; private set; }
 
-    public bool LastRollIsCrit => IsCurrentFaceUsable() && IsCurrentFaceNumeric() && (IsCritValue(LastRolledValue) || DiceFaceEnchantUtility.CountsAsCritForConditions(GetCurrentFaceEnchant()));
-    public bool LastRollIsFail => IsCurrentFaceUsable() && IsCurrentFaceNumeric() && (IsFailValue(LastRolledValue) || DiceFaceEnchantUtility.CountsAsFailForConditions(GetCurrentFaceEnchant()));
+    public bool LastRollIsCrit => IsCurrentFaceUsable() && IsCurrentFaceNumeric() && (IsCritValue(GetDisplayedRolledValue()) || DiceFaceEnchantUtility.CountsAsCritForConditions(GetCurrentFaceEnchant()));
+    public bool LastRollIsFail => IsCurrentFaceUsable() && IsCurrentFaceNumeric() && (IsFailValue(GetDisplayedRolledValue()) || DiceFaceEnchantUtility.CountsAsFailForConditions(GetCurrentFaceEnchant()));
+    public bool HasCachedCritFeedback => _feedbackCrit;
+    public bool HasCachedFailFeedback => _feedbackFail;
     public Tween ActiveTween => _tween;
     public Transform FlightSpinTarget => flightSpinTarget != null ? flightSpinTarget : pivot;
 
@@ -495,6 +497,19 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
     public int GetDisplayedRolledValue()
     {
         return ClampFaceValue(LastRolledValue);
+    }
+
+    public int GetCurrentResolvedOutputBaseValue()
+    {
+        if (!IsCurrentFaceUsable())
+            return 0;
+
+        DiceFaceEnchantKind enchant = GetCurrentFaceEnchant();
+        if (enchant == DiceFaceEnchantKind.Stone)
+            return 0;
+        if (enchant == DiceFaceEnchantKind.Double)
+            return Mathf.Max(0, GetDisplayedRolledValue() * 2);
+        return Mathf.Max(0, GetDisplayedRolledValue());
     }
 
     public int GetCurrentPhaseValueModifier()

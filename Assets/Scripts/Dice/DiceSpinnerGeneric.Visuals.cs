@@ -106,18 +106,18 @@ public partial class DiceSpinnerGeneric
         bool suppressCritBonus = DiceFaceEnchantUtility.SuppressesCritBonus(enchant);
         bool suppressFailPenalty = DiceFaceEnchantUtility.SuppressesFailPenalty(enchant);
 
-        if (LastRollIsCrit)
+        if (HasCachedCritFeedback)
         {
             steps.Add(new RollPopupStep(critText, rollStatePopupColor));
             if (!suppressCritBonus)
             {
-                int critAdded = GetCritDisplayAddedValue(LastRolledValue);
+                int critAdded = GetCritDisplayAddedValue(GetCurrentResolvedOutputBaseValue());
                 if (critAdded > 0)
                     steps.Add(new RollPopupStep($"+{critAdded}", new Color(0.36f, 0.88f, 1f, 1f)));
             }
         }
 
-        if (LastRollIsFail)
+        if (HasCachedFailFeedback)
         {
             steps.Add(new RollPopupStep(failText, rollStatePopupColor));
             if (!suppressFailPenalty)
@@ -139,6 +139,29 @@ public partial class DiceSpinnerGeneric
 
         if (!string.IsNullOrWhiteSpace(effectText))
             steps.Add(new RollPopupStep(effectText, new Color(0.36f, 0.88f, 1f, 1f)));
+
+        PlayPopupSteps(steps);
+    }
+
+    public void PlayFaceEnchantPopupSequence(DiceFaceEnchantKind enchant, params string[] extraSteps)
+    {
+        if (!Application.isPlaying || enchant == DiceFaceEnchantKind.None || enchant == DiceFaceEnchantKind.Gum)
+            return;
+
+        List<RollPopupStep> steps = new List<RollPopupStep>(1 + (extraSteps != null ? extraSteps.Length : 0))
+        {
+            new RollPopupStep(DiceFaceEnchantUtility.GetDisplayName(enchant), new Color(0.36f, 0.88f, 1f, 1f))
+        };
+
+        if (extraSteps != null)
+        {
+            for (int i = 0; i < extraSteps.Length; i++)
+            {
+                if (string.IsNullOrWhiteSpace(extraSteps[i]))
+                    continue;
+                steps.Add(new RollPopupStep(extraSteps[i], new Color(0.36f, 0.88f, 1f, 1f)));
+            }
+        }
 
         PlayPopupSteps(steps);
     }

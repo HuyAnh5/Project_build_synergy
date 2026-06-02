@@ -8,67 +8,9 @@ internal static class DiceEquipWorldSyncUtility
     {
         if (diceRig == null || !diceRig.HasRolledThisTurn || diceRig.IsRolling)
             return;
-        if (diceRig.LastRollInfos == null || diceRig.LastRollInfos.Length < 3)
-            return;
 
-        for (int i = 0; i < 3; i++)
-        {
-            if (!diceRig.IsSlotActive(i))
-            {
-                diceRig.LastRollInfos[i] = default;
-                continue;
-            }
-
-            DiceSpinnerGeneric d = (diceRig.slots != null && i < diceRig.slots.Length && diceRig.slots[i] != null)
-                ? diceRig.slots[i].dice
-                : null;
-
-            if (d == null)
-            {
-                diceRig.LastRollInfos[i] = default;
-                continue;
-            }
-
-            d.GetRollExtents(out int minFace, out int maxFace);
-            int rolled = d.GetDisplayedRolledValue();
-            DiceFaceEnchantKind faceEnchant = d.GetCurrentFaceEnchant();
-            bool isBrokenFace = d.IsCurrentFaceBroken();
-            bool isNumericFace = !isBrokenFace && DiceFaceEnchantUtility.IsNumericFace(faceEnchant);
-            bool isUsable = !isBrokenFace;
-            bool isCrit = isUsable && isNumericFace && (d.IsCritValue(rolled) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant));
-            bool isFail = isUsable && isNumericFace && (d.IsFailValue(rolled) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant));
-            bool grantsCritBonus = isCrit && !DiceFaceEnchantUtility.SuppressesCritBonus(faceEnchant);
-            bool appliesFailPenalty = isFail && !DiceFaceEnchantUtility.SuppressesFailPenalty(faceEnchant);
-
-            int genericAdded = 0;
-            if (grantsCritBonus) genericAdded = Mathf.FloorToInt(rolled * DiceSlotRig.GenericCritPercent);
-            genericAdded += d.GetCurrentPhaseValueModifier();
-            genericAdded += DiceFaceEnchantUtility.GetOnUseAddedValue(faceEnchant);
-
-            int baseValueForOutput = faceEnchant == DiceFaceEnchantKind.Stone ? 0 : rolled;
-            int genericResolved = isUsable ? baseValueForOutput + genericAdded : 0;
-            if (genericResolved < 1)
-                genericResolved = 1;
-            if (!isUsable)
-                genericResolved = 0;
-
-            diceRig.LastRollInfos[i] = new DiceSlotRig.RollInfo
-            {
-                rolledValue = rolled,
-                minFaceAtRoll = minFace,
-                maxFaceAtRoll = maxFace,
-                faceEnchant = faceEnchant,
-                isCrit = isCrit,
-                isFail = isFail,
-                grantsCritBonus = grantsCritBonus,
-                appliesFailPenalty = appliesFailPenalty,
-                isNumericFace = isNumericFace,
-                isBrokenFace = isBrokenFace,
-                isUsable = isUsable,
-                genericAddedValue = genericAdded,
-                genericResolvedValue = genericResolved,
-            };
-        }
+        // Combat roll state must come from DiceSlotRig's own cache logic only.
+        diceRig.RefreshRollInfoCache();
     }
 
     public static void RebindWorldSlotOwnersFromCurrentOrder(

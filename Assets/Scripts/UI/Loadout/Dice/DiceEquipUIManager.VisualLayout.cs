@@ -360,8 +360,21 @@ public partial class DiceEquipUIManager
             bool dieResolvedThisRoll = combatRigReady && !die.IsRolling && die.LastFaceIndex >= 0;
             bool pendingUsedVisual = dieResolvedThisRoll && turnManager.IsDiePendingUsedVisualThisTurn(die);
             bool spent = dieResolvedThisRoll && turnManager.ShouldShowDieAsSpentVisual(die);
-            bool crit = dieResolvedThisRoll && die.LastRollIsCrit;
-            bool fail = dieResolvedThisRoll && die.LastRollIsFail;
+            bool crit = false;
+            bool fail = false;
+            if (dieResolvedThisRoll && turnManager.diceRig != null)
+            {
+                for (int i = 0; i < 3; i++)
+                {
+                    if (turnManager.diceRig.GetDice(i) != die)
+                        continue;
+
+                    DiceSlotRig.RollInfo info = turnManager.diceRig.GetRollInfo(i);
+                    crit = info.isUsable && info.isCrit;
+                    fail = info.isUsable && info.isFail;
+                    break;
+                }
+            }
             if (pendingUsedVisual)
                 diceUi.SetPreviewSpentLike(true, true);
             if (spent)

@@ -174,7 +174,7 @@ public partial class DiceSpinnerGeneric
 
         if (!string.IsNullOrEmpty(previewText))
         {
-            faceText.text = previewText;
+            faceText.text = FormatFaceDisplayText(previewText);
         }
         else if (faces[faceIndex].broken)
         {
@@ -186,7 +186,7 @@ public partial class DiceSpinnerGeneric
         }
         else
         {
-            faceText.text = faces[faceIndex].value.ToString();
+            faceText.text = FormatFaceDisplayText(faces[faceIndex].value.ToString());
         }
 
         bool shouldBlink = _facePreviewBlink != null &&
@@ -194,6 +194,33 @@ public partial class DiceSpinnerGeneric
                            _facePreviewBlink[faceIndex] &&
                            !string.IsNullOrEmpty(previewText);
         ApplyFaceBlink(faceIndex, faceText, shouldBlink);
+    }
+
+    private static string FormatFaceDisplayText(string rawText)
+    {
+        if (string.IsNullOrWhiteSpace(rawText))
+            return rawText;
+
+        string trimmed = rawText.Trim();
+        if (!ShouldUnderlineAmbiguousSixNine(trimmed))
+            return rawText;
+
+        return $"<u>{trimmed}</u>";
+    }
+
+    private static bool ShouldUnderlineAmbiguousSixNine(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return false;
+
+        for (int i = 0; i < text.Length; i++)
+        {
+            char c = text[i];
+            if (c != '6' && c != '9')
+                return false;
+        }
+
+        return true;
     }
 
     private void EnsureFacePreviewState()

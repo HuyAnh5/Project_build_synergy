@@ -78,8 +78,8 @@ public partial class TurnManager
             RefreshPlanningInteractivity();
             return;
         }
-        int resolvedSum = ComputeResolvedDieSum(start0, span, dieElement);
-        int maxFace = ComputeMaxFace(start0, span);
+        int resolvedSum = TurnManagerCombatUtility.ComputeResolvedDieSum(diceRig, player, paymentPlan, dieElement);
+        int maxFace = TurnManagerCombatUtility.ComputeMaxFace(diceRig, paymentPlan);
 
         if (logPhase)
         {
@@ -99,6 +99,7 @@ public partial class TurnManager
             start0 = start0,
             span = span,
             paymentMask = paymentPlan.selectedMask,
+            paymentPlan = paymentPlan.Clone(),
         });
 
         _cursor = FindNextExecutableAnchor();
