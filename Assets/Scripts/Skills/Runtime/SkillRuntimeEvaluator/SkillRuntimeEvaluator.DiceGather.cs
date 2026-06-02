@@ -60,6 +60,9 @@ public static partial class SkillRuntimeEvaluator
 
     // Gathers base values for either the skill-bound group or all active lanes.
     private static List<int> GatherDiceForScope(SkillConditionScope scope, DiceSlotRig diceRig, int start0, int span)
+        => GatherDiceForScope(scope, diceRig, start0, span, -1);
+
+    private static List<int> GatherDiceForScope(SkillConditionScope scope, DiceSlotRig diceRig, int start0, int span, int paymentMask)
     {
         var list = new List<int>(3);
 
@@ -71,6 +74,7 @@ public static partial class SkillRuntimeEvaluator
             {
                 if (i < 0 || i > 2) continue;
                 if (!diceRig.IsSlotActive(i)) continue;
+                if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
                 list.Add(diceRig.IsNumericFaceForConditions(i) ? diceRig.GetDieValue(i) : 0);
             }
             return list;
@@ -86,6 +90,9 @@ public static partial class SkillRuntimeEvaluator
 
     // Gathers whether each local dice face is numeric for condition checks.
     private static List<bool> GatherNumericFlags(DiceSlotRig diceRig, int start0, int span)
+        => GatherNumericFlags(diceRig, start0, span, -1);
+
+    private static List<bool> GatherNumericFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask)
     {
         var list = new List<bool>(3);
         if (diceRig == null)
@@ -95,6 +102,7 @@ public static partial class SkillRuntimeEvaluator
         {
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
+            if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
             list.Add(diceRig.IsNumericFaceForConditions(i));
         }
 
@@ -103,6 +111,9 @@ public static partial class SkillRuntimeEvaluator
 
     // Gathers resolved die values after element/enchant rewrite rules.
     private static List<int> GatherResolvedDiceForScope(DiceSlotRig diceRig, CombatActor owner, int start0, int span, ElementType skillElement)
+        => GatherResolvedDiceForScope(diceRig, owner, start0, span, skillElement, -1);
+
+    private static List<int> GatherResolvedDiceForScope(DiceSlotRig diceRig, CombatActor owner, int start0, int span, ElementType skillElement, int paymentMask)
     {
         var list = new List<int>(3);
 
@@ -113,6 +124,7 @@ public static partial class SkillRuntimeEvaluator
         {
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
+            if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
             list.Add(diceRig.GetResolvedDieValue(i, owner, skillElement));
         }
 
@@ -120,6 +132,9 @@ public static partial class SkillRuntimeEvaluator
     }
 
     private static List<int> GatherOutputBaseValuesForScope(DiceSlotRig diceRig, int start0, int span)
+        => GatherOutputBaseValuesForScope(diceRig, start0, span, -1);
+
+    private static List<int> GatherOutputBaseValuesForScope(DiceSlotRig diceRig, int start0, int span, int paymentMask)
     {
         var list = new List<int>(3);
 
@@ -130,6 +145,7 @@ public static partial class SkillRuntimeEvaluator
         {
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
+            if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
             list.Add(diceRig.GetOutputBaseValue(i));
         }
 
@@ -138,6 +154,9 @@ public static partial class SkillRuntimeEvaluator
 
     // Gathers Crit flags for local dice.
     private static List<bool> GatherCritFlags(DiceSlotRig diceRig, int start0, int span)
+        => GatherCritFlags(diceRig, start0, span, -1);
+
+    private static List<bool> GatherCritFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask)
     {
         var list = new List<bool>(3);
         if (diceRig == null)
@@ -147,6 +166,7 @@ public static partial class SkillRuntimeEvaluator
         {
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
+            if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
             list.Add(diceRig.IsCrit(i));
         }
 
@@ -155,6 +175,9 @@ public static partial class SkillRuntimeEvaluator
 
     // Gathers Fail flags for local dice.
     private static List<bool> GatherFailFlags(DiceSlotRig diceRig, int start0, int span)
+        => GatherFailFlags(diceRig, start0, span, -1);
+
+    private static List<bool> GatherFailFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask)
     {
         var list = new List<bool>(3);
         if (diceRig == null)
@@ -164,6 +187,7 @@ public static partial class SkillRuntimeEvaluator
         {
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
+            if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
             list.Add(diceRig.IsFail(i));
         }
 
@@ -172,6 +196,9 @@ public static partial class SkillRuntimeEvaluator
 
     // Gathers whether each Fail should apply the output penalty.
     private static List<bool> GatherFailPenaltyFlags(DiceSlotRig diceRig, int start0, int span)
+        => GatherFailPenaltyFlags(diceRig, start0, span, -1);
+
+    private static List<bool> GatherFailPenaltyFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask)
     {
         var list = new List<bool>(3);
         if (diceRig == null)
@@ -181,6 +208,7 @@ public static partial class SkillRuntimeEvaluator
         {
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
+            if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
             list.Add(diceRig.AppliesFailPenalty(i));
         }
 
@@ -189,6 +217,9 @@ public static partial class SkillRuntimeEvaluator
 
     // Gathers aggregate Crit/Fail booleans for the runtime.
     private static void GatherCritFailFlags(DiceSlotRig diceRig, int start0, int span, out bool critAny, out bool failAny, out bool failPenaltyAny)
+        => GatherCritFailFlags(diceRig, start0, span, -1, out critAny, out failAny, out failPenaltyAny);
+
+    private static void GatherCritFailFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask, out bool critAny, out bool failAny, out bool failPenaltyAny)
     {
         critAny = false;
         failAny = false;
@@ -201,6 +232,7 @@ public static partial class SkillRuntimeEvaluator
         {
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
+            if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
             critAny |= diceRig.IsCrit(i);
             failAny |= diceRig.IsFail(i);
             failPenaltyAny |= diceRig.AppliesFailPenalty(i);

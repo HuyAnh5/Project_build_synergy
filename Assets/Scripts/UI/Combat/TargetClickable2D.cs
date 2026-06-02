@@ -98,7 +98,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         ActorWorldUI[] allUIs = FindObjectsOfType<ActorWorldUI>(true);
         ClearAllPreviews(allUIs);
         ShowBundlePreviews(bundle, allUIs);
-        ShowHudFocusPreview(skillSource.GetSkillAsset(), bundle.totalSelfFocusGain);
+        ShowHudResourcePreview(skillSource.GetSkillAsset(), rt, bundle.totalSelfFocusGain);
     }
 
     public void OnPointerExit(PointerEventData eventData)
@@ -119,7 +119,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         if (asset == null && UiDragState.SelectedSkill != null)
             asset = UiDragState.SelectedSkill.GetSkillAsset();
 
-        RestoreHudFocusBaseline(asset);
+        RestoreHudResourceBaseline(asset);
     }
 
     private ActorWorldUI GetWorldUI()
@@ -192,34 +192,69 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         }
     }
 
-    private void ShowHudFocusPreview(ScriptableObject asset, int focusGain)
+    private void ShowHudResourcePreview(ScriptableObject asset, SkillRuntime runtime, int focusGain)
     {
         if (turn == null || turn.player == null || asset == null)
             return;
-        if (!SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out _))
+        if (!SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out int slotsRequired))
             return;
 
         CombatHUD hud = FindObjectOfType<CombatHUD>(true);
         if (hud == null)
             return;
 
+        DiceCombatEnchantRuntimeUtility.SimpleEnchantPreview enchantPreview = GetSimpleEnchantPreview(asset, runtime, slotsRequired);
         bool isInvalid = turn.player.focus < focusCost;
-        hud.ShowFocusPreview(focusCost, Mathf.Max(0, focusGain), isInvalid);
+        hud.ShowFocusPreview(focusCost, Mathf.Max(0, focusGain + enchantPreview.focusGain), isInvalid);
     }
 
-    private void RestoreHudFocusBaseline(ScriptableObject asset)
+    private void RestoreHudResourceBaseline(ScriptableObject asset)
     {
         CombatHUD hud = FindObjectOfType<CombatHUD>(true);
         if (hud == null)
             return;
 
-        if (turn == null || turn.player == null || asset == null || !SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out _))
+        if (turn == null || turn.player == null || asset == null || !SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out int slotsRequired))
         {
             hud.ClearFocusPreview();
             return;
         }
 
+        SkillRuntime runtime = GetRuntimeForAsset(asset);
+        DiceCombatEnchantRuntimeUtility.SimpleEnchantPreview enchantPreview = GetSimpleEnchantPreview(asset, runtime, slotsRequired);
         bool isInvalid = turn.player.focus < focusCost;
-        hud.ShowFocusPreview(focusCost, 0, isInvalid);
+        hud.ShowFocusPreview(focusCost, enchantPreview.focusGain, isInvalid);
+    }
+
+    private SkillRuntime GetRuntimeForAsset(ScriptableObject asset)
+    {
+        if (asset == null || asset is SkillPassiveSO)
+            return null;
+
+        SkillRuntime runtime = null;
+        if (turn != null)
+            turn.TryGetPrototypeSkillTooltipRuntime(asset, out runtime);
+
+        if (runtime == null)
+        {
+            if (asset is SkillDamageSO damage) runtime = SkillRuntime.FromDamage(damage);
+            else if (asset is SkillBuffDebuffSO buff) runtime = SkillRuntime.FromBuffDebuff(buff);
+        }
+
+        return runtime;
+    }
+
+    private DiceCombatEnchantRuntimeUtility.SimpleEnchantPreview GetSimpleEnchantPreview(
+        ScriptableObject asset,
+        SkillRuntime runtime,
+        int slotsRequired)
+    {
+        if (turn == null || asset == null)
+            return default;
+
+        int slotCost = runtime != null ? runtime.slotsRequired : slotsRequired;
+        return turn.TryGetPrototypeSkillSimpleEnchantPreview(asset, Mathf.Clamp(slotCost, 1, 3), out var preview)
+            ? preview
+            : default;
     }
 }

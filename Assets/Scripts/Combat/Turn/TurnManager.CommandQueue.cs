@@ -64,12 +64,12 @@ public partial class TurnManager
         }
 
         int start0 = _board.GetStartForAnchor(_cursor);
-        int span = _board.GetAnchorSpan(_cursor);
+        int span = Mathf.Clamp(rt.slotsRequired, 1, 3);
         int rawSum = _board.GetDieSumForAnchor(_cursor, diceRig);
         ElementType dieElement = GetResolvedDiceElement(rt, asset);
         DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan paymentPlan =
             DiceCombatEnchantRuntimeUtility.BuildPaymentPlan(diceRig, start0, span);
-        if (span > 0 && paymentPlan.selectedMask == 0)
+        if (span > 0 && paymentPlan.paidCost < span)
         {
             if (logPhase)
                 Debug.LogWarning("[TM] No usable dice face available to pay this skill cost.", this);
@@ -78,7 +78,7 @@ public partial class TurnManager
             RefreshPlanningInteractivity();
             return;
         }
-        int resolvedSum = ComputeResolvedDieSum(start0, span, dieElement);
+        int resolvedSum = TurnManagerCombatUtility.ComputeResolvedDieSum(diceRig, player, start0, span, dieElement, paymentPlan.selectedMask);
         int maxFace = ComputeMaxFace(start0, span);
 
         if (logPhase)

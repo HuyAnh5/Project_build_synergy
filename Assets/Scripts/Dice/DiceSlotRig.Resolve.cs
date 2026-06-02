@@ -59,7 +59,9 @@ public partial class DiceSlotRig
         if (ps != null)
             passiveAdded += ps.GetAddedValueForDie(this, slot0);
         int totalAdded = critFailAdded + faceEnchantAdded + passiveAdded;
-        int baseValue = GetEffectiveCurrentFaceEnchant(slot0) == DiceFaceEnchantKind.Stone
+        DiceSpinnerGeneric die = GetDice(slot0);
+        DiceFaceEnchantKind storedEnchant = die != null ? die.GetCurrentFaceEnchant() : DiceFaceEnchantKind.None;
+        int baseValue = storedEnchant == DiceFaceEnchantKind.Stone
             ? 0
             : info.rolledValue;
         int resolved = outputBaseValue + totalAdded;
@@ -106,6 +108,28 @@ public partial class DiceSlotRig
         }
 
         return IsSlotActive(0) && IsSlotActive(1) && IsSlotActive(2);
+    }
+
+    public bool CanPayDiceCostAt(int start0, int diceCost)
+    {
+        DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan plan =
+            DiceCombatEnchantRuntimeUtility.BuildPaymentPlan(this, start0, diceCost);
+        return plan.paidCost >= Mathf.Clamp(diceCost, 1, 3);
+    }
+
+    public int CountPhysicalDiceInPaymentPlan(int start0, int diceCost)
+    {
+        DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan plan =
+            DiceCombatEnchantRuntimeUtility.BuildPaymentPlan(this, start0, diceCost);
+
+        int count = 0;
+        for (int i = 0; i < 3; i++)
+        {
+            if (plan.IsSelected(i))
+                count++;
+        }
+
+        return count;
     }
 
     public void ApplyActiveStates()
@@ -222,8 +246,10 @@ public partial class DiceSlotRig
 
     private int ComputeOutputBaseValue(int slot0, RollInfo info)
     {
+        DiceSpinnerGeneric die = GetDice(slot0);
+        DiceFaceEnchantKind stored = die != null ? die.GetCurrentFaceEnchant() : DiceFaceEnchantKind.None;
         DiceFaceEnchantKind effective = GetEffectiveCurrentFaceEnchant(slot0);
-        if (effective == DiceFaceEnchantKind.Stone)
+        if (stored == DiceFaceEnchantKind.Stone)
             return 0;
         if (effective == DiceFaceEnchantKind.Double)
             return Mathf.Max(0, info.rolledValue * 2);
@@ -247,9 +273,6 @@ public partial class DiceSlotRig
             return 0;
 
         DiceFaceEnchantKind effective = GetEffectiveCurrentFaceEnchant(slot0);
-        if (effective == DiceFaceEnchantKind.Stone)
-            return DiceFaceEnchantUtility.StoneAddedValue + die.GetCurrentPhaseValueModifier();
-
         int added = die.GetCurrentPhaseValueModifier();
         added += DiceFaceEnchantUtility.GetOnUseAddedValue(effective);
         return added;

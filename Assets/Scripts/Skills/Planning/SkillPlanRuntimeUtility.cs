@@ -14,14 +14,17 @@ internal static class SkillPlanRuntimeUtility
     }
 
     public static SkillRuntime EvaluateRuntimeForSkillAsset(ScriptableObject skill, CombatActor owner, DiceSlotRig diceRig, int anchor0, int baseSpan, int baseStart0)
+        => EvaluateRuntimeForSkillAsset(skill, owner, diceRig, anchor0, baseSpan, baseStart0, -1);
+
+    public static SkillRuntime EvaluateRuntimeForSkillAsset(ScriptableObject skill, CombatActor owner, DiceSlotRig diceRig, int anchor0, int baseSpan, int baseStart0, int paymentMask)
     {
         switch (skill)
         {
             case SkillDamageSO dmg:
-                return SkillRuntimeEvaluator.Evaluate(dmg, owner, diceRig, anchor0, baseSpan, baseStart0);
+                return SkillRuntimeEvaluator.Evaluate(dmg, owner, diceRig, anchor0, baseSpan, baseStart0, null, paymentMask);
 
             case SkillBuffDebuffSO buff:
-                return BuildRuntimeFromBuffDebuffSkill(buff, owner, diceRig, baseSpan, baseStart0);
+                return BuildRuntimeFromBuffDebuffSkill(buff, owner, diceRig, baseSpan, baseStart0, paymentMask);
 
             default:
                 return null;
@@ -135,7 +138,7 @@ internal static class SkillPlanRuntimeUtility
         return rt;
     }
 
-    private static SkillRuntime BuildRuntimeFromBuffDebuffSkill(SkillBuffDebuffSO b, CombatActor owner, DiceSlotRig diceRig, int baseSpan, int baseStart0)
+    private static SkillRuntime BuildRuntimeFromBuffDebuffSkill(SkillBuffDebuffSO b, CombatActor owner, DiceSlotRig diceRig, int baseSpan, int baseStart0, int paymentMask)
     {
         if (b == null) return null;
 
@@ -161,12 +164,12 @@ internal static class SkillPlanRuntimeUtility
         if (rt.target == TargetRule.Self) rt.hitAllEnemies = false;
         if (rt.target == TargetRule.Enemy) rt.hitAllAllies = false;
 
-        PopulateLocalDiceSnapshot(rt, owner, diceRig, baseStart0, span);
+        PopulateLocalDiceSnapshot(rt, owner, diceRig, baseStart0, span, paymentMask);
 
         return rt;
     }
 
-    private static void PopulateLocalDiceSnapshot(SkillRuntime rt, CombatActor owner, DiceSlotRig diceRig, int start0, int span)
+    private static void PopulateLocalDiceSnapshot(SkillRuntime rt, CombatActor owner, DiceSlotRig diceRig, int start0, int span, int paymentMask)
     {
         if (rt == null || diceRig == null || !diceRig.HasRolledThisTurn)
             return;
@@ -184,6 +187,9 @@ internal static class SkillPlanRuntimeUtility
 
         for (int i = start0; i < start0 + span && i < 3; i++)
         {
+            if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0)
+                continue;
+
             rt.localBaseValues.Add(diceRig.IsNumericFaceForConditions(i) ? diceRig.GetBaseValue(i) : 0);
             rt.localOutputBaseValues.Add(diceRig.GetOutputBaseValue(i));
             rt.localResolvedValues.Add(diceRig.GetResolvedDieValue(i, owner));

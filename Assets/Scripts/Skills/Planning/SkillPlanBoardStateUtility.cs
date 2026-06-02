@@ -285,7 +285,16 @@ internal static class SkillPlanBoardStateUtility
             int baseSpan = Mathf.Clamp(SkillPlanRuntimeUtility.GetSlotsRequired(skill), 1, 3);
             int baseStart0 = SanitizeStart0ForSpan(anchorBaseStart0[a], baseSpan);
 
-            anchorRuntime[a] = SkillPlanRuntimeUtility.EvaluateRuntimeForSkillAsset(skill, player, diceRig, a, baseSpan, baseStart0);
+            int paymentMask = -1;
+            if (diceRig != null)
+            {
+                DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan plan =
+                    DiceCombatEnchantRuntimeUtility.BuildPaymentPlan(diceRig, baseStart0, baseSpan);
+                if (plan.paidCost >= baseSpan)
+                    paymentMask = plan.selectedMask;
+            }
+
+            anchorRuntime[a] = SkillPlanRuntimeUtility.EvaluateRuntimeForSkillAsset(skill, player, diceRig, a, baseSpan, baseStart0, paymentMask);
             if (anchorRuntime[a] == null)
             {
                 anchorRuntime[a] = default;
@@ -299,6 +308,14 @@ internal static class SkillPlanBoardStateUtility
                 bool ok = TryResizeGroupToSpan(cellSkill, cellAnchor, anchorSpan, anchorStart0, a, desiredSpan, diceRig);
                 if (!ok)
                 {
+                    if (paymentMask >= 0)
+                    {
+                        DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan plan =
+                            DiceCombatEnchantRuntimeUtility.BuildPaymentPlan(diceRig, baseStart0, desiredSpan);
+                        if (plan.paidCost >= desiredSpan && (plan.selectedMask & paymentMask) == paymentMask)
+                            continue;
+                    }
+
                     if (cellSkill[a] is SkillDamageSO && desiredSpan > currentSpan)
                         return false;
 

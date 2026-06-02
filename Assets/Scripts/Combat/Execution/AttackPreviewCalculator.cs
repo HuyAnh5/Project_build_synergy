@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public static class AttackPreviewCalculator
@@ -344,12 +345,18 @@ public static class AttackPreviewCalculator
 
     private static int GetActionBaseValue(SkillRuntime rt, int fallbackResolvedValue)
     {
-        if (rt == null || rt.localBaseValues == null || rt.localBaseValues.Count <= 0)
+        if (rt == null)
+            return Mathf.Max(0, fallbackResolvedValue);
+
+        IReadOnlyList<int> outputBaseValues = rt.localOutputBaseValues != null && rt.localOutputBaseValues.Count > 0
+            ? rt.localOutputBaseValues
+            : rt.localBaseValues;
+        if (outputBaseValues == null || outputBaseValues.Count <= 0)
             return Mathf.Max(0, fallbackResolvedValue);
 
         int baseOutput = 0;
-        for (int i = 0; i < rt.localBaseValues.Count; i++)
-            baseOutput += Mathf.Max(0, rt.localBaseValues[i]);
+        for (int i = 0; i < outputBaseValues.Count; i++)
+            baseOutput += Mathf.Max(0, outputBaseValues[i]);
 
         return Mathf.Max(0, baseOutput);
     }

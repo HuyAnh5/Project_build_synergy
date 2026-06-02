@@ -38,16 +38,47 @@ public partial class TurnManager
         return true;
     }
 
+    private bool MarkBrokenRolledFacesSpent()
+    {
+        if (diceRig == null || diceRig.slots == null)
+            return false;
+
+        bool changed = false;
+        for (int i = 0; i < diceRig.slots.Length; i++)
+        {
+            if (!diceRig.IsSlotActive(i))
+                continue;
+
+            DiceSpinnerGeneric die = diceRig.slots[i] != null ? diceRig.slots[i].dice : null;
+            if (die == null || !die.IsCurrentFaceBroken())
+                continue;
+
+            if (_spentDiceThisTurn.Add(die))
+            {
+                _pendingUsedVisualDiceThisTurn.Remove(die);
+                changed = true;
+            }
+        }
+
+        return changed;
+    }
+
     public void RefreshPlanningAfterDiceAvailabilityChanged()
     {
         if (diceRig != null)
             diceRig.RefreshRollInfoCache();
+
+        bool brokenSpentChanged = MarkBrokenRolledFacesSpent();
 
         if (IsPlanning)
         {
             _board.RecalculateRuntimesAndRebalance(player, diceRig);
             RefreshAllViews();
             RefreshPlanningInteractivity();
+        }
+        else if (brokenSpentChanged)
+        {
+            RefreshAllViews();
         }
     }
 

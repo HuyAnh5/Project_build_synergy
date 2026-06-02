@@ -91,12 +91,18 @@ public static class SkillOutputValueUtility
 
     public static int ResolveXValue(int resolvedValue, SkillRuntime rt)
     {
-        if (rt == null || rt.localBaseValues == null || rt.localBaseValues.Count == 0)
+        if (rt == null)
+            return ResolveXValue(resolvedValue);
+
+        IReadOnlyList<int> outputBaseValues = rt.localOutputBaseValues != null && rt.localOutputBaseValues.Count > 0
+            ? rt.localOutputBaseValues
+            : rt.localBaseValues;
+        if (outputBaseValues == null || outputBaseValues.Count == 0)
             return ResolveXValue(resolvedValue);
 
         int baseOutput = 0;
-        for (int i = 0; i < rt.localBaseValues.Count; i++)
-            baseOutput += Mathf.Max(0, rt.localBaseValues[i]);
+        for (int i = 0; i < outputBaseValues.Count; i++)
+            baseOutput += Mathf.Max(0, outputBaseValues[i]);
 
         int addedValue = GetTotalActionAddedValue(rt);
         int reducedBase = rt.localFailPenaltyAny

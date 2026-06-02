@@ -173,6 +173,9 @@ public static class TurnManagerCombatUtility
     }
 
     public static int ComputeResolvedDieSum(DiceSlotRig diceRig, CombatActor player, int start0, int span, ElementType skillElement)
+        => ComputeResolvedDieSum(diceRig, player, start0, span, skillElement, -1);
+
+    public static int ComputeResolvedDieSum(DiceSlotRig diceRig, CombatActor player, int start0, int span, ElementType skillElement, int paymentMask)
     {
         if (diceRig == null || player == null) return 0;
         span = Mathf.Clamp(span, 1, 3);
@@ -180,7 +183,11 @@ public static class TurnManagerCombatUtility
 
         int sum = 0;
         for (int i = start0; i < start0 + span; i++)
+        {
+            if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0)
+                continue;
             sum += diceRig.GetResolvedDieValue(i, player, skillElement);
+        }
 
         return sum;
     }

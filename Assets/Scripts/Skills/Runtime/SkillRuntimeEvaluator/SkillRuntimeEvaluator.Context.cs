@@ -12,9 +12,21 @@ public static partial class SkillRuntimeEvaluator
         int span,
         ElementType skillElement,
         CombatActor target)
+        => BuildConditionContext(scope, owner, diceRig, start0, span, skillElement, target, -1);
+
+    private static SkillConditionContext BuildConditionContext(
+        SkillConditionScope scope,
+        CombatActor owner,
+        DiceSlotRig diceRig,
+        int start0,
+        int span,
+        ElementType skillElement,
+        CombatActor target,
+        int paymentMask)
     {
         int gatherStart = scope == SkillConditionScope.Global ? 0 : start0;
         int gatherSpan = scope == SkillConditionScope.Global ? 3 : span;
+        int gatherMask = scope == SkillConditionScope.Global ? -1 : paymentMask;
         BattlePartyManager2D party = Object.FindObjectOfType<BattlePartyManager2D>(true);
         int enemiesWithBurnCount = 0;
         int markedEnemiesCount = 0;
@@ -37,12 +49,12 @@ public static partial class SkillRuntimeEvaluator
         return new SkillConditionContext
         {
             scope = scope,
-            localBaseValues = GatherDiceForScope(scope, diceRig, gatherStart, gatherSpan),
-            localOutputBaseValues = GatherOutputBaseValuesForScope(diceRig, gatherStart, gatherSpan),
-            localNumericFlags = GatherNumericFlags(diceRig, gatherStart, gatherSpan),
-            localResolvedValues = GatherResolvedDiceForScope(diceRig, owner, gatherStart, gatherSpan, skillElement),
-            localCritFlags = GatherCritFlags(diceRig, gatherStart, gatherSpan),
-            localFailFlags = GatherFailFlags(diceRig, gatherStart, gatherSpan),
+            localBaseValues = GatherDiceForScope(scope, diceRig, gatherStart, gatherSpan, gatherMask),
+            localOutputBaseValues = GatherOutputBaseValuesForScope(diceRig, gatherStart, gatherSpan, gatherMask),
+            localNumericFlags = GatherNumericFlags(diceRig, gatherStart, gatherSpan, gatherMask),
+            localResolvedValues = GatherResolvedDiceForScope(diceRig, owner, gatherStart, gatherSpan, skillElement, gatherMask),
+            localCritFlags = GatherCritFlags(diceRig, gatherStart, gatherSpan, gatherMask),
+            localFailFlags = GatherFailFlags(diceRig, gatherStart, gatherSpan, gatherMask),
             currentFocus = owner != null ? owner.focus : 0,
             currentGuard = owner != null ? owner.guardPool : 0,
             targetGuard = target != null ? target.guardPool : 0,

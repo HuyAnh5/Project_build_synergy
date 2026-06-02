@@ -70,6 +70,7 @@ public partial class TurnManager
         if (_playerContext.PassiveSystem != null)
             _playerContext.PassiveSystem.OnDiceRolled(player, diceRig);
 
+        MarkBrokenRolledFacesSpent();
         _board.RecalculateRuntimesAndRebalance(player, diceRig);
         RefreshAllViews();
         if (diceRig != null && diceRig.HasAnySkillAffectingRollFeedbackThisTurn())

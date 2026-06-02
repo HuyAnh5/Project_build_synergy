@@ -38,15 +38,15 @@ public partial class TurnManager
         if (span <= 0)
             return false;
 
-        if (!_board.TryFindEmptyPlacement(span, IsSlotAssignable0, out int start0, out int anchor0))
+        if (!TryFindPrototypePaymentPlacement(span, out int start0, out int anchor0, out int placementSpan))
             return false;
-        if (!AreSlotsActiveInRange(start0, span))
+        if (!AreSlotsActiveInRange(start0, placementSpan))
             return false;
-        if (diceRig != null && !diceRig.CanFitAtDrop(start0, span))
+        if (diceRig != null && !diceRig.CanPayDiceCostAt(start0, span))
             return false;
 
         var snap = _board.Capture(player);
-        _board.PlaceGroup(start0, anchor0, span, activeSkill);
+        _board.PlaceGroup(start0, anchor0, placementSpan, activeSkill);
         bool ok = _board.RecalculateRuntimesAndRebalance(player, diceRig);
         if (ok)
             runtime = _board.GetAnchorRuntime(anchor0);
@@ -69,6 +69,26 @@ public partial class TurnManager
             ? runtime.element
             : TurnManagerCombatUtility.GetResolvedDiceElement(runtime, activeSkill);
         dieValue = DiceCombatEnchantRuntimeUtility.ComputeCommittedPreviewDieSum(diceRig, player, start0, slotsNeeded, skillElement);
+        return true;
+    }
+
+    public bool TryGetPrototypeSkillSimpleEnchantPreview(
+        ScriptableObject activeSkill,
+        int slotsRequired,
+        out DiceCombatEnchantRuntimeUtility.SimpleEnchantPreview preview)
+    {
+        preview = default;
+        if (activeSkill == null || diceRig == null || player == null || !diceRig.HasRolledThisTurn)
+            return false;
+
+        if (!TryResolvePrototypeCastPlacement(activeSkill, out int start0, out _, commit: false))
+            return false;
+
+        preview = DiceCombatEnchantRuntimeUtility.ComputeCommittedSimpleEnchantPreview(
+            diceRig,
+            player,
+            start0,
+            Mathf.Clamp(slotsRequired, 1, 3));
         return true;
     }
 
@@ -121,15 +141,15 @@ public partial class TurnManager
         if (span <= 0)
             return false;
 
-        if (!_board.TryFindEmptyPlacement(span, IsSlotAssignable0, out start0, out anchor0))
+        if (!TryFindPrototypePaymentPlacement(span, out start0, out anchor0, out int placementSpan))
             return false;
-        if (!AreSlotsActiveInRange(start0, span))
+        if (!AreSlotsActiveInRange(start0, placementSpan))
             return false;
-        if (diceRig != null && !diceRig.CanFitAtDrop(start0, span))
+        if (diceRig != null && !diceRig.CanPayDiceCostAt(start0, span))
             return false;
 
         var snap = _board.Capture(player);
-        _board.PlaceGroup(start0, anchor0, span, activeSkill);
+        _board.PlaceGroup(start0, anchor0, placementSpan, activeSkill);
         bool ok = _board.RecalculateRuntimesAndRebalance(player, diceRig);
         if (!ok)
         {
@@ -141,6 +161,37 @@ public partial class TurnManager
             _board.Restore(snap, player);
 
         return true;
+    }
+
+    private bool TryFindPrototypePaymentPlacement(int paymentCost, out int start0, out int anchor0, out int placementSpan)
+    {
+        placementSpan = Mathf.Clamp(paymentCost, 1, 3);
+        if (_board.TryFindEmptyPlacement(placementSpan, IsSlotAssignable0, out start0, out anchor0))
+            return true;
+
+        start0 = -1;
+        anchor0 = -1;
+        if (diceRig == null || paymentCost <= 1)
+            return false;
+
+        int required = Mathf.Clamp(paymentCost, 1, 3);
+        for (int i = 0; i < 3; i++)
+        {
+            if (!_board.IsCellEmpty(i) || !IsSlotAssignable0(i))
+                continue;
+
+            DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan plan =
+                DiceCombatEnchantRuntimeUtility.BuildPaymentPlan(diceRig, i, required);
+            if (plan.paidCost < required || !plan.IsSelected(i))
+                continue;
+
+            start0 = i;
+            anchor0 = i;
+            placementSpan = 1;
+            return true;
+        }
+
+        return false;
     }
 
     private bool HasAnyValidPrototypeTarget(SkillRuntime runtime)

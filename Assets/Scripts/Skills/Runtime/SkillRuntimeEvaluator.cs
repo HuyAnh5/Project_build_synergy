@@ -24,24 +24,27 @@ public static partial class SkillRuntimeEvaluator
     }
 
     public static SkillRuntime Evaluate(SkillDamageSO skill, CombatActor owner, DiceSlotRig diceRig, int anchor0, int span, int start0, CombatActor target)
+        => Evaluate(skill, owner, diceRig, anchor0, span, start0, target, -1);
+
+    public static SkillRuntime Evaluate(SkillDamageSO skill, CombatActor owner, DiceSlotRig diceRig, int anchor0, int span, int start0, CombatActor target, int paymentMask)
     {
         if (skill == null) return null;
 
         var rt = SkillRuntime.FromDamage(skill);
         if (rt == null) return null;
-        rt.localBaseValues = GatherDiceForScope(SkillConditionScope.SlotBound, diceRig, start0, span);
-        rt.localOutputBaseValues = GatherOutputBaseValuesForScope(diceRig, start0, span);
-        rt.localNumericFlags = GatherNumericFlags(diceRig, start0, span);
-        rt.localCritFlags = GatherCritFlags(diceRig, start0, span);
-        rt.localFailFlags = GatherFailFlags(diceRig, start0, span);
-        rt.localFailPenaltyFlags = GatherFailPenaltyFlags(diceRig, start0, span);
-        GatherCritFailFlags(diceRig, start0, span, out rt.localCritAny, out rt.localFailAny, out rt.localFailPenaltyAny);
+        rt.localBaseValues = GatherDiceForScope(SkillConditionScope.SlotBound, diceRig, start0, span, paymentMask);
+        rt.localOutputBaseValues = GatherOutputBaseValuesForScope(diceRig, start0, span, paymentMask);
+        rt.localNumericFlags = GatherNumericFlags(diceRig, start0, span, paymentMask);
+        rt.localCritFlags = GatherCritFlags(diceRig, start0, span, paymentMask);
+        rt.localFailFlags = GatherFailFlags(diceRig, start0, span, paymentMask);
+        rt.localFailPenaltyFlags = GatherFailPenaltyFlags(diceRig, start0, span, paymentMask);
+        GatherCritFailFlags(diceRig, start0, span, paymentMask, out rt.localCritAny, out rt.localFailAny, out rt.localFailPenaltyAny);
 
         bool met = false;
 
         if (skill.hasCondition && diceRig != null)
         {
-            SkillConditionContext conditionContext = BuildConditionContext(skill.condition.scope, owner, diceRig, start0, span, rt.element, target);
+            SkillConditionContext conditionContext = BuildConditionContext(skill.condition.scope, owner, diceRig, start0, span, rt.element, target, paymentMask);
             met = skill.conditionEditorMode == ConditionEditorMode.Builder
                 ? EvaluateBuilderCondition(skill, owner, diceRig, conditionContext)
                 : SkillConditionEvaluator.Evaluate(skill.condition, conditionContext);
@@ -72,7 +75,7 @@ public static partial class SkillRuntimeEvaluator
             rt.hitAllAllies = false;
         }
 
-        rt.localResolvedValues = GatherResolvedDiceForScope(diceRig, owner, start0, span, rt.element);
+        rt.localResolvedValues = GatherResolvedDiceForScope(diceRig, owner, start0, span, rt.element, paymentMask);
         ApplyOwnerCombatBonuses(rt, owner);
 
         return rt;

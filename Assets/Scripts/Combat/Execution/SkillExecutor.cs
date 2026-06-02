@@ -45,14 +45,14 @@ public partial class SkillExecutor : MonoBehaviour
         yield return ExecuteSkill(rt, caster, target, dieValue, skipCost);
     }
 
-    public IEnumerator ExecuteSkill(SkillDamageSO skill, CombatActor caster, CombatActor target, int dieValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null, DiceSlotRig castDiceRig = null, int castStart0 = -1, int castSpan = 0)
+    public IEnumerator ExecuteSkill(SkillDamageSO skill, CombatActor caster, CombatActor target, int dieValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null, DiceSlotRig castDiceRig = null, int castStart0 = -1, int castSpan = 0, int castPaymentMask = -1)
     {
         var rt = SkillRuntime.FromDamage(skill);
-        yield return ExecuteSkill(rt, caster, target, dieValue, skipCost, aoeTargets, castDiceRig, castStart0, castSpan);
+        yield return ExecuteSkill(rt, caster, target, dieValue, skipCost, aoeTargets, castDiceRig, castStart0, castSpan, castPaymentMask);
     }
 
     // NEW: SkillBuffDebuffSO execution (applies via StatusController)
-    public IEnumerator ExecuteSkill(SkillBuffDebuffSO skill, CombatActor caster, CombatActor clickedTarget, int rolledValue, int maxFaceValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null, DiceSlotRig castDiceRig = null, int castStart0 = -1, int castSpan = 0)
+    public IEnumerator ExecuteSkill(SkillBuffDebuffSO skill, CombatActor caster, CombatActor clickedTarget, int rolledValue, int maxFaceValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null, DiceSlotRig castDiceRig = null, int castStart0 = -1, int castSpan = 0, int castPaymentMask = -1)
     {
         if (skill == null || caster == null) yield break;
 
@@ -100,7 +100,7 @@ public partial class SkillExecutor : MonoBehaviour
         if (ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
         {
             PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, clickedTarget, targets);
-            yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, caster, clickedTarget, targets, mode, applyBuffEffects);
+            yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, castPaymentMask, caster, clickedTarget, targets, mode, applyBuffEffects);
         }
         else
         {
@@ -134,7 +134,8 @@ public partial class SkillExecutor : MonoBehaviour
         IReadOnlyList<CombatActor> aoeTargets = null,
         DiceSlotRig castDiceRig = null,
         int castStart0 = -1,
-        int castSpan = 0)
+        int castSpan = 0,
+        int castPaymentMask = -1)
     {
         if (rt == null || caster == null) yield break;
 
@@ -203,7 +204,7 @@ public partial class SkillExecutor : MonoBehaviour
             if (ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
             {
                 PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, primaryTarget, null);
-                yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, caster, primaryTarget, null, mode, applyGuard);
+                yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, castPaymentMask, caster, primaryTarget, null, mode, applyGuard);
             }
             else
             {
@@ -240,7 +241,7 @@ public partial class SkillExecutor : MonoBehaviour
                 };
 
                 PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, primaryTarget, aoeTargets);
-                yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, caster, primaryTarget, aoeTargets, mode, applyAttackAtImpact);
+                yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, castPaymentMask, caster, primaryTarget, aoeTargets, mode, applyAttackAtImpact);
 
                 if (impactResolved)
                 {

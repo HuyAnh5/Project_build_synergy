@@ -19,6 +19,7 @@ internal sealed class SkillIconPreviewController
     private SkillRuntime _cachedDragRuntime;
     private ActorWorldUI[] _cachedActorWorldUis;
     private bool _overlaysShown;
+    private DiceCombatEnchantRuntimeUtility.SimpleEnchantPreview _simpleEnchantPreview;
 
     public SkillIconPreviewController(
         TurnManager turn,
@@ -42,10 +43,11 @@ internal sealed class SkillIconPreviewController
             return;
 
         CombatHUD hud = GetCachedHud();
+        _simpleEnchantPreview = ComputeSimpleEnchantPreview(slotsRequired);
         if (hud != null && _turn.player != null)
         {
             bool isInvalid = _turn.player.focus < focusCost;
-            hud.ShowFocusPreview(focusCost, 0, isInvalid);
+            hud.ShowFocusPreview(focusCost, _simpleEnchantPreview.focusGain, isInvalid);
         }
 
         if (_turn.diceRig != null)
@@ -55,6 +57,7 @@ internal sealed class SkillIconPreviewController
         }
 
         ShowTargetOverlays(asset);
+        ShowSelfEnchantGuardPreview();
         _resourcePreviewActive = true;
     }
 
@@ -111,7 +114,10 @@ internal sealed class SkillIconPreviewController
 
         ClearTargetPreviewIfActive();
         if (hoveredUi == null || hoveredActor == null)
+        {
+            ShowSelfEnchantGuardPreview();
             return;
+        }
 
         if (_cachedDragRuntime == null)
         {
@@ -132,7 +138,10 @@ internal sealed class SkillIconPreviewController
             return;
 
         if (!TurnManagerTargetingUtility.IsValidTargetForPendingSkill(_cachedDragRuntime, hoveredActor, _turn.player, _turn.party, _turn.enemy))
+        {
+            ShowSelfEnchantGuardPreview();
             return;
+        }
 
         int dieValue = _getPreviewDieValue(_cachedDragRuntime);
         TargetPreviewBuilder.ActionPreviewBundle bundle =
@@ -214,7 +223,7 @@ internal sealed class SkillIconPreviewController
             {
                 CombatHUD hud = GetCachedHud();
                 if (hud != null)
-                    hud.ShowFocusPreview(focusCost, 0, _turn.player.focus < focusCost);
+                    hud.ShowFocusPreview(focusCost, _simpleEnchantPreview.focusGain, _turn.player.focus < focusCost);
             }
         }
     }
@@ -244,8 +253,54 @@ internal sealed class SkillIconPreviewController
         if (hud != null && _turn != null && _turn.player != null && asset != null &&
             SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out _))
         {
-            hud.ShowFocusPreview(focusCost, Mathf.Max(0, bundle.totalSelfFocusGain), _turn.player.focus < focusCost);
+            hud.ShowFocusPreview(focusCost, Mathf.Max(0, bundle.totalSelfFocusGain + _simpleEnchantPreview.focusGain), _turn.player.focus < focusCost);
         }
+    }
+
+    private DiceCombatEnchantRuntimeUtility.SimpleEnchantPreview ComputeSimpleEnchantPreview(int slotsRequired)
+    {
+        if (_turn == null || _turn.diceRig == null || _turn.player == null || !_turn.diceRig.HasRolledThisTurn)
+            return default;
+
+        ScriptableObject asset = _getSkillAsset();
+        return asset != null && _turn.TryGetPrototypeSkillSimpleEnchantPreview(asset, slotsRequired, out var preview)
+            ? preview
+            : default;
+    }
+
+    private void ShowSelfEnchantGuardPreview()
+    {
+        if (_simpleEnchantPreview.guardGain <= 0 || _turn == null || _turn.player == null)
+            return;
+
+        ActorWorldUI playerUi = FindActorWorldUi(_turn.player);
+        if (playerUi == null)
+            return;
+
+        CombatActor player = _turn.player;
+        TargetPreviewData data = new TargetPreviewData
+        {
+            valid = true,
+            currentHp = player.hp,
+            currentMaxHp = player.maxHP,
+            currentGuard = player.guardPool,
+            previewHpAfter = player.hp,
+            previewGuardAfter = player.guardPool + _simpleEnchantPreview.guardGain,
+            currentlyStaggered = player.status != null && player.status.staggered,
+            currentBurn = player.status != null ? player.status.burnStacks : 0,
+            currentBleed = player.status != null ? player.status.bleedStacks : 0,
+            currentMarked = player.status != null && player.status.marked,
+            currentFrozen = player.status != null && player.status.frozen,
+            previewBurnAfter = player.status != null ? player.status.burnStacks : 0,
+            previewBleedAfter = player.status != null ? player.status.bleedStacks : 0,
+            previewMarkedAfter = player.status != null && player.status.marked,
+            previewFrozenAfter = player.status != null && player.status.frozen,
+            isSelfTarget = true,
+            selfGuardGain = _simpleEnchantPreview.guardGain
+        };
+
+        playerUi.ShowTargetPreview(data);
+        _currentPreviewTarget = playerUi;
     }
 
     private CombatActor RaycastForActor(PointerEventData eventData)

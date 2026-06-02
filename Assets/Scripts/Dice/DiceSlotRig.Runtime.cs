@@ -37,16 +37,17 @@ public partial class DiceSlotRig
         bool isBrokenFace = d.IsCurrentFaceBroken();
         bool isNumericFace = !isBrokenFace && DiceFaceEnchantUtility.IsNumericFace(faceEnchant);
         bool isUsable = !isBrokenFace;
-        bool isCrit = isUsable && isNumericFace && (d.IsCritValue(rolled) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant));
-        bool isFail = isUsable && isNumericFace && (d.IsFailValue(rolled) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant));
-        bool grantsCritBonus = isCrit && !DiceFaceEnchantUtility.SuppressesCritBonus(faceEnchant);
-        bool appliesFailPenalty = isFail && !DiceFaceEnchantUtility.SuppressesFailPenalty(faceEnchant);
 
-        int outputBaseValue = effectiveEnchant == DiceFaceEnchantKind.Stone
+        int outputBaseValue = faceEnchant == DiceFaceEnchantKind.Stone
             ? 0
             : effectiveEnchant == DiceFaceEnchantKind.Double
                 ? Mathf.Max(0, rolled * 2)
                 : rolled;
+        int critFailValue = effectiveEnchant == DiceFaceEnchantKind.Double ? outputBaseValue : rolled;
+        bool isCrit = isUsable && isNumericFace && (d.IsCritValue(critFailValue) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant));
+        bool isFail = isUsable && isNumericFace && (d.IsFailValue(critFailValue) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant));
+        bool grantsCritBonus = isCrit && !DiceFaceEnchantUtility.SuppressesCritBonus(faceEnchant);
+        bool appliesFailPenalty = isFail && !DiceFaceEnchantUtility.SuppressesFailPenalty(faceEnchant);
 
         int genericAdded = 0;
         if (grantsCritBonus) genericAdded = FloorScaled(outputBaseValue, GenericCritPercent);
@@ -256,7 +257,7 @@ public partial class DiceSlotRig
         _consumePreviewCount = Mathf.Max(0, diceCount);
         _cachedDiceUIs = UnityEngine.Object.FindObjectsOfType<DiceDraggableUI>(true);
 
-        // Đếm dice available (active + chưa spent)
+        // Count available dice-cost contribution. Heavy contributes 2 cost while using one physical die.
         int available = 0;
         for (int i = 0; i < slots.Length; i++)
         {
@@ -265,7 +266,10 @@ public partial class DiceSlotRig
             if (die == null) continue;
             if (spentDice != null && spentDice.Contains(die)) continue;
             if (!die.IsCurrentFaceUsable()) continue;
-            available++;
+            DiceFaceEnchantKind effective = GetEffectiveCurrentFaceEnchant(i);
+            available += effective == DiceFaceEnchantKind.Heavy
+                ? DiceFaceEnchantUtility.HeavyPaymentContribution
+                : 1;
         }
 
         _consumePreviewInvalid = _consumePreviewCount > available;
@@ -323,7 +327,25 @@ public partial class DiceSlotRig
         EnsureSlots();
         float t = Mathf.PingPong(Time.time * blinkSpeed, 1f);
 
-        int consumed = 0;
+        int previewPaymentMask = 0;
+        if (!_consumePreviewInvalid)
+        {
+            int previewContribution = 0;
+            for (int i = 0; i < slots.Length && previewContribution < _consumePreviewCount; i++)
+            {
+                if ((previewPaymentMask & (1 << i)) != 0) continue;
+                DiceSpinnerGeneric die = GetDice(i);
+                if (!IsSlotActive(i) || die == null) continue;
+                if (spentDice != null && spentDice.Contains(die)) continue;
+                if (!die.IsCurrentFaceUsable()) continue;
+
+                previewPaymentMask |= 1 << i;
+                previewContribution += GetEffectiveCurrentFaceEnchant(i) == DiceFaceEnchantKind.Heavy
+                    ? DiceFaceEnchantUtility.HeavyPaymentContribution
+                    : 1;
+            }
+        }
+
         for (int i = 0; i < slots.Length; i++)
         {
             if (!IsSlotActive(i)) continue;
@@ -358,7 +380,7 @@ public partial class DiceSlotRig
                 continue;
             }
 
-            if (consumed < _consumePreviewCount)
+            if ((previewPaymentMask & (1 << i)) != 0)
             {
                 if (die.GetCurrentFaceEnchant() == DiceFaceEnchantKind.Double && die.LastFaceIndex >= 0)
                     die.SetFacePreviewValue(die.LastFaceIndex, die.GetDisplayedRolledValue() * 2, true);
@@ -366,7 +388,6 @@ public partial class DiceSlotRig
                 float alpha = Mathf.Lerp(minAlpha, 1f, t);
                 ui.SetPreviewTint(new Color(0.62f, 0.62f, 0.62f, alpha), false);
                 ui.SetPreviewSpentLike(true, false);
-                consumed++;
             }
             else
             {

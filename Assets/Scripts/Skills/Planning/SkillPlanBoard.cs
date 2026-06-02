@@ -205,6 +205,7 @@ public class SkillPlanBoard
     public int GetAnchorReservedCost(int anchor0) => (anchor0 >= 0 && anchor0 < 3) ? _anchorReservedCost[anchor0] : 0;
 
     public bool IsAnchorSlot(int i0) => (i0 >= 0 && i0 < 3) && _cellSkill[i0] != null && _cellAnchor[i0] == i0;
+    public bool IsCellEmpty(int i0) => i0 >= 0 && i0 < 3 && _cellSkill[i0] == null && _cellAnchor[i0] < 0;
 
     // ---------------------------
     // Placement resolution

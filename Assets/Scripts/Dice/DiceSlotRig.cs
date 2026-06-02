@@ -7,7 +7,7 @@ public partial class DiceSlotRig : MonoBehaviour
 {
     public const float GenericCritPercent = 0.30f;
     public const float GenericFailPercent = 0.00f;
-    public const float PhysicalCritPercent = 0.30f;
+    public const float PhysicalCritPercent = 0.50f;
     private const float OpeningRollAccelTime = 0.10f;
     private const float OpeningRollBaseTotalTime = 1.25f;
     private const float OpeningRollFinishStaggerPerSlot = 0.75f;
