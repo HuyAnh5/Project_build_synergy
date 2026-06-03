@@ -195,10 +195,11 @@ public static partial class TargetPreviewBuilder
         foreach (var pair in bundle.targetPreviews)
         {
             bundle.totalSelfFocusGain += Mathf.Max(0, pair.Value.selfFocusGain);
-            bool previewAlreadyOnCaster = pair.Key == caster && (rt.kind == SkillKind.Guard || rt.kind == SkillKind.Utility);
+            bool previewAlreadyOnCaster = pair.Key == caster;
             if (!previewAlreadyOnCaster)
                 bundle.totalSelfGuardGain += Mathf.Max(0, pair.Value.selfGuardGain);
-            bundle.totalSelfHealGain += Mathf.Max(0, pair.Value.selfHealGain);
+            if (!previewAlreadyOnCaster)
+                bundle.totalSelfHealGain += Mathf.Max(0, pair.Value.selfHealGain);
         }
 
         if (bundle.totalSelfGuardGain > 0)

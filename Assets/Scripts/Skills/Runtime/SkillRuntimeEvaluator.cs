@@ -27,24 +27,27 @@ public static partial class SkillRuntimeEvaluator
         => Evaluate(skill, owner, diceRig, anchor0, span, start0, target, -1);
 
     public static SkillRuntime Evaluate(SkillDamageSO skill, CombatActor owner, DiceSlotRig diceRig, int anchor0, int span, int start0, CombatActor target, int paymentMask)
+        => Evaluate(skill, owner, diceRig, anchor0, span, start0, target, paymentMask, includeSyntheticRelayAdded: true);
+
+    public static SkillRuntime Evaluate(SkillDamageSO skill, CombatActor owner, DiceSlotRig diceRig, int anchor0, int span, int start0, CombatActor target, int paymentMask, bool includeSyntheticRelayAdded)
     {
         if (skill == null) return null;
 
         var rt = SkillRuntime.FromDamage(skill);
         if (rt == null) return null;
         rt.localBaseValues = GatherDiceForScope(SkillConditionScope.SlotBound, diceRig, start0, span, paymentMask);
-        rt.localOutputBaseValues = GatherOutputBaseValuesForScope(diceRig, start0, span, paymentMask);
+        rt.localOutputBaseValues = GatherOutputBaseValuesForScope(diceRig, start0, span, paymentMask, includeSyntheticRelayAdded);
         rt.localNumericFlags = GatherNumericFlags(diceRig, start0, span, paymentMask);
-        rt.localCritFlags = GatherCritFlags(diceRig, start0, span, paymentMask);
-        rt.localFailFlags = GatherFailFlags(diceRig, start0, span, paymentMask);
-        rt.localFailPenaltyFlags = GatherFailPenaltyFlags(diceRig, start0, span, paymentMask);
-        GatherCritFailFlags(diceRig, start0, span, paymentMask, out rt.localCritAny, out rt.localFailAny, out rt.localFailPenaltyAny);
+        rt.localCritFlags = GatherCritFlags(diceRig, start0, span, paymentMask, includeSyntheticRelayAdded);
+        rt.localFailFlags = GatherFailFlags(diceRig, start0, span, paymentMask, includeSyntheticRelayAdded);
+        rt.localFailPenaltyFlags = GatherFailPenaltyFlags(diceRig, start0, span, paymentMask, includeSyntheticRelayAdded);
+        GatherCritFailFlags(diceRig, start0, span, paymentMask, includeSyntheticRelayAdded, out rt.localCritAny, out rt.localFailAny, out rt.localFailPenaltyAny);
 
         bool met = false;
 
         if (skill.hasCondition && diceRig != null)
         {
-            SkillConditionContext conditionContext = BuildConditionContext(skill.condition.scope, owner, diceRig, start0, span, rt.element, target, paymentMask);
+            SkillConditionContext conditionContext = BuildConditionContext(skill.condition.scope, owner, diceRig, start0, span, rt.element, target, paymentMask, includeSyntheticRelayAdded);
             met = skill.conditionEditorMode == ConditionEditorMode.Builder
                 ? EvaluateBuilderCondition(skill, owner, diceRig, conditionContext)
                 : SkillConditionEvaluator.Evaluate(skill.condition, conditionContext);
@@ -75,7 +78,7 @@ public static partial class SkillRuntimeEvaluator
             rt.hitAllAllies = false;
         }
 
-        rt.localResolvedValues = GatherResolvedDiceForScope(diceRig, owner, start0, span, rt.element, paymentMask);
+        rt.localResolvedValues = GatherResolvedDiceForScope(diceRig, owner, start0, span, rt.element, paymentMask, includeSyntheticRelayAdded);
         ApplyOwnerCombatBonuses(rt, owner);
 
         return rt;

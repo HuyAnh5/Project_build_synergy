@@ -114,6 +114,9 @@ public static partial class SkillRuntimeEvaluator
         => GatherResolvedDiceForScope(diceRig, owner, start0, span, skillElement, -1);
 
     private static List<int> GatherResolvedDiceForScope(DiceSlotRig diceRig, CombatActor owner, int start0, int span, ElementType skillElement, int paymentMask)
+        => GatherResolvedDiceForScope(diceRig, owner, start0, span, skillElement, paymentMask, includeSyntheticRelayAdded: true);
+
+    private static List<int> GatherResolvedDiceForScope(DiceSlotRig diceRig, CombatActor owner, int start0, int span, ElementType skillElement, int paymentMask, bool includeSyntheticRelayAdded)
     {
         var list = new List<int>(3);
 
@@ -126,7 +129,7 @@ public static partial class SkillRuntimeEvaluator
             if (!diceRig.IsSlotActive(i)) continue;
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
             int resolvedValue = paymentMask >= 0
-                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, owner, i, skillElement, paymentMask).resolvedValue
+                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, owner, i, skillElement, paymentMask, includeSyntheticRelayAdded).resolvedValue
                 : diceRig.GetResolvedDieValue(i, owner, skillElement);
             list.Add(resolvedValue);
         }
@@ -138,6 +141,9 @@ public static partial class SkillRuntimeEvaluator
         => GatherOutputBaseValuesForScope(diceRig, start0, span, -1);
 
     private static List<int> GatherOutputBaseValuesForScope(DiceSlotRig diceRig, int start0, int span, int paymentMask)
+        => GatherOutputBaseValuesForScope(diceRig, start0, span, paymentMask, includeSyntheticRelayAdded: true);
+
+    private static List<int> GatherOutputBaseValuesForScope(DiceSlotRig diceRig, int start0, int span, int paymentMask, bool includeSyntheticRelayAdded)
     {
         var list = new List<int>(3);
 
@@ -150,7 +156,7 @@ public static partial class SkillRuntimeEvaluator
             if (!diceRig.IsSlotActive(i)) continue;
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
             list.Add(paymentMask >= 0
-                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask).outputBaseValue
+                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask, includeSyntheticRelayAdded).outputBaseValue
                 : diceRig.GetOutputBaseValue(i));
         }
 
@@ -162,6 +168,9 @@ public static partial class SkillRuntimeEvaluator
         => GatherCritFlags(diceRig, start0, span, -1);
 
     private static List<bool> GatherCritFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask)
+        => GatherCritFlags(diceRig, start0, span, paymentMask, includeSyntheticRelayAdded: true);
+
+    private static List<bool> GatherCritFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask, bool includeSyntheticRelayAdded)
     {
         var list = new List<bool>(3);
         if (diceRig == null)
@@ -173,7 +182,7 @@ public static partial class SkillRuntimeEvaluator
             if (!diceRig.IsSlotActive(i)) continue;
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
             list.Add(paymentMask >= 0
-                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask).isCrit
+                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask, includeSyntheticRelayAdded).isCrit
                 : diceRig.IsCrit(i));
         }
 
@@ -185,6 +194,9 @@ public static partial class SkillRuntimeEvaluator
         => GatherFailFlags(diceRig, start0, span, -1);
 
     private static List<bool> GatherFailFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask)
+        => GatherFailFlags(diceRig, start0, span, paymentMask, includeSyntheticRelayAdded: true);
+
+    private static List<bool> GatherFailFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask, bool includeSyntheticRelayAdded)
     {
         var list = new List<bool>(3);
         if (diceRig == null)
@@ -196,7 +208,7 @@ public static partial class SkillRuntimeEvaluator
             if (!diceRig.IsSlotActive(i)) continue;
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
             list.Add(paymentMask >= 0
-                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask).isFail
+                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask, includeSyntheticRelayAdded).isFail
                 : diceRig.IsFail(i));
         }
 
@@ -208,6 +220,9 @@ public static partial class SkillRuntimeEvaluator
         => GatherFailPenaltyFlags(diceRig, start0, span, -1);
 
     private static List<bool> GatherFailPenaltyFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask)
+        => GatherFailPenaltyFlags(diceRig, start0, span, paymentMask, includeSyntheticRelayAdded: true);
+
+    private static List<bool> GatherFailPenaltyFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask, bool includeSyntheticRelayAdded)
     {
         var list = new List<bool>(3);
         if (diceRig == null)
@@ -219,7 +234,7 @@ public static partial class SkillRuntimeEvaluator
             if (!diceRig.IsSlotActive(i)) continue;
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
             list.Add(paymentMask >= 0
-                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask).appliesFailPenalty
+                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask, includeSyntheticRelayAdded).appliesFailPenalty
                 : diceRig.AppliesFailPenalty(i));
         }
 
@@ -231,6 +246,9 @@ public static partial class SkillRuntimeEvaluator
         => GatherCritFailFlags(diceRig, start0, span, -1, out critAny, out failAny, out failPenaltyAny);
 
     private static void GatherCritFailFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask, out bool critAny, out bool failAny, out bool failPenaltyAny)
+        => GatherCritFailFlags(diceRig, start0, span, paymentMask, includeSyntheticRelayAdded: true, out critAny, out failAny, out failPenaltyAny);
+
+    private static void GatherCritFailFlags(DiceSlotRig diceRig, int start0, int span, int paymentMask, bool includeSyntheticRelayAdded, out bool critAny, out bool failAny, out bool failPenaltyAny)
     {
         critAny = false;
         failAny = false;
@@ -247,7 +265,7 @@ public static partial class SkillRuntimeEvaluator
             if (paymentMask >= 0)
             {
                 DiceSlotRig.ResolvedDieBreakdown breakdown =
-                    DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask);
+                    DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask, includeSyntheticRelayAdded);
                 critAny |= breakdown.isCrit;
                 failAny |= breakdown.isFail;
                 failPenaltyAny |= breakdown.appliesFailPenalty;

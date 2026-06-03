@@ -187,7 +187,7 @@ public static class TurnManagerCombatUtility
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0)
                 continue;
             sum += paymentMask >= 0
-                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, player, i, skillElement, paymentMask).resolvedValue
+                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, player, i, skillElement, paymentMask, includeSyntheticExternalAdded: false).resolvedValue
                 : diceRig.GetResolvedDieValue(i, player, skillElement);
         }
 

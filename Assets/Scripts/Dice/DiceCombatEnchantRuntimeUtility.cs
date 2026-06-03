@@ -342,12 +342,21 @@ public static class DiceCombatEnchantRuntimeUtility
         int slot0,
         ElementType skillElement,
         int paymentMask)
+        => GetCommittedPreviewResolvedBreakdown(diceRig, owner, slot0, skillElement, paymentMask, includeSyntheticExternalAdded: true);
+
+    public static DiceSlotRig.ResolvedDieBreakdown GetCommittedPreviewResolvedBreakdown(
+        DiceSlotRig diceRig,
+        CombatActor owner,
+        int slot0,
+        ElementType skillElement,
+        int paymentMask,
+        bool includeSyntheticExternalAdded)
     {
         CommittedFaceUsePlan plan = new CommittedFaceUsePlan
         {
             selectedMask = Mathf.Max(0, paymentMask)
         };
-        return GetCommittedPreviewResolvedBreakdown(diceRig, owner, slot0, skillElement, plan);
+        return GetCommittedPreviewResolvedBreakdown(diceRig, owner, slot0, skillElement, plan, includeSyntheticExternalAdded);
     }
 
     public static DiceSlotRig.ResolvedDieBreakdown GetCommittedPreviewResolvedBreakdown(
@@ -356,6 +365,15 @@ public static class DiceCombatEnchantRuntimeUtility
         int slot0,
         ElementType skillElement,
         CommittedFaceUsePlan plan)
+        => GetCommittedPreviewResolvedBreakdown(diceRig, owner, slot0, skillElement, plan, includeSyntheticExternalAdded: true);
+
+    public static DiceSlotRig.ResolvedDieBreakdown GetCommittedPreviewResolvedBreakdown(
+        DiceSlotRig diceRig,
+        CombatActor owner,
+        int slot0,
+        ElementType skillElement,
+        CommittedFaceUsePlan plan,
+        bool includeSyntheticExternalAdded)
     {
         if (diceRig == null)
             return default;
@@ -396,7 +414,9 @@ public static class DiceCombatEnchantRuntimeUtility
                 : 0;
         }
 
-        int externalAdded = ComputeCommittedExternalAddedValue(diceRig, slot0, plan);
+        int externalAdded = includeSyntheticExternalAdded
+            ? ComputeCommittedExternalAddedValue(diceRig, slot0, plan)
+            : 0;
         int totalAdded = breakdown.faceEnchantAddedValue + breakdown.passiveAddedValue + critFailAdded + externalAdded;
         int resolved = breakdown.outputBaseValue + totalAdded;
         if (resolved < 1)
@@ -436,6 +456,41 @@ public static class DiceCombatEnchantRuntimeUtility
             if (plan.ShouldBreak(slot0) && !plan.ShouldReload(slot0))
                 die.SetFaceBroken(plan.committedFaceIndices[slot0], true);
         }
+
+        diceRig.RefreshRollInfoCache();
+    }
+
+    public static bool PlayCommittedReloadPopups(
+        DiceSlotRig diceRig,
+        CommittedFaceUsePlan plan)
+    {
+        if (diceRig == null || plan == null)
+            return false;
+
+        bool played = false;
+        for (int slot0 = 0; slot0 < 3; slot0++)
+        {
+            if (!plan.ShouldReload(slot0))
+                continue;
+
+            DiceSpinnerGeneric die = diceRig.GetDice(slot0);
+            if (die == null)
+                continue;
+
+            die.PlayFaceEnchantPopup(die.GetCurrentFaceEnchant());
+            played = true;
+        }
+
+        return played;
+    }
+
+    public static void ApplyCommittedReloadFaceEnchants(
+        DiceSlotRig diceRig,
+        CommittedFaceUsePlan plan,
+        TurnManager turnManager)
+    {
+        if (diceRig == null || plan == null)
+            return;
 
         for (int slot0 = 0; slot0 < 3; slot0++)
         {

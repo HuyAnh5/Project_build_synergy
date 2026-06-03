@@ -47,6 +47,8 @@ internal static class TurnManagerCommandExecutionUtility
             }
 
             DiceCombatEnchantRuntimeUtility.ResolveCommittedPostSkillFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
+            DiceCombatEnchantRuntimeUtility.PlayCommittedReloadPopups(diceRig, faceUsePlan);
+            DiceCombatEnchantRuntimeUtility.ApplyCommittedReloadFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
         }
         else
         {
@@ -56,7 +58,7 @@ internal static class TurnManagerCommandExecutionUtility
             yield return ResolveCommittedPreSkillFaceEnchants(diceRig, faceUsePlan, player);
 
             ElementType dieElement = TurnManagerCombatUtility.GetResolvedDiceElement(command.runtime, command.asset);
-            SkillRuntime executionRuntime = SkillPlanRuntimeUtility.EvaluateRuntimeForSkillAsset(command.asset, player, diceRig, command.start0, command.span, command.start0, command.paymentMask);
+            SkillRuntime executionRuntime = SkillPlanRuntimeUtility.EvaluateRuntimeForSkillAsset(command.asset, player, diceRig, command.start0, command.span, command.start0, command.paymentMask, includeSyntheticRelayAdded: false);
             if (executionRuntime == null)
                 executionRuntime = command.runtime;
             int resolvedSum = TurnManagerCombatUtility.ComputeResolvedDieSum(diceRig, player, command.start0, command.span, dieElement, command.paymentMask);
@@ -78,6 +80,8 @@ internal static class TurnManagerCommandExecutionUtility
                 playerContext?.HandleBasicStrikeUse(diceRig, command.start0);
 
             DiceCombatEnchantRuntimeUtility.ResolveCommittedPostSkillFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
+            DiceCombatEnchantRuntimeUtility.PlayCommittedReloadPopups(diceRig, faceUsePlan);
+            DiceCombatEnchantRuntimeUtility.ApplyCommittedReloadFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
         }
     }
 

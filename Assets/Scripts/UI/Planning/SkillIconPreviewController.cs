@@ -278,7 +278,7 @@ internal sealed class SkillIconPreviewController
 
     private void ShowSelfEnchantGuardPreview()
     {
-        if (_simpleEnchantPreview.guardGain <= 0 || _turn == null || _turn.player == null)
+        if (_turn == null || _turn.player == null)
             return;
 
         ActorWorldUI playerUi = FindActorWorldUi(_turn.player);
@@ -286,6 +286,49 @@ internal sealed class SkillIconPreviewController
             return;
 
         CombatActor player = _turn.player;
+        TargetPreviewBuilder.ActionPreviewBundle bundle = default;
+        SkillRuntime runtime = _cachedDragRuntime;
+        if (runtime == null)
+        {
+            ScriptableObject asset = _getSkillAsset();
+            if (asset != null && !(asset is SkillPassiveSO))
+            {
+                if (_previewPlan.valid && _previewPlan.runtime != null)
+                    runtime = _previewPlan.runtime;
+                else if (!_turn.TryGetPrototypeSkillTooltipRuntime(asset, out runtime))
+                {
+                    if (asset is SkillDamageSO damageSkill)
+                        runtime = SkillRuntime.FromDamage(damageSkill);
+                    else if (asset is SkillBuffDebuffSO buffSkill)
+                        runtime = SkillRuntime.FromBuffDebuff(buffSkill);
+                }
+            }
+        }
+
+        bool canSelfPreview = runtime != null &&
+                              ((runtime.useV2Targeting && runtime.targetRuleV2 == SkillTargetRule.Self) ||
+                               runtime.kind == SkillKind.Guard ||
+                               runtime.coreAction == CoreAction.BasicGuard);
+
+        if (runtime != null && canSelfPreview)
+        {
+            int dieValue = _previewPlan.valid ? _previewPlan.resolvedDieValue : _getPreviewDieValue(runtime);
+            bundle = TargetPreviewBuilder.BuildActionBundle(runtime, player, player, dieValue, _turn.party, _turn.enemy);
+            if (_previewPlan.valid && _previewPlan.repeatCount > 0)
+                TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, _previewPlan.repeatCount + 1);
+            TargetPreviewBuilder.AddSelfResourcePreview(player, _simpleEnchantPreview.guardGain, 0, ref bundle);
+
+            if (bundle.valid && bundle.targetPreviews != null && bundle.targetPreviews.TryGetValue(player, out TargetPreviewData bundleData) && bundleData.valid)
+            {
+                playerUi.ShowTargetPreview(bundleData);
+                _currentPreviewTarget = playerUi;
+                return;
+            }
+        }
+
+        if (_simpleEnchantPreview.guardGain <= 0)
+            return;
+
         TargetPreviewData data = new TargetPreviewData
         {
             valid = true,

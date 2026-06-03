@@ -23,6 +23,18 @@ public static partial class SkillRuntimeEvaluator
         ElementType skillElement,
         CombatActor target,
         int paymentMask)
+        => BuildConditionContext(scope, owner, diceRig, start0, span, skillElement, target, paymentMask, includeSyntheticRelayAdded: true);
+
+    private static SkillConditionContext BuildConditionContext(
+        SkillConditionScope scope,
+        CombatActor owner,
+        DiceSlotRig diceRig,
+        int start0,
+        int span,
+        ElementType skillElement,
+        CombatActor target,
+        int paymentMask,
+        bool includeSyntheticRelayAdded)
     {
         int gatherStart = scope == SkillConditionScope.Global ? 0 : start0;
         int gatherSpan = scope == SkillConditionScope.Global ? 3 : span;
@@ -50,11 +62,11 @@ public static partial class SkillRuntimeEvaluator
         {
             scope = scope,
             localBaseValues = GatherDiceForScope(scope, diceRig, gatherStart, gatherSpan, gatherMask),
-            localOutputBaseValues = GatherOutputBaseValuesForScope(diceRig, gatherStart, gatherSpan, gatherMask),
+            localOutputBaseValues = GatherOutputBaseValuesForScope(diceRig, gatherStart, gatherSpan, gatherMask, includeSyntheticRelayAdded),
             localNumericFlags = GatherNumericFlags(diceRig, gatherStart, gatherSpan, gatherMask),
-            localResolvedValues = GatherResolvedDiceForScope(diceRig, owner, gatherStart, gatherSpan, skillElement, gatherMask),
-            localCritFlags = GatherCritFlags(diceRig, gatherStart, gatherSpan, gatherMask),
-            localFailFlags = GatherFailFlags(diceRig, gatherStart, gatherSpan, gatherMask),
+            localResolvedValues = GatherResolvedDiceForScope(diceRig, owner, gatherStart, gatherSpan, skillElement, gatherMask, includeSyntheticRelayAdded),
+            localCritFlags = GatherCritFlags(diceRig, gatherStart, gatherSpan, gatherMask, includeSyntheticRelayAdded),
+            localFailFlags = GatherFailFlags(diceRig, gatherStart, gatherSpan, gatherMask, includeSyntheticRelayAdded),
             currentFocus = owner != null ? owner.focus : 0,
             currentGuard = owner != null ? owner.guardPool : 0,
             targetGuard = target != null ? target.guardPool : 0,
