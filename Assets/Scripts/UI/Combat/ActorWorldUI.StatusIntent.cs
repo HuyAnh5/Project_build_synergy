@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -186,12 +187,16 @@ public partial class ActorWorldUI
 
     private void ApplyStatusBuffer()
     {
-        if (statusSlots == null)
+        IList<StatusIconSlot> slots = GetResolvedStatusSlots(_statusBuffer.Count);
+        if (slots == null)
             return;
 
-        for (int i = 0; i < statusSlots.Length; i++)
+        if (statusSlotTemplateRoot != null)
+            statusSlotTemplateRoot.gameObject.SetActive(false);
+
+        for (int i = 0; i < slots.Count; i++)
         {
-            StatusIconSlot slot = statusSlots[i];
+            StatusIconSlot slot = slots[i];
             if (slot == null || slot.root == null)
                 continue;
 

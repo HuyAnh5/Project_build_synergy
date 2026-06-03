@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -47,11 +48,11 @@ public partial class ActorWorldUI
             guardText = FindChildComponent<TMP_Text>(guardRoot, "Value");
 
         statusRowRoot = ResolveRectTransform(statusRowRoot, "WorldCanvasRoot/StatusRow");
-        if (statusSlots == null || statusSlots.Length != DefaultStatusSlotCount)
-            statusSlots = new StatusIconSlot[DefaultStatusSlotCount];
-
         if (statusRowRoot == null)
             return;
+
+        statusSlotTemplateRoot = ResolveStatusSlotTemplateRoot();
+        EnsureStatusSlotsArray();
 
         for (int i = 0; i < statusSlots.Length; i++)
         {
@@ -151,6 +152,90 @@ public partial class ActorWorldUI
 
         Transform child = parent.Find(childName);
         return child != null ? child.GetComponent<T>() : null;
+    }
+
+    private void EnsureStatusSlotsArray()
+    {
+        if (statusSlots == null || statusSlots.Length != DefaultStatusSlotCount)
+            statusSlots = new StatusIconSlot[DefaultStatusSlotCount];
+    }
+
+    private RectTransform ResolveStatusSlotTemplateRoot()
+    {
+        if (statusSlotTemplateRoot != null)
+            return statusSlotTemplateRoot;
+
+        if (statusSlots != null)
+        {
+            for (int i = 0; i < statusSlots.Length; i++)
+            {
+                if (statusSlots[i] != null && statusSlots[i].root != null)
+                    return statusSlots[i].root;
+            }
+        }
+
+        if (statusRowRoot == null)
+            return null;
+
+        Transform namedTemplate = statusRowRoot.Find("Status_1");
+        if (namedTemplate is RectTransform namedTemplateRect)
+            return namedTemplateRect;
+
+        for (int i = 0; i < statusRowRoot.childCount; i++)
+        {
+            if (statusRowRoot.GetChild(i) is RectTransform childRect)
+                return childRect;
+        }
+
+        return null;
+    }
+
+    private StatusIconSlot CreateSlotFromRoot(RectTransform root)
+    {
+        if (root == null)
+            return null;
+
+        return new StatusIconSlot
+        {
+            root = root,
+            background = root.GetComponent<Image>(),
+            iconImage = FindChildComponent<Image>(root, "Icon"),
+            shortLabelText = FindChildComponent<TMP_Text>(root, "ShortLabel"),
+            valueText = FindChildComponent<TMP_Text>(root, "Value")
+        };
+    }
+
+    private void EnsureSpawnedStatusSlotCapacity(int requiredCount)
+    {
+        if (statusSlotTemplateRoot == null)
+            return;
+
+        for (int i = _spawnedStatusSlots.Count; i < requiredCount; i++)
+        {
+            RectTransform cloneRoot = Instantiate(statusSlotTemplateRoot, statusRowRoot);
+            cloneRoot.name = $"Status_{i + 1}";
+            cloneRoot.gameObject.SetActive(false);
+            _spawnedStatusSlots.Add(CreateSlotFromRoot(cloneRoot));
+        }
+
+        for (int i = 0; i < _spawnedStatusSlots.Count; i++)
+        {
+            StatusIconSlot slot = _spawnedStatusSlots[i];
+            if (slot?.root != null)
+                slot.root.name = $"Status_{i + 1}";
+        }
+    }
+
+    private IList<StatusIconSlot> GetResolvedStatusSlots(int requiredCount)
+    {
+        if (statusSlotTemplateRoot != null)
+        {
+            EnsureSpawnedStatusSlotCapacity(requiredCount);
+            return _spawnedStatusSlots;
+        }
+
+        EnsureStatusSlotsArray();
+        return statusSlots;
     }
 
     private static string GetAilmentShortLabel(AilmentType ailment)

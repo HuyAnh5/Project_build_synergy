@@ -103,7 +103,7 @@ MonoBehaviour:
     baseEffects:
     - type: 0
       target: 0
-      status: 1
+      status: 3
       value:
         baseAmount: 4
         mode: 1

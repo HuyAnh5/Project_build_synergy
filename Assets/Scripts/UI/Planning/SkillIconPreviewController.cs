@@ -60,7 +60,6 @@ internal sealed class SkillIconPreviewController
         }
 
         ShowTargetOverlays(asset);
-        ShowSelfEnchantGuardPreview();
         _resourcePreviewActive = true;
     }
 
@@ -117,10 +116,7 @@ internal sealed class SkillIconPreviewController
 
         ClearTargetPreviewIfActive();
         if (hoveredUi == null || hoveredActor == null)
-        {
-            ShowSelfEnchantGuardPreview();
             return;
-        }
 
         if (_cachedDragRuntime == null)
         {
@@ -143,10 +139,7 @@ internal sealed class SkillIconPreviewController
             return;
 
         if (!TurnManagerTargetingUtility.IsValidTargetForPendingSkill(_cachedDragRuntime, hoveredActor, _turn.player, _turn.party, _turn.enemy))
-        {
-            ShowSelfEnchantGuardPreview();
             return;
-        }
 
         int dieValue = _previewPlan.valid ? _previewPlan.resolvedDieValue : _getPreviewDieValue(_cachedDragRuntime);
         TargetPreviewBuilder.ActionPreviewBundle bundle =

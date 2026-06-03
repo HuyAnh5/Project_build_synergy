@@ -91,6 +91,8 @@ public partial class ActorWorldUI : MonoBehaviour
 
     [Header("Status Row")]
     public RectTransform statusRowRoot;
+    [Tooltip("Optional single template slot, e.g. Status_1. If assigned, ActorWorldUI clones this one slot to render all statuses.")]
+    public RectTransform statusSlotTemplateRoot;
     public StatusIconSlot[] statusSlots = new StatusIconSlot[DefaultStatusSlotCount];
     public Vector2 statusIconSize = new Vector2(18f, 18f);
 
@@ -136,6 +138,7 @@ public partial class ActorWorldUI : MonoBehaviour
 
     private EnemyBrainController _brain;
     private readonly List<StatusVisualData> _statusBuffer = new List<StatusVisualData>(DefaultStatusSlotCount);
+    private readonly List<StatusIconSlot> _spawnedStatusSlots = new List<StatusIconSlot>(DefaultStatusSlotCount);
 
     // --- Targetability overlay runtime ---
     private RectTransform _targetOverlayRoot;
