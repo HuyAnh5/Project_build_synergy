@@ -102,7 +102,7 @@ public partial class GameplayDiceEditController
             case ConsumableEffectId.AdjustBaseValue:
                 return 3;
             case ConsumableEffectId.ApplyFaceEnchant:
-                return 2;
+                return 1;
             case ConsumableEffectId.CopyPasteFace:
             case ConsumableEffectId.SetRolledFace:
                 return 1;

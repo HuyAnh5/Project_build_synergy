@@ -4481,11 +4481,11 @@ MonoBehaviour:
     skillAsset: {fileID: 11400000, guid: 6201df6fa5db4498bdd5158dc14ccf72, type: 2}
   consumableCapacity: 5
   consumableSlots:
-  - asset: {fileID: 11400000, guid: 31217922bea208b458ea0470a6e71265, type: 2}
+  - asset: {fileID: 11400000, guid: 0fa37295797b435fa2d6722fa77e2913, type: 2}
     charges: 0
-  - asset: {fileID: 11400000, guid: 31217922bea208b458ea0470a6e71265, type: 2}
+  - asset: {fileID: 11400000, guid: 2d7bee2ebb48c5343bf07800fd3a48ed, type: 2}
     charges: 0
-  - asset: {fileID: 11400000, guid: 31217922bea208b458ea0470a6e71265, type: 2}
+  - asset: {fileID: 11400000, guid: 577cec28e8e97e2459164fe5e7cbd2cd, type: 2}
     charges: 0
   - asset: {fileID: 0}
     charges: 0

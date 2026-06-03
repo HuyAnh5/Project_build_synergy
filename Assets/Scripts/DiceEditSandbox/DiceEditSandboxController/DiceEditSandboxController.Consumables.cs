@@ -390,7 +390,7 @@ public partial class DiceEditSandboxController
             case ConsumableEffectId.AdjustBaseValue:
                 return 3;
             case ConsumableEffectId.ApplyFaceEnchant:
-                return 2;
+                return 1;
             case ConsumableEffectId.CopyPasteFace:
                 return 1;
             default:

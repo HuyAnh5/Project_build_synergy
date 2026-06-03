@@ -18,7 +18,7 @@ MonoBehaviour:
   family: 0
   useContext: 2
   targetKind: 3
-  effectId: 16
+  effectId: 2
   charges: 1
   valueA: 0
   minSelectedDice: 1

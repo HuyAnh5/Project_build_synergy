@@ -6926,6 +6926,11 @@ MonoBehaviour:
     - {fileID: 11400000, guid: e374c305b0f129f45aba334535bf8ef7, type: 2}
     - {fileID: 11400000, guid: 781a955e187d7d84a819a3703b2c93ec, type: 2}
     - {fileID: 11400000, guid: 2d7bee2ebb48c5343bf07800fd3a48ed, type: 2}
+    - {fileID: 11400000, guid: 577cec28e8e97e2459164fe5e7cbd2cd, type: 2}
+    - {fileID: 11400000, guid: b33c83ed18164f44a93db63a0ef94b10, type: 2}
+    - {fileID: 11400000, guid: 2e6a2f5ff4fb4c7f83c7f8a789e93102, type: 2}
+    - {fileID: 11400000, guid: 82ad0388c2f5447c819384f0454ce9b0, type: 2}
+    - {fileID: 11400000, guid: 0fa37295797b435fa2d6722fa77e2913, type: 2}
     diceColorOres:
     - {fileID: 11400000, guid: 0199fdd699c03d2448d3a691909bd976, type: 2}
   runInventory: {fileID: 1057446716}
