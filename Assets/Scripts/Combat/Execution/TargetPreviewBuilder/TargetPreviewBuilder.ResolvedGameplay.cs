@@ -104,7 +104,10 @@ public static partial class TargetPreviewBuilder
                 break;
             case SkillEffectType.GainGuard:
                 if (effectTarget == caster)
+                {
                     data.selfGuardGain += value;
+                    data.previewGuardAfter += value;
+                }
                 else
                     data.previewGuardAfter += value;
                 break;
@@ -234,7 +237,10 @@ public static partial class TargetPreviewBuilder
                     break;
                 case SkillEffectType.GainGuard:
                     if (effect.target == SkillEffectTarget.Self)
+                    {
                         data.selfGuardGain += value;
+                        data.previewGuardAfter += value;
+                    }
                     break;
                 case SkillEffectType.Heal:
                     if (effect.target == SkillEffectTarget.Self)
