@@ -81,6 +81,25 @@ public static class DiceCombatEnchantRuntimeUtility
         return plan;
     }
 
+    public static CommittedFaceUsePlan BuildPaymentPlanFromMask(DiceSlotRig diceRig, int paymentMask)
+    {
+        CommittedFaceUsePlan plan = new CommittedFaceUsePlan();
+        if (diceRig == null || diceRig.slots == null || paymentMask <= 0)
+            return plan;
+
+        int count = Mathf.Min(diceRig.slots.Length, 3);
+        for (int i = 0; i < count; i++)
+        {
+            if ((paymentMask & (1 << i)) == 0)
+                continue;
+
+            DiceFaceEnchantKind effective = diceRig.GetEffectiveCurrentFaceEnchant(i);
+            AddPaymentDie(diceRig, plan, i, effective);
+        }
+
+        return plan;
+    }
+
     private static void AddPaymentDie(
         DiceSlotRig diceRig,
         CommittedFaceUsePlan plan,
@@ -484,7 +503,6 @@ public static class DiceCombatEnchantRuntimeUtility
             if (die == null)
                 continue;
 
-            die.PlayFaceEnchantPopup(die.GetCurrentFaceEnchant());
             die.SetFaceBroken(plan.committedFaceIndices[slot0], true);
 
             if (turnManager != null)

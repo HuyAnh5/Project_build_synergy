@@ -259,24 +259,62 @@ public partial class DiceSlotRig
         _consumePreviewCount = Mathf.Max(0, diceCount);
         _cachedDiceUIs = UnityEngine.Object.FindObjectsOfType<DiceDraggableUI>(true);
 
-        // Count available dice-cost contribution. Heavy contributes 2 cost while using one physical die.
-        int available = 0;
-        for (int i = 0; i < slots.Length; i++)
-        {
-            if (!IsSlotActive(i)) continue;
-            DiceSpinnerGeneric die = GetDice(i);
-            if (die == null) continue;
-            if (spentDice != null && spentDice.Contains(die)) continue;
-            if (!die.IsCurrentFaceUsable()) continue;
-            DiceFaceEnchantKind effective = GetEffectiveCurrentFaceEnchant(i);
-            available += effective == DiceFaceEnchantKind.Heavy
-                ? DiceFaceEnchantUtility.HeavyPaymentContribution
-                : 1;
-        }
-
+        int available = CountAvailableConsumePreviewContribution(spentDice);
         _consumePreviewInvalid = paymentMask < 0 && _consumePreviewCount > available;
         _consumePreviewActive = true;
         _consumePreviewMask = paymentMask;
+    }
+
+    private int CountAvailableConsumePreviewContribution(System.Collections.Generic.HashSet<DiceSpinnerGeneric> spentDice)
+    {
+        int available = 0;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (!CanPreviewPayWithSlot(i, spentDice))
+                continue;
+
+            available += GetPaymentContribution(i);
+        }
+
+        return available;
+    }
+
+    private int BuildFallbackConsumePreviewMask(System.Collections.Generic.HashSet<DiceSpinnerGeneric> spentDice)
+    {
+        int previewPaymentMask = 0;
+        int previewContribution = 0;
+        for (int i = 0; i < slots.Length && previewContribution < _consumePreviewCount; i++)
+        {
+            if (!CanPreviewPayWithSlot(i, spentDice))
+                continue;
+
+            previewPaymentMask |= 1 << i;
+            previewContribution += GetPaymentContribution(i);
+        }
+
+        return previewPaymentMask;
+    }
+
+    private bool CanPreviewPayWithSlot(int slot0, System.Collections.Generic.HashSet<DiceSpinnerGeneric> spentDice)
+    {
+        if (!IsSlotActive(slot0))
+            return false;
+
+        DiceSpinnerGeneric die = GetDice(slot0);
+        if (die == null)
+            return false;
+
+        if (spentDice != null && spentDice.Contains(die))
+            return false;
+
+        return die.IsCurrentFaceUsable();
+    }
+
+    private int GetPaymentContribution(int slot0)
+    {
+        return GetEffectiveCurrentFaceEnchant(slot0) == DiceFaceEnchantKind.Heavy
+            ? DiceFaceEnchantUtility.HeavyPaymentContribution
+            : 1;
     }
 
     /// <summary>
@@ -335,21 +373,7 @@ public partial class DiceSlotRig
         int previewPaymentMask = _consumePreviewMask;
         if (previewPaymentMask < 0 && !_consumePreviewInvalid)
         {
-            previewPaymentMask = 0;
-            int previewContribution = 0;
-            for (int i = 0; i < slots.Length && previewContribution < _consumePreviewCount; i++)
-            {
-                if ((previewPaymentMask & (1 << i)) != 0) continue;
-                DiceSpinnerGeneric die = GetDice(i);
-                if (!IsSlotActive(i) || die == null) continue;
-                if (spentDice != null && spentDice.Contains(die)) continue;
-                if (!die.IsCurrentFaceUsable()) continue;
-
-                previewPaymentMask |= 1 << i;
-                previewContribution += GetEffectiveCurrentFaceEnchant(i) == DiceFaceEnchantKind.Heavy
-                    ? DiceFaceEnchantUtility.HeavyPaymentContribution
-                    : 1;
-            }
+            previewPaymentMask = BuildFallbackConsumePreviewMask(spentDice);
         }
 
         for (int i = 0; i < slots.Length; i++)
@@ -423,7 +447,7 @@ public partial class DiceSlotRig
                     float alpha = Mathf.Lerp(minAlpha, 1f, t);
                     ui.SetPreviewTint(new Color(0.62f, 0.62f, 0.62f, alpha), false);
                 }
-                ui.SetPreviewSpentLike(!IsEchoPreviewSource(i, previewPaymentMask), false);
+                ui.SetPreviewSpentLike(true, false);
             }
             else if (IsRelayPreviewTarget(i, previewPaymentMask))
             {
