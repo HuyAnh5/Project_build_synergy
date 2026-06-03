@@ -72,25 +72,8 @@ public static class DiceCombatEnchantRuntimeUtility
         int begin = Mathf.Clamp(start0, 0, 2);
         int required = Mathf.Clamp(diceCost, 1, 3);
 
-        for (int i = begin; i < end; i++)
-        {
-            DiceFaceEnchantKind effective = diceRig.GetEffectiveCurrentFaceEnchant(i);
-            int contribution = effective == DiceFaceEnchantKind.Heavy
-                ? DiceFaceEnchantUtility.HeavyPaymentContribution
-                : 1;
-            if (contribution < required)
-                continue;
-
-            AddPaymentDie(diceRig, plan, i, effective);
-            if (plan.paidCost >= required)
-                return plan;
-        }
-
         for (int i = begin; i < end && plan.paidCost < required; i++)
         {
-            if (plan.IsSelected(i))
-                continue;
-
             DiceFaceEnchantKind effective = diceRig.GetEffectiveCurrentFaceEnchant(i);
             AddPaymentDie(diceRig, plan, i, effective);
         }
