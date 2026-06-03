@@ -40,12 +40,10 @@ public partial class DiceSlotRig
 
         int outputBaseValue = faceEnchant == DiceFaceEnchantKind.Stone
             ? 0
-            : effectiveEnchant == DiceFaceEnchantKind.Double
-                ? Mathf.Max(0, rolled * 2)
-                : rolled;
-        int critFailValue = effectiveEnchant == DiceFaceEnchantKind.Double ? outputBaseValue : rolled;
-        bool isCrit = isUsable && isNumericFace && ((effectiveEnchant == DiceFaceEnchantKind.Double ? critFailValue >= maxFace : d.IsCritValue(critFailValue)) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant));
-        bool isFail = isUsable && isNumericFace && ((effectiveEnchant == DiceFaceEnchantKind.Double ? critFailValue <= minFace && minFace != maxFace : d.IsFailValue(critFailValue)) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant));
+            : rolled;
+        int critFailValue = rolled;
+        bool isCrit = isUsable && isNumericFace && (d.IsCritValue(critFailValue) || DiceFaceEnchantUtility.CountsAsCritForConditions(faceEnchant));
+        bool isFail = isUsable && isNumericFace && (d.IsFailValue(critFailValue) || DiceFaceEnchantUtility.CountsAsFailForConditions(faceEnchant));
         bool grantsCritBonus = isCrit && !DiceFaceEnchantUtility.SuppressesCritBonus(faceEnchant);
         bool appliesFailPenalty = isFail && !DiceFaceEnchantUtility.SuppressesFailPenalty(faceEnchant);
 
@@ -304,6 +302,7 @@ public partial class DiceSlotRig
             if (ui != null)
             {
                 ui.ClearPreviewTint();
+                ui.ClearPreviewRollFeedback();
                 die.ClearAllFacePreviews();
                 bool keepSpentLike = keepPreviewSpentLikeDice != null && keepPreviewSpentLikeDice.Contains(die);
                 if (!keepSpentLike)
@@ -374,47 +373,73 @@ public partial class DiceSlotRig
             // Dice đã spent rồi thì skip (nó đã dim 50%)
             if (spentDice != null && spentDice.Contains(die))
             {
-                ui.ClearPreviewTint();
-                die.ClearAllFacePreviews();
-                ui.ClearPreviewSpentLike(true);
-                continue;
+                if (!IsRelayPreviewTarget(i, previewPaymentMask) && !IsEchoPreviewSource(i, previewPaymentMask))
+                {
+                    ui.ClearPreviewTint();
+                    ui.ClearPreviewRollFeedback();
+                    die.ClearAllFacePreviews();
+                    ui.ClearPreviewSpentLike(true);
+                    continue;
+                }
             }
 
             if (!die.IsCurrentFaceUsable())
             {
-                ui.SetPreviewTint(new Color(0.55f, 0.1f, 0.1f, 0.85f), true);
-                ui.SetPreviewSpentLike(true, false);
+                if (IsEchoPreviewSource(i, previewPaymentMask))
+                {
+                    ui.SetPreviewTint(new Color32(136, 219, 255, 255), false);
+                    ui.ClearPreviewRollFeedback();
+                    ui.ClearPreviewSpentLike(true);
+                }
+                else
+                {
+                    ui.SetPreviewTint(new Color(0.55f, 0.1f, 0.1f, 0.85f), true);
+                    ui.ClearPreviewRollFeedback();
+                    ui.SetPreviewSpentLike(true, false);
+                }
                 continue;
             }
 
             if ((previewPaymentMask & (1 << i)) != 0)
             {
                 if (die.GetCurrentFaceEnchant() == DiceFaceEnchantKind.Double && die.LastFaceIndex >= 0)
+                {
                     die.SetFacePreviewValue(die.LastFaceIndex, die.GetDisplayedRolledValue() * 2, true);
-                // Dice sẽ bị consume: vàng nhấp nháy
-                float alpha = Mathf.Lerp(minAlpha, 1f, t);
-                if (IsRelayPreviewTarget(i, previewPaymentMask))
-                    ui.SetPreviewTint(new Color(1f, 0.86f, 0.24f, alpha), false);
-                else if (IsEchoPreviewSource(i, previewPaymentMask))
-                    ui.SetPreviewTint(new Color(0.42f, 0.72f, 1f, alpha), false);
+                    bool previewCrit = die.GetDisplayedRolledValue() * 2 >= die.GetMaxFaceValue();
+                    bool previewFail = die.GetMinFaceValue() != die.GetMaxFaceValue() && die.GetDisplayedRolledValue() * 2 <= die.GetMinFaceValue();
+                    ui.SetPreviewRollFeedback(previewCrit, previewFail);
+                }
                 else
+                {
+                    ui.ClearPreviewRollFeedback();
+                }
+                // Dice sẽ bị consume: vàng nhấp nháy
+                if (IsRelayPreviewTarget(i, previewPaymentMask))
+                    ui.SetPreviewTint(new Color32(137, 255, 142, 255), false);
+                else if (IsEchoPreviewSource(i, previewPaymentMask))
+                    ui.SetPreviewTint(new Color32(136, 219, 255, 255), false);
+                else
+                {
+                    float alpha = Mathf.Lerp(minAlpha, 1f, t);
                     ui.SetPreviewTint(new Color(0.62f, 0.62f, 0.62f, alpha), false);
-                ui.SetPreviewSpentLike(true, false);
+                }
+                ui.SetPreviewSpentLike(!IsEchoPreviewSource(i, previewPaymentMask), false);
             }
             else if (IsRelayPreviewTarget(i, previewPaymentMask))
             {
-                float alpha = Mathf.Lerp(minAlpha, 1f, t);
-                ui.SetPreviewTint(new Color(1f, 0.86f, 0.24f, alpha), false);
+                ui.SetPreviewTint(new Color32(137, 255, 142, 255), false);
+                ui.ClearPreviewRollFeedback();
                 ui.ClearPreviewSpentLike(true);
             }
             else if (IsEchoPreviewSource(i, previewPaymentMask))
             {
-                float alpha = Mathf.Lerp(minAlpha, 1f, t);
-                ui.SetPreviewTint(new Color(0.42f, 0.72f, 1f, alpha), false);
+                ui.SetPreviewTint(new Color32(136, 219, 255, 255), false);
+                ui.ClearPreviewRollFeedback();
                 ui.ClearPreviewSpentLike(true);
             }
             else
             {
+                ui.ClearPreviewRollFeedback();
                 die.ClearAllFacePreviews();
                 // Dice không bị consume: bình thường
                 ui.ClearPreviewTint();
@@ -447,7 +472,7 @@ public partial class DiceSlotRig
         if (echo == null || echo.GetCurrentFaceEnchant() != DiceFaceEnchantKind.Echo)
             return false;
 
-        DiceFaceEnchantKind source = GetEffectiveCurrentFaceEnchant(slot0);
-        return DiceFaceEnchantUtility.IsEchoCopyable(source);
+        DiceSpinnerGeneric source = GetDice(slot0);
+        return source != null;
     }
 }

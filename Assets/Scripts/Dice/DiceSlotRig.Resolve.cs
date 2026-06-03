@@ -289,7 +289,7 @@ public partial class DiceSlotRig
             return stored;
 
         DiceSpinnerGeneric left = GetDice(slot0 - 1);
-        if (left == null || !left.IsCurrentFaceUsable())
+        if (left == null)
             return DiceFaceEnchantKind.None;
 
         DiceFaceEnchantKind source = left.GetCurrentFaceEnchant();

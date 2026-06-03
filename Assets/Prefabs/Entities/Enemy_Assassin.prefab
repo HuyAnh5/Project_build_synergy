@@ -37,6 +37,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4213503238970932087}
+  - {fileID: 4370838270638955721}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &2124842818247379147
@@ -111,9 +112,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::StatusController
   burnStacks: 0
   burnTurns: 0
+  _burnBatches: []
   marked: 0
-  bleedTurns: 0
+  bleedStacks: 0
   frozen: 0
+  chilledTurns: 0
+  staggered: 0
+  emberWeaponTurns: 0
+  emberWeaponBonusDamage: 1
+  emberWeaponBurnEqualsDamage: 1
+  emberWeaponBurnOnCritOnly: 0
+  cinderbrandTurns: 0
+  cinderbrandBonusPerBurn: 1
   _hasAilment: 0
   _ailmentType: 0
   _ailmentTurnsLeft: 0
@@ -142,7 +152,9 @@ MonoBehaviour:
   guardPool: 0
   firePoint: {fileID: 4213503238970932087}
   status: {fileID: 1100841043974446971}
-  uiAnchor: {fileID: 0}
+  uiAnchor: {fileID: 4370838270638955721}
+  autoSetupUiAnchor: 1
+  uiAnchorName: UIAnchor
 --- !u!114 &8780733521486567770
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -220,6 +232,8 @@ MonoBehaviour:
   meleeLungeTime: 0.1
   meleeReturnTime: 0.08
   lungeIgnoreTimeScale: 0
+  damagePopups: {fileID: 0}
+  playerDiceCastAnimator: {fileID: 0}
 --- !u!114 &7728371431179285906
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -234,6 +248,37 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyBrainController
   definition: {fileID: 11400000, guid: b24c025e024a4324b9f656000f697db8, type: 2}
   actor: {fileID: 3343973332019958161}
+--- !u!1 &539429914435083998
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 4370838270638955721}
+  m_Layer: 0
+  m_Name: UIAnchor
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &4370838270638955721
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 539429914435083998}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5623039536942470901}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &7865205329936715492
 GameObject:
   m_ObjectHideFlags: 0

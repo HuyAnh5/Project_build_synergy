@@ -105,27 +105,17 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
 
     private int GetCritFailDisplayValue()
     {
-        int value = LastRolledValue;
-        if (GetCurrentFaceEnchant() == DiceFaceEnchantKind.Double)
-            value *= 2;
-        return ClampFaceValue(value);
+        return ClampFaceValue(LastRolledValue);
     }
 
     private bool IsCritPreviewValue(int value)
     {
-        return GetCurrentFaceEnchant() == DiceFaceEnchantKind.Double
-            ? value >= GetMaxFaceValue()
-            : IsCritValue(value);
+        return IsCritValue(value);
     }
 
     private bool IsFailPreviewValue(int value)
     {
-        if (GetCurrentFaceEnchant() != DiceFaceEnchantKind.Double)
-            return IsFailValue(value);
-
-        int min = GetMinFaceValue();
-        int max = GetMaxFaceValue();
-        return min != max && value <= min;
+        return IsFailValue(value);
     }
 
     public System.Action<DiceSpinnerGeneric> onRollComplete;

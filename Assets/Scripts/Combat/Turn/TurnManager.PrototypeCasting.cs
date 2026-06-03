@@ -52,6 +52,14 @@ public partial class TurnManager
         if (span <= 0)
             return false;
 
+        if (TryGetPrototypePreviewPaymentPlan(activeSkill, out PreviewPaymentPlan previewPlan) &&
+            previewPlan.valid &&
+            previewPlan.runtime != null)
+        {
+            runtime = previewPlan.runtime;
+            return true;
+        }
+
         if (!TryFindPrototypePaymentPlacement(span, out int start0, out int anchor0, out int placementSpan))
             return false;
         if (!AreSlotsActiveInRange(start0, placementSpan))

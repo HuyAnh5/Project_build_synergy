@@ -143,12 +143,14 @@ public partial class DiceDraggableUI
 
             outlineEffect.effectDistance = outlineDistance;
             outlineEffect.useGraphicAlpha = false;
-            if (enableResultOutlineOnUi && _fail)
+            bool showFail = _fail || _previewFail;
+            bool showCrit = _crit || _previewCrit;
+            if (enableResultOutlineOnUi && showFail)
             {
                 outlineEffect.enabled = true;
                 outlineEffect.effectColor = failOutlineColor;
             }
-            else if (enableResultOutlineOnUi && _crit)
+            else if (enableResultOutlineOnUi && showCrit)
             {
                 outlineEffect.enabled = true;
                 outlineEffect.effectColor = critOutlineColor;
@@ -160,7 +162,7 @@ public partial class DiceDraggableUI
         }
 
         if (!_dragging && _cg != null)
-            _cg.alpha = _restingAlpha;
+            _cg.alpha = _hasPreviewTint ? 1f : _restingAlpha;
     }
 
     private void MoveToDisplayPosition(bool instant)
@@ -318,6 +320,17 @@ public partial class DiceDraggableUI
         if (!_dragging && !_castMotionLocked && !suppressMove)
             MoveToDisplayPosition(instant);
 
+        RefreshVisualState();
+    }
+
+    public void ClearPreviewRollFeedback()
+    {
+        if (!_previewCrit && !_previewFail)
+            return;
+
+        EnsureInitialized();
+        _previewCrit = false;
+        _previewFail = false;
         RefreshVisualState();
     }
 }

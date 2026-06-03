@@ -190,23 +190,17 @@ internal static class SkillPlanRuntimeUtility
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0)
                 continue;
 
+            DiceSlotRig.ResolvedDieBreakdown breakdown = paymentMask >= 0
+                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, owner, i, rt.element, paymentMask)
+                : diceRig.GetResolvedBreakdown(i, owner, rt.element);
+
             rt.localBaseValues.Add(diceRig.IsNumericFaceForConditions(i) ? diceRig.GetBaseValue(i) : 0);
-            rt.localOutputBaseValues.Add(diceRig.GetOutputBaseValue(i));
-            int resolvedValue = diceRig.GetResolvedDieValue(i, owner);
-            int sourceSlot0 = i - 1;
-            if (sourceSlot0 >= 0 &&
-                paymentMask >= 0 &&
-                (paymentMask & (1 << i)) != 0 &&
-                (paymentMask & (1 << sourceSlot0)) != 0 &&
-                diceRig.GetEffectiveCurrentFaceEnchant(sourceSlot0) == DiceFaceEnchantKind.Relay)
-            {
-                resolvedValue += DiceFaceEnchantUtility.RelayValueModifier;
-            }
-            rt.localResolvedValues.Add(resolvedValue);
+            rt.localOutputBaseValues.Add(breakdown.outputBaseValue);
+            rt.localResolvedValues.Add(breakdown.resolvedValue);
             rt.localNumericFlags.Add(diceRig.IsNumericFaceForConditions(i));
-            bool isCrit = diceRig.IsCrit(i);
-            bool isFail = diceRig.IsFail(i);
-            bool appliesFailPenalty = diceRig.AppliesFailPenalty(i);
+            bool isCrit = breakdown.isCrit;
+            bool isFail = breakdown.isFail;
+            bool appliesFailPenalty = breakdown.appliesFailPenalty;
             rt.localCritFlags.Add(isCrit);
             rt.localFailFlags.Add(isFail);
             rt.localFailPenaltyFlags.Add(appliesFailPenalty);

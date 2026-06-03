@@ -61,6 +61,8 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private bool _crit;
     private bool _fail;
     private bool _previewSpentLike;
+    private bool _previewCrit;
+    private bool _previewFail;
     private bool _castMotionLocked;
     private float? _castYOffsetOverride;
 
@@ -169,6 +171,17 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         MoveToDisplayPosition(instant);
         if (failTriggered)
             PlayShake(failShakeStrength, failShakeDuration, failShakeVibrato);
+    }
+
+    public void SetPreviewRollFeedback(bool crit, bool fail)
+    {
+        EnsureInitialized();
+        if (_previewCrit == crit && _previewFail == fail)
+            return;
+
+        _previewCrit = crit;
+        _previewFail = fail;
+        RefreshVisualState();
     }
 
     public void PlayInvalidSelectionFeedback()

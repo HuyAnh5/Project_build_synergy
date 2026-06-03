@@ -125,29 +125,13 @@ public static partial class SkillRuntimeEvaluator
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
-            int resolvedValue = diceRig.GetResolvedDieValue(i, owner, skillElement);
-            resolvedValue += GetCommittedRelayPreviewAddedValue(diceRig, i, paymentMask);
+            int resolvedValue = paymentMask >= 0
+                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, owner, i, skillElement, paymentMask).resolvedValue
+                : diceRig.GetResolvedDieValue(i, owner, skillElement);
             list.Add(resolvedValue);
         }
 
         return list;
-    }
-
-    private static int GetCommittedRelayPreviewAddedValue(DiceSlotRig diceRig, int targetSlot0, int paymentMask)
-    {
-        int sourceSlot0 = targetSlot0 - 1;
-        if (diceRig == null || sourceSlot0 < 0 || paymentMask < 0)
-            return 0;
-        if ((paymentMask & (1 << targetSlot0)) == 0 || (paymentMask & (1 << sourceSlot0)) == 0)
-            return 0;
-
-        DiceSpinnerGeneric target = diceRig.GetDice(targetSlot0);
-        if (target == null || !target.IsCurrentFaceUsable())
-            return 0;
-
-        return diceRig.GetEffectiveCurrentFaceEnchant(sourceSlot0) == DiceFaceEnchantKind.Relay
-            ? DiceFaceEnchantUtility.RelayValueModifier
-            : 0;
     }
 
     private static List<int> GatherOutputBaseValuesForScope(DiceSlotRig diceRig, int start0, int span)
@@ -165,7 +149,9 @@ public static partial class SkillRuntimeEvaluator
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
-            list.Add(diceRig.GetOutputBaseValue(i));
+            list.Add(paymentMask >= 0
+                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask).outputBaseValue
+                : diceRig.GetOutputBaseValue(i));
         }
 
         return list;
@@ -186,7 +172,9 @@ public static partial class SkillRuntimeEvaluator
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
-            list.Add(diceRig.IsCrit(i));
+            list.Add(paymentMask >= 0
+                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask).isCrit
+                : diceRig.IsCrit(i));
         }
 
         return list;
@@ -207,7 +195,9 @@ public static partial class SkillRuntimeEvaluator
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
-            list.Add(diceRig.IsFail(i));
+            list.Add(paymentMask >= 0
+                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask).isFail
+                : diceRig.IsFail(i));
         }
 
         return list;
@@ -228,7 +218,9 @@ public static partial class SkillRuntimeEvaluator
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
-            list.Add(diceRig.AppliesFailPenalty(i));
+            list.Add(paymentMask >= 0
+                ? DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask).appliesFailPenalty
+                : diceRig.AppliesFailPenalty(i));
         }
 
         return list;
@@ -252,9 +244,20 @@ public static partial class SkillRuntimeEvaluator
             if (i < 0 || i > 2) continue;
             if (!diceRig.IsSlotActive(i)) continue;
             if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
-            critAny |= diceRig.IsCrit(i);
-            failAny |= diceRig.IsFail(i);
-            failPenaltyAny |= diceRig.AppliesFailPenalty(i);
+            if (paymentMask >= 0)
+            {
+                DiceSlotRig.ResolvedDieBreakdown breakdown =
+                    DiceCombatEnchantRuntimeUtility.GetCommittedPreviewResolvedBreakdown(diceRig, null, i, ElementType.Neutral, paymentMask);
+                critAny |= breakdown.isCrit;
+                failAny |= breakdown.isFail;
+                failPenaltyAny |= breakdown.appliesFailPenalty;
+            }
+            else
+            {
+                critAny |= diceRig.IsCrit(i);
+                failAny |= diceRig.IsFail(i);
+                failPenaltyAny |= diceRig.AppliesFailPenalty(i);
+            }
         }
     }
 

@@ -330,10 +330,85 @@ public static class DiceCombatEnchantRuntimeUtility
             if (!plan.IsSelected(slot0))
                 continue;
 
-            sum += ComputePreviewResolvedDieValue(diceRig, owner, slot0, skillElement, plan);
+            sum += GetCommittedPreviewResolvedBreakdown(diceRig, owner, slot0, skillElement, plan).resolvedValue;
         }
 
         return sum;
+    }
+
+    public static DiceSlotRig.ResolvedDieBreakdown GetCommittedPreviewResolvedBreakdown(
+        DiceSlotRig diceRig,
+        CombatActor owner,
+        int slot0,
+        ElementType skillElement,
+        int paymentMask)
+    {
+        CommittedFaceUsePlan plan = new CommittedFaceUsePlan
+        {
+            selectedMask = Mathf.Max(0, paymentMask)
+        };
+        return GetCommittedPreviewResolvedBreakdown(diceRig, owner, slot0, skillElement, plan);
+    }
+
+    public static DiceSlotRig.ResolvedDieBreakdown GetCommittedPreviewResolvedBreakdown(
+        DiceSlotRig diceRig,
+        CombatActor owner,
+        int slot0,
+        ElementType skillElement,
+        CommittedFaceUsePlan plan)
+    {
+        if (diceRig == null)
+            return default;
+
+        DiceSlotRig.ResolvedDieBreakdown breakdown = diceRig.GetResolvedBreakdown(slot0, owner, skillElement);
+        if (breakdown.outputBaseValue <= 0)
+            return breakdown;
+
+        bool isCrit = breakdown.isCrit;
+        bool isFail = breakdown.isFail;
+        bool appliesFailPenalty = breakdown.appliesFailPenalty;
+        int critFailAdded = breakdown.critFailAddedValue;
+
+        DiceSpinnerGeneric die = diceRig.GetDice(slot0);
+        DiceFaceEnchantKind effective = diceRig.GetEffectiveCurrentFaceEnchant(slot0);
+        bool usesCommittedDouble =
+            plan != null &&
+            plan.IsSelected(slot0) &&
+            effective == DiceFaceEnchantKind.Double &&
+            die != null &&
+            die.IsCurrentFaceUsable();
+
+        if (usesCommittedDouble)
+        {
+            int outputBaseValue = breakdown.outputBaseValue;
+            int maxFace = die.GetMaxFaceValue();
+            int minFace = die.GetMinFaceValue();
+            isCrit = outputBaseValue >= maxFace;
+            isFail = minFace != maxFace && outputBaseValue <= minFace;
+
+            bool grantsCritBonus = isCrit && !DiceFaceEnchantUtility.SuppressesCritBonus(effective);
+            appliesFailPenalty = isFail && !DiceFaceEnchantUtility.SuppressesFailPenalty(effective);
+            float critPercent = skillElement == ElementType.Physical
+                ? DiceSlotRig.PhysicalCritPercent
+                : DiceSlotRig.GenericCritPercent;
+            critFailAdded = grantsCritBonus
+                ? Mathf.FloorToInt(outputBaseValue * critPercent)
+                : 0;
+        }
+
+        int externalAdded = ComputeCommittedExternalAddedValue(diceRig, slot0, plan);
+        int totalAdded = breakdown.faceEnchantAddedValue + breakdown.passiveAddedValue + critFailAdded + externalAdded;
+        int resolved = breakdown.outputBaseValue + totalAdded;
+        if (resolved < 1)
+            resolved = 1;
+
+        breakdown.critFailAddedValue = critFailAdded;
+        breakdown.totalAddedValue = totalAdded;
+        breakdown.resolvedValue = resolved;
+        breakdown.isCrit = isCrit;
+        breakdown.isFail = isFail;
+        breakdown.appliesFailPenalty = appliesFailPenalty;
+        return breakdown;
     }
 
     public static void ResolveCommittedPostSkillFaceEnchants(
@@ -423,12 +498,7 @@ public static class DiceCombatEnchantRuntimeUtility
         ElementType skillElement,
         CommittedFaceUsePlan plan)
     {
-        DiceSlotRig.ResolvedDieBreakdown breakdown = diceRig.GetResolvedBreakdown(slot0, owner, skillElement);
-        if (breakdown.resolvedValue <= 0)
-            return 0;
-
-        int externalAdded = ComputeCommittedExternalAddedValue(diceRig, slot0, plan);
-        return Mathf.Max(1, breakdown.resolvedValue + externalAdded);
+        return GetCommittedPreviewResolvedBreakdown(diceRig, owner, slot0, skillElement, plan).resolvedValue;
     }
 
     private static int ComputeCommittedExternalAddedValue(
