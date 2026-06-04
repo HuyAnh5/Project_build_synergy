@@ -118,6 +118,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     private float _lastAuraBrightSize = -1f;
 
     private SkillIconPreviewController _previewController;
+    private bool _pointerInside;
 
     // --- Click-to-Select ---
     private bool _selected;
@@ -159,6 +160,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     {
         if (bindToInventorySlot && inventory != null)
             inventory.InventoryChanged += OnInventoryChanged;
+        UiDragState.DragStateChanged += HandleUiDragStateChanged;
 
         ResolveTurnManager();
         Refresh();
@@ -168,6 +170,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     {
         if (inventory != null)
             inventory.InventoryChanged -= OnInventoryChanged;
+        UiDragState.DragStateChanged -= HandleUiDragStateChanged;
 
         if (_dragRegistered)
         {
@@ -182,6 +185,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         ReleaseGhost();
 
         StopBlinkCoroutine();
+        _pointerInside = false;
         _transientAffectedAuraSequence?.Kill();
         _transientAffectedAuraSequence = null;
         _transientAffectedAuraRunning = false;
@@ -427,6 +431,26 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         if (turn == null)
             turn = FindObjectOfType<TurnManager>(true);
     }
+
+    private void HandleUiDragStateChanged()
+    {
+        if (UiDragState.IsDragging)
+        {
+            SkillTooltipUI.HideCurrent();
+            return;
+        }
+
+        if (!_pointerInside)
+            return;
+
+        ScriptableObject asset = GetSkillAsset();
+        if (asset == null)
+            return;
+
+        SkillTooltipUI.Show(this);
+        ShowResourcePreview(asset);
+    }
+
     private void RefreshActiveRuntimeState()
     {
         ResolveTurnManager();

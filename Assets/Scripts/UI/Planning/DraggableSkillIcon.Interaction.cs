@@ -7,6 +7,8 @@ public partial class DraggableSkillIcon
 {
     public void OnPointerEnter(PointerEventData eventData)
     {
+        _pointerInside = true;
+
         if (UiDragState.IsDragging)
             return;
 
@@ -20,6 +22,8 @@ public partial class DraggableSkillIcon
 
     public void OnPointerExit(PointerEventData eventData)
     {
+        _pointerInside = false;
+
         if (UiDragState.IsDragging)
             return;
 

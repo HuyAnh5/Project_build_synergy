@@ -253,7 +253,13 @@ public partial class ConsumableBarUIManager
         if (data == null)
             return string.Empty;
 
-        return $"{data.description}\n{data.useContext} | {data.targetKind}";
+        string description = string.IsNullOrWhiteSpace(data.description) ? string.Empty : data.description.Trim();
+        string contextLine = $"{data.useContext} | {data.targetKind}";
+
+        if (string.IsNullOrEmpty(description))
+            return contextLine;
+
+        return $"{description}\n\n{contextLine}";
     }
 }
 

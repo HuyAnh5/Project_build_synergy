@@ -240,11 +240,17 @@ public partial class ConsumableBarUIManager
 
     private void HandleUiDragStateChanged()
     {
-        if (!UiDragState.IsDragging)
+        if (UiDragState.IsDragging)
+        {
+            _hoveredSlot = -1;
+            HideAllTooltips();
             return;
+        }
 
-        _hoveredSlot = -1;
-        HideAllTooltips();
+        if (TryGetHoveredSlotUnderPointer(out int hoveredSlot))
+            _hoveredSlot = hoveredSlot;
+
+        RefreshFloatingPresentation();
     }
 
     private bool NeedsManualTargetSelection(ConsumableDataSO data)
@@ -300,6 +306,40 @@ public partial class ConsumableBarUIManager
         }
 
         return true;
+    }
+
+    private bool TryGetHoveredSlotUnderPointer(out int hoveredSlot)
+    {
+        hoveredSlot = -1;
+        if (slots == null)
+            return false;
+
+        Vector2 screenPoint = Input.mousePosition;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            ConsumableSlotView slot = slots[i];
+            if (slot == null || slot.root == null || !slot.root.gameObject.activeInHierarchy)
+                continue;
+
+            Canvas slotCanvas = slot.root.GetComponentInParent<Canvas>();
+            Camera eventCamera = slotCanvas != null && slotCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+                ? slotCanvas.worldCamera
+                : null;
+
+            if (!RectTransformUtility.RectangleContainsScreenPoint(slot.root, screenPoint, eventCamera))
+                continue;
+
+            if (runInventory == null || runInventory.GetConsumable(i) == null)
+                continue;
+
+            if (i == _ignoreHoverSlotUntilExit)
+                continue;
+
+            hoveredSlot = i;
+            return true;
+        }
+
+        return false;
     }
 
 }
