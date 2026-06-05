@@ -465,7 +465,9 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     {
         EnsureInitialized();
         canvas = _rootCanvas != null ? SkillTooltipUI.GetOrCreateSharedOverlayCanvas(_rootCanvas) : null;
-        target = critFailPopupAnchor != null ? critFailPopupAnchor : _rt;
+        // For dice cards we want the tooltip hover bridge to cover the whole card,
+        // not the tiny popup anchor used for crit/fail popups.
+        target = _rt;
         asset = _hoverTooltipAsset;
         runtime = null;
         return _hoverTooltipActive && canvas != null && target != null && asset != null;

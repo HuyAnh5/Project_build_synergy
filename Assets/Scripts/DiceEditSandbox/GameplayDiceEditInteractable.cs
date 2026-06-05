@@ -366,7 +366,7 @@ public class GameplayDiceEditInteractable : MonoBehaviour
         if (!Physics.Raycast(ray, out RaycastHit primaryHit, 100f) || primaryHit.collider == null || !primaryHit.collider.transform.IsChildOf(transform))
             return false;
 
-        if (_selectionMap.TryGetNearestVisibleLogicalFace(screenPosition, cam, out logicalFaceIndex))
+        if (_selectionMap.TryGetNearestVisibleLogicalFace(screenPosition, cam, out logicalFaceIndex, maxScreenDistance: 260f, minFacingScore: 0.05f))
             return logicalFaceIndex >= 0;
 
         RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
@@ -375,6 +375,11 @@ public class GameplayDiceEditInteractable : MonoBehaviour
             if (_selectionMap.TryResolveLogicalFace(hits[i], cam, out logicalFaceIndex))
                 return logicalFaceIndex >= 0;
         }
+
+        Transform pivot = _spinner.pivot != null ? _spinner.pivot : _spinner.transform;
+        logicalFaceIndex = _selectionMap.GetBestFacingLogicalFace(pivot, cam);
+        if (logicalFaceIndex >= 0)
+            return true;
 
         logicalFaceIndex = -1;
         return false;

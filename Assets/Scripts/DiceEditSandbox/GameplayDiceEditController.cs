@@ -171,9 +171,34 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
         _tooltipAnchor.SetParent(canvasRect, false);
         _tooltipAnchor.anchorMin = new Vector2(0.5f, 0.5f);
         _tooltipAnchor.anchorMax = new Vector2(0.5f, 0.5f);
-        _tooltipAnchor.pivot = new Vector2(0.5f, 0f);
+        _tooltipAnchor.pivot = new Vector2(0.5f, 0.5f);
         _tooltipAnchor.anchoredPosition = localPoint;
+        _tooltipAnchor.sizeDelta = BuildTooltipHoverSize(iconRenderer, cam, canvasRect, eventCamera);
         return true;
+    }
+
+    private Vector2 BuildTooltipHoverSize(
+        SpriteRenderer iconRenderer,
+        Camera cam,
+        RectTransform canvasRect,
+        Camera eventCamera)
+    {
+        Bounds bounds = iconRenderer.bounds;
+        Vector3 min = cam.WorldToScreenPoint(bounds.min);
+        Vector3 max = cam.WorldToScreenPoint(bounds.max);
+
+        if (min.z <= 0f || max.z <= 0f)
+            return new Vector2(180f, 180f);
+
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, min, eventCamera, out Vector2 localMin) ||
+            !RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, max, eventCamera, out Vector2 localMax))
+        {
+            return new Vector2(180f, 180f);
+        }
+
+        float width = Mathf.Abs(localMax.x - localMin.x) + 160f;
+        float height = Mathf.Abs(localMax.y - localMin.y) + 160f;
+        return new Vector2(Mathf.Max(180f, width), Mathf.Max(180f, height));
     }
 
     private Canvas ResolveTooltipCanvas()

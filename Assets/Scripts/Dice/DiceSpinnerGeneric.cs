@@ -537,11 +537,17 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
 
     private void OnMouseOver()
     {
+        if (_previewSandboxMode)
+            return;
+
         _worldTooltipHovered = true;
     }
 
     private void OnMouseExit()
     {
+        if (_previewSandboxMode)
+            return;
+
         _worldTooltipHovered = false;
         ClearWorldEnchantTooltip();
     }
@@ -651,6 +657,13 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
 
     private void UpdateWorldEnchantTooltip()
     {
+        if (_previewSandboxMode)
+        {
+            _worldTooltipHovered = false;
+            ClearWorldEnchantTooltip();
+            return;
+        }
+
         if (!_worldTooltipHovered)
             return;
 
