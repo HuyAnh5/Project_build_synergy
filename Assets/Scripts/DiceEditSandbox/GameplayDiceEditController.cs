@@ -26,6 +26,7 @@ public partial class GameplayDiceEditController : MonoBehaviour
     [SerializeField] private Vector3 inspectLocalPosition = Vector3.zero;
     [SerializeField] private Vector3 inspectLocalEuler = Vector3.zero;
     [SerializeField] private Vector3 inspectLocalScale = new Vector3(2.2f, 2.2f, 2.2f);
+    [SerializeField] private float inspectExtraDistanceFromCamera = 1.25f;
 
     private readonly List<GameplayDiceEditInteractable> _interactables = new List<GameplayDiceEditInteractable>();
     private readonly List<VisibilityState> _hiddenSceneDice = new List<VisibilityState>();

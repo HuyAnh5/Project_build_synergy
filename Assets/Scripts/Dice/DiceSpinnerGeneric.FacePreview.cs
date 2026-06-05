@@ -12,6 +12,18 @@ public partial class DiceSpinnerGeneric
 
     public void SetCombatRollFeedback(bool crit, bool fail)
     {
+        if (_previewSandboxMode)
+        {
+            if (_feedbackCrit == false && _feedbackFail == false)
+                return;
+
+            _feedbackCrit = false;
+            _feedbackFail = false;
+            ApplyWholeDieVisuals();
+            ApplyFeedbackOutlineVisuals();
+            return;
+        }
+
         bool failTriggered = !_feedbackFail && fail;
         if (_feedbackCrit == crit && _feedbackFail == fail)
             return;

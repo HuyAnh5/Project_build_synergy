@@ -37,7 +37,9 @@ public partial class GameplayDiceEditController
 
         _inspectCloneInstance = Instantiate(_sourceInteractable.Spinner.gameObject, inspectAnchor);
         _inspectCloneInstance.name = $"{_sourceInteractable.Spinner.name}_InspectClone";
-        _inspectCloneInstance.transform.localPosition = inspectLocalPosition;
+        Vector3 cloneLocalPosition = inspectLocalPosition;
+        cloneLocalPosition.z += inspectExtraDistanceFromCamera;
+        _inspectCloneInstance.transform.localPosition = cloneLocalPosition;
         _inspectCloneInstance.transform.localRotation = Quaternion.identity;
         _inspectCloneInstance.transform.localScale = inspectLocalScale;
         DisableGameplayComponentsOnInspectClone(_inspectCloneInstance);
@@ -47,6 +49,7 @@ public partial class GameplayDiceEditController
             cloneSpinner = _inspectCloneInstance.AddComponent<DiceSpinnerGeneric>();
         cloneSpinner.enableSpaceKey = false;
         cloneSpinner.onRollComplete = null;
+        cloneSpinner.ConfigureAsPreviewSandbox();
 
         cloneSpinner.CopyRuntimeStateFrom(_sourceInteractable.Spinner, copyRotation: true);
         cloneSpinner.ClearAllFacePreviews();

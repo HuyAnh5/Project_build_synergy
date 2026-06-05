@@ -58,6 +58,8 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
     [SerializeField, Min(0f)] private float rollStatePopupRiseDistance = 26f;
     [SerializeField, Min(0.05f)] private float rollStatePopupDuration = 0.6f;
 
+    [System.NonSerialized] private bool _previewSandboxMode;
+
     [Header("Input")]
     public bool enableSpaceKey = true;
     public KeyCode rollKey = KeyCode.Space;

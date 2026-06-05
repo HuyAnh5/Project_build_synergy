@@ -1,8 +1,26 @@
 using TMPro;
 using UnityEngine;
 
+using DG.Tweening;
+
 public partial class DiceSpinnerGeneric
 {
+    public void ConfigureAsPreviewSandbox()
+    {
+        _previewSandboxMode = true;
+        animateCritFailPopup = false;
+        showResultAtStart = false;
+        clearStateWhileRolling = false;
+        showAddedValueInRollState = false;
+        rollStateText = null;
+        _feedbackCrit = false;
+        _feedbackFail = false;
+        _feedbackShakeTween?.Kill();
+        ClearRollStatePopupVisuals(clearText: true);
+        ApplyWholeDieVisuals();
+        ApplyFeedbackOutlineVisuals();
+    }
+
     public void CopyRuntimeStateFrom(DiceSpinnerGeneric other, bool copyRotation)
     {
         if (other == null)

@@ -22,7 +22,7 @@ public partial class DiceSpinnerGeneric
 
     private void PlayRollStatePopupIfNeeded()
     {
-        if (!Application.isPlaying || !animateCritFailPopup)
+        if (_previewSandboxMode || !Application.isPlaying || !animateCritFailPopup)
             return;
 
         List<RollPopupStep> steps = BuildRollPopupSteps();
@@ -129,7 +129,7 @@ public partial class DiceSpinnerGeneric
 
     public void PlayFaceEnchantPopup(DiceFaceEnchantKind enchant, string effectText = null)
     {
-        if (!Application.isPlaying || enchant == DiceFaceEnchantKind.None || enchant == DiceFaceEnchantKind.Gum)
+        if (_previewSandboxMode || !Application.isPlaying || enchant == DiceFaceEnchantKind.None || enchant == DiceFaceEnchantKind.Gum)
             return;
 
         List<RollPopupStep> steps = new List<RollPopupStep>(2)
@@ -145,7 +145,7 @@ public partial class DiceSpinnerGeneric
 
     public void PlayFaceEnchantEffectPopup(string effectText)
     {
-        if (!Application.isPlaying || string.IsNullOrWhiteSpace(effectText))
+        if (_previewSandboxMode || !Application.isPlaying || string.IsNullOrWhiteSpace(effectText))
             return;
 
         List<RollPopupStep> steps = new List<RollPopupStep>(1)
