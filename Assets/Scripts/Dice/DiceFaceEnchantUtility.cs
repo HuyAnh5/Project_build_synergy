@@ -146,4 +146,37 @@ public static class DiceFaceEnchantUtility
                 return string.Empty;
         }
     }
+
+    public static string GetShortRulesText(DiceFaceEnchantKind enchant)
+    {
+        switch (enchant)
+        {
+            case DiceFaceEnchantKind.Power:
+                return "Add +3 Added Value.";
+            case DiceFaceEnchantKind.Guard:
+                return "Gain Guard equal to this face's Value.";
+            case DiceFaceEnchantKind.Charge:
+                return "Gain +1 AP.";
+            case DiceFaceEnchantKind.Gold:
+                return "Mark this face for bonus Gold.";
+            case DiceFaceEnchantKind.Gum:
+                return "Opposite face is easier to roll.";
+            case DiceFaceEnchantKind.Relay:
+                return "Die to the right gains +2 Value.";
+            case DiceFaceEnchantKind.Double:
+                return "Double this face's Value, then break it.";
+            case DiceFaceEnchantKind.Repeat:
+                return "Repeat the skill payload, then break this face.";
+            case DiceFaceEnchantKind.Reload:
+                return "Reroll this die, then break this face.";
+            case DiceFaceEnchantKind.Heavy:
+                return "Counts as 2 dice for dice-slot cost, then breaks.";
+            case DiceFaceEnchantKind.Echo:
+                return "Copy the left die's enchant, then break this face.";
+            case DiceFaceEnchantKind.Stone:
+                return "Non-numeric face. Add +5 Added Value.";
+            default:
+                return string.Empty;
+        }
+    }
 }

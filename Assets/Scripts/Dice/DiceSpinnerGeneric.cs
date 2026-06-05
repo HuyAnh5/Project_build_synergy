@@ -102,7 +102,6 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
     private Canvas _worldTooltipCanvas;
     private DiceFaceEnchantTooltipAsset _worldTooltipAsset;
     private int _worldTooltipFaceIndex = -1;
-    private bool _worldTooltipHovered;
     private static Canvas s_cachedRollStatePopupCanvas;
     private bool _feedbackCrit;
     private bool _feedbackFail;
@@ -535,23 +534,6 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         return _phaseValueModifier;
     }
 
-    private void OnMouseOver()
-    {
-        if (_previewSandboxMode)
-            return;
-
-        _worldTooltipHovered = true;
-    }
-
-    private void OnMouseExit()
-    {
-        if (_previewSandboxMode)
-            return;
-
-        _worldTooltipHovered = false;
-        ClearWorldEnchantTooltip();
-    }
-
     public void AddPhaseValueModifier(int amount)
     {
         _phaseValueModifier += amount;
@@ -659,29 +641,20 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
     {
         if (_previewSandboxMode)
         {
-            _worldTooltipHovered = false;
-            ClearWorldEnchantTooltip();
-            return;
-        }
-
-        if (!_worldTooltipHovered)
-            return;
-
-        if (UiDragState.IsDragging)
-        {
             ClearWorldEnchantTooltip();
             return;
         }
 
         Camera cam = Camera.main;
-        if (cam == null || !ValidateFaces())
+        if (cam == null || UiDragState.IsDragging || !ValidateFaces())
         {
             ClearWorldEnchantTooltip();
             return;
         }
 
-        int logicalFaceIndex = GetBestFacingFaceIndex(cam);
-        if (logicalFaceIndex < 0 || logicalFaceIndex >= faces.Length)
+        if (!TryResolveWorldTooltipFace(cam, out int logicalFaceIndex, out Rect hoverRect) ||
+            logicalFaceIndex < 0 ||
+            logicalFaceIndex >= faces.Length)
         {
             ClearWorldEnchantTooltip();
             return;
@@ -689,16 +662,13 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
 
         DiceFace face = faces[logicalFaceIndex];
         DiceFaceEnchantKind displayedEnchant = GetDisplayedFaceEnchant(logicalFaceIndex);
-        if (face.broken ||
-            !DiceFaceEnchantUtility.HasEnchant(displayedEnchant) ||
-            face.faceIconSpriteRenderer == null ||
-            !face.faceIconSpriteRenderer.enabled)
+        if (face.broken || !DiceFaceEnchantUtility.HasEnchant(displayedEnchant))
         {
             ClearWorldEnchantTooltip();
             return;
         }
 
-        if (!TryUpdateWorldTooltipAnchor(face.faceIconSpriteRenderer, cam))
+        if (!TryUpdateWorldTooltipAnchor(hoverRect))
         {
             ClearWorldEnchantTooltip();
             return;
@@ -708,6 +678,112 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         _worldTooltipAsset.Configure(displayedEnchant, face.value, name);
         _worldTooltipFaceIndex = logicalFaceIndex;
         SkillTooltipUI.Show(this);
+    }
+
+    private bool TryResolveWorldTooltipFace(Camera cam, out int logicalFaceIndex, out Rect hoverRect)
+    {
+        logicalFaceIndex = -1;
+        hoverRect = default;
+        Vector2 pointer = Input.mousePosition;
+
+        for (int i = 0; i < faces.Length; i++)
+        {
+            DiceFace face = faces[i];
+            DiceFaceEnchantKind displayedEnchant = GetDisplayedFaceEnchant(i);
+            if (face.broken || !DiceFaceEnchantUtility.HasEnchant(displayedEnchant))
+                continue;
+
+            if (!TryBuildFaceIconScreenRect(face, cam, out Rect screenRect, padding: 12f))
+                continue;
+
+            if (!screenRect.Contains(pointer))
+                continue;
+
+            logicalFaceIndex = i;
+            hoverRect = screenRect;
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryBuildFaceIconScreenRect(DiceFace face, Camera cam, out Rect screenRect, float padding)
+    {
+        screenRect = default;
+        bool hasRect = false;
+
+        if (TryBuildRendererScreenRect(face.faceIconSpriteRenderer, cam, out Rect iconRect, padding: 0f))
+        {
+            screenRect = iconRect;
+            hasRect = true;
+        }
+
+        Renderer valueRenderer = face.faceValueText3D != null ? face.faceValueText3D.GetComponent<Renderer>() : null;
+        if (TryBuildRendererScreenRect(valueRenderer, cam, out Rect valueRect, padding: 0f))
+        {
+            screenRect = hasRect ? UnionScreenRects(screenRect, valueRect) : valueRect;
+            hasRect = true;
+        }
+
+        if (!hasRect)
+            return false;
+
+        screenRect.xMin -= padding;
+        screenRect.xMax += padding;
+        screenRect.yMin -= padding;
+        screenRect.yMax += padding;
+        return screenRect.width > 0f && screenRect.height > 0f;
+    }
+
+    private Rect UnionScreenRects(Rect a, Rect b)
+    {
+        return Rect.MinMaxRect(
+            Mathf.Min(a.xMin, b.xMin),
+            Mathf.Min(a.yMin, b.yMin),
+            Mathf.Max(a.xMax, b.xMax),
+            Mathf.Max(a.yMax, b.yMax));
+    }
+
+    private bool TryBuildRendererScreenRect(Renderer renderer, Camera cam, out Rect screenRect, float padding)
+    {
+        screenRect = default;
+        if (renderer == null || cam == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy)
+            return false;
+
+        Bounds bounds = renderer.bounds;
+        Vector3 center = bounds.center;
+        Vector3 extents = bounds.extents;
+        bool hasPoint = false;
+        float minX = float.PositiveInfinity;
+        float minY = float.PositiveInfinity;
+        float maxX = float.NegativeInfinity;
+        float maxY = float.NegativeInfinity;
+
+        for (int x = -1; x <= 1; x += 2)
+        {
+            for (int y = -1; y <= 1; y += 2)
+            {
+                for (int z = -1; z <= 1; z += 2)
+                {
+                    Vector3 worldCorner = center + Vector3.Scale(extents, new Vector3(x, y, z));
+                    Vector3 screenPoint = cam.WorldToScreenPoint(worldCorner);
+                    if (screenPoint.z <= 0f)
+                        continue;
+
+                    hasPoint = true;
+                    minX = Mathf.Min(minX, screenPoint.x);
+                    minY = Mathf.Min(minY, screenPoint.y);
+                    maxX = Mathf.Max(maxX, screenPoint.x);
+                    maxY = Mathf.Max(maxY, screenPoint.y);
+                }
+            }
+        }
+
+        if (!hasPoint)
+            return false;
+
+        screenRect = Rect.MinMaxRect(minX - padding, minY - padding, maxX + padding, maxY + padding);
+        return screenRect.width > 0f && screenRect.height > 0f;
     }
 
     private void ClearWorldEnchantTooltip()
@@ -747,24 +823,20 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         _worldTooltipAsset.hideFlags = HideFlags.HideAndDontSave;
     }
 
-    private bool TryUpdateWorldTooltipAnchor(SpriteRenderer iconRenderer, Camera cam)
+    private bool TryUpdateWorldTooltipAnchor(Rect screenRect)
     {
         Canvas canvas = ResolveWorldTooltipCanvas();
-        if (canvas == null || iconRenderer == null)
+        if (canvas == null || screenRect.width <= 0f || screenRect.height <= 0f)
             return false;
 
         EnsureWorldTooltipAnchor(canvas);
         if (_worldTooltipAnchor == null)
             return false;
 
-        Vector3 screenPoint = cam.WorldToScreenPoint(iconRenderer.bounds.center);
-        if (screenPoint.z <= 0f)
-            return false;
-
         RectTransform canvasRect = canvas.transform as RectTransform;
         Camera eventCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
         if (canvasRect == null ||
-            !RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screenPoint, eventCamera, out Vector2 localPoint))
+            !RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screenRect.center, eventCamera, out Vector2 localPoint))
         {
             return false;
         }
@@ -772,10 +844,28 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         _worldTooltipAnchor.SetParent(canvasRect, false);
         _worldTooltipAnchor.anchorMin = new Vector2(0.5f, 0.5f);
         _worldTooltipAnchor.anchorMax = new Vector2(0.5f, 0.5f);
-        _worldTooltipAnchor.pivot = new Vector2(0.5f, 0f);
+        _worldTooltipAnchor.pivot = new Vector2(0.5f, 0.5f);
         _worldTooltipAnchor.anchoredPosition = localPoint;
-        _worldTooltipAnchor.sizeDelta = new Vector2(24f, 24f);
+        _worldTooltipAnchor.sizeDelta = BuildWorldTooltipHoverSize(screenRect, canvasRect, eventCamera);
         return true;
+    }
+
+    private Vector2 BuildWorldTooltipHoverSize(
+        Rect screenRect,
+        RectTransform canvasRect,
+        Camera eventCamera)
+    {
+        Vector2 min = screenRect.min;
+        Vector2 max = screenRect.max;
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, min, eventCamera, out Vector2 localMin) ||
+            !RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, max, eventCamera, out Vector2 localMax))
+        {
+            return new Vector2(96f, 96f);
+        }
+
+        float width = Mathf.Abs(localMax.x - localMin.x);
+        float height = Mathf.Abs(localMax.y - localMin.y);
+        return new Vector2(Mathf.Max(96f, width), Mathf.Max(96f, height));
     }
 
     private void EnsureWorldTooltipAnchor(Canvas canvas)

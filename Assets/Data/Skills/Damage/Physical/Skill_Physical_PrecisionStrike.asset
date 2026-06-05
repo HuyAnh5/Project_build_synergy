@@ -12,68 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a042d137857b6b447b1a911238dc40d8, type: 3}
   m_Name: Skill_Physical_PrecisionStrike
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
-  icon: {fileID: 0}
-  displayName: Precision Strike
-  description: Deal "X damage". If Crit, +2 Added Value.
-  gameplay:
-    useNewGameplayPipeline: 1
-    descriptionTemplate: Deal {base1} damage.
-    requirements: []
-    baseEffects:
-    - type: 0
-      target: 0
-      status: 1
-      value:
-        baseAmount: 3
-        mode: 1
-        status: 1
-        divisor: 1
-        matchBaseValue: 7
-      previewable: 1
-    conditionalOutcomes:
-    - condition:
-        scope: 0
-        logic: 0
-        clauses:
-        - reference: 0
-          comparison: 0
-          value: 5
-      effects:
-      - type: 4
-        target: 0
-        status: 1
-        value:
-          baseAmount: 5
-          mode: 0
-          status: 1
-          divisor: 1
-          matchBaseValue: 7
-        previewable: 1
-    customHook:
-      kind: 0
-      reason: 
-  spec:
-    rarity: 2
-    specState: 2
-    buildRole: 0
-    implementationCoverage: 2
-    normalizedText: Deal "X damage". If Crit, +2 Added Value.
-    designIntent: Physical single-slot X hit with a Crit rider.
-  behaviorFamily: 5
-  fireBehaviorId: 0
-  iceBehaviorId: 0
-  lightningBehaviorId: 0
-  bleedBehaviorId: 0
-  physicalBehaviorId: 1
-  kind: 0
-  coreAction: 0
-  target: 1
-  group: 0
-  element: 4
-  range: 0
-  hitAllEnemies: 0
-  hitAllAllies: 0
-  slotsRequired: 1
   hasCondition: 0
   conditionEditorMode: 0
   useSystemConditionPreset: 1
@@ -155,6 +93,60 @@ MonoBehaviour:
     lowestOutcome: 0
     highestOutcome: 0
     burnTurns: 3
+  icon: {fileID: 3036406079360279078, guid: 2ae33b38b49790240b35176bd59b783d, type: 3}
+  displayName: Precision Strike
+  description: Deal "X damage". If Crit, +2 Added Value.
+  gameplay:
+    useNewGameplayPipeline: 1
+    descriptionTemplate: Deal {base1} damage.
+    requirements:
+    - type: 0
+      failureText: only use if
+      tooltipText: 
+      condition:
+        scope: 0
+        logic: 0
+        clauses:
+        - reference: 0
+          comparison: 1
+          value: 0
+    baseEffects:
+    - type: 0
+      target: 0
+      status: 1
+      value:
+        baseAmount: 7
+        mode: 1
+        status: 1
+        divisor: 1
+        matchBaseValue: 7
+      previewable: 1
+    conditionalOutcomes: []
+    customHook:
+      kind: 0
+      reason: 
+  spec:
+    rarity: 2
+    specState: 2
+    buildRole: 0
+    implementationCoverage: 2
+    normalizedText: Deal "X damage". If Crit, +2 Added Value.
+    designIntent: Physical single-slot X hit with a Crit rider.
+  behaviorFamily: 5
+  fireBehaviorId: 0
+  iceBehaviorId: 0
+  lightningBehaviorId: 0
+  bleedBehaviorId: 0
+  physicalBehaviorId: 1
+  kind: 0
+  coreAction: 0
+  target: 1
+  group: 0
+  element: 4
+  range: 0
+  hitAllEnemies: 0
+  hitAllAllies: 0
+  slotsRequired: 1
   focusCost: 1
   focusGainOnCast: 0
   baseDamageValueMode: 1

@@ -12,21 +12,74 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bdd3439a07d594846848beae8787decc, type: 3}
   m_Name: CombatLabPrototypeConfig_Prototype
   m_EditorClassIdentifier: Assembly-CSharp::CombatLabPrototypeConfigSO
-  enemies:
-  - enabled: 1
-    prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
-    row: 0
-    orderInRow: 0
-  - enabled: 1
-    prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
-    row: 0
-    orderInRow: 0
-  - enabled: 1
-    prefab: {fileID: 3343973332019958161, guid: 7bebe51e0cc345d4a803534dd2915177, type: 3}
-    row: 0
-    orderInRow: 0
+  enemies: []
+  combat1:
+    label: Combat 1
+    isBoss: 0
+    enemies:
+    - enabled: 1
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+  combat2:
+    label: Combat 2
+    isBoss: 0
+    enemies:
+    - enabled: 1
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+  combat3:
+    label: Combat 3
+    isBoss: 0
+    enemies:
+    - enabled: 1
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+  combat4Boss:
+    label: Combat 4 Boss
+    isBoss: 1
+    enemies:
+    - enabled: 1
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+  runEncounters: []
   d4Prefab: {fileID: 0}
-  d8Prefab: {fileID: 4134805224854751960, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+  d8Prefab: {fileID: 0}
   skillGroups:
   - label: 
     skillA: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
@@ -39,3 +92,5 @@ MonoBehaviour:
     skillC: {fileID: 11400000, guid: 5ccc410763d74ec393e79c5d6d59f429, type: 2}
     skillD: {fileID: 11400000, guid: 6201df6fa5db4498bdd5158dc14ccf72, type: 2}
   consumables: []
+  consumableRewardFolder: {fileID: 0}
+  consumableRewardPool: []

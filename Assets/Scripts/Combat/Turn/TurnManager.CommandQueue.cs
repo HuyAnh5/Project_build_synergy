@@ -66,7 +66,6 @@ public partial class TurnManager
         int start0 = _board.GetStartForAnchor(_cursor);
         int span = Mathf.Clamp(rt.slotsRequired, 1, 3);
         int rawSum = _board.GetDieSumForAnchor(_cursor, diceRig);
-        ElementType dieElement = GetResolvedDiceElement(rt, asset);
         DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan paymentPlan =
             DiceCombatEnchantRuntimeUtility.BuildPaymentPlan(diceRig, start0, span);
         if (span > 0 && paymentPlan.paidCost < span)
@@ -78,6 +77,29 @@ public partial class TurnManager
             RefreshPlanningInteractivity();
             return;
         }
+
+        SkillRuntime paymentRuntime = SkillPlanRuntimeUtility.EvaluateRuntimeForSkillAsset(
+            asset,
+            player,
+            diceRig,
+            _cursor,
+            span,
+            start0,
+            paymentPlan.selectedMask);
+        if (paymentRuntime != null)
+            rt = paymentRuntime;
+
+        if (!TurnManagerTargetingUtility.TryValidateTargetForPendingSkill(rt, clicked, player, party, enemy, out string finalValidationReason))
+        {
+            if (logPhase)
+                Debug.LogWarning($"[TM] Skill requirement blocked before enqueue: {finalValidationReason}", this);
+            SetPhase(Phase.Planning);
+            RefreshAllViews();
+            RefreshPlanningInteractivity();
+            return;
+        }
+
+        ElementType dieElement = GetResolvedDiceElement(rt, asset);
         int resolvedSum = TurnManagerCombatUtility.ComputeResolvedDieSum(diceRig, player, start0, span, dieElement, paymentPlan.selectedMask);
         int maxFace = ComputeMaxFace(start0, span);
 

@@ -162,6 +162,58 @@ public static class DiceCombatEnchantRuntimeUtility
         return popupCount;
     }
 
+    public static bool CanResolveCommittedPreSkillFaceEnchant(
+        DiceSlotRig diceRig,
+        CommittedFaceUsePlan plan,
+        CombatActor caster,
+        int slot0)
+    {
+        if (diceRig == null || plan == null || !plan.IsSelected(slot0))
+            return false;
+
+        DiceSpinnerGeneric die = diceRig.GetDice(slot0);
+        if (die == null || !die.IsCurrentFaceUsable())
+            return false;
+
+        DiceFaceEnchantKind effective = diceRig.GetEffectiveCurrentFaceEnchant(slot0);
+        switch (effective)
+        {
+            case DiceFaceEnchantKind.Power:
+            case DiceFaceEnchantKind.Heavy:
+            case DiceFaceEnchantKind.Charge:
+            case DiceFaceEnchantKind.Gold:
+            case DiceFaceEnchantKind.Double:
+            case DiceFaceEnchantKind.Stone:
+            case DiceFaceEnchantKind.Repeat:
+            case DiceFaceEnchantKind.Relay:
+                return true;
+            case DiceFaceEnchantKind.Guard:
+                return caster != null;
+            default:
+                return false;
+        }
+    }
+
+    public static int ResolveCommittedPreSkillFaceEnchant(
+        DiceSlotRig diceRig,
+        CommittedFaceUsePlan plan,
+        CombatActor caster,
+        int slot0)
+    {
+        if (diceRig == null || plan == null || !plan.IsSelected(slot0))
+            return 0;
+
+        DiceSpinnerGeneric die = diceRig.GetDice(slot0);
+        if (die == null || !die.IsCurrentFaceUsable())
+            return 0;
+
+        DiceFaceEnchantKind effective = diceRig.GetEffectiveCurrentFaceEnchant(slot0);
+        if (effective == DiceFaceEnchantKind.Relay)
+            return ResolveCommittedRelayFaceEnchant(diceRig, plan, slot0);
+
+        return ResolveCommittedSelfFaceEnchant(diceRig, plan, caster, slot0) ? 1 : 0;
+    }
+
     public static SimpleEnchantPreview ComputeCommittedSimpleEnchantPreview(
         DiceSlotRig diceRig,
         CombatActor caster,

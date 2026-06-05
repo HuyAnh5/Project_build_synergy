@@ -3343,10 +3343,6 @@ MonoBehaviour:
     prefab: {fileID: 3343973332019958161, guid: 7bebe51e0cc345d4a803534dd2915177, type: 3}
     row: 1
     orderInRow: 1
-  - label: 
-    prefab: {fileID: 3343973332019958161, guid: 7bebe51e0cc345d4a803534dd2915177, type: 3}
-    row: 1
-    orderInRow: 2
   depthOffset: 0.5
   memberSpacing: 2
   applyScaleByRow: 0
@@ -4086,6 +4082,7 @@ MonoBehaviour:
   party: {fileID: 733054730}
   runInventory: {fileID: 1082519198}
   turnManager: {fileID: 733054728}
+  rewardController: {fileID: 0}
   shuffleSelectedSkillOrder: 1
 --- !u!4 &917100463
 Transform:
@@ -4455,9 +4452,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::RunInventoryManager
   diceRig: {fileID: 1499909187}
   equippedDicePrefabs:
-  - {fileID: 3696089616036826389, guid: 650ae2f331cdc1848bf2007cff33bdf1, type: 3}
   - {fileID: 659209076032714358, guid: 2801eb737d917bf448b96e19f75baaa5, type: 3}
-  - {fileID: 4134805224854751960, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+  - {fileID: 659209076032714358, guid: 2801eb737d917bf448b96e19f75baaa5, type: 3}
+  - {fileID: 659209076032714358, guid: 2801eb737d917bf448b96e19f75baaa5, type: 3}
   equippedDice:
   - {fileID: 0}
   - {fileID: 8067042561129760585, guid: 7aaf560a33ab25e4db411166973d2730, type: 3}
@@ -4472,13 +4469,13 @@ MonoBehaviour:
     skillAsset: {fileID: 11400000, guid: ae03d7f30437ba9468c724b3c4ad15f0, type: 2}
   ownedSlots:
   - uiIcon: {fileID: 96852640}
-    skillAsset: {fileID: 11400000, guid: 7b595889b308add49bbdd89f10f90358, type: 2}
+    skillAsset: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
   - uiIcon: {fileID: 1446803103}
-    skillAsset: {fileID: 11400000, guid: dd8a7af4c0d3462bbed18e7712ad8990, type: 2}
+    skillAsset: {fileID: 11400000, guid: d0a72a3e8f4a917bf4280516f7087207, type: 2}
   - uiIcon: {fileID: 1850621293}
-    skillAsset: {fileID: 11400000, guid: 5ccc410763d74ec393e79c5d6d59f429, type: 2}
+    skillAsset: {fileID: 11400000, guid: ccf6192d7e39806ae317f405e6f76106, type: 2}
   - uiIcon: {fileID: 1736254959}
-    skillAsset: {fileID: 11400000, guid: 6201df6fa5db4498bdd5158dc14ccf72, type: 2}
+    skillAsset: {fileID: 11400000, guid: e1b83b4f905ba28c0539162708198308, type: 2}
   consumableCapacity: 5
   consumableSlots:
   - asset: {fileID: 11400000, guid: 0fa37295797b435fa2d6722fa77e2913, type: 2}
@@ -4487,9 +4484,9 @@ MonoBehaviour:
     charges: 0
   - asset: {fileID: 11400000, guid: 577cec28e8e97e2459164fe5e7cbd2cd, type: 2}
     charges: 0
-  - asset: {fileID: 0}
+  - asset: {fileID: 11400000, guid: 781a955e187d7d84a819a3703b2c93ec, type: 2}
     charges: 0
-  - asset: {fileID: 0}
+  - asset: {fileID: 11400000, guid: 2e6a2f5ff4fb4c7f83c7f8a789e93102, type: 2}
     charges: 0
   gold: 0
 --- !u!1 &1087371962
@@ -8086,7 +8083,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2009635724}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cd1d59d93ddcb04468c3839cce3a8e44, type: 3}
   m_Name: 
@@ -8095,6 +8092,7 @@ MonoBehaviour:
   party: {fileID: 733054730}
   runInventory: {fileID: 1082519198}
   turnManager: {fileID: 733054728}
+  rewardController: {fileID: 0}
   shuffleSelectedSkillOrder: 1
 --- !u!1 &2029048944
 GameObject:

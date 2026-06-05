@@ -32,13 +32,13 @@ internal static class TurnManagerTargetingUtility
             {
                 case SkillTargetRule.Self:
                     if (clicked != player) { reason = "self target but clicked != player"; return false; }
-                    return true;
+                    return TryValidateGameplayRequirements(rt, player, clicked, out reason);
 
                 case SkillTargetRule.SingleAlly:
                 case SkillTargetRule.RowAllies:
                 case SkillTargetRule.AllAllies:
                     if (!IsFriendlyTarget(clicked, player, party)) { reason = "ally target but clicked is not friendly"; return false; }
-                    return true;
+                    return TryValidateGameplayRequirements(rt, player, clicked, out reason);
 
                 case SkillTargetRule.SingleEnemy:
                 case SkillTargetRule.RowEnemies:
@@ -52,7 +52,7 @@ internal static class TurnManagerTargetingUtility
             if (rt.target == TargetRule.Self)
             {
                 if (clicked != player) { reason = "legacy self target but clicked != player"; return false; }
-                return true;
+                return TryValidateGameplayRequirements(rt, player, clicked, out reason);
             }
 
             if (rt.target == TargetRule.Enemy && IsFriendlyTarget(clicked, player, party))
@@ -75,9 +75,33 @@ internal static class TurnManagerTargetingUtility
         }
 
         if (rt.target == TargetRule.Enemy || rt.useV2Targeting)
-            return true;
+            return TryValidateGameplayRequirements(rt, player, clicked, out reason);
 
         reason = $"Unhandled target config target={rt.target} targetRuleV2={rt.targetRuleV2}";
+        return false;
+    }
+
+    private static bool TryValidateGameplayRequirements(SkillRuntime rt, CombatActor player, CombatActor clicked, out string reason)
+    {
+        reason = string.Empty;
+
+        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
+        if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+            return true;
+
+        SkillResolvedResult resolved = SkillGameplayResolver.Resolve(rt, player, clicked);
+        if (resolved == null)
+        {
+            reason = "skill gameplay resolver returned null";
+            return false;
+        }
+
+        if (resolved.canCast)
+            return true;
+
+        reason = string.IsNullOrWhiteSpace(resolved.failureReason)
+            ? "Requirement not met."
+            : resolved.failureReason;
         return false;
     }
 

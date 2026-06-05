@@ -197,6 +197,10 @@ public class SkillRequirementData
     [LabelText("Failure")]
     public string failureText = "Requirement not met.";
 
+    [LabelText("Tooltip Text")]
+    [TextArea(1, 3)]
+    public string tooltipText;
+
     [FoldoutGroup("Condition", expanded: true)]
     [HideLabel]
     public SkillConditionData condition = new SkillConditionData
@@ -215,6 +219,11 @@ public class SkillConditionalOutcomeDataV2
     public string Summary => condition != null && condition.HasAnyClause
         ? $"When {condition.logic} condition is met"
         : "When condition is missing";
+
+    [FoldoutGroup("Display", expanded: true)]
+    [LabelText("Tooltip Text")]
+    [TextArea(1, 3)]
+    public string tooltipText;
 
     [FoldoutGroup("When", expanded: true)]
     [HideLabel]

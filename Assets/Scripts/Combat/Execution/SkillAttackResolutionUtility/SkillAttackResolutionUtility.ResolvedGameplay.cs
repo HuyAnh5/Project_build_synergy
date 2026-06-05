@@ -86,7 +86,7 @@ internal static partial class SkillAttackResolutionUtility
             info.isDamage = true;
             totalDamage += damage;
             CombatActor.DamageResult damageResult = effectTarget.TakeDamageDetailed(damage, bypassGuard: info.bypassGuard);
-            CombatHitFeedback.Play(effectTarget, CombatHitFeedback.FeedbackKind.Hit);
+            PlayFeedback(effectTarget, CombatHitFeedback.FeedbackKind.Hit);
             aggregateDamageResult.blocked += damageResult.blocked;
             aggregateDamageResult.hpLost += damageResult.hpLost;
             aggregateDamageResult.guardBroken |= damageResult.guardBroken;
@@ -103,7 +103,7 @@ internal static partial class SkillAttackResolutionUtility
                 if (reward != 0)
                 {
                     caster.GainFocus(reward);
-                    CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Focus);
+                        PlayFeedback(caster, CombatHitFeedback.FeedbackKind.Focus);
                 }
             }
 
@@ -126,7 +126,7 @@ internal static partial class SkillAttackResolutionUtility
                 if (guardReward > 0)
                 {
                     caster.AddGuard(guardReward);
-                    CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Guard);
+                    PlayFeedback(caster, CombatHitFeedback.FeedbackKind.Guard);
                 }
 
                 int focusReward = Mathf.Max(0, rt.iceRewardFocus);
@@ -134,7 +134,7 @@ internal static partial class SkillAttackResolutionUtility
                 {
                     focusReward += passiveSystem != null ? passiveSystem.GetFreezeBreakFocusBonusAdd() : 0;
                     caster.GainFocus(focusReward);
-                    CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Focus);
+                    PlayFeedback(caster, CombatHitFeedback.FeedbackKind.Focus);
                 }
             }
 
@@ -150,7 +150,7 @@ internal static partial class SkillAttackResolutionUtility
                     totalShockProcCount++;
                 }
 
-                CombatHitFeedback.Play(effectTarget, CombatHitFeedback.FeedbackKind.MarkPayoff);
+                PlayFeedback(effectTarget, CombatHitFeedback.FeedbackKind.MarkPayoff);
                 effectTarget.status.marked = false;
             }
 
@@ -227,16 +227,16 @@ internal static partial class SkillAttackResolutionUtility
                 case SkillEffectType.GainGuard:
                     target.AddGuard(value);
                     if (value > 0)
-                        CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Guard);
+                        PlayFeedback(target, CombatHitFeedback.FeedbackKind.Guard);
                     break;
                 case SkillEffectType.Heal:
                     if (target.Heal(value) > 0)
-                        CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Heal);
+                        PlayFeedback(target, CombatHitFeedback.FeedbackKind.Heal);
                     break;
                 case SkillEffectType.GainAP:
                     target.GainFocus(value);
                     if (value > 0)
-                        CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Focus);
+                        PlayFeedback(target, CombatHitFeedback.FeedbackKind.Focus);
                     break;
                 case SkillEffectType.ConsumeStatus:
                     ConsumeResolvedStatus(effect.status, target, value);
@@ -286,7 +286,7 @@ internal static partial class SkillAttackResolutionUtility
                 }
 
                 CombatActor.DamageResult damageResult = effectTarget.TakeDamageDetailed(damage, bypassGuard: rt.bypassGuard);
-                CombatHitFeedback.Play(effectTarget, CombatHitFeedback.FeedbackKind.Hit);
+                PlayFeedback(effectTarget, CombatHitFeedback.FeedbackKind.Hit);
                 if (damageResult.guardBroken && effectTarget.status != null)
                     effectTarget.status.ApplyStagger();
                 else if (consumesStagger && effectTarget.status != null)
@@ -297,6 +297,14 @@ internal static partial class SkillAttackResolutionUtility
         }
 
         ApplyResolvedGameplayEffects(effects, caster, selectedTarget, includeFollowUpEffects: true);
+    }
+
+    private static void PlayFeedback(CombatActor actor, CombatHitFeedback.FeedbackKind kind)
+    {
+        if (CombatSimulationContext.SuppressPresentation)
+            return;
+
+        CombatHitFeedback.Play(actor, kind);
     }
 
     private static bool ClearResolvedGuard(CombatActor target)

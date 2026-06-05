@@ -142,9 +142,11 @@ internal sealed class SkillIconPreviewController
             return;
 
         int dieValue = _previewPlan.valid ? _previewPlan.resolvedDieValue : _getPreviewDieValue(_cachedDragRuntime);
+        int resolveCount = _previewPlan.valid ? Mathf.Max(1, _previewPlan.repeatCount + 1) : 1;
         TargetPreviewBuilder.ActionPreviewBundle bundle =
-            TargetPreviewBuilder.BuildActionBundle(_cachedDragRuntime, _turn.player, hoveredActor, dieValue, _turn.party, _turn.enemy);
-        if (_previewPlan.valid && _previewPlan.repeatCount > 0)
+            TargetPreviewBuilder.BuildActionBundle(_cachedDragRuntime, _turn.player, hoveredActor, dieValue, _turn.party, _turn.enemy, resolveCount);
+        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(_cachedDragRuntime);
+        if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill) && _previewPlan.valid && _previewPlan.repeatCount > 0)
             TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, _previewPlan.repeatCount + 1);
         TargetPreviewBuilder.AddSelfResourcePreview(_turn.player, _simpleEnchantPreview.guardGain, 0, ref bundle);
 
@@ -306,8 +308,10 @@ internal sealed class SkillIconPreviewController
         if (runtime != null && canSelfPreview)
         {
             int dieValue = _previewPlan.valid ? _previewPlan.resolvedDieValue : _getPreviewDieValue(runtime);
-            bundle = TargetPreviewBuilder.BuildActionBundle(runtime, player, player, dieValue, _turn.party, _turn.enemy);
-            if (_previewPlan.valid && _previewPlan.repeatCount > 0)
+            int resolveCount = _previewPlan.valid ? Mathf.Max(1, _previewPlan.repeatCount + 1) : 1;
+            bundle = TargetPreviewBuilder.BuildActionBundle(runtime, player, player, dieValue, _turn.party, _turn.enemy, resolveCount);
+            SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(runtime);
+            if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill) && _previewPlan.valid && _previewPlan.repeatCount > 0)
                 TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, _previewPlan.repeatCount + 1);
             TargetPreviewBuilder.AddSelfResourcePreview(player, _simpleEnchantPreview.guardGain, 0, ref bundle);
 

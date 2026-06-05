@@ -71,7 +71,8 @@ public static partial class TargetPreviewBuilder
         CombatActor clickedTarget,
         int dieValue,
         BattlePartyManager2D party,
-        CombatActor fallbackEnemy)
+        CombatActor fallbackEnemy,
+        int resolveCount = 1)
     {
         ActionPreviewBundle bundle = new ActionPreviewBundle
         {
@@ -87,7 +88,16 @@ public static partial class TargetPreviewBuilder
 
         SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
         if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+        {
+            if (CombatActionPreviewSimulator.TrySimulateTargetFinalState(rt, caster, clickedTarget, dieValue, resolveCount, out TargetPreviewData simulatedData))
+            {
+                bundle.targetPreviews[clickedTarget] = simulatedData;
+                bundle.valid = simulatedData.valid;
+                return bundle;
+            }
+
             return BuildResolvedGameplayBundle(rt, caster, clickedTarget, bundle);
+        }
 
         List<CombatActor> actionTargets = ResolveActionTargets(rt, caster, clickedTarget, party, fallbackEnemy);
         if (actionTargets.Count <= 0)
@@ -188,4 +198,217 @@ public static partial class TargetPreviewBuilder
         bundle.valid |= data.valid;
     }
 
+}
+
+internal static class CombatActionPreviewSimulator
+{
+    public static bool TrySimulateTargetFinalState(
+        SkillRuntime runtime,
+        CombatActor caster,
+        CombatActor target,
+        int dieValue,
+        int resolveCount,
+        out TargetPreviewData preview)
+    {
+        preview = CreateBaseline(caster, target);
+        if (runtime == null || caster == null || target == null || !preview.valid)
+            return false;
+
+        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(runtime);
+        if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+            return false;
+
+        CombatActor targetClone = null;
+        ActorSnapshot casterSnapshot = ActorSnapshot.Capture(caster);
+        using (new CombatSimulationContext.Scope(suppressPresentation: true))
+        {
+            try
+            {
+                targetClone = CloneActorForPreview(target);
+                int count = Mathf.Max(1, resolveCount);
+                for (int i = 0; i < count; i++)
+                {
+                    SkillExecutor.AttackApplyResult result = SkillAttackResolutionUtility.ApplyAttack(
+                        runtime,
+                        caster,
+                        targetClone,
+                        dieValue,
+                        popups: null,
+                        context: null,
+                        buildAttackPreview: (_, _, _, _) => default);
+
+                    if (result.HasDelayedFollowUpEffects)
+                        SkillAttackResolutionUtility.ApplyResolvedGameplayFollowUpEffects(runtime, caster, targetClone, result.delayedFollowUpEffects, popups: null);
+                }
+
+                preview = CreateFinalDiff(caster, target, targetClone);
+                return true;
+            }
+            finally
+            {
+                casterSnapshot.Restore(caster);
+                if (targetClone != null)
+                    UnityEngine.Object.DestroyImmediate(targetClone.gameObject);
+            }
+        }
+    }
+
+    private static TargetPreviewData CreateBaseline(CombatActor caster, CombatActor target)
+    {
+        TargetPreviewData data = default;
+        if (target == null)
+            return data;
+
+        data.valid = true;
+        data.currentHp = target.hp;
+        data.currentMaxHp = target.maxHP;
+        data.currentGuard = target.guardPool;
+        data.previewHpAfter = target.hp;
+        data.previewGuardAfter = target.guardPool;
+        data.currentlyStaggered = target.status != null && target.status.staggered;
+        data.currentBurn = target.status != null ? target.status.burnStacks : 0;
+        data.currentBleed = target.status != null ? target.status.bleedStacks : 0;
+        data.currentMarked = target.status != null && target.status.marked;
+        data.currentFrozen = target.status != null && target.status.frozen;
+        data.previewBurnAfter = data.currentBurn;
+        data.previewBleedAfter = data.currentBleed;
+        data.previewMarkedAfter = data.currentMarked;
+        data.previewFrozenAfter = data.currentFrozen;
+        data.isSelfTarget = caster == target;
+        return data;
+    }
+
+    private static TargetPreviewData CreateFinalDiff(CombatActor caster, CombatActor source, CombatActor clone)
+    {
+        TargetPreviewData data = CreateBaseline(caster, source);
+        data.previewHpAfter = Mathf.Max(0, clone.hp);
+        data.previewGuardAfter = Mathf.Max(0, clone.guardPool);
+        data.hpLost = data.currentHp - data.previewHpAfter;
+        data.guardLost = data.currentGuard - data.previewGuardAfter;
+
+        StatusController status = clone.status;
+        data.previewBurnAfter = status != null ? Mathf.Max(0, status.burnStacks) : 0;
+        data.previewBleedAfter = status != null ? Mathf.Max(0, status.bleedStacks) : 0;
+        data.previewMarkedAfter = status != null && status.marked;
+        data.previewFrozenAfter = status != null && status.frozen;
+        bool finalStaggered = status != null && status.staggered;
+        data.willBreakGuard = !data.currentlyStaggered && finalStaggered;
+        data.willConsumeStagger = data.currentlyStaggered && !finalStaggered;
+        data.valid = true;
+        return data;
+    }
+
+    private static CombatActor CloneActorForPreview(CombatActor source)
+    {
+        GameObject go = new GameObject($"PreviewClone_{source.name}");
+        go.hideFlags = HideFlags.HideAndDontSave;
+        CombatActor clone = go.AddComponent<CombatActor>();
+        clone.team = source.team;
+        clone.row = source.row;
+        clone.isPlayer = source.isPlayer;
+        clone.maxHP = source.maxHP;
+        clone.hp = source.hp;
+        clone.maxFocus = source.maxFocus;
+        clone.focus = source.focus;
+        clone.startingFocus = source.startingFocus;
+        clone.guardPool = source.guardPool;
+
+        if (source.status != null)
+        {
+            StatusController status = go.AddComponent<StatusController>();
+            CopyStatus(source.status, status);
+            clone.status = status;
+        }
+
+        return clone;
+    }
+
+    private static void CopyStatus(StatusController source, StatusController destination)
+    {
+        if (source == null || destination == null)
+            return;
+
+        destination.burnStacks = source.burnStacks;
+        destination.burnTurns = source.burnTurns;
+        destination.marked = source.marked;
+        destination.bleedStacks = source.bleedStacks;
+        destination.frozen = source.frozen;
+        destination.chilledTurns = source.chilledTurns;
+        destination.staggered = source.staggered;
+        destination.emberWeaponTurns = source.emberWeaponTurns;
+        destination.emberWeaponBonusDamage = source.emberWeaponBonusDamage;
+        destination.emberWeaponBurnEqualsDamage = source.emberWeaponBurnEqualsDamage;
+        destination.emberWeaponBurnOnCritOnly = source.emberWeaponBurnOnCritOnly;
+        destination.cinderbrandTurns = source.cinderbrandTurns;
+        destination.cinderbrandBonusPerBurn = source.cinderbrandBonusPerBurn;
+    }
+
+    private readonly struct ActorSnapshot
+    {
+        private readonly int _hp;
+        private readonly int _focus;
+        private readonly int _guard;
+        private readonly StatusSnapshot _status;
+
+        private ActorSnapshot(CombatActor actor)
+        {
+            _hp = actor != null ? actor.hp : 0;
+            _focus = actor != null ? actor.focus : 0;
+            _guard = actor != null ? actor.guardPool : 0;
+            _status = StatusSnapshot.Capture(actor != null ? actor.status : null);
+        }
+
+        public static ActorSnapshot Capture(CombatActor actor) => new ActorSnapshot(actor);
+
+        public void Restore(CombatActor actor)
+        {
+            if (actor == null)
+                return;
+
+            actor.hp = _hp;
+            actor.focus = _focus;
+            actor.guardPool = _guard;
+            _status.Restore(actor.status);
+        }
+    }
+
+    private readonly struct StatusSnapshot
+    {
+        private readonly bool _hasStatus;
+        private readonly int _burnStacks;
+        private readonly int _burnTurns;
+        private readonly bool _marked;
+        private readonly int _bleedStacks;
+        private readonly bool _frozen;
+        private readonly int _chilledTurns;
+        private readonly bool _staggered;
+
+        private StatusSnapshot(StatusController status)
+        {
+            _hasStatus = status != null;
+            _burnStacks = status != null ? status.burnStacks : 0;
+            _burnTurns = status != null ? status.burnTurns : 0;
+            _marked = status != null && status.marked;
+            _bleedStacks = status != null ? status.bleedStacks : 0;
+            _frozen = status != null && status.frozen;
+            _chilledTurns = status != null ? status.chilledTurns : 0;
+            _staggered = status != null && status.staggered;
+        }
+
+        public static StatusSnapshot Capture(StatusController status) => new StatusSnapshot(status);
+
+        public void Restore(StatusController status)
+        {
+            if (!_hasStatus || status == null)
+                return;
+
+            status.burnStacks = _burnStacks;
+            status.burnTurns = _burnTurns;
+            status.marked = _marked;
+            status.bleedStacks = _bleedStacks;
+            status.frozen = _frozen;
+            status.chilledTurns = _chilledTurns;
+            status.staggered = _staggered;
+        }
+    }
 }

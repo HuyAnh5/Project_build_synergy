@@ -270,6 +270,23 @@ public class BattlePartyManager2D : MonoBehaviour
         PlaceSingleLine(members, anchor.position, side);
     }
 
+    public void SpawnPrototypeEncounter(SpawnSlot[] slots, bool resetPlayerForBattle)
+    {
+        enemySlots = slots ?? new SpawnSlot[maxEnemies];
+        ClearAll(destroyObjects: false);
+        EnsurePlayerExists();
+        if (resetPlayerForBattle && Player != null)
+            Player.ResetForBattle(resetHPOnBattleStart);
+
+        SpawnFromSlots(enemySlots, CombatActor.TeamSide.Enemy);
+
+        if (autoSpawnWorldUI)
+            EnsureWorldUIForAll();
+
+        LayoutAll();
+        onRosterChanged?.Invoke();
+    }
+
     private int CompareBySpawnOrder(CombatActor a, CombatActor b)
     {
         int oa = _spawnOrder.TryGetValue(a, out int va) ? va : 0;

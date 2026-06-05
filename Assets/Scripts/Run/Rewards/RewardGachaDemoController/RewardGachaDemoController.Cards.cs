@@ -106,9 +106,11 @@ public sealed partial class RewardGachaDemoController
     {
         _locked = true;
         List<string> messages = new List<string>();
+        RewardGachaCard pickedCard = null;
         foreach (int index in _selectedIndexes)
         {
             RewardGachaCard card = _offer.cards[index];
+            pickedCard = card;
             if (applySelectionToInventory)
             {
                 RewardGachaApplier.TryApply(card, runInventory, out string message);
@@ -121,7 +123,9 @@ public sealed partial class RewardGachaDemoController
         }
 
         SetStatus(string.Join(" ", messages));
-        if (autoRerollAfterPick)
+        if (_prototypeConsumableMode)
+            _onPrototypeRewardPicked?.Invoke(pickedCard);
+        else if (autoRerollAfterPick)
             _rerollRoutine = StartCoroutine(AutoRerollRoutine());
     }
 

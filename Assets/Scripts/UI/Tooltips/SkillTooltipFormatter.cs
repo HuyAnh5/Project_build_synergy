@@ -50,14 +50,8 @@ public static partial class SkillTooltipFormatter
                     : ColorQuotedAddedValues(passive.description.Trim());
                 break;
             case DiceFaceEnchantTooltipAsset diceEnchant:
-                content.targeting = string.IsNullOrWhiteSpace(diceEnchant.SourceDieName)
-                    ? "Dice Face Enchant"
-                    : $"Die: {diceEnchant.SourceDieName}";
-                content.effectText = DiceFaceEnchantUtility.GetRulesText(diceEnchant.Enchant);
-                if (DiceFaceEnchantUtility.IsNumericFace(diceEnchant.Enchant))
-                    content.conditions.Add($"Current face value: {diceEnchant.FaceValue}");
-                else
-                    content.conditions.Add("Non-numeric face.");
+                content.targeting = string.Empty;
+                content.effectText = DiceFaceEnchantUtility.GetShortRulesText(diceEnchant.Enchant);
                 break;
         }
 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -48,6 +49,7 @@ public partial class TurnManager : MonoBehaviour
     public bool IsPlanning => phase == Phase.Planning;
     public bool CanInteractWithSkills => phase == Phase.Planning && !IsSkillInteractionLockedForCurrentRollWindow() && !ArePlayerCommandsLocked && !_endTurnQueued;
     public bool ArePlayerCommandsLocked => _externalPlayerInteractionLock || _defeatResolvedThisCombat || player == null || player.IsDead;
+    public event Action CombatVictoryResolved;
 
     private readonly ActionSlotDrop[] _drops = new ActionSlotDrop[3];
     // --- Slot Collapse support ---
@@ -131,6 +133,35 @@ public partial class TurnManager : MonoBehaviour
             diceRig.onAllDiceRolled -= OnDiceRolled;
             diceRig.onComputeAllDiceDelta -= ComputeAllDiceDelta;
         }
+    }
+
+    public void BeginPrototypeCombat()
+    {
+        if (party != null && party.Player != null)
+            player = party.Player;
+
+        _victoryResolvedThisCombat = false;
+        _defeatResolvedThisCombat = false;
+        _externalPlayerInteractionLock = false;
+        _isProcessingQueuedPlayerCommands = false;
+        _endTurnQueued = false;
+        _spentDiceThisTurn.Clear();
+        _pendingUsedVisualDiceThisTurn.Clear();
+        _queuedPlayerCommands.Clear();
+        _board.Reset();
+        _cursor = 0;
+
+        _playerContext.Bind(player);
+        if (diceRig != null)
+            DiceCombatEnchantRuntimeUtility.BeginCombat(diceRig);
+
+        if (executor != null)
+            executor.ResetPlayerCastVisualState();
+
+        BeginNewPlayerTurn();
+        if (diceRig != null)
+            diceRig.ShowRandomPresentationFaces();
+        EnsureAllEnemyIntentsNow();
     }
 
 

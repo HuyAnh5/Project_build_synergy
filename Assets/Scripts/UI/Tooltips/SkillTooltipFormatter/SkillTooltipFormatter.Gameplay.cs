@@ -43,7 +43,7 @@ public static partial class SkillTooltipFormatter
         {
             SkillRequirementData requirement = skill.gameplay.requirements[i];
             if (requirement != null)
-                content.requires.Add(string.IsNullOrWhiteSpace(requirement.failureText) ? "Requirement must be met." : requirement.failureText);
+                content.requires.Add(FormatRequirement(requirement));
         }
     }
 
@@ -59,13 +59,49 @@ public static partial class SkillTooltipFormatter
             if (branch == null || branch.condition == null || branch.effects == null || branch.effects.Count == 0)
                 continue;
 
-            string conditionText = FormatCondition(branch.condition);
-            var branchLines = new List<string>();
+            content.conditions.Add(FormatConditionalOutcome(branch, runtime));
+        }
+    }
+
+    private static string FormatRequirement(SkillRequirementData requirement)
+    {
+        if (requirement == null)
+            return string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(requirement.tooltipText))
+            return FormatAuthoredTooltipText(requirement.tooltipText);
+
+        string conditionText = FormatCondition(requirement.condition);
+        return string.IsNullOrWhiteSpace(conditionText) || conditionText == "condition"
+            ? "Requirement must be met."
+            : $"Only use if {conditionText}.";
+    }
+
+    private static string FormatConditionalOutcome(SkillConditionalOutcomeDataV2 branch, SkillRuntime runtime)
+    {
+        if (branch == null)
+            return string.Empty;
+
+        if (!string.IsNullOrWhiteSpace(branch.tooltipText))
+            return FormatAuthoredTooltipText(branch.tooltipText);
+
+        string conditionText = FormatCondition(branch.condition);
+        var branchLines = new List<string>();
+        if (branch.effects != null)
+        {
             for (int effectIndex = 0; effectIndex < branch.effects.Count; effectIndex++)
                 branchLines.Add(FormatEffect(branch.effects[effectIndex], runtime));
-
-            content.conditions.Add($"If {conditionText}: {string.Join(" ", branchLines)}");
         }
+
+        return $"If {conditionText}: {string.Join(" ", branchLines)}";
+    }
+
+    private static string FormatAuthoredTooltipText(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+            return string.Empty;
+
+        return ColorSymbolicXTokens(ColorQuotedAddedValues(text.Trim()));
     }
 
     // Replaces effect and keyword tokens inside an authored gameplay description template.

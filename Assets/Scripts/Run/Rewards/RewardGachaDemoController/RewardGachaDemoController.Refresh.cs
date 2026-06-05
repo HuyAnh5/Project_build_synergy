@@ -15,19 +15,21 @@ public sealed partial class RewardGachaDemoController
         int gold = _offer != null ? _offer.baseGold : 0;
 
         if (_modeTitleText != null)
-            _modeTitleText.text = GetModeLabel(currentMode);
+            _modeTitleText.text = _prototypeConsumableMode ? "Consumable Reward" : GetModeLabel(currentMode);
         if (_modeRuleText != null)
         {
-            _modeRuleText.text = config.guaranteeHighRarityCount > 0
+            _modeRuleText.text = _prototypeConsumableMode
+                ? choices + " consumables, pick " + picks + "."
+                : config.guaranteeHighRarityCount > 0
                 ? choices + " rewards, pick " + picks + ". Boss guarantee: at least " + config.guaranteeHighRarityCount + " Rare/Special cards."
                 : choices + " rewards, pick " + picks + ".";
         }
         if (_baseGoldText != null)
-            _baseGoldText.text = "Base Gold +" + gold;
+            _baseGoldText.text = _prototypeConsumableMode ? "Consumable" : "Base Gold +" + gold;
         if (_pickCounterText != null)
             _pickCounterText.text = "Selected " + selected + "/" + picks;
         if (_rerollButton != null)
-            _rerollButton.interactable = !_locked;
+            _rerollButton.interactable = !_prototypeConsumableMode && !_locked;
     }
 
     // Refreshes mode button colors and locking state.
@@ -39,7 +41,7 @@ public sealed partial class RewardGachaDemoController
             if (_modeButtonImages[i] != null)
                 _modeButtonImages[i].color = active ? ActiveButtonColor : ButtonColor;
             if (_modeButtons[i] != null)
-                _modeButtons[i].interactable = !_locked || active;
+                _modeButtons[i].interactable = !_prototypeConsumableMode && (!_locked || active);
         }
     }
 

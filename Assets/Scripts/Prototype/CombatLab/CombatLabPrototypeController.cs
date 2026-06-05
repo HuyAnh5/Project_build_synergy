@@ -10,11 +10,15 @@ public class CombatLabPrototypeController : MonoBehaviour
     [SerializeField] private BattlePartyManager2D party;
     [SerializeField] private RunInventoryManager runInventory;
     [SerializeField] private TurnManager turnManager;
+    [SerializeField] private RewardGachaDemoController rewardController;
     [SerializeField] private bool shuffleSelectedSkillOrder = true;
 
     private readonly List<DiceSpinnerGeneric> _dicePrefabOptions = new List<DiceSpinnerGeneric>(2);
     private readonly List<CombatLabPrototypeConfigSO.SkillPairEntry> _skillGroupOptions = new List<CombatLabPrototypeConfigSO.SkillPairEntry>(6);
     private readonly List<ScriptableObject> _selectedSkills = new List<ScriptableObject>(4);
+    private readonly List<ConsumableDataSO> _heldConsumables = new List<ConsumableDataSO>(RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY);
+    private int _currentCombatIndex;
+    private bool _runEnded;
     private static string s_lastSelectedSkillGroupKey;
 
     private void Awake()
@@ -26,7 +30,17 @@ public class CombatLabPrototypeController : MonoBehaviour
     private void Start()
     {
         AutoResolveReferences();
+        if (turnManager != null)
+            turnManager.CombatVictoryResolved += HandleCombatVictoryResolved;
+
         ApplyPrototypeLoadout();
+        ShowConsumableRewardThenStartCombat(0);
+    }
+
+    private void OnDestroy()
+    {
+        if (turnManager != null)
+            turnManager.CombatVictoryResolved -= HandleCombatVictoryResolved;
     }
 
     [ContextMenu("Apply Prototype Loadout")]
@@ -35,13 +49,15 @@ public class CombatLabPrototypeController : MonoBehaviour
         if (config == null || runInventory == null)
             return;
 
+        _currentCombatIndex = 0;
+        _runEnded = false;
         ApplyRandomSkillLoadout();
-        ApplyFixedConsumables();
+        ClearConsumables();
         ClearPassiveSlot();
         ApplyRandomDiceLoadout();
 
         if (turnManager != null)
-            turnManager.SetPlayerInteractionLocked(false);
+            turnManager.SetPlayerInteractionLocked(true);
     }
 
     public void ResetGame()
@@ -61,19 +77,20 @@ public class CombatLabPrototypeController : MonoBehaviour
         if (config == null || party == null)
             return;
 
-        party.enemySlots = BuildEnemySpawnSlots();
+        party.enemySlots = BuildEnemySpawnSlots(0);
     }
 
-    private BattlePartyManager2D.SpawnSlot[] BuildEnemySpawnSlots()
+    private BattlePartyManager2D.SpawnSlot[] BuildEnemySpawnSlots(int encounterIndex)
     {
         BattlePartyManager2D.SpawnSlot[] result = new BattlePartyManager2D.SpawnSlot[3];
-        if (config.enemies == null)
+        CombatLabPrototypeConfigSO.EnemyEntry[] source = ResolveEncounterEnemies(encounterIndex);
+        if (source == null)
             return result;
 
         int writeIndex = 0;
-        for (int i = 0; i < config.enemies.Length && writeIndex < result.Length; i++)
+        for (int i = 0; i < source.Length && writeIndex < result.Length; i++)
         {
-            CombatLabPrototypeConfigSO.EnemyEntry entry = config.enemies[i];
+            CombatLabPrototypeConfigSO.EnemyEntry entry = source[i];
             if (entry == null || !entry.enabled || entry.prefab == null)
                 continue;
 
@@ -87,6 +104,33 @@ public class CombatLabPrototypeController : MonoBehaviour
         }
 
         return result;
+    }
+
+    private CombatLabPrototypeConfigSO.EnemyEntry[] ResolveEncounterEnemies(int encounterIndex)
+    {
+        if (config == null)
+            return null;
+
+        CombatLabPrototypeConfigSO.EncounterEntry encounter = config.GetRunEncounter(encounterIndex);
+        if (encounter != null && HasAnyEnemy(encounter.enemies))
+            return encounter.enemies;
+
+        return config.enemies;
+    }
+
+    private static bool HasAnyEnemy(CombatLabPrototypeConfigSO.EnemyEntry[] entries)
+    {
+        if (entries == null)
+            return false;
+
+        for (int i = 0; i < entries.Length; i++)
+        {
+            CombatLabPrototypeConfigSO.EnemyEntry entry = entries[i];
+            if (entry != null && entry.enabled && entry.prefab != null)
+                return true;
+        }
+
+        return false;
     }
 
     private void ApplyRandomSkillLoadout()
@@ -116,10 +160,15 @@ public class CombatLabPrototypeController : MonoBehaviour
             runInventory.SetSkill(RunInventoryManager.SkillSource.Owned, i, _selectedSkills[i]);
     }
 
-    private void ApplyFixedConsumables()
+    private void ClearConsumables()
     {
         for (int i = runInventory.ConsumableCapacity - 1; i >= 0; i--)
             runInventory.ClearConsumable(i);
+    }
+
+    private void ApplyFixedConsumables()
+    {
+        ClearConsumables();
 
         if (config.consumables == null)
             return;
@@ -286,6 +335,100 @@ public class CombatLabPrototypeController : MonoBehaviour
             runInventory = FindFirstObjectByType<RunInventoryManager>(FindObjectsInactive.Include);
         if (turnManager == null)
             turnManager = FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+        if (rewardController == null)
+            rewardController = FindFirstObjectByType<RewardGachaDemoController>(FindObjectsInactive.Include);
+    }
+
+    private void HandleCombatVictoryResolved()
+    {
+        if (_runEnded)
+            return;
+
+        if (turnManager != null)
+            turnManager.SetPlayerInteractionLocked(true);
+
+        if (_currentCombatIndex >= CombatLabPrototypeConfigSO.PrototypeCombatCount - 1)
+        {
+            _runEnded = true;
+            Debug.Log("[CombatLabPrototypeController] Prototype run complete after boss combat.", this);
+            return;
+        }
+
+        ShowConsumableRewardThenStartCombat(_currentCombatIndex + 1);
+    }
+
+    private void ShowConsumableRewardThenStartCombat(int combatIndex)
+    {
+        if (turnManager != null)
+            turnManager.SetPlayerInteractionLocked(true);
+
+        if (!HasAvailableConsumableReward())
+        {
+            StartCombat(combatIndex);
+            return;
+        }
+
+        if (rewardController == null)
+        {
+            Debug.LogWarning("[CombatLabPrototypeController] No RewardGachaDemoController assigned/found. Starting next combat without reward choice.", this);
+            StartCombat(combatIndex);
+            return;
+        }
+
+        rewardController.ShowConsumablePrototypeOffer(
+            config.consumableRewardPool,
+            BuildHeldConsumableSnapshot(),
+            runInventory,
+            _ =>
+            {
+                if (rewardController != null)
+                    rewardController.gameObject.SetActive(false);
+                StartCombat(combatIndex);
+            });
+    }
+
+    private void StartCombat(int combatIndex)
+    {
+        _currentCombatIndex = Mathf.Clamp(combatIndex, 0, CombatLabPrototypeConfigSO.PrototypeCombatCount - 1);
+        if (party != null)
+            party.SpawnPrototypeEncounter(BuildEnemySpawnSlots(_currentCombatIndex), resetPlayerForBattle: true);
+
+        if (turnManager != null)
+            turnManager.BeginPrototypeCombat();
+    }
+
+    private bool HasAvailableConsumableReward()
+    {
+        if (config == null || config.consumableRewardPool == null || config.consumableRewardPool.Length == 0)
+            return false;
+        if (runInventory == null || runInventory.FindFirstEmptyConsumableSlot() < 0)
+            return false;
+
+        BuildHeldConsumableSnapshot();
+        for (int i = 0; i < config.consumableRewardPool.Length; i++)
+        {
+            ConsumableDataSO candidate = config.consumableRewardPool[i];
+            if (candidate != null && !_heldConsumables.Contains(candidate))
+                return true;
+        }
+
+        return false;
+    }
+
+    private List<ConsumableDataSO> BuildHeldConsumableSnapshot()
+    {
+        _heldConsumables.Clear();
+        if (runInventory == null)
+            return _heldConsumables;
+
+        for (int i = 0; i < runInventory.ConsumableCapacity; i++)
+        {
+            ConsumableDataSO data = runInventory.GetConsumable(i);
+            if (data != null && !_heldConsumables.Contains(data))
+                _heldConsumables.Add(data);
+        }
+
+        return _heldConsumables;
     }
 
     private static void Shuffle<T>(List<T> list)

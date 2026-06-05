@@ -16,6 +16,7 @@ public partial class TurnManager
         SetPhase(Phase.Planning);
         RefreshAllViews();
         RefreshPlanningInteractivity();
+        CombatVictoryResolved?.Invoke();
         return true;
     }
 

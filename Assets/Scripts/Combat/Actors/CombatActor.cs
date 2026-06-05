@@ -269,10 +269,34 @@ public class CombatActor : MonoBehaviour
 
         _deathStateApplied = true;
 
+        if (CombatSimulationContext.SuppressPresentation)
+            return;
+
         BattlePartyManager2D party = Object.FindFirstObjectByType<BattlePartyManager2D>(FindObjectsInactive.Include);
         if (party != null)
             party.LayoutAll();
 
         gameObject.SetActive(false);
+    }
+}
+
+internal static class CombatSimulationContext
+{
+    public static bool SuppressPresentation { get; private set; }
+
+    public readonly struct Scope : System.IDisposable
+    {
+        private readonly bool _previous;
+
+        public Scope(bool suppressPresentation)
+        {
+            _previous = SuppressPresentation;
+            SuppressPresentation = suppressPresentation;
+        }
+
+        public void Dispose()
+        {
+            SuppressPresentation = _previous;
+        }
     }
 }

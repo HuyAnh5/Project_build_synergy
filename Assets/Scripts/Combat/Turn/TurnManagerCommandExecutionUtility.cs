@@ -91,7 +91,7 @@ internal static class TurnManagerCommandExecutionUtility
 
     private static IEnumerator WaitForPreSkillEnchantPopupBeat()
     {
-        yield return new WaitForSeconds(0.25f);
+        yield return new WaitForSeconds(0.4f);
     }
 
     private static IEnumerator ResolveCommittedPreSkillFaceEnchants(
@@ -99,13 +99,30 @@ internal static class TurnManagerCommandExecutionUtility
         DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan faceUsePlan,
         CombatActor player)
     {
-        int selfPopups = DiceCombatEnchantRuntimeUtility.ResolveCommittedSelfFaceEnchants(diceRig, faceUsePlan, player);
-        if (selfPopups > 0)
-            yield return WaitForPreSkillEnchantPopupBeat();
+        if (diceRig == null || faceUsePlan == null)
+            yield break;
 
-        int relayPopups = DiceCombatEnchantRuntimeUtility.ResolveCommittedRelayFaceEnchants(diceRig, faceUsePlan);
-        if (relayPopups > 0)
+        List<int> slotsToResolve = new List<int>(3);
+        for (int slot0 = 0; slot0 < 3; slot0++)
+        {
+            if (DiceCombatEnchantRuntimeUtility.CanResolveCommittedPreSkillFaceEnchant(diceRig, faceUsePlan, player, slot0))
+                slotsToResolve.Add(slot0);
+        }
+
+        for (int i = 0; i < slotsToResolve.Count; i++)
+        {
+            int popupCount = DiceCombatEnchantRuntimeUtility.ResolveCommittedPreSkillFaceEnchant(
+                diceRig,
+                faceUsePlan,
+                player,
+                slotsToResolve[i]);
+
+            if (popupCount <= 0)
+                continue;
+
+            diceRig.RefreshRollInfoCache();
             yield return WaitForPreSkillEnchantPopupBeat();
+        }
     }
 
     private static IEnumerator ResolveCommittedReloadFaceEnchants(

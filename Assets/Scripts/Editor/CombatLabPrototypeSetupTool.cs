@@ -1,5 +1,4 @@
 #if UNITY_EDITOR
-using System.IO;
 using TMPro;
 using UnityEditor;
 using UnityEditor.Events;
@@ -48,7 +47,6 @@ public static class CombatLabPrototypeSetupTool
         EditorUtility.SetDirty(controller);
         if (config != null)
             EditorUtility.SetDirty(config);
-
         EditorSceneManager.MarkSceneDirty(scene);
         AssetDatabase.SaveAssets();
         Selection.activeGameObject = controller.gameObject;

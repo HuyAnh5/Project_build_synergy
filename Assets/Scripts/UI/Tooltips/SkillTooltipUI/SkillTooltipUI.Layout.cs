@@ -135,11 +135,9 @@ public sealed partial class SkillTooltipUI
         if (_hoverBridge != null)
             _hoverBridge.gameObject.SetActive(true);
 
+        ApplyDynamicSizing();
         if (contentChanged)
-        {
-            ApplyDynamicSizing();
             _lastContentSignature = contentSignature;
-        }
 
         PositionNear(target);
         PositionHoverBridge(target);
@@ -215,9 +213,9 @@ public sealed partial class SkillTooltipUI
         total += GetTextPreferredHeight(_title, contentWidth);
         total += GetTextPreferredHeight(_cost, contentWidth);
         total += GetTextPreferredHeight(_targeting, contentWidth);
-        total += GetTextPreferredHeight(_effect, contentWidth);
         total += GetTextPreferredHeight(_requiresHeader, contentWidth);
         total += GetTextPreferredHeight(_requires, contentWidth);
+        total += GetTextPreferredHeight(_effect, contentWidth);
         total += GetTextPreferredHeight(_conditionHeader, contentWidth);
         total += GetTextPreferredHeight(_condition, contentWidth);
         return total;
@@ -267,7 +265,7 @@ public sealed partial class SkillTooltipUI
 
         TMP_Text[] blocks =
         {
-            _title, _cost, _targeting, _effect, _requiresHeader, _requires, _conditionHeader, _condition
+            _title, _cost, _targeting, _requiresHeader, _requires, _effect, _conditionHeader, _condition
         };
 
         for (int i = 0; i < blocks.Length; i++)
@@ -340,6 +338,7 @@ public sealed partial class SkillTooltipUI
         _requires.text = BuildSectionText(content.requires);
         _conditionHeader.text = TooltipConditionHeader;
         _condition.text = BuildSectionText(content.conditions);
+        ApplyBlockSiblingOrder();
 
         SetVisible(_cost, false);
         SetVisible(_targeting, !string.IsNullOrWhiteSpace(_targeting.text));
@@ -356,6 +355,26 @@ public sealed partial class SkillTooltipUI
             _elementIcon.sprite = showIcon ? sprite : null;
             _elementIcon.gameObject.SetActive(showIcon);
         }
+    }
+
+    private void ApplyBlockSiblingOrder()
+    {
+        SetSiblingIndex(_title, 0);
+        SetSiblingIndex(_cost, 1);
+        SetSiblingIndex(_targeting, 2);
+        SetSiblingIndex(_requiresHeader, 3);
+        SetSiblingIndex(_requires, 4);
+        SetSiblingIndex(_effect, 5);
+        SetSiblingIndex(_conditionHeader, 6);
+        SetSiblingIndex(_condition, 7);
+    }
+
+    private static void SetSiblingIndex(Component component, int index)
+    {
+        if (component == null)
+            return;
+
+        component.transform.SetSiblingIndex(index);
     }
 
     private static string BuildSectionText(List<string> lines)

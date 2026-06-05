@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -24,6 +25,8 @@ public sealed partial class RewardGachaDemoController : MonoBehaviour
     private readonly List<Image> _modeButtonImages = new List<Image>();
     private RewardGachaOffer _offer;
     private bool _locked;
+    private bool _prototypeConsumableMode;
+    private Action<RewardGachaCard> _onPrototypeRewardPicked;
     private Coroutine _rerollRoutine;
 
     private TextMeshProUGUI _modeTitleText;
@@ -85,6 +88,33 @@ public sealed partial class RewardGachaDemoController : MonoBehaviour
         }
     }
 
+    public void ShowConsumablePrototypeOffer(
+        IEnumerable<ConsumableDataSO> rewardPool,
+        IEnumerable<ConsumableDataSO> excludedOwned,
+        RunInventoryManager inventory,
+        Action<RewardGachaCard> onPicked)
+    {
+        if (_rerollRoutine != null)
+        {
+            StopCoroutine(_rerollRoutine);
+            _rerollRoutine = null;
+        }
+
+        runInventory = inventory != null ? inventory : runInventory;
+        applySelectionToInventory = true;
+        autoRerollAfterPick = false;
+        autoRollOnStart = false;
+        currentMode = RewardGachaEncounterMode.Combat;
+        _prototypeConsumableMode = true;
+        _onPrototypeRewardPicked = onPicked;
+
+        if (_cardsRoot == null)
+            RebuildDemoUi();
+
+        gameObject.SetActive(true);
+        RollPrototypeConsumableRewards(rewardPool, excludedOwned);
+    }
+
     [ContextMenu("Rebuild Demo UI")]
     public void RebuildDemoUi()
     {
@@ -128,6 +158,9 @@ public sealed partial class RewardGachaDemoController : MonoBehaviour
     [ContextMenu("Roll Rewards")]
     public void RollRewards()
     {
+        _prototypeConsumableMode = false;
+        _onPrototypeRewardPicked = null;
+
         if (_rerollRoutine != null)
         {
             StopCoroutine(_rerollRoutine);
@@ -143,6 +176,20 @@ public sealed partial class RewardGachaDemoController : MonoBehaviour
         RefreshModeButtons();
         RefreshStats();
         SetStatus("Pick a reward. " + GetModeLabel(currentMode) + " allows " + _offer.picksAllowed + " pick(s).");
+    }
+
+    private void RollPrototypeConsumableRewards(IEnumerable<ConsumableDataSO> rewardPool, IEnumerable<ConsumableDataSO> excludedOwned)
+    {
+        _locked = false;
+        _selectedIndexes.Clear();
+        _offer = RewardGachaGenerator.RollConsumableOffer(rewardPool, excludedOwned, choices: 3, picks: 1);
+        RenderCards();
+        RefreshHeader();
+        RefreshModeButtons();
+        RefreshStats();
+        SetStatus(_offer != null && _offer.cards != null && _offer.cards.Count > 0
+            ? "Pick 1 consumable."
+            : "No available consumables in this reward pool.");
     }
 
     public void SetModeCombat()

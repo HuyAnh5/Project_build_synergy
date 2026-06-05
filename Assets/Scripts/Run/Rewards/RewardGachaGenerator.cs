@@ -36,6 +36,81 @@ public static partial class RewardGachaGenerator
         return offer;
     }
 
+    public static RewardGachaOffer RollConsumableOffer(
+        IEnumerable<ConsumableDataSO> consumables,
+        IEnumerable<ConsumableDataSO> excludedOwned,
+        int choices = 3,
+        int picks = 1)
+    {
+        HashSet<ConsumableDataSO> excluded = new HashSet<ConsumableDataSO>();
+        if (excludedOwned != null)
+        {
+            foreach (ConsumableDataSO data in excludedOwned)
+            {
+                if (data != null)
+                    excluded.Add(data);
+            }
+        }
+
+        List<ConsumableDataSO> candidates = new List<ConsumableDataSO>();
+        if (consumables != null)
+        {
+            foreach (ConsumableDataSO data in consumables)
+            {
+                if (data == null || excluded.Contains(data) || candidates.Contains(data))
+                    continue;
+
+                candidates.Add(data);
+            }
+        }
+
+        RewardGachaOffer offer = new RewardGachaOffer
+        {
+            mode = RewardGachaEncounterMode.Combat,
+            baseGold = 0,
+            picksAllowed = Mathf.Max(1, picks)
+        };
+
+        int count = Mathf.Min(Mathf.Max(1, choices), candidates.Count);
+        for (int i = 0; i < count; i++)
+        {
+            int selected = UnityEngine.Random.Range(0, candidates.Count);
+            ConsumableDataSO data = candidates[selected];
+            candidates.RemoveAt(selected);
+
+            string displayName = string.IsNullOrWhiteSpace(data.displayName) ? data.name : data.displayName;
+            offer.cards.Add(new RewardGachaCard
+            {
+                id = Guid.NewGuid().ToString("N"),
+                displayName = displayName,
+                description = data.description,
+                purpose = GetConsumablePurpose(data),
+                rarity = RewardGachaRarity.Uncommon,
+                itemKind = RewardGachaItemKind.Consumable,
+                asset = data,
+                amount = data.GetStartingCharges()
+            });
+        }
+
+        return offer;
+    }
+
+    private static RewardGachaPurpose GetConsumablePurpose(ConsumableDataSO data)
+    {
+        if (data == null)
+            return RewardGachaPurpose.UtilitySupport;
+
+        switch (data.family)
+        {
+            case ConsumableFamily.Zodiac:
+                return RewardGachaPurpose.EditDice;
+            case ConsumableFamily.Seal:
+                return RewardGachaPurpose.CombatAid;
+            default:
+                return RewardGachaPurpose.UtilitySupport;
+        }
+    }
+
     public static RewardGachaModeConfig GetDefaultConfig(RewardGachaEncounterMode mode)
     {
         switch (mode)

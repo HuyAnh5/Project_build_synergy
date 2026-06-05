@@ -96,9 +96,11 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
             rt = previewPlan.runtime;
 
         int dieValue = hasPreviewPlan ? previewPlan.resolvedDieValue : skillSource.GetPublicPreviewDieValue(rt);
+        int resolveCount = hasPreviewPlan ? Mathf.Max(1, previewPlan.repeatCount + 1) : 1;
         TargetPreviewBuilder.ActionPreviewBundle bundle =
-            TargetPreviewBuilder.BuildActionBundle(rt, turn.player, _actor, dieValue, turn.party, turn.enemy);
-        if (hasPreviewPlan && previewPlan.repeatCount > 0)
+            TargetPreviewBuilder.BuildActionBundle(rt, turn.player, _actor, dieValue, turn.party, turn.enemy, resolveCount);
+        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
+        if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill) && hasPreviewPlan && previewPlan.repeatCount > 0)
             TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, previewPlan.repeatCount + 1);
         if (selectedAsset != null && SkillUiMetadataUtility.TryGetSkillCosts(selectedAsset, out _, out int slotsRequired) &&
             turn.TryGetPrototypeSkillSimpleEnchantPreview(selectedAsset, slotsRequired, out var simplePreview))
