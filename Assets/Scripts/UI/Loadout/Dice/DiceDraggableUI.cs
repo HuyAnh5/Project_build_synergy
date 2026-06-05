@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -7,6 +8,7 @@ using UnityEngine.UI;
 public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
 {
     private const string CritFailPopupAnchorName = "DiceCard_Pivot";
+    private static readonly Dictionary<DiceSpinnerGeneric, DiceDraggableUI> s_diceToUiMap = new();
 
     public DiceSpinnerGeneric dice;
     [HideInInspector] public DiceEquipUIManager manager;
@@ -65,10 +67,18 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private bool _previewFail;
     private bool _castMotionLocked;
     private float? _castYOffsetOverride;
+    private DiceSpinnerGeneric _registeredDice;
 
     private void Awake()
     {
         EnsureInitialized();
+        RegisterDiceBinding();
+    }
+
+    private void OnEnable()
+    {
+        EnsureInitialized();
+        RegisterDiceBinding();
     }
 
     private void EnsureInitialized()
@@ -91,6 +101,25 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         }
         EnsureCritFailPopupAnchor();
         _homeAnchoredPos = _rt.anchoredPosition;
+        RegisterDiceBinding();
+    }
+
+    public static bool TryGetRegisteredDiceUi(DiceSpinnerGeneric die, out DiceDraggableUI diceUi)
+    {
+        if (die == null)
+        {
+            diceUi = null;
+            return false;
+        }
+
+        if (s_diceToUiMap.TryGetValue(die, out diceUi) && diceUi != null)
+            return true;
+
+        if (diceUi != null)
+            s_diceToUiMap.Remove(die);
+
+        diceUi = null;
+        return false;
     }
 
     public RectTransform GetCritFailPopupAnchor()
@@ -292,6 +321,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private void OnDisable()
     {
         EndDragRegistration();
+        UnregisterDiceBinding();
     }
 
     private void CachePointerOffset(Vector2 screenPos, Camera eventCamera)
@@ -339,6 +369,27 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
 
         UiDragState.EndDrag(this);
         _dragRegistered = false;
+    }
+
+    private void RegisterDiceBinding()
+    {
+        if (_registeredDice != null && _registeredDice != dice)
+            s_diceToUiMap.Remove(_registeredDice);
+
+        _registeredDice = dice;
+        if (_registeredDice != null)
+            s_diceToUiMap[_registeredDice] = this;
+    }
+
+    private void UnregisterDiceBinding()
+    {
+        if (_registeredDice == null)
+            return;
+
+        if (s_diceToUiMap.TryGetValue(_registeredDice, out DiceDraggableUI registered) && registered == this)
+            s_diceToUiMap.Remove(_registeredDice);
+
+        _registeredDice = null;
     }
 
 }

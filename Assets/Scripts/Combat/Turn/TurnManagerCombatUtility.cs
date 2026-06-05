@@ -150,15 +150,37 @@ public static class TurnManagerCombatUtility
         return list;
     }
 
-    public static void ClearAllStagger()
+    public static void ClearAllStagger(BattlePartyManager2D party = null)
     {
+        if (party == null)
+            party = Object.FindFirstObjectByType<BattlePartyManager2D>(FindObjectsInactive.Include);
+
+        if (party != null)
+        {
+            ClearActorStagger(party.Player);
+
+            IReadOnlyList<CombatActor> allies = party.AlliesNonPlayer;
+            for (int i = 0; i < allies.Count; i++)
+                ClearActorStagger(allies[i]);
+
+            IReadOnlyList<CombatActor> enemies = party.Enemies;
+            for (int i = 0; i < enemies.Count; i++)
+                ClearActorStagger(enemies[i]);
+
+            return;
+        }
+
         var actors = Object.FindObjectsOfType<CombatActor>(true);
         for (int i = 0; i < actors.Length; i++)
-        {
-            var actor = actors[i];
-            if (actor == null || actor.status == null) continue;
-            actor.status.ClearStagger();
-        }
+            ClearActorStagger(actors[i]);
+    }
+
+    private static void ClearActorStagger(CombatActor actor)
+    {
+        if (actor == null || actor.status == null)
+            return;
+
+        actor.status.ClearStagger();
     }
 
     public static ElementType GetResolvedDiceElement(SkillRuntime rt, ScriptableObject asset)

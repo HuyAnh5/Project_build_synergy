@@ -317,7 +317,13 @@ public partial class DiceSpinnerGeneric
         RectTransform anchor = GetCritFailPopupAnchor();
         Canvas sourceCanvas = anchor != null ? anchor.GetComponentInParent<Canvas>() : null;
         if (sourceCanvas != null && sourceCanvas.rootCanvas != null && !sourceCanvas.rootCanvas.transform.IsChildOf(pivot))
+        {
+            s_cachedRollStatePopupCanvas = sourceCanvas.rootCanvas;
             return sourceCanvas.rootCanvas;
+        }
+
+        if (s_cachedRollStatePopupCanvas != null && !s_cachedRollStatePopupCanvas.transform.IsChildOf(pivot))
+            return s_cachedRollStatePopupCanvas;
 
         Canvas[] canvases = FindObjectsOfType<Canvas>(true);
         Canvas fallback = sourceCanvas != null ? sourceCanvas.rootCanvas : null;
@@ -331,11 +337,17 @@ public partial class DiceSpinnerGeneric
                 continue;
 
             if (canvas.renderMode == RenderMode.ScreenSpaceOverlay || canvas.renderMode == RenderMode.ScreenSpaceCamera)
+            {
+                s_cachedRollStatePopupCanvas = canvas;
                 return canvas;
+            }
 
             if (fallback == null)
                 fallback = canvas;
         }
+
+        if (fallback != null)
+            s_cachedRollStatePopupCanvas = fallback;
 
         return fallback;
     }
@@ -405,6 +417,12 @@ public partial class DiceSpinnerGeneric
     {
         if (_cachedDiceDraggableUi != null && _cachedDiceDraggableUi.dice == this)
             return _cachedDiceDraggableUi;
+
+        if (DiceDraggableUI.TryGetRegisteredDiceUi(this, out DiceDraggableUI registeredUi))
+        {
+            _cachedDiceDraggableUi = registeredUi;
+            return registeredUi;
+        }
 
         DiceDraggableUI[] allDiceUi = FindObjectsOfType<DiceDraggableUI>(true);
         for (int i = 0; i < allDiceUi.Length; i++)

@@ -77,7 +77,7 @@ internal sealed class EnemyTurnCoordinator
                 playerSkillState.EndEnemyTurn(player.hp);
         }
 
-        TurnManagerCombatUtility.ClearAllStagger();
+        TurnManagerCombatUtility.ClearAllStagger(party);
     }
 
     private IEnumerator ExecuteEnemyAction(
@@ -210,6 +210,9 @@ internal sealed class EnemyTurnCoordinator
         var enemies = TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, fallbackEnemy);
         for (int i = 0; i < enemies.Count; i++)
             ClearEnemyGuard(enemies[i], cleared);
+
+        if (party != null)
+            return;
 
         var actors = Object.FindObjectsOfType<CombatActor>(true);
         for (int i = 0; i < actors.Length; i++)

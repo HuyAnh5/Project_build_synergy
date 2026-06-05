@@ -93,6 +93,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour
     private TMP_Text _rollStatePopupInstance;
     private Canvas _rollStatePopupCanvas;
     private DiceDraggableUI _cachedDiceDraggableUi;
+    private static Canvas s_cachedRollStatePopupCanvas;
     private bool _feedbackCrit;
     private bool _feedbackFail;
 

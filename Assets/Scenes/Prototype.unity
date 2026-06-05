@@ -4456,8 +4456,8 @@ MonoBehaviour:
   diceRig: {fileID: 1499909187}
   equippedDicePrefabs:
   - {fileID: 3696089616036826389, guid: 650ae2f331cdc1848bf2007cff33bdf1, type: 3}
-  - {fileID: 3696089616036826389, guid: 650ae2f331cdc1848bf2007cff33bdf1, type: 3}
-  - {fileID: 3696089616036826389, guid: 650ae2f331cdc1848bf2007cff33bdf1, type: 3}
+  - {fileID: 659209076032714358, guid: 2801eb737d917bf448b96e19f75baaa5, type: 3}
+  - {fileID: 4134805224854751960, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
   equippedDice:
   - {fileID: 0}
   - {fileID: 8067042561129760585, guid: 7aaf560a33ab25e4db411166973d2730, type: 3}
@@ -6645,17 +6645,17 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DiceSlotRig
   slots:
-  - active: 1
+  - active: 0
     dice: {fileID: 0}
     diceRoot: {fileID: 0}
     slotRoot: {fileID: 0}
-  - active: 1
-    dice: {fileID: 0}
+  - active: 0
+    dice: {fileID: 8067042561129760585, guid: 7aaf560a33ab25e4db411166973d2730, type: 3}
     diceRoot: {fileID: 0}
     slotRoot: {fileID: 0}
   - active: 1
-    dice: {fileID: 0}
-    diceRoot: {fileID: 0}
+    dice: {fileID: 4134805224854751960, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
+    diceRoot: {fileID: 3726697021767390608, guid: 2b2ea929b24811846ba794320b07f9fb, type: 3}
     slotRoot: {fileID: 0}
   disableDiceSelfInput: 1
   enableDebugRollHotkeys: 0
@@ -7501,6 +7501,7 @@ MonoBehaviour:
   inspectLocalPosition: {x: 0, y: 0, z: 0}
   inspectLocalEuler: {x: 0, y: 0, z: 0}
   inspectLocalScale: {x: 2.2, y: 2.2, z: 2.2}
+  inspectExtraDistanceFromCamera: 1.25
 --- !u!4 &1751008786
 Transform:
   m_ObjectHideFlags: 0
