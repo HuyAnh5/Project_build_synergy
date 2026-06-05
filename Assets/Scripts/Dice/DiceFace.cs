@@ -10,4 +10,5 @@ public struct DiceFace
     public DiceFaceEnchantKind enchant;
     public bool broken;
     public TMP_Text faceValueText3D;
+    public SpriteRenderer faceIconSpriteRenderer;
 }

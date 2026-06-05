@@ -227,6 +227,7 @@ public class DiceFaceHighlightRenderer : MonoBehaviour
             case DiceEditSandboxController.SandboxFaceHighlightKind.Committed:
                 return _committedMaterial;
             case DiceEditSandboxController.SandboxFaceHighlightKind.CopyTarget:
+            case DiceEditSandboxController.SandboxFaceHighlightKind.GumLinked:
                 return _alternateMaterial;
             case DiceEditSandboxController.SandboxFaceHighlightKind.Preview:
             case DiceEditSandboxController.SandboxFaceHighlightKind.CopySource:

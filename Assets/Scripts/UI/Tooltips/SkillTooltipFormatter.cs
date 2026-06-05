@@ -49,6 +49,16 @@ public static partial class SkillTooltipFormatter
                     ? string.Empty
                     : ColorQuotedAddedValues(passive.description.Trim());
                 break;
+            case DiceFaceEnchantTooltipAsset diceEnchant:
+                content.targeting = string.IsNullOrWhiteSpace(diceEnchant.SourceDieName)
+                    ? "Dice Face Enchant"
+                    : $"Die: {diceEnchant.SourceDieName}";
+                content.effectText = DiceFaceEnchantUtility.GetRulesText(diceEnchant.Enchant);
+                if (DiceFaceEnchantUtility.IsNumericFace(diceEnchant.Enchant))
+                    content.conditions.Add($"Current face value: {diceEnchant.FaceValue}");
+                else
+                    content.conditions.Add("Non-numeric face.");
+                break;
         }
 
         return content;
@@ -68,6 +78,8 @@ public static partial class SkillTooltipFormatter
                 return string.IsNullOrWhiteSpace(buffDebuff.displayName) ? buffDebuff.name : buffDebuff.displayName;
             case SkillPassiveSO passive:
                 return string.IsNullOrWhiteSpace(passive.displayName) ? passive.name : passive.displayName;
+            case DiceFaceEnchantTooltipAsset diceEnchant:
+                return DiceFaceEnchantUtility.GetDisplayName(diceEnchant.Enchant);
             default:
                 return asset != null ? asset.name : string.Empty;
         }
@@ -116,4 +128,24 @@ public static partial class SkillTooltipFormatter
             : ColorQuotedAddedValues(description.Trim());
     }
 
+}
+
+[System.Serializable]
+public sealed class DiceFaceEnchantTooltipAsset : ScriptableObject
+{
+    [SerializeField] private DiceFaceEnchantKind enchant;
+    [SerializeField] private int faceValue;
+    [SerializeField] private string sourceDieName;
+
+    public DiceFaceEnchantKind Enchant => enchant;
+    public int FaceValue => faceValue;
+    public string SourceDieName => sourceDieName;
+
+    public void Configure(DiceFaceEnchantKind enchantKind, int currentFaceValue, string dieName)
+    {
+        enchant = enchantKind;
+        faceValue = currentFaceValue;
+        sourceDieName = dieName ?? string.Empty;
+        name = $"DiceFaceEnchant_{enchantKind}";
+    }
 }

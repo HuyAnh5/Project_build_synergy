@@ -34,6 +34,14 @@ public class SkillUiIconLibrarySO : ScriptableObject
         public Color iconTint;
     }
 
+    [Serializable]
+    public struct DiceFaceEnchantIconEntry
+    {
+        public DiceFaceEnchantKind enchant;
+        public Sprite icon;
+        public Color iconTint;
+    }
+
     [Header("Element Visuals")]
     [SerializeField] private ElementIconEntry[] elementIcons = Array.Empty<ElementIconEntry>();
 
@@ -44,6 +52,9 @@ public class SkillUiIconLibrarySO : ScriptableObject
 
     [Header("Status Icons")]
     [SerializeField] private StatusIconEntry[] statusIcons = Array.Empty<StatusIconEntry>();
+
+    [Header("Dice Face Enchant Icons")]
+    [SerializeField] private DiceFaceEnchantIconEntry[] diceFaceEnchantIcons = Array.Empty<DiceFaceEnchantIconEntry>();
 
     public bool TryGetElementIcon(ElementType element, out Sprite icon, out Color badgeBackgroundColor, out Color iconTint)
     {
@@ -103,5 +114,22 @@ public class SkillUiIconLibrarySO : ScriptableObject
             default:
                 return null;
         }
+    }
+
+    public bool TryGetDiceFaceEnchantIcon(DiceFaceEnchantKind enchant, out Sprite icon, out Color iconTint)
+    {
+        for (int i = 0; i < diceFaceEnchantIcons.Length; i++)
+        {
+            if (diceFaceEnchantIcons[i].enchant != enchant)
+                continue;
+
+            icon = diceFaceEnchantIcons[i].icon;
+            iconTint = diceFaceEnchantIcons[i].iconTint == default ? Color.white : diceFaceEnchantIcons[i].iconTint;
+            return true;
+        }
+
+        icon = null;
+        iconTint = Color.white;
+        return false;
     }
 }

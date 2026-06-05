@@ -5,7 +5,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(RectTransform))]
-public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler
+public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler, ISkillTooltipSource
 {
     private const string CritFailPopupAnchorName = "DiceCard_Pivot";
     private static readonly Dictionary<DiceSpinnerGeneric, DiceDraggableUI> s_diceToUiMap = new();
@@ -68,6 +68,8 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private bool _castMotionLocked;
     private float? _castYOffsetOverride;
     private DiceSpinnerGeneric _registeredDice;
+    private bool _hoverTooltipActive;
+    private DiceFaceEnchantTooltipAsset _hoverTooltipAsset;
 
     private void Awake()
     {
@@ -318,10 +320,32 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         manager.HandleDiceClicked(this);
     }
 
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        EnsureInitialized();
+        _hoverTooltipActive = true;
+        RefreshHoverTooltip();
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        _hoverTooltipActive = false;
+        SkillTooltipUI.HideCurrentUnlessPointerOverTooltip(gameObject);
+    }
+
     private void OnDisable()
     {
+        _hoverTooltipActive = false;
+        if (_hoverTooltipAsset != null)
+            Destroy(_hoverTooltipAsset);
         EndDragRegistration();
         UnregisterDiceBinding();
+    }
+
+    private void Update()
+    {
+        if (_hoverTooltipActive)
+            RefreshHoverTooltip();
     }
 
     private void CachePointerOffset(Vector2 screenPos, Camera eventCamera)
@@ -390,6 +414,61 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
             s_diceToUiMap.Remove(_registeredDice);
 
         _registeredDice = null;
+    }
+
+    private void RefreshHoverTooltip()
+    {
+        if (!_hoverTooltipActive || dice == null || UiDragState.IsDragging)
+        {
+            SkillTooltipUI.HideCurrentUnlessPointerOverTooltip(gameObject);
+            return;
+        }
+
+        int faceIndex = ResolveTooltipFaceIndex();
+        if (faceIndex < 0)
+        {
+            SkillTooltipUI.HideCurrentUnlessPointerOverTooltip(gameObject);
+            return;
+        }
+
+        DiceFace face = dice.GetFace(faceIndex);
+        DiceFaceEnchantKind displayedEnchant = dice.GetDisplayedFaceEnchant(faceIndex);
+        if (face.broken || !DiceFaceEnchantUtility.HasEnchant(displayedEnchant))
+        {
+            SkillTooltipUI.HideCurrentUnlessPointerOverTooltip(gameObject);
+            return;
+        }
+
+        if (_hoverTooltipAsset == null)
+        {
+            _hoverTooltipAsset = ScriptableObject.CreateInstance<DiceFaceEnchantTooltipAsset>();
+            _hoverTooltipAsset.hideFlags = HideFlags.HideAndDontSave;
+        }
+
+        _hoverTooltipAsset.Configure(displayedEnchant, face.value, dice.name);
+        SkillTooltipUI.Show(this);
+    }
+
+    private int ResolveTooltipFaceIndex()
+    {
+        if (dice == null)
+            return -1;
+
+        if (dice.LastFaceIndex >= 0)
+            return dice.LastFaceIndex;
+
+        Camera cam = Camera.main;
+        return cam != null ? dice.GetBestFacingFaceIndex(cam) : -1;
+    }
+
+    public bool TryGetSkillTooltip(out Canvas canvas, out RectTransform target, out ScriptableObject asset, out SkillRuntime runtime)
+    {
+        EnsureInitialized();
+        canvas = _rootCanvas != null ? SkillTooltipUI.GetOrCreateSharedOverlayCanvas(_rootCanvas) : null;
+        target = critFailPopupAnchor != null ? critFailPopupAnchor : _rt;
+        asset = _hoverTooltipAsset;
+        runtime = null;
+        return _hoverTooltipActive && canvas != null && target != null && asset != null;
     }
 
 }

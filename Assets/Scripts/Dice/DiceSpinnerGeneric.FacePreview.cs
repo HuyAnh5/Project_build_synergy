@@ -53,6 +53,17 @@ public partial class DiceSpinnerGeneric
         RefreshFaceValueText(faceIndex);
     }
 
+    public void SetFacePreviewEnchant(int faceIndex, DiceFaceEnchantKind previewEnchant, bool blink = true)
+    {
+        if (faces == null || faceIndex < 0 || faceIndex >= faces.Length)
+            return;
+
+        EnsureFacePreviewState();
+        _facePreviewEnchants[faceIndex] = previewEnchant;
+        _facePreviewEnchantBlink[faceIndex] = blink;
+        RefreshFaceValueText(faceIndex);
+    }
+
     public void ClearFacePreview(int faceIndex)
     {
         if (faces == null || faceIndex < 0 || faceIndex >= faces.Length)
@@ -61,12 +72,17 @@ public partial class DiceSpinnerGeneric
         EnsureFacePreviewState();
         _facePreviewTexts[faceIndex] = null;
         _facePreviewBlink[faceIndex] = false;
+        _facePreviewEnchants[faceIndex] = DiceFaceEnchantKind.None;
+        _facePreviewEnchantBlink[faceIndex] = false;
         RefreshFaceValueText(faceIndex);
     }
 
     public void ClearAllFacePreviews()
     {
-        if (_facePreviewTexts == null && _facePreviewTweens == null)
+        if (_facePreviewTexts == null &&
+            _facePreviewTweens == null &&
+            _facePreviewEnchants == null &&
+            _facePreviewIconTweens == null)
             return;
 
         EnsureFacePreviewState();
@@ -74,6 +90,8 @@ public partial class DiceSpinnerGeneric
         {
             _facePreviewTexts[i] = null;
             _facePreviewBlink[i] = false;
+            _facePreviewEnchants[i] = DiceFaceEnchantKind.None;
+            _facePreviewEnchantBlink[i] = false;
             RefreshFaceValueText(i);
         }
     }
@@ -148,6 +166,10 @@ public partial class DiceSpinnerGeneric
     {
         _feedbackShakeTween?.Kill();
         _rollStatePopupTween?.Kill();
+        if (_worldTooltipAsset != null)
+            Destroy(_worldTooltipAsset);
+        if (_worldTooltipAnchor != null)
+            Destroy(_worldTooltipAnchor.gameObject);
         if (_rollStatePopupInstance != null)
         {
             if (Application.isPlaying)
@@ -206,6 +228,43 @@ public partial class DiceSpinnerGeneric
                            _facePreviewBlink[faceIndex] &&
                            !string.IsNullOrEmpty(previewText);
         ApplyFaceBlink(faceIndex, faceText, shouldBlink);
+        RefreshFaceEnchantIcon(faceIndex);
+    }
+
+    private void RefreshFaceEnchantIcon(int faceIndex)
+    {
+        if (faces == null || faceIndex < 0 || faceIndex >= faces.Length)
+            return;
+
+        SpriteRenderer iconRenderer = faces[faceIndex].faceIconSpriteRenderer;
+        if (iconRenderer == null)
+            return;
+
+        DiceFace face = faces[faceIndex];
+        EnsureFacePreviewState();
+
+        DiceFaceEnchantKind previewEnchant = _facePreviewEnchants != null && faceIndex < _facePreviewEnchants.Length
+            ? _facePreviewEnchants[faceIndex]
+            : DiceFaceEnchantKind.None;
+        bool hasPreviewEnchant = _facePreviewEnchantBlink != null &&
+                                 faceIndex < _facePreviewEnchantBlink.Length &&
+                                 (_facePreviewEnchantBlink[faceIndex] || previewEnchant != DiceFaceEnchantKind.None);
+        DiceFaceEnchantKind displayedEnchant = hasPreviewEnchant ? previewEnchant : face.enchant;
+
+        Sprite icon = null;
+        Color iconTint = Color.white;
+        bool hasEnchantIcon =
+            !face.broken &&
+            DiceFaceEnchantUtility.HasEnchant(displayedEnchant) &&
+            iconLibrary != null &&
+            iconLibrary.TryGetDiceFaceEnchantIcon(displayedEnchant, out icon, out iconTint) &&
+            icon != null;
+
+        CacheFaceIconBaseColor(faceIndex, iconRenderer);
+        iconRenderer.sprite = hasEnchantIcon ? icon : null;
+        iconRenderer.color = hasEnchantIcon ? iconTint : Color.white;
+        iconRenderer.enabled = hasEnchantIcon;
+        ApplyFaceIconBlink(faceIndex, iconRenderer, hasEnchantIcon && hasPreviewEnchant && _facePreviewEnchantBlink[faceIndex]);
     }
 
     private void EnsureFacePreviewState()
@@ -222,6 +281,14 @@ public partial class DiceSpinnerGeneric
             _facePreviewTweens = new Tween[faceCount];
         if (_faceBaseColors == null || _faceBaseColors.Length != faceCount)
             _faceBaseColors = new Color[faceCount];
+        if (_facePreviewEnchants == null || _facePreviewEnchants.Length != faceCount)
+            _facePreviewEnchants = new DiceFaceEnchantKind[faceCount];
+        if (_facePreviewEnchantBlink == null || _facePreviewEnchantBlink.Length != faceCount)
+            _facePreviewEnchantBlink = new bool[faceCount];
+        if (_facePreviewIconTweens == null || _facePreviewIconTweens.Length != faceCount)
+            _facePreviewIconTweens = new Tween[faceCount];
+        if (_faceIconBaseColors == null || _faceIconBaseColors.Length != faceCount)
+            _faceIconBaseColors = new Color[faceCount];
     }
 
     private void CacheFaceBaseColor(int faceIndex, TMP_Text faceText)
@@ -238,6 +305,22 @@ public partial class DiceSpinnerGeneric
         }
 
         _faceBaseColors[faceIndex] = faceText.color;
+    }
+
+    private void CacheFaceIconBaseColor(int faceIndex, SpriteRenderer iconRenderer)
+    {
+        if (_faceIconBaseColors == null || faceIndex < 0 || faceIndex >= _faceIconBaseColors.Length || iconRenderer == null)
+            return;
+
+        if (_facePreviewIconTweens != null &&
+            faceIndex < _facePreviewIconTweens.Length &&
+            _facePreviewIconTweens[faceIndex] != null &&
+            _facePreviewIconTweens[faceIndex].IsActive())
+        {
+            return;
+        }
+
+        _faceIconBaseColors[faceIndex] = iconRenderer.color;
     }
 
     private void ApplyFaceBlink(int faceIndex, TMP_Text faceText, bool shouldBlink)
@@ -266,6 +349,31 @@ public partial class DiceSpinnerGeneric
             .SetUpdate(true);
     }
 
+    private void ApplyFaceIconBlink(int faceIndex, SpriteRenderer iconRenderer, bool shouldBlink)
+    {
+        if (_facePreviewIconTweens == null || faceIndex < 0 || faceIndex >= _facePreviewIconTweens.Length || iconRenderer == null)
+            return;
+
+        _facePreviewIconTweens[faceIndex]?.Kill();
+        _facePreviewIconTweens[faceIndex] = null;
+
+        Color baseColor = (_faceIconBaseColors != null && faceIndex < _faceIconBaseColors.Length)
+            ? _faceIconBaseColors[faceIndex]
+            : iconRenderer.color;
+        iconRenderer.color = baseColor;
+
+        if (!shouldBlink || !iconRenderer.enabled)
+            return;
+
+        float baseAlpha = Mathf.Clamp01(baseColor.a);
+        iconRenderer.color = new Color(baseColor.r, baseColor.g, baseColor.b, baseAlpha);
+        _facePreviewIconTweens[faceIndex] = iconRenderer
+            .DOFade(Mathf.Max(0.3f, baseAlpha * 0.4f), 0.8f)
+            .SetEase(Ease.InOutSine)
+            .SetLoops(-1, LoopType.Yoyo)
+            .SetUpdate(true);
+    }
+
     private TMP_Text[] ExtractFaceTextBindings()
     {
         if (faces == null || faces.Length == 0)
@@ -274,6 +382,17 @@ public partial class DiceSpinnerGeneric
         TMP_Text[] bindings = new TMP_Text[faces.Length];
         for (int i = 0; i < faces.Length; i++)
             bindings[i] = faces[i].faceValueText3D;
+        return bindings;
+    }
+
+    private SpriteRenderer[] ExtractFaceIconBindings()
+    {
+        if (faces == null || faces.Length == 0)
+            return null;
+
+        SpriteRenderer[] bindings = new SpriteRenderer[faces.Length];
+        for (int i = 0; i < faces.Length; i++)
+            bindings[i] = faces[i].faceIconSpriteRenderer;
         return bindings;
     }
 
@@ -287,6 +406,20 @@ public partial class DiceSpinnerGeneric
         {
             DiceFace face = faces[i];
             face.faceValueText3D = bindings[i];
+            faces[i] = face;
+        }
+    }
+
+    private void RestoreFaceIconBindings(SpriteRenderer[] bindings)
+    {
+        if (bindings == null || faces == null)
+            return;
+
+        int count = Mathf.Min(bindings.Length, faces.Length);
+        for (int i = 0; i < count; i++)
+        {
+            DiceFace face = faces[i];
+            face.faceIconSpriteRenderer = bindings[i];
             faces[i] = face;
         }
     }

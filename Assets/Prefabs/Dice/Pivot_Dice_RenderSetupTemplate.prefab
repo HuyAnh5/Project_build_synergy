@@ -1744,7 +1744,7 @@ GameObject:
   - component: {fileID: 486713709512305982}
   - component: {fileID: 659209076032714358}
   m_Layer: 0
-  m_Name: Pivot_D6
+  m_Name: Pivot_Dice_RenderSetupTemplate
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1780,37 +1780,44 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DiceSpinnerGeneric
   pivot: {fileID: 486713709512305982}
   flightSpinTarget: {fileID: 2226311940881370469}
+  iconLibrary: {fileID: 11400000, guid: 648079e0e065e1640a7978053a498f87, type: 2}
   faces:
   - value: 1
     localEuler: {x: 0, y: 0, z: 0}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 8567403816718839968}
+    faceIconSpriteRenderer: {fileID: 0}
   - value: 2
     localEuler: {x: 0, y: 90, z: 90}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 1909939609630931806}
+    faceIconSpriteRenderer: {fileID: 0}
   - value: 3
     localEuler: {x: 0, y: 90, z: 180}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 9066478217262020432}
+    faceIconSpriteRenderer: {fileID: 0}
   - value: 4
     localEuler: {x: 180, y: 90, z: 0}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 4001423241901948804}
+    faceIconSpriteRenderer: {fileID: 0}
   - value: 5
     localEuler: {x: -90, y: 90, z: -90}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 4432537038256816608}
+    faceIconSpriteRenderer: {fileID: 0}
   - value: 6
     localEuler: {x: 0, y: 180, z: -90}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 357460347023708017}
+    faceIconSpriteRenderer: {fileID: 0}
   wholeDieTag: 0
   wholeDieRenderers:
   - {fileID: 1057886550772037130}

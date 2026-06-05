@@ -29,11 +29,14 @@ public partial class DiceSpinnerGeneric
         if (other.faces != null)
         {
             TMP_Text[] existingFaceTexts = ExtractFaceTextBindings();
+            SpriteRenderer[] existingFaceIcons = ExtractFaceIconBindings();
             faces = (DiceFace[])other.faces.Clone();
             RestoreFaceTextBindings(existingFaceTexts);
+            RestoreFaceIconBindings(existingFaceIcons);
         }
 
         wholeDieTag = other.wholeDieTag;
+        iconLibrary = other.iconLibrary;
         ApplyWholeDieVisuals();
 
         if (copyRotation && pivot != null && other.pivot != null)
@@ -86,6 +89,21 @@ public partial class DiceSpinnerGeneric
             return DiceFaceEnchantKind.None;
 
         faceIndex = Mathf.Clamp(faceIndex, 0, faces.Length - 1);
+        return faces[faceIndex].enchant;
+    }
+
+    public DiceFaceEnchantKind GetDisplayedFaceEnchant(int faceIndex)
+    {
+        if (!ValidateFaces() || faceIndex < 0 || faceIndex >= faces.Length)
+            return DiceFaceEnchantKind.None;
+
+        if (_facePreviewEnchants != null &&
+            faceIndex < _facePreviewEnchants.Length &&
+            _facePreviewEnchants[faceIndex] != DiceFaceEnchantKind.None)
+        {
+            return _facePreviewEnchants[faceIndex];
+        }
+
         return faces[faceIndex].enchant;
     }
 

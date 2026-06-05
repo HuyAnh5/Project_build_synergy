@@ -48,3 +48,40 @@ MonoBehaviour:
     icon: {fileID: 21300000, guid: 44a054df1702e39458b7072b08d0f212, type: 3}
     backgroundColor: {r: 0, g: 0, b: 0, a: 0}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
+  diceFaceEnchantIcons:
+  - enchant: 1
+    icon: {fileID: -8407507342819822086, guid: b40f2e87024b7be408e498f909f2f482, type: 3}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - enchant: 2
+    icon: {fileID: 412434694075372973, guid: 20cc956aa78757d4085a0944de8d0612, type: 3}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - enchant: 3
+    icon: {fileID: 7361296877518392268, guid: 7bff13b25b0665549bd44f60c2a25cc3, type: 3}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - enchant: 4
+    icon: {fileID: 0}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - enchant: 5
+    icon: {fileID: 0}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - enchant: 6
+    icon: {fileID: 0}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - enchant: 7
+    icon: {fileID: 0}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - enchant: 8
+    icon: {fileID: 0}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - enchant: 9
+    icon: {fileID: 0}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - enchant: 10
+    icon: {fileID: 0}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - enchant: 11
+    icon: {fileID: 0}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - enchant: 12
+    icon: {fileID: 0}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}

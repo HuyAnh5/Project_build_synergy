@@ -3,7 +3,7 @@ using UnityEngine;
 
 // Coordinates the in-combat Zodiac dice editor while keeping Unity serialized references in one place.
 [DisallowMultipleComponent]
-public partial class GameplayDiceEditController : MonoBehaviour
+public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSource
 {
     private const bool DebugLogs = true;
 
@@ -40,6 +40,11 @@ public partial class GameplayDiceEditController : MonoBehaviour
     private GameplayDiceEditInteractable _focusedInteractable;
     private GameplayDiceEditInteractable _activeDragInteractable;
     private GameObject _inspectCloneInstance;
+    private RectTransform _tooltipAnchor;
+    private Canvas _tooltipCanvas;
+    private DiceFaceEnchantTooltipAsset _hoverTooltipAsset;
+    private GameplayDiceEditInteractable _hoverTooltipInteractable;
+    private int _hoverTooltipFaceIndex = -1;
 
     private int _copySourceFaceIndex = -1;
     private int _copyTargetFaceIndex = -1;
@@ -58,6 +63,155 @@ public partial class GameplayDiceEditController : MonoBehaviour
             panelUi.Initialize(this);
             panelUi.SetVisible(false);
         }
+    }
+
+    private void OnDestroy()
+    {
+        if (_hoverTooltipAsset != null)
+            Destroy(_hoverTooltipAsset);
+
+        if (_tooltipAnchor != null)
+            Destroy(_tooltipAnchor.gameObject);
+    }
+
+    private void RefreshFaceEnchantTooltip(Camera cam, bool pointerOverUi)
+    {
+        if (!IsPanelOpen || _activeInteractable == null || cam == null || _activeDragInteractable != null)
+        {
+            ClearFaceEnchantTooltip();
+            return;
+        }
+
+        if (pointerOverUi && !IsPointerOverActiveInspectDice(cam))
+        {
+            ClearFaceEnchantTooltip();
+            return;
+        }
+
+        if (!_activeInteractable.TryResolveHoveredLogicalFace(cam, Input.mousePosition, out int logicalFaceIndex))
+        {
+            ClearFaceEnchantTooltip();
+            return;
+        }
+
+        DiceSpinnerGeneric spinner = _activeInteractable.Spinner;
+        DiceFace face = spinner != null ? spinner.GetFace(logicalFaceIndex) : default;
+        DiceFaceEnchantKind displayedEnchant = spinner != null
+            ? spinner.GetDisplayedFaceEnchant(logicalFaceIndex)
+            : DiceFaceEnchantKind.None;
+        if (spinner == null ||
+            face.broken ||
+            !DiceFaceEnchantUtility.HasEnchant(displayedEnchant) ||
+            face.faceIconSpriteRenderer == null ||
+            !face.faceIconSpriteRenderer.enabled)
+        {
+            ClearFaceEnchantTooltip();
+            return;
+        }
+
+        if (!TryUpdateTooltipAnchor(face.faceIconSpriteRenderer, cam))
+        {
+            ClearFaceEnchantTooltip();
+            return;
+        }
+
+        EnsureHoverTooltipAsset();
+        _hoverTooltipAsset.Configure(displayedEnchant, face.value, spinner.name);
+
+        _hoverTooltipInteractable = _activeInteractable;
+        _hoverTooltipFaceIndex = logicalFaceIndex;
+        SkillTooltipUI.Show(this);
+    }
+
+    private bool IsPointerOverActiveInspectDice(Camera cam)
+    {
+        return _activeInteractable != null &&
+               cam != null &&
+               _activeInteractable.TryResolveHoveredLogicalFace(cam, Input.mousePosition, out _);
+    }
+
+    private void ClearFaceEnchantTooltip()
+    {
+        _hoverTooltipInteractable = null;
+        _hoverTooltipFaceIndex = -1;
+        SkillTooltipUI.HideCurrentUnlessPointerOverTooltip();
+    }
+
+    public bool TryGetSkillTooltip(out Canvas canvas, out RectTransform target, out ScriptableObject asset, out SkillRuntime runtime)
+    {
+        canvas = ResolveTooltipCanvas();
+        target = _tooltipAnchor;
+        asset = _hoverTooltipAsset;
+        runtime = null;
+        return canvas != null && target != null && asset != null && _hoverTooltipFaceIndex >= 0;
+    }
+
+    private bool TryUpdateTooltipAnchor(SpriteRenderer iconRenderer, Camera cam)
+    {
+        Canvas canvas = ResolveTooltipCanvas();
+        if (canvas == null || iconRenderer == null)
+            return false;
+
+        EnsureTooltipAnchor(canvas);
+        if (_tooltipAnchor == null)
+            return false;
+
+        Vector3 screenPoint = cam.WorldToScreenPoint(iconRenderer.bounds.center);
+        if (screenPoint.z <= 0f)
+            return false;
+
+        RectTransform canvasRect = canvas.transform as RectTransform;
+        Camera eventCamera = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+        if (canvasRect == null ||
+            !RectTransformUtility.ScreenPointToLocalPointInRectangle(canvasRect, screenPoint, eventCamera, out Vector2 localPoint))
+        {
+            return false;
+        }
+
+        _tooltipAnchor.SetParent(canvasRect, false);
+        _tooltipAnchor.anchorMin = new Vector2(0.5f, 0.5f);
+        _tooltipAnchor.anchorMax = new Vector2(0.5f, 0.5f);
+        _tooltipAnchor.pivot = new Vector2(0.5f, 0f);
+        _tooltipAnchor.anchoredPosition = localPoint;
+        return true;
+    }
+
+    private Canvas ResolveTooltipCanvas()
+    {
+        if (_tooltipCanvas != null)
+            return _tooltipCanvas;
+
+        if (panelUi != null)
+            _tooltipCanvas = panelUi.GetComponentInParent<Canvas>();
+
+        if (_tooltipCanvas == null && consumableBarUi != null)
+            _tooltipCanvas = consumableBarUi.GetComponentInParent<Canvas>();
+
+        if (_tooltipCanvas == null)
+            _tooltipCanvas = FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
+
+        return _tooltipCanvas;
+    }
+
+    private void EnsureTooltipAnchor(Canvas canvas)
+    {
+        if (_tooltipAnchor != null)
+            return;
+
+        GameObject anchorGo = new GameObject("DiceFaceEnchantTooltipAnchor", typeof(RectTransform));
+        anchorGo.hideFlags = HideFlags.HideAndDontSave;
+        _tooltipAnchor = anchorGo.GetComponent<RectTransform>();
+        _tooltipAnchor.SetParent(canvas.transform, false);
+        _tooltipAnchor.sizeDelta = Vector2.zero;
+    }
+
+    private void EnsureHoverTooltipAsset()
+    {
+        if (_hoverTooltipAsset != null)
+            return;
+
+        _hoverTooltipAsset = ScriptableObject.CreateInstance<DiceFaceEnchantTooltipAsset>();
+        _hoverTooltipAsset.hideFlags = HideFlags.HideAndDontSave;
     }
 
     // Handles a face click from either a scene dice or the temporary inspect dice.
@@ -123,6 +277,23 @@ public partial class GameplayDiceEditController : MonoBehaviour
             if (logicalFaceIndex == _copyTargetFaceIndex)
                 return DiceEditSandboxController.SandboxFaceHighlightKind.CopyTarget;
             return DiceEditSandboxController.SandboxFaceHighlightKind.None;
+        }
+
+        if (_activeConsumable != null &&
+            _activeConsumable.effectId == ConsumableEffectId.ApplyFaceEnchant &&
+            _activeConsumable.faceEnchant == DiceFaceEnchantKind.Gum &&
+            _selectedLogicalFaceIndices.Count > 0)
+        {
+            for (int i = 0; i < _selectedLogicalFaceIndices.Count; i++)
+            {
+                int selectedFaceIndex = _selectedLogicalFaceIndices[i];
+                if (logicalFaceIndex == selectedFaceIndex)
+                    return DiceEditSandboxController.SandboxFaceHighlightKind.Preview;
+
+                DiceSpinnerGeneric spinner = interactable.Spinner;
+                if (spinner != null && spinner.GetOppositeFaceIndex(selectedFaceIndex) == logicalFaceIndex)
+                    return DiceEditSandboxController.SandboxFaceHighlightKind.GumLinked;
+            }
         }
 
         return _selectedLogicalFaceIndices.Contains(logicalFaceIndex)
@@ -221,6 +392,8 @@ public partial class GameplayDiceEditController : MonoBehaviour
 
         if (_activeConsumable.effectId == ConsumableEffectId.AdjustBaseValue)
             PreviewAdjustedBaseValues(inspectDie);
+        else if (_activeConsumable.effectId == ConsumableEffectId.ApplyFaceEnchant)
+            PreviewFaceEnchant(inspectDie);
 
         inspectDie.RefreshDisplayedState();
     }
@@ -232,12 +405,15 @@ public partial class GameplayDiceEditController : MonoBehaviour
         {
             DiceFace sourceFace = inspectDie.GetFace(_copySourceFaceIndex);
             inspectDie.SetFacePreviewValue(_copySourceFaceIndex, sourceFace.value, blink: true);
+            if (DiceFaceEnchantUtility.HasEnchant(sourceFace.enchant))
+                inspectDie.SetFacePreviewEnchant(_copySourceFaceIndex, sourceFace.enchant, blink: true);
         }
 
         if (_copySourceFaceIndex >= 0 && _copyTargetFaceIndex >= 0)
         {
             DiceFace sourceFace = inspectDie.GetFace(_copySourceFaceIndex);
             inspectDie.SetFacePreviewValue(_copyTargetFaceIndex, sourceFace.value, blink: true);
+            inspectDie.SetFacePreviewEnchant(_copyTargetFaceIndex, sourceFace.enchant, blink: true);
         }
 
         inspectDie.RefreshDisplayedState();
@@ -252,6 +428,19 @@ public partial class GameplayDiceEditController : MonoBehaviour
             DiceFace face = inspectDie.GetFace(faceIndex);
             int previewValue = DiceSpinnerGeneric.ClampFaceValue(face.value + _activeConsumable.valueA);
             inspectDie.SetFacePreviewValue(faceIndex, previewValue, blink: true);
+        }
+    }
+
+    // Shows the post-enchant icon on each selected face before committing the consumable.
+    private void PreviewFaceEnchant(DiceSpinnerGeneric inspectDie)
+    {
+        if (_activeConsumable == null)
+            return;
+
+        for (int i = 0; i < _selectedLogicalFaceIndices.Count; i++)
+        {
+            int faceIndex = _selectedLogicalFaceIndices[i];
+            inspectDie.SetFacePreviewEnchant(faceIndex, _activeConsumable.faceEnchant, blink: true);
         }
     }
 

@@ -410,47 +410,56 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DiceSpinnerGeneric
   pivot: {fileID: 4316808728159653016}
   flightSpinTarget: {fileID: 1334092910551651593}
+  iconLibrary: {fileID: 11400000, guid: 648079e0e065e1640a7978053a498f87, type: 2}
   faces:
   - value: 1
     localEuler: {x: -124.33, y: 0, z: 0}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 6255784271009263094}
+    faceIconSpriteRenderer: {fileID: 0}
   - value: 2
     localEuler: {x: -240.314, y: -178.373, z: -90}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 161314912875887343}
+    faceIconSpriteRenderer: {fileID: 0}
   - value: 3
     localEuler: {x: -124.156, y: -1.641998, z: 271.069}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 8974248971536474887}
+    faceIconSpriteRenderer: {fileID: 0}
   - value: 4
     localEuler: {x: -240.314, y: -178.373, z: 0}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 7467669834542474443}
+    faceIconSpriteRenderer: {fileID: 0}
   - value: 5
     localEuler: {x: -121.936, y: -1.52301, z: 180.786}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 8543929505051808172}
+    faceIconSpriteRenderer: {fileID: 0}
   - value: 6
     localEuler: {x: -240.314, y: -178.9, z: 90}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 1630087802848873980}
+    faceIconSpriteRenderer: {fileID: 0}
   - value: 7
     localEuler: {x: -124.156, y: -1.641998, z: 90}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 942480340686216334}
+    faceIconSpriteRenderer: {fileID: 0}
   - value: 8
     localEuler: {x: 57.733, y: 0, z: 0}
     enchant: 0
     broken: 0
     faceValueText3D: {fileID: 6840852454439765507}
+    faceIconSpriteRenderer: {fileID: 0}
   wholeDieTag: 0
   wholeDieRenderers:
   - {fileID: 200562687553547878}

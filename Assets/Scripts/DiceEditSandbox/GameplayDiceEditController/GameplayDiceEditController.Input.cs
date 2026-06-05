@@ -36,6 +36,8 @@ public partial class GameplayDiceEditController
             _activeDragInteractable.HandleMouseUp();
             _activeDragInteractable = null;
         }
+
+        RefreshFaceEnchantTooltip(cam, pointerOverUi);
     }
 
     // Only the inspect clone remains interactive while the edit panel is modal.

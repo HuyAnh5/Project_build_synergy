@@ -353,6 +353,33 @@ public class GameplayDiceEditInteractable : MonoBehaviour
         RefreshHighlight();
     }
 
+    public bool TryResolveHoveredLogicalFace(Camera cam, Vector2 screenPosition, out int logicalFaceIndex)
+    {
+        logicalFaceIndex = -1;
+
+        if (!_bindingsReady)
+            EnsureBound();
+        if (_spinner == null || _selectionMap == null || cam == null)
+            return false;
+
+        Ray ray = cam.ScreenPointToRay(screenPosition);
+        if (!Physics.Raycast(ray, out RaycastHit primaryHit, 100f) || primaryHit.collider == null || !primaryHit.collider.transform.IsChildOf(transform))
+            return false;
+
+        if (_selectionMap.TryGetNearestVisibleLogicalFace(screenPosition, cam, out logicalFaceIndex))
+            return logicalFaceIndex >= 0;
+
+        RaycastHit[] hits = Physics.RaycastAll(ray, 100f);
+        for (int i = 0; hits != null && i < hits.Length; i++)
+        {
+            if (_selectionMap.TryResolveLogicalFace(hits[i], cam, out logicalFaceIndex))
+                return logicalFaceIndex >= 0;
+        }
+
+        logicalFaceIndex = -1;
+        return false;
+    }
+
     private void EnsureBound()
     {
         if (_controller == null)
