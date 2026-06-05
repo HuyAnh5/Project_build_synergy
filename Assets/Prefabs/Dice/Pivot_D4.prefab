@@ -591,18 +591,22 @@ MonoBehaviour:
   - value: 1
     localEuler: {x: 6.199, y: -178.661, z: 0.136}
     enchant: 0
+    broken: 0
     faceValueText3D: {fileID: 6319572002158518394}
   - value: 2
     localEuler: {x: -38.087, y: -48.568, z: -234.351}
     enchant: 0
+    broken: 0
     faceValueText3D: {fileID: 4521063710866055198}
   - value: 3
     localEuler: {x: 86.314, y: -174.626, z: -180.44}
     enchant: 0
+    broken: 0
     faceValueText3D: {fileID: 1849779828823178197}
   - value: 4
     localEuler: {x: -35.19, y: 46.166, z: -120.319}
     enchant: 0
+    broken: 0
     faceValueText3D: {fileID: 7642287149080328253}
   wholeDieTag: 0
   wholeDieRenderers:
