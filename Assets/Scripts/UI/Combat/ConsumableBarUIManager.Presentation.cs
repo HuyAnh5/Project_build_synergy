@@ -86,7 +86,7 @@ public partial class ConsumableBarUIManager
         if (slots == null)
             return;
 
-        int visibleCount = runInventory != null ? runInventory.GetConsumableCount() : 0;
+        int visibleCount = GetDisplayedConsumableCount();
         for (int i = 0; i < slots.Length; i++)
         {
             ConsumableSlotView slot = slots[i];
@@ -94,9 +94,9 @@ public partial class ConsumableBarUIManager
                 continue;
 
             bool showSlot = i < visibleCount;
-            ConsumableDataSO data = showSlot && runInventory != null ? runInventory.GetConsumable(i) : null;
-            bool selected = i == _selectedSlot && data != null;
-            bool targeting = i == _pendingTargetSlot && data != null;
+            ConsumableDataSO data = showSlot ? GetDisplayedConsumable(i) : null;
+            bool selected = !_rewardChoiceMode && i == _selectedSlot && data != null;
+            bool targeting = !_rewardChoiceMode && i == _pendingTargetSlot && data != null;
 
             if (slot.root != null && slot.root.gameObject.activeSelf != showSlot)
                 slot.root.gameObject.SetActive(showSlot);
@@ -118,7 +118,7 @@ public partial class ConsumableBarUIManager
                 slot.background.color = data == null ? emptyColor : (targeting ? targetingColor : (selected ? selectedColor : normalColor));
 
             if (slot.button != null)
-                slot.button.interactable = data != null && !IsInteractionLocked();
+                slot.button.interactable = data != null && (_rewardChoiceMode || !IsInteractionLocked());
 
             if (slot.root != null && data != null && i != _dragSlot)
                 SetSlotCanvasAlpha(i, 1f);
@@ -153,6 +153,9 @@ public partial class ConsumableBarUIManager
     private void RefreshActionPanel()
     {
         HideAllActionPanels();
+
+        if (_rewardChoiceMode)
+            return;
 
         bool show = !IsInteractionLocked() && runInventory != null && _selectedSlot >= 0 && runInventory.GetConsumable(_selectedSlot) != null;
         if (!show)
@@ -219,12 +222,12 @@ public partial class ConsumableBarUIManager
         }
 
         int tooltipSlot = _hoveredSlot;
-        bool show = runInventory != null && tooltipSlot >= 0 && runInventory.GetConsumable(tooltipSlot) != null;
+        bool show = tooltipSlot >= 0 && GetDisplayedConsumable(tooltipSlot) != null;
         if (!show)
             return;
 
         ConsumableSlotView slot = GetSlot(tooltipSlot);
-        ConsumableDataSO data = runInventory.GetConsumable(tooltipSlot);
+        ConsumableDataSO data = GetDisplayedConsumable(tooltipSlot);
         RectTransform activeTooltipRoot = slot != null && slot.localTooltipRoot != null ? slot.localTooltipRoot : tooltipRoot;
         TMP_Text activeTooltipTitle = slot != null && slot.localTooltipTitleText != null ? slot.localTooltipTitleText : tooltipTitleText;
         TMP_Text activeTooltipBody = slot != null && slot.localTooltipBodyText != null ? slot.localTooltipBodyText : tooltipBodyText;

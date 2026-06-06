@@ -17,6 +17,8 @@ public static class CombatLabPrototypeSetupTool
     private const string UiRootName = "CombatLabPrototypeUI";
     private const string ResetButtonName = "ResetGameButton";
     private const string ConfigFolder = "Assets/GameData/Prototype/CombatLab";
+    private const string RewardScreenName = "PrototypeConsumableRewardScreen";
+    private const string ConsumableSlotPrefabPath = "Assets/Prefabs/UI/Combat/ConsumableSlotCard.prefab";
 
     [MenuItem("Tools/Build Synergy/Prototype/Setup Combat Lab Prototype In Current Scene")]
     public static void SetupCombatLabPrototypeInCurrentScene()
@@ -31,18 +33,20 @@ public static class CombatLabPrototypeSetupTool
         EnsureEventSystem();
 
         CombatLabPrototypeController controller = FindOrCreateController();
-        CombatLabPrototypeConfigSO config = FindOrCreateConfigAsset(scene.name);
+        CombatLabPrototypeConfigSO config = ResolveOrCreateConfigAsset(controller, scene.name);
         BattlePartyManager2D party = Object.FindFirstObjectByType<BattlePartyManager2D>(FindObjectsInactive.Include);
         RunInventoryManager inventory = Object.FindFirstObjectByType<RunInventoryManager>(FindObjectsInactive.Include);
         TurnManager turnManager = Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+        PrototypeConsumableRewardScreen rewardScreen = FindOrCreateRewardScreen();
 
         if (party == null || inventory == null || turnManager == null)
         {
             Debug.LogWarning("[CombatLabPrototypeSetupTool] Missing BattlePartyManager2D, RunInventoryManager, or TurnManager in scene. Tool still created root/config, but wiring is incomplete.");
         }
 
-        WireController(controller, config, party, inventory, turnManager);
+        WireController(controller, config, party, inventory, turnManager, rewardScreen);
         CreateOrUpdateResetButton(controller);
+        DisableLegacyRewardDemoUi();
 
         EditorUtility.SetDirty(controller);
         if (config != null)
@@ -72,6 +76,27 @@ public static class CombatLabPrototypeSetupTool
         return controller;
     }
 
+    private static CombatLabPrototypeConfigSO ResolveOrCreateConfigAsset(CombatLabPrototypeController controller, string sceneName)
+    {
+        if (Selection.activeObject is CombatLabPrototypeConfigSO selected)
+            return selected;
+
+        CombatLabPrototypeConfigSO assigned = GetAssignedConfig(controller);
+        if (assigned != null)
+            return assigned;
+
+        return FindOrCreateConfigAsset(sceneName);
+    }
+
+    private static CombatLabPrototypeConfigSO GetAssignedConfig(CombatLabPrototypeController controller)
+    {
+        if (controller == null)
+            return null;
+
+        SerializedObject so = new SerializedObject(controller);
+        return so.FindProperty("config").objectReferenceValue as CombatLabPrototypeConfigSO;
+    }
+
     private static CombatLabPrototypeConfigSO FindOrCreateConfigAsset(string sceneName)
     {
         EnsureFolder(ConfigFolder);
@@ -94,14 +119,169 @@ public static class CombatLabPrototypeSetupTool
         CombatLabPrototypeConfigSO config,
         BattlePartyManager2D party,
         RunInventoryManager inventory,
-        TurnManager turnManager)
+        TurnManager turnManager,
+        PrototypeConsumableRewardScreen rewardScreen)
     {
         SerializedObject so = new SerializedObject(controller);
         so.FindProperty("config").objectReferenceValue = config;
         so.FindProperty("party").objectReferenceValue = party;
         so.FindProperty("runInventory").objectReferenceValue = inventory;
         so.FindProperty("turnManager").objectReferenceValue = turnManager;
+        so.FindProperty("rewardScreen").objectReferenceValue = rewardScreen;
         so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static PrototypeConsumableRewardScreen FindOrCreateRewardScreen()
+    {
+        PrototypeConsumableRewardScreen existing = Object.FindFirstObjectByType<PrototypeConsumableRewardScreen>(FindObjectsInactive.Include);
+        bool createdRoot = existing == null;
+
+        Canvas canvas = FindOrCreateCanvas();
+        GameObject root = existing != null
+            ? existing.gameObject
+            : FindOrCreateChild(canvas.transform, RewardScreenName, typeof(RectTransform), typeof(Image), typeof(PrototypeConsumableRewardScreen));
+        RectTransform rootRt = root.GetComponent<RectTransform>();
+        if (createdRoot)
+        {
+            rootRt.anchorMin = Vector2.zero;
+            rootRt.anchorMax = Vector2.one;
+            rootRt.offsetMin = Vector2.zero;
+            rootRt.offsetMax = Vector2.zero;
+            rootRt.SetAsLastSibling();
+        }
+
+        Image blocker = GetOrAdd<Image>(root);
+        if (createdRoot)
+            blocker.color = new Color(0f, 0f, 0f, 0.64f);
+        blocker.raycastTarget = true;
+
+        bool createdContent = root.transform.Find("Content") == null;
+        GameObject content = FindOrCreateChild(root.transform, "Content", typeof(RectTransform), typeof(VerticalLayoutGroup));
+        RectTransform contentRt = content.GetComponent<RectTransform>();
+        if (createdContent)
+        {
+            contentRt.anchorMin = new Vector2(0.5f, 0.5f);
+            contentRt.anchorMax = new Vector2(0.5f, 0.5f);
+            contentRt.pivot = new Vector2(0.5f, 0.5f);
+            contentRt.anchoredPosition = Vector2.zero;
+            contentRt.sizeDelta = new Vector2(760f, 330f);
+        }
+
+        VerticalLayoutGroup contentLayout = content.GetComponent<VerticalLayoutGroup>();
+        if (createdContent)
+        {
+            contentLayout.padding = new RectOffset(0, 0, 0, 0);
+            contentLayout.spacing = 120f;
+            contentLayout.childAlignment = TextAnchor.MiddleCenter;
+            contentLayout.childControlWidth = true;
+            contentLayout.childControlHeight = false;
+            contentLayout.childForceExpandWidth = true;
+            contentLayout.childForceExpandHeight = false;
+        }
+
+        bool createdTitle = content.transform.Find("Title") == null;
+        TMP_Text title = CreateText(content.transform, "Title", "Choose", 30f, FontStyles.Normal, TextAlignmentOptions.Center, new Color32(245, 247, 250, 255), createdTitle);
+        LayoutElement titleLayout = GetOrAdd<LayoutElement>(title.gameObject);
+        if (createdContent)
+            titleLayout.preferredHeight = 54f;
+
+        bool createdCardsRoot = content.transform.Find("Cards") == null;
+        GameObject cardsRootGo = FindOrCreateChild(content.transform, "Cards", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        RectTransform cardsRoot = cardsRootGo.GetComponent<RectTransform>();
+        if (createdCardsRoot)
+            cardsRoot.sizeDelta = new Vector2(980f, 150f);
+        LayoutElement cardsLayoutElement = GetOrAdd<LayoutElement>(cardsRootGo);
+        if (createdCardsRoot)
+        {
+            cardsLayoutElement.preferredHeight = 150f;
+            cardsLayoutElement.preferredWidth = 980f;
+        }
+
+        HorizontalLayoutGroup cardsLayout = cardsRootGo.GetComponent<HorizontalLayoutGroup>();
+        if (createdCardsRoot)
+        {
+            cardsLayout.spacing = 280f;
+            cardsLayout.childAlignment = TextAnchor.MiddleCenter;
+            cardsLayout.childControlWidth = false;
+            cardsLayout.childControlHeight = false;
+            cardsLayout.childForceExpandWidth = false;
+            cardsLayout.childForceExpandHeight = false;
+        }
+
+        RectTransform slotPrefab = LoadConsumableSlotCardPrefab();
+        CleanupLegacyRewardCards(cardsRootGo.transform);
+        ConsumableBarUIManager rewardBar = GetOrAdd<ConsumableBarUIManager>(cardsRootGo);
+        rewardBar.layoutContainer = cardsRoot;
+        rewardBar.slotTemplatePrefab = slotPrefab;
+        rewardBar.cardSize = new Vector2(96f, 128f);
+        rewardBar.relaxedSpacing = 390f;
+        rewardBar.fallbackRowWidth = 980f;
+        rewardBar.autoCreateMissingCards = true;
+
+        PrototypeConsumableRewardScreen screen = root.GetComponent<PrototypeConsumableRewardScreen>();
+        SerializedObject so = new SerializedObject(screen);
+        so.FindProperty("root").objectReferenceValue = rootRt;
+        so.FindProperty("titleText").objectReferenceValue = title;
+        so.FindProperty("rewardBar").objectReferenceValue = rewardBar;
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        if (createdRoot)
+            root.SetActive(false);
+        EditorUtility.SetDirty(screen);
+        EditorUtility.SetDirty(rewardBar);
+        return screen;
+    }
+
+    private static void CleanupLegacyRewardCards(Transform cardsRoot)
+    {
+        if (cardsRoot == null)
+            return;
+
+        for (int i = cardsRoot.childCount - 1; i >= 0; i--)
+        {
+            Transform child = cardsRoot.GetChild(i);
+            if (child != null && child.name.StartsWith("RewardCard", System.StringComparison.Ordinal))
+                Undo.DestroyObjectImmediate(child.gameObject);
+        }
+    }
+
+    private static RectTransform LoadConsumableSlotCardPrefab()
+    {
+        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(ConsumableSlotPrefabPath);
+        if (prefab == null)
+        {
+            Debug.LogWarning($"[CombatLabPrototypeSetupTool] Missing ConsumableSlotCard prefab at {ConsumableSlotPrefabPath}. Run the consumable HUD setup tool or assign slotTemplatePrefab manually.");
+            return null;
+        }
+
+        return prefab.GetComponent<RectTransform>();
+    }
+
+    private static TMP_Text CreateText(Transform parent, string name, string text, float fontSize, FontStyles style, TextAlignmentOptions alignment, Color color, bool applyStyle = true)
+    {
+        GameObject go = FindOrCreateChild(parent, name, typeof(RectTransform), typeof(TextMeshProUGUI));
+        TextMeshProUGUI tmp = go.GetComponent<TextMeshProUGUI>();
+        tmp.text = text;
+        if (applyStyle)
+        {
+            tmp.fontSize = fontSize;
+            tmp.fontStyle = style;
+            tmp.alignment = alignment;
+            tmp.color = color;
+            tmp.enableWordWrapping = true;
+            tmp.raycastTarget = false;
+        }
+        return tmp;
+    }
+
+    private static void DisableLegacyRewardDemoUi()
+    {
+        RewardGachaDemoController[] legacy = Object.FindObjectsByType<RewardGachaDemoController>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < legacy.Length; i++)
+        {
+            if (legacy[i] != null)
+                legacy[i].gameObject.SetActive(false);
+        }
     }
 
     private static void CreateOrUpdateResetButton(CombatLabPrototypeController controller)
@@ -170,6 +350,8 @@ public static class CombatLabPrototypeSetupTool
         return canvas;
     }
 
+    
+
     private static void EnsureEventSystem()
     {
         EventSystem eventSystem = Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include);
@@ -208,6 +390,15 @@ public static class CombatLabPrototypeSetupTool
                 AssetDatabase.CreateFolder(current, parts[i]);
             current = next;
         }
+    }
+
+    private static T GetOrAdd<T>(GameObject go) where T : Component
+    {
+        T existing = go.GetComponent<T>();
+        if (existing != null)
+            return existing;
+
+        return Undo.AddComponent<T>(go);
     }
 
     private static GameObject FindOrCreateChild(Transform parent, string name, params System.Type[] components)

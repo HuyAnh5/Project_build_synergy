@@ -59,29 +59,29 @@ MonoBehaviour:
     icon: {fileID: 7361296877518392268, guid: 7bff13b25b0665549bd44f60c2a25cc3, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
   - enchant: 4
-    icon: {fileID: 0}
+    icon: {fileID: -8499243052114706715, guid: fd9c96e32b550c048851a4616805eb6e, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
   - enchant: 5
-    icon: {fileID: 0}
+    icon: {fileID: 297761703447499198, guid: b951cb99c508a664aadc0af0e3b0074c, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
   - enchant: 6
-    icon: {fileID: 0}
+    icon: {fileID: 21300000, guid: 44a054df1702e39458b7072b08d0f212, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
   - enchant: 7
-    icon: {fileID: 0}
+    icon: {fileID: 8719680935127771979, guid: fd9c96e32b550c048851a4616805eb6e, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
   - enchant: 8
-    icon: {fileID: 0}
+    icon: {fileID: 10901, guid: 0000000000000000f000000000000000, type: 0}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
   - enchant: 9
-    icon: {fileID: 0}
+    icon: {fileID: 5245015391768597215, guid: 4581cadcfd88bad4cb5ee716a0b82a0b, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
   - enchant: 10
-    icon: {fileID: 0}
+    icon: {fileID: 7361296877518392268, guid: 7bff13b25b0665549bd44f60c2a25cc3, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
   - enchant: 11
-    icon: {fileID: 0}
+    icon: {fileID: 1192862653530567456, guid: 5a0d3fd8e60fcda41b083875f9a9dffd, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
   - enchant: 12
-    icon: {fileID: 0}
+    icon: {fileID: 6453661803084663350, guid: b5de9fcfd196c1a47b1068ac12138a6c, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}

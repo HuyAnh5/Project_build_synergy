@@ -7,10 +7,10 @@ public class BattlePartyManager2D : MonoBehaviour
     [Serializable]
     public class SpawnSlot
     {
-        public string label;
+        [HideInInspector] public string label;
         public CombatActor prefab;
         public CombatActor.RowTag row = CombatActor.RowTag.Front;
-        public int orderInRow = 0;
+        [HideInInspector] public int orderInRow = 0;
     }
 
     [Header("Limits")]
@@ -122,14 +122,29 @@ public class BattlePartyManager2D : MonoBehaviour
     {
         if (slots == null) return;
 
-        var temp = new List<SpawnSlot>();
-        foreach (var s in slots)
-            if (s != null && s.prefab != null) temp.Add(s);
+        for (int i = 0; i < slots.Length; i++)
+        {
+            SpawnSlot slot = slots[i];
+            if (slot == null || slot.prefab == null)
+                continue;
 
-        temp.Sort((a, b) => a.orderInRow.CompareTo(b.orderInRow));
+            SpawnActor(slot.prefab, side, slot.row, isPlayer: false, addToRoster: true);
+        }
+    }
 
-        foreach (var s in temp)
-            SpawnActor(s.prefab, side, s.row, isPlayer: false, addToRoster: true);
+    private static int CountValidSpawnSlots(SpawnSlot[] slots)
+    {
+        if (slots == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i] != null && slots[i].prefab != null)
+                count++;
+        }
+
+        return count;
     }
 
     public CombatActor SpawnActor(
@@ -273,6 +288,7 @@ public class BattlePartyManager2D : MonoBehaviour
     public void SpawnPrototypeEncounter(SpawnSlot[] slots, bool resetPlayerForBattle)
     {
         enemySlots = slots ?? new SpawnSlot[maxEnemies];
+        maxEnemies = Mathf.Max(maxEnemies, CountValidSpawnSlots(enemySlots));
         ClearAll(destroyObjects: false);
         EnsurePlayerExists();
         if (resetPlayerForBattle && Player != null)

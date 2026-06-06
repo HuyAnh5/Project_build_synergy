@@ -3,7 +3,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
-[DisallowMultipleComponent]
 public class GameplayDiceEditPanelUI : MonoBehaviour
 {
     [Header("Bindings")]

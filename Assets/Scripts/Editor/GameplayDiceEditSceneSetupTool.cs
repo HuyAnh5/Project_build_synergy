@@ -159,6 +159,8 @@ public static class GameplayDiceEditSceneSetupTool
         return canvas;
     }
 
+    
+
     private static void EnsureEventSystem()
     {
         if (Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include) != null)

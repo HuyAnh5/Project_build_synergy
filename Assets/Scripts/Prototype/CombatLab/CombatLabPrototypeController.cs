@@ -1,6 +1,9 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+
+using UnityEngine.UI;
 
 [DefaultExecutionOrder(-500)]
 [DisallowMultipleComponent]
@@ -10,7 +13,7 @@ public class CombatLabPrototypeController : MonoBehaviour
     [SerializeField] private BattlePartyManager2D party;
     [SerializeField] private RunInventoryManager runInventory;
     [SerializeField] private TurnManager turnManager;
-    [SerializeField] private RewardGachaDemoController rewardController;
+    [SerializeField] private PrototypeConsumableRewardScreen rewardScreen;
     [SerializeField] private bool shuffleSelectedSkillOrder = true;
 
     private readonly List<DiceSpinnerGeneric> _dicePrefabOptions = new List<DiceSpinnerGeneric>(2);
@@ -19,28 +22,38 @@ public class CombatLabPrototypeController : MonoBehaviour
     private readonly List<ConsumableDataSO> _heldConsumables = new List<ConsumableDataSO>(RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY);
     private int _currentCombatIndex;
     private bool _runEnded;
+    private bool _subscribedToVictory;
     private static string s_lastSelectedSkillGroupKey;
+
+    private int CombatCount => config != null ? config.GetCombatCount() : 0;
+    private int FinalCombatIndex => config != null ? config.GetFinalCombatIndex() : 0;
 
     private void Awake()
     {
         AutoResolveReferences();
-        ApplyEncounterAuthoringToParty();
     }
 
     private void Start()
     {
         AutoResolveReferences();
-        if (turnManager != null)
+        if (turnManager != null && !_subscribedToVictory)
+        {
             turnManager.CombatVictoryResolved += HandleCombatVictoryResolved;
+            _subscribedToVictory = true;
+        }
 
         ApplyPrototypeLoadout();
         ShowConsumableRewardThenStartCombat(0);
     }
 
+    private void OnDisable()
+    {
+        UnsubscribeVictoryResolved();
+    }
+
     private void OnDestroy()
     {
-        if (turnManager != null)
-            turnManager.CombatVictoryResolved -= HandleCombatVictoryResolved;
+        UnsubscribeVictoryResolved();
     }
 
     [ContextMenu("Apply Prototype Loadout")]
@@ -72,12 +85,13 @@ public class CombatLabPrototypeController : MonoBehaviour
             SceneManager.LoadScene(activeScene.path);
     }
 
-    private void ApplyEncounterAuthoringToParty()
+    private void UnsubscribeVictoryResolved()
     {
-        if (config == null || party == null)
+        if (!_subscribedToVictory || turnManager == null)
             return;
 
-        party.enemySlots = BuildEnemySpawnSlots(0);
+        turnManager.CombatVictoryResolved -= HandleCombatVictoryResolved;
+        _subscribedToVictory = false;
     }
 
     private BattlePartyManager2D.SpawnSlot[] BuildEnemySpawnSlots(int encounterIndex)
@@ -91,16 +105,16 @@ public class CombatLabPrototypeController : MonoBehaviour
         for (int i = 0; i < source.Length && writeIndex < result.Length; i++)
         {
             CombatLabPrototypeConfigSO.EnemyEntry entry = source[i];
-            if (entry == null || !entry.enabled || entry.prefab == null)
+            if (entry == null || entry.prefab == null)
                 continue;
 
-            result[writeIndex++] = new BattlePartyManager2D.SpawnSlot
+            result[writeIndex] = new BattlePartyManager2D.SpawnSlot
             {
-                label = entry.prefab.name,
                 prefab = entry.prefab,
                 row = entry.row,
-                orderInRow = entry.orderInRow
+                orderInRow = writeIndex
             };
+            writeIndex++;
         }
 
         return result;
@@ -126,7 +140,7 @@ public class CombatLabPrototypeController : MonoBehaviour
         for (int i = 0; i < entries.Length; i++)
         {
             CombatLabPrototypeConfigSO.EnemyEntry entry = entries[i];
-            if (entry != null && entry.enabled && entry.prefab != null)
+            if (entry != null && entry.prefab != null)
                 return true;
         }
 
@@ -164,24 +178,6 @@ public class CombatLabPrototypeController : MonoBehaviour
     {
         for (int i = runInventory.ConsumableCapacity - 1; i >= 0; i--)
             runInventory.ClearConsumable(i);
-    }
-
-    private void ApplyFixedConsumables()
-    {
-        ClearConsumables();
-
-        if (config.consumables == null)
-            return;
-
-        int writeCount = Mathf.Min(config.consumables.Length, runInventory.ConsumableCapacity);
-        for (int i = 0; i < writeCount; i++)
-        {
-            ConsumableDataSO consumable = config.consumables[i];
-            if (consumable == null)
-                continue;
-
-            runInventory.TrySetConsumable(i, consumable);
-        }
     }
 
     private void ClearPassiveSlot()
@@ -234,9 +230,19 @@ public class CombatLabPrototypeController : MonoBehaviour
         if (config == null)
             return;
 
-        if (config.d4Prefab != null)
+        if (config.dicePrototypePool != null)
+        {
+            for (int i = 0; i < config.dicePrototypePool.Length; i++)
+            {
+                DiceSpinnerGeneric prefab = config.dicePrototypePool[i];
+                if (prefab != null && !_dicePrefabOptions.Contains(prefab))
+                    _dicePrefabOptions.Add(prefab);
+            }
+        }
+
+        if (config.d4Prefab != null && !_dicePrefabOptions.Contains(config.d4Prefab))
             _dicePrefabOptions.Add(config.d4Prefab);
-        if (config.d8Prefab != null)
+        if (config.d8Prefab != null && !_dicePrefabOptions.Contains(config.d8Prefab))
             _dicePrefabOptions.Add(config.d8Prefab);
     }
 
@@ -335,8 +341,8 @@ public class CombatLabPrototypeController : MonoBehaviour
             runInventory = FindFirstObjectByType<RunInventoryManager>(FindObjectsInactive.Include);
         if (turnManager == null)
             turnManager = FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
-        if (rewardController == null)
-            rewardController = FindFirstObjectByType<RewardGachaDemoController>(FindObjectsInactive.Include);
+        if (rewardScreen == null)
+            rewardScreen = FindFirstObjectByType<PrototypeConsumableRewardScreen>(FindObjectsInactive.Include);
     }
 
     private void HandleCombatVictoryResolved()
@@ -347,10 +353,10 @@ public class CombatLabPrototypeController : MonoBehaviour
         if (turnManager != null)
             turnManager.SetPlayerInteractionLocked(true);
 
-        if (_currentCombatIndex >= CombatLabPrototypeConfigSO.PrototypeCombatCount - 1)
+        if (_currentCombatIndex >= FinalCombatIndex)
         {
             _runEnded = true;
-            Debug.Log("[CombatLabPrototypeController] Prototype run complete after boss combat.", this);
+            Debug.Log("[CombatLabPrototypeController] Prototype run complete after final combat.", this);
             return;
         }
 
@@ -362,34 +368,47 @@ public class CombatLabPrototypeController : MonoBehaviour
         if (turnManager != null)
             turnManager.SetPlayerInteractionLocked(true);
 
+        if (CombatCount <= 0)
+        {
+            Debug.LogWarning("[CombatLabPrototypeController] Prototype config has no combats configured.", this);
+            return;
+        }
+
         if (!HasAvailableConsumableReward())
         {
             StartCombat(combatIndex);
             return;
         }
 
-        if (rewardController == null)
+        if (rewardScreen == null)
         {
-            Debug.LogWarning("[CombatLabPrototypeController] No RewardGachaDemoController assigned/found. Starting next combat without reward choice.", this);
+            Debug.LogWarning("[CombatLabPrototypeController] No PrototypeConsumableRewardScreen assigned/found. Starting next combat without reward choice.", this);
             StartCombat(combatIndex);
             return;
         }
 
-        rewardController.ShowConsumablePrototypeOffer(
+        rewardScreen.ShowConsumablePrototypeOffer(
             config.consumableRewardPool,
             BuildHeldConsumableSnapshot(),
             runInventory,
             _ =>
             {
-                if (rewardController != null)
-                    rewardController.gameObject.SetActive(false);
+                if (rewardScreen != null)
+                    rewardScreen.gameObject.SetActive(false);
                 StartCombat(combatIndex);
             });
     }
 
     private void StartCombat(int combatIndex)
     {
-        _currentCombatIndex = Mathf.Clamp(combatIndex, 0, CombatLabPrototypeConfigSO.PrototypeCombatCount - 1);
+        int count = CombatCount;
+        if (count <= 0)
+        {
+            Debug.LogWarning("[CombatLabPrototypeController] Cannot start combat because prototype config has no combats.", this);
+            return;
+        }
+
+        _currentCombatIndex = Mathf.Clamp(combatIndex, 0, count - 1);
         if (party != null)
             party.SpawnPrototypeEncounter(BuildEnemySpawnSlots(_currentCombatIndex), resetPlayerForBattle: true);
 
@@ -443,3 +462,109 @@ public class CombatLabPrototypeController : MonoBehaviour
         }
     }
 }
+
+public sealed class PrototypeConsumableRewardScreen : MonoBehaviour
+{
+    [SerializeField] private RectTransform root;
+    [SerializeField] private TMP_Text titleText;
+    [SerializeField] private ConsumableBarUIManager rewardBar;
+
+    private readonly List<RewardGachaCard> _offerCards = new List<RewardGachaCard>(3);
+    private readonly List<ConsumableDataSO> _offerConsumables = new List<ConsumableDataSO>(3);
+    private RunInventoryManager _runInventory;
+    private System.Action<RewardGachaCard> _onPicked;
+    private bool _locked;
+
+    private void Awake()
+    {
+        if (root == null)
+            root = transform as RectTransform;
+        if (rewardBar == null)
+            rewardBar = GetComponentInChildren<ConsumableBarUIManager>(true);
+        if (titleText != null)
+            titleText.text = "Choose";
+    }
+
+    public void ShowConsumablePrototypeOffer(
+        IEnumerable<ConsumableDataSO> rewardPool,
+        IEnumerable<ConsumableDataSO> excludedOwned,
+        RunInventoryManager inventory,
+        System.Action<RewardGachaCard> onPicked)
+    {
+        _runInventory = inventory;
+        _onPicked = onPicked;
+        _locked = false;
+        _offerCards.Clear();
+        _offerConsumables.Clear();
+
+        RewardGachaOffer offer = RewardGachaGenerator.RollConsumableOffer(rewardPool, excludedOwned, choices: 3, picks: 1);
+        if (offer != null && offer.cards != null)
+        {
+            for (int i = 0; i < offer.cards.Count && i < 3; i++)
+            {
+                RewardGachaCard card = offer.cards[i];
+                ConsumableDataSO consumable = card != null ? card.asset as ConsumableDataSO : null;
+                if (consumable == null)
+                    continue;
+
+                _offerCards.Add(card);
+                _offerConsumables.Add(consumable);
+            }
+        }
+
+        gameObject.SetActive(true);
+        if (root != null)
+            root.SetAsLastSibling();
+
+        if (_offerCards.Count <= 0)
+        {
+            Debug.LogWarning("[PrototypeConsumableRewardScreen] No consumables available for reward.", this);
+            CloseWithoutPick();
+            return;
+        }
+
+        if (rewardBar == null)
+            rewardBar = GetComponentInChildren<ConsumableBarUIManager>(true);
+        if (rewardBar == null)
+        {
+            Debug.LogWarning("[PrototypeConsumableRewardScreen] Missing reward ConsumableBarUIManager.", this);
+            CloseWithoutPick();
+            return;
+        }
+
+        rewardBar.ShowRewardChoices(_offerConsumables, HandleRewardChoicePicked);
+    }
+
+    private void HandleRewardChoicePicked(int index, ConsumableDataSO data)
+    {
+        PickCard(index);
+    }
+
+    private void PickCard(int index)
+    {
+        if (_locked || index < 0 || index >= _offerCards.Count)
+            return;
+
+        _locked = true;
+        RewardGachaCard picked = _offerCards[index];
+        if (!RewardGachaApplier.TryApply(picked, _runInventory, out string message))
+            Debug.LogWarning("[PrototypeConsumableRewardScreen] " + message, this);
+
+        if (rewardBar != null)
+            rewardBar.ClearRewardChoices();
+        gameObject.SetActive(false);
+        _onPicked?.Invoke(picked);
+        _onPicked = null;
+    }
+
+    private void CloseWithoutPick()
+    {
+        if (rewardBar != null)
+            rewardBar.ClearRewardChoices();
+        gameObject.SetActive(false);
+        _onPicked?.Invoke(null);
+        _onPicked = null;
+    }
+}
+
+

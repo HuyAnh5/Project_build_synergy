@@ -12,6 +12,7 @@ using UnityEngine.InputSystem;
 
 public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
 {
+    private const int GumWeightBonusPerSource = 2;
     public const int MinFaceValue = 1;
     public const int MaxFaceValue = 99;
 
@@ -594,7 +595,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         int[] weights = new int[faces.Length];
         for (int i = 0; i < faces.Length; i++)
         {
-            int weight = 1 + CountGumSourcesForFace(i);
+            int weight = 1 + CountGumSourcesForFace(i) * GumWeightBonusPerSource;
             weights[i] = Mathf.Max(0, weight);
             totalWeight += weights[i];
         }

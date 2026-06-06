@@ -10,15 +10,15 @@ using UnityEditor;
     menuName = "Build Synergy/Prototype/Combat Lab Config")]
 public class CombatLabPrototypeConfigSO : ScriptableObject
 {
-    public const int PrototypeCombatCount = 4;
+    public const int DefaultPrototypeCombatCount = 4;
 
     [Serializable]
     public sealed class EnemyEntry
     {
-        public bool enabled = true;
+        [HideInInspector] public bool enabled = true;
         public CombatActor prefab;
         public CombatActor.RowTag row = CombatActor.RowTag.Front;
-        public int orderInRow;
+        [HideInInspector] public int orderInRow;
     }
 
     [Serializable]
@@ -39,24 +39,36 @@ public class CombatLabPrototypeConfigSO : ScriptableObject
         public EnemyEntry[] enemies = new EnemyEntry[3];
     }
 
-    [Header("Encounter")]
+    [HideInInspector]
     public EnemyEntry[] enemies = new EnemyEntry[3];
 
-    [Header("Prototype Run Enemies")]
+    [Header("Prototype Combats")]
+    [Tooltip("Prototype combat sequence. Player gets a consumable reward before Combat 1 and after each combat except the final combat.")]
+    public EncounterEntry[] combats = CreateDefaultCombats();
+
+    [HideInInspector]
     [Tooltip("Enemy setup for Combat 1.")]
     public EncounterEntry combat1 = CreateEncounter("Combat 1", false);
+    [HideInInspector]
     [Tooltip("Enemy setup for Combat 2.")]
     public EncounterEntry combat2 = CreateEncounter("Combat 2", false);
+    [HideInInspector]
     [Tooltip("Enemy setup for Combat 3.")]
     public EncounterEntry combat3 = CreateEncounter("Combat 3", false);
+    [HideInInspector]
     [Tooltip("Enemy setup for Combat 4 / Boss.")]
     public EncounterEntry combat4Boss = CreateEncounter("Combat 4 Boss", true);
 
     [HideInInspector]
-    public EncounterEntry[] runEncounters = new EncounterEntry[PrototypeCombatCount];
+    public EncounterEntry[] runEncounters = new EncounterEntry[DefaultPrototypeCombatCount];
 
     [Header("Dice Prototype Pool")]
+    [Tooltip("Dice prefabs that can be randomly equipped for the prototype. Drag any DiceSpinnerGeneric prefab here.")]
+    public DiceSpinnerGeneric[] dicePrototypePool = Array.Empty<DiceSpinnerGeneric>();
+
+    [HideInInspector]
     public DiceSpinnerGeneric d4Prefab;
+    [HideInInspector]
     public DiceSpinnerGeneric d8Prefab;
 
     [Header("Random Skill Groups")]
@@ -64,7 +76,7 @@ public class CombatLabPrototypeConfigSO : ScriptableObject
     [FormerlySerializedAs("skillPairs")]
     public SkillPairEntry[] skillGroups = Array.Empty<SkillPairEntry>();
 
-    [Header("Fixed Consumables")]
+    [HideInInspector]
     public ConsumableDataSO[] consumables = Array.Empty<ConsumableDataSO>();
 
     [Header("Prototype Consumable Rewards")]
@@ -75,22 +87,52 @@ public class CombatLabPrototypeConfigSO : ScriptableObject
 
     public EncounterEntry GetRunEncounter(int index)
     {
-        switch (index)
-        {
-            case 0: return combat1;
-            case 1: return combat2;
-            case 2: return combat3;
-            case 3: return combat4Boss;
-            default: return null;
-        }
+        if (combats == null || index < 0 || index >= combats.Length)
+            return null;
+
+        return combats[index];
+    }
+
+    public int GetCombatCount()
+    {
+        return combats != null ? combats.Length : 0;
+    }
+
+    public int GetFinalCombatIndex()
+    {
+        return Mathf.Max(0, GetCombatCount() - 1);
     }
 
     private void OnValidate()
     {
         EnsureEncounterDefaults();
+        MigrateLegacyDicePrototypePool();
 #if UNITY_EDITOR
         RefreshConsumableRewardPoolFromFolder();
 #endif
+    }
+
+    private void MigrateLegacyDicePrototypePool()
+    {
+        if (dicePrototypePool != null && dicePrototypePool.Length > 0)
+            return;
+
+        int count = 0;
+        if (d4Prefab != null)
+            count++;
+        if (d8Prefab != null && d8Prefab != d4Prefab)
+            count++;
+        if (count <= 0)
+            return;
+
+        DiceSpinnerGeneric[] migrated = new DiceSpinnerGeneric[count];
+        int index = 0;
+        if (d4Prefab != null)
+            migrated[index++] = d4Prefab;
+        if (d8Prefab != null && d8Prefab != d4Prefab)
+            migrated[index] = d8Prefab;
+
+        dicePrototypePool = migrated;
     }
 
     private void EnsureEncounterDefaults()
@@ -104,6 +146,51 @@ public class CombatLabPrototypeConfigSO : ScriptableObject
         MigrateLegacyEncounter(1, combat2);
         MigrateLegacyEncounter(2, combat3);
         MigrateLegacyEncounter(3, combat4Boss);
+
+        if (combats == null || combats.Length == 0 || !HasAnyEncounter(combats))
+            combats = CreateDefaultCombatsFromLegacy();
+
+        for (int i = 0; i < combats.Length; i++)
+        {
+            string label = "Combat " + (i + 1);
+            bool isFinal = i == combats.Length - 1;
+            combats[i] = EnsureEncounter(combats[i], isFinal ? label + " Boss" : label, isFinal);
+        }
+    }
+
+    private EncounterEntry[] CreateDefaultCombatsFromLegacy()
+    {
+        EncounterEntry[] result = CreateDefaultCombats();
+        result[0] = combat1;
+        result[1] = combat2;
+        result[2] = combat3;
+        result[3] = combat4Boss;
+        return result;
+    }
+
+    private static EncounterEntry[] CreateDefaultCombats()
+    {
+        return new[]
+        {
+            CreateEncounter("Combat 1", false),
+            CreateEncounter("Combat 2", false),
+            CreateEncounter("Combat 3", false),
+            CreateEncounter("Combat 4 Boss", true)
+        };
+    }
+
+    private static bool HasAnyEncounter(EncounterEntry[] entries)
+    {
+        if (entries == null)
+            return false;
+
+        for (int i = 0; i < entries.Length; i++)
+        {
+            if (entries[i] != null && HasAnyEnemy(entries[i].enemies))
+                return true;
+        }
+
+        return false;
     }
 
     private void MigrateLegacyEncounter(int index, EncounterEntry target)
@@ -150,7 +237,7 @@ public class CombatLabPrototypeConfigSO : ScriptableObject
         for (int i = 0; i < entries.Length; i++)
         {
             EnemyEntry entry = entries[i];
-            if (entry != null && entry.enabled && entry.prefab != null)
+            if (entry != null && entry.prefab != null)
                 return true;
         }
 

@@ -7,6 +7,9 @@ public partial class ConsumableBarUIManager
 {
     public void HandleSlotBeginDrag(int index, PointerEventData eventData)
     {
+        if (_rewardChoiceMode)
+            return;
+
         if (IsInteractionLocked())
             return;
 

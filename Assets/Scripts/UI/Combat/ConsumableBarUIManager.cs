@@ -107,6 +107,9 @@ public partial class ConsumableBarUIManager : MonoBehaviour
     private float _suppressSlotClicksUntilTime = -1f;
     private int _suppressClickSlot = -1;
     private int _ignoreHoverSlotUntilExit = -1;
+    private bool _rewardChoiceMode;
+    private ConsumableDataSO[] _rewardChoiceData = Array.Empty<ConsumableDataSO>();
+    private Action<int, ConsumableDataSO> _rewardChoicePicked;
 
     private void Awake()
     {
@@ -203,6 +206,17 @@ public partial class ConsumableBarUIManager : MonoBehaviour
 
     public void HandleSlotClicked(int index)
     {
+        if (_rewardChoiceMode)
+        {
+            if (_dragSlot >= 0 || ShouldSuppressSlotClick(index))
+                return;
+
+            ConsumableDataSO rewardChoice = GetDisplayedConsumable(index);
+            if (rewardChoice != null)
+                _rewardChoicePicked?.Invoke(index, rewardChoice);
+            return;
+        }
+
         if (IsInteractionLocked())
             return;
 
@@ -290,5 +304,51 @@ public partial class ConsumableBarUIManager : MonoBehaviour
     {
         WireButtons();
         RefreshAll();
+    }
+
+    public void ShowRewardChoices(IList<ConsumableDataSO> choices, Action<int, ConsumableDataSO> onPicked)
+    {
+        int count = choices != null ? choices.Count : 0;
+        _rewardChoiceData = new ConsumableDataSO[count];
+        for (int i = 0; i < count; i++)
+            _rewardChoiceData[i] = choices[i];
+
+        _rewardChoicePicked = onPicked;
+        _rewardChoiceMode = true;
+        _selectedSlot = -1;
+        _pendingTargetSlot = -1;
+        _pendingTargetActor = null;
+        _hoveredSlot = -1;
+        RefreshAll();
+    }
+
+    public void ClearRewardChoices()
+    {
+        _rewardChoiceMode = false;
+        _rewardChoiceData = Array.Empty<ConsumableDataSO>();
+        _rewardChoicePicked = null;
+        _selectedSlot = -1;
+        _pendingTargetSlot = -1;
+        _pendingTargetActor = null;
+        _hoveredSlot = -1;
+        RefreshAll();
+    }
+
+    private int GetDisplayedConsumableCount()
+    {
+        return _rewardChoiceMode
+            ? (_rewardChoiceData != null ? _rewardChoiceData.Length : 0)
+            : (runInventory != null ? runInventory.GetConsumableCount() : 0);
+    }
+
+    private ConsumableDataSO GetDisplayedConsumable(int index)
+    {
+        if (index < 0)
+            return null;
+
+        if (_rewardChoiceMode)
+            return _rewardChoiceData != null && index < _rewardChoiceData.Length ? _rewardChoiceData[index] : null;
+
+        return runInventory != null ? runInventory.GetConsumable(index) : null;
     }
 }

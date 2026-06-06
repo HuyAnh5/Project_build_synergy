@@ -17,7 +17,6 @@ public partial class GameplayDiceEditController
         _copySourceFaceIndex = -1;
         _copyTargetFaceIndex = -1;
         CreateInspectCloneFromSource();
-        HideSceneDiceDuringEdit();
 
         if (panelUi != null)
         {

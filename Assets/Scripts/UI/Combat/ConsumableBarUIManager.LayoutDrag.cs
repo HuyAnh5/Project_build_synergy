@@ -84,7 +84,7 @@ public partial class ConsumableBarUIManager
         if (container == null || slots == null)
             return;
 
-        int count = runInventory != null ? runInventory.GetConsumableCount() : 0;
+        int count = GetDisplayedConsumableCount();
         if (count <= 0)
             return;
 

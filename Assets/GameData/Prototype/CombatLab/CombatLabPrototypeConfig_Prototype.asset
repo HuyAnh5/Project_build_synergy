@@ -13,19 +13,80 @@ MonoBehaviour:
   m_Name: CombatLabPrototypeConfig_Prototype
   m_EditorClassIdentifier: Assembly-CSharp::CombatLabPrototypeConfigSO
   enemies: []
+  combats:
+  - label: Combat 1
+    isBoss: 0
+    enemies:
+    - enabled: 1
+      prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
+      row: 0
+      orderInRow: 0
+    - enabled: 1
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+    - enabled: 1
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+  - label: Combat 2
+    isBoss: 0
+    enemies:
+    - enabled: 1
+      prefab: {fileID: 3343973332019958161, guid: 7bebe51e0cc345d4a803534dd2915177, type: 3}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+  - label: Combat 3
+    isBoss: 0
+    enemies:
+    - enabled: 1
+      prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
+  - label: Combat 4 Boss
+    isBoss: 1
+    enemies:
+    - enabled: 1
+      prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
+      row: 0
+      orderInRow: 0
+    - enabled: 0
+      prefab: {fileID: 3343973332019958161, guid: 7bebe51e0cc345d4a803534dd2915177, type: 3}
+      row: 0
+      orderInRow: 1
+    - enabled: 0
+      prefab: {fileID: 0}
+      row: 0
+      orderInRow: 0
   combat1:
     label: Combat 1
     isBoss: 0
     enemies:
     - enabled: 1
+      prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
+      row: 0
+      orderInRow: 0
+    - enabled: 1
       prefab: {fileID: 0}
       row: 0
       orderInRow: 0
-    - enabled: 0
-      prefab: {fileID: 0}
-      row: 0
-      orderInRow: 0
-    - enabled: 0
+    - enabled: 1
       prefab: {fileID: 0}
       row: 0
       orderInRow: 0
@@ -34,7 +95,7 @@ MonoBehaviour:
     isBoss: 0
     enemies:
     - enabled: 1
-      prefab: {fileID: 0}
+      prefab: {fileID: 3343973332019958161, guid: 7bebe51e0cc345d4a803534dd2915177, type: 3}
       row: 0
       orderInRow: 0
     - enabled: 0
@@ -50,7 +111,7 @@ MonoBehaviour:
     isBoss: 0
     enemies:
     - enabled: 1
-      prefab: {fileID: 0}
+      prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
       row: 0
       orderInRow: 0
     - enabled: 0
@@ -66,31 +127,41 @@ MonoBehaviour:
     isBoss: 1
     enemies:
     - enabled: 1
-      prefab: {fileID: 0}
+      prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
       row: 0
       orderInRow: 0
     - enabled: 0
-      prefab: {fileID: 0}
+      prefab: {fileID: 3343973332019958161, guid: 7bebe51e0cc345d4a803534dd2915177, type: 3}
       row: 0
-      orderInRow: 0
+      orderInRow: 1
     - enabled: 0
       prefab: {fileID: 0}
       row: 0
       orderInRow: 0
   runEncounters: []
+  dicePrototypePool:
+  - {fileID: 659209076032714358, guid: 2801eb737d917bf448b96e19f75baaa5, type: 3}
   d4Prefab: {fileID: 0}
   d8Prefab: {fileID: 0}
-  skillGroups:
-  - label: 
-    skillA: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
-    skillB: {fileID: 11400000, guid: d0a72a3e8f4a917bf4280516f7087207, type: 2}
-    skillC: {fileID: 11400000, guid: ccf6192d7e39806ae317f405e6f76106, type: 2}
-    skillD: {fileID: 11400000, guid: e1b83b4f905ba28c0539162708198308, type: 2}
-  - label: 
-    skillA: {fileID: 11400000, guid: 7b595889b308add49bbdd89f10f90358, type: 2}
-    skillB: {fileID: 11400000, guid: dd8a7af4c0d3462bbed18e7712ad8990, type: 2}
-    skillC: {fileID: 11400000, guid: 5ccc410763d74ec393e79c5d6d59f429, type: 2}
-    skillD: {fileID: 11400000, guid: 6201df6fa5db4498bdd5158dc14ccf72, type: 2}
+  skillGroups: []
   consumables: []
-  consumableRewardFolder: {fileID: 0}
-  consumableRewardPool: []
+  consumableRewardFolder: {fileID: 102900000, guid: 8bd1c9755e74e4c4a90dfba32ed4ecd1, type: 3}
+  consumableRewardPool:
+  - {fileID: 11400000, guid: a7dd451959da9a542b329f88613cb7d6, type: 2}
+  - {fileID: 11400000, guid: daac03b175d89f44aaadeed13907ac6f, type: 2}
+  - {fileID: 11400000, guid: 804aba642dcd7af41a649562fbbe4f27, type: 2}
+  - {fileID: 11400000, guid: 31217922bea208b458ea0470a6e71265, type: 2}
+  - {fileID: 11400000, guid: 123a834a9b634a04ca2a16991d3daebc, type: 2}
+  - {fileID: 11400000, guid: 577cec28e8e97e2459164fe5e7cbd2cd, type: 2}
+  - {fileID: 11400000, guid: 0fa37295797b435fa2d6722fa77e2913, type: 2}
+  - {fileID: 11400000, guid: dee6e4810486adc408c7616f5445a32f, type: 2}
+  - {fileID: 11400000, guid: 01db76baf87845448a8653ae7dcbfd82, type: 2}
+  - {fileID: 11400000, guid: 08bc3de1a9ed40743a71c83948a18144, type: 2}
+  - {fileID: 11400000, guid: 82ad0388c2f5447c819384f0454ce9b0, type: 2}
+  - {fileID: 11400000, guid: 2d7bee2ebb48c5343bf07800fd3a48ed, type: 2}
+  - {fileID: 11400000, guid: 781a955e187d7d84a819a3703b2c93ec, type: 2}
+  - {fileID: 11400000, guid: 2e6a2f5ff4fb4c7f83c7f8a789e93102, type: 2}
+  - {fileID: 11400000, guid: c1df92299cc33994484c0126b6320ea5, type: 2}
+  - {fileID: 11400000, guid: b33c83ed18164f44a93db63a0ef94b10, type: 2}
+  - {fileID: 11400000, guid: 6f0ec1d6ddf84fd5a7148f10d6a2e1a4, type: 2}
+  - {fileID: 11400000, guid: e374c305b0f129f45aba334535bf8ef7, type: 2}
