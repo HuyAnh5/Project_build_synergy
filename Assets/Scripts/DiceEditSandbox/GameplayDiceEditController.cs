@@ -28,6 +28,7 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
     [SerializeField] private Vector3 inspectLocalScale = new Vector3(2.2f, 2.2f, 2.2f);
     [SerializeField] private float inspectExtraDistanceFromCamera = 1.25f;
 
+
     private readonly List<GameplayDiceEditInteractable> _interactables = new List<GameplayDiceEditInteractable>();
     private readonly List<VisibilityState> _hiddenSceneDice = new List<VisibilityState>();
     private readonly List<int> _selectedLogicalFaceIndices = new List<int>();
@@ -72,6 +73,7 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
 
         if (_tooltipAnchor != null)
             Destroy(_tooltipAnchor.gameObject);
+
     }
 
     private void RefreshFaceEnchantTooltip(Camera cam, bool pointerOverUi)

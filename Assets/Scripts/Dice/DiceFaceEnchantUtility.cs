@@ -2,6 +2,7 @@ public static class DiceFaceEnchantUtility
 {
     public const int PowerAddedValue = 3;
     public const int StoneAddedValue = 5;
+    public const int GuardGainAmount = 3;
     public const int RelayValueModifier = 2;
     public const int GuardGoldAmount = 5;
     public const int HeavyPaymentContribution = 2;
@@ -121,7 +122,7 @@ public static class DiceFaceEnchantUtility
             case DiceFaceEnchantKind.Power:
                 return "On Use: skill/action gains +3 Added Value.";
             case DiceFaceEnchantKind.Guard:
-                return "On Use: gain Guard equal to this face's resolved Value.";
+                return $"On Use: gain +{GuardGainAmount} Guard.";
             case DiceFaceEnchantKind.Charge:
                 return "On Use: gain +1 AP after this action is committed.";
             case DiceFaceEnchantKind.Gold:
@@ -154,7 +155,7 @@ public static class DiceFaceEnchantUtility
             case DiceFaceEnchantKind.Power:
                 return "Add +3 Added Value.";
             case DiceFaceEnchantKind.Guard:
-                return "Gain Guard equal to this face's Value.";
+                return $"Gain +{GuardGainAmount} Guard.";
             case DiceFaceEnchantKind.Charge:
                 return "Gain +1 AP.";
             case DiceFaceEnchantKind.Gold:

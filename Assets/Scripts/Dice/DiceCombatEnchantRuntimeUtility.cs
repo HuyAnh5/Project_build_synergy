@@ -241,7 +241,7 @@ public static class DiceCombatEnchantRuntimeUtility
             switch (effective)
             {
                 case DiceFaceEnchantKind.Guard:
-                    preview.guardGain += Mathf.Max(0, diceRig.GetResolvedDieValue(slot0, caster));
+                    preview.guardGain += DiceFaceEnchantUtility.GuardGainAmount;
                     break;
                 case DiceFaceEnchantKind.Charge:
                     preview.focusGain += 1;
@@ -276,7 +276,7 @@ public static class DiceCombatEnchantRuntimeUtility
                 die.PlayFaceEnchantPopup(stored, "+1 dice");
                 break;
             case DiceFaceEnchantKind.Guard:
-                int guard = diceRig.GetResolvedDieValue(slot0, caster);
+                int guard = DiceFaceEnchantUtility.GuardGainAmount;
                 caster.AddGuard(guard);
                 die.PlayFaceEnchantPopup(stored, $"+{guard} Guard");
                 break;

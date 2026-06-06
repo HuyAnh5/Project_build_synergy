@@ -139,7 +139,7 @@ public static class CombatLabPrototypeSetupTool
         Canvas canvas = FindOrCreateCanvas();
         GameObject root = existing != null
             ? existing.gameObject
-            : FindOrCreateChild(canvas.transform, RewardScreenName, typeof(RectTransform), typeof(Image), typeof(PrototypeConsumableRewardScreen));
+            : FindOrCreateChild(canvas.transform, RewardScreenName, typeof(RectTransform), typeof(Image));
         RectTransform rootRt = root.GetComponent<RectTransform>();
         if (createdRoot)
         {
@@ -149,6 +149,8 @@ public static class CombatLabPrototypeSetupTool
             rootRt.offsetMax = Vector2.zero;
             rootRt.SetAsLastSibling();
         }
+
+        PrototypeConsumableRewardScreen screen = GetOrAdd<PrototypeConsumableRewardScreen>(root);
 
         Image blocker = GetOrAdd<Image>(root);
         if (createdRoot)
@@ -218,7 +220,6 @@ public static class CombatLabPrototypeSetupTool
         rewardBar.fallbackRowWidth = 980f;
         rewardBar.autoCreateMissingCards = true;
 
-        PrototypeConsumableRewardScreen screen = root.GetComponent<PrototypeConsumableRewardScreen>();
         SerializedObject so = new SerializedObject(screen);
         so.FindProperty("root").objectReferenceValue = rootRt;
         so.FindProperty("titleText").objectReferenceValue = title;

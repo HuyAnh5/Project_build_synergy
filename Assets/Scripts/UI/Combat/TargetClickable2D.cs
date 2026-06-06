@@ -95,18 +95,31 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         if (hasPreviewPlan && previewPlan.runtime != null)
             rt = previewPlan.runtime;
 
-        int dieValue = hasPreviewPlan ? previewPlan.resolvedDieValue : skillSource.GetPublicPreviewDieValue(rt);
+        int rawDieValue = hasPreviewPlan ? previewPlan.resolvedDieValue : skillSource.GetPublicPreviewDieValue(rt);
+        int guardLocalIndex = hasPreviewPlan ? Mathf.Clamp(previewPlan.anchor0 - previewPlan.start0, 0, 2) : 0;
+        int dieValue = ResolveTargetPreviewDieValue(rt, rawDieValue, guardLocalIndex);
         int resolveCount = hasPreviewPlan ? Mathf.Max(1, previewPlan.repeatCount + 1) : 1;
+        SkillDamageSO selectedDamageSkill = selectedAsset as SkillDamageSO;
+        SkillDamageSO sourceSkill = selectedDamageSkill != null ? selectedDamageSkill : SkillGameplayResolver.GetSourceSkill(rt);
         TargetPreviewBuilder.ActionPreviewBundle bundle =
-            TargetPreviewBuilder.BuildActionBundle(rt, turn.player, _actor, dieValue, turn.party, turn.enemy, resolveCount);
-        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
+            TargetPreviewBuilder.BuildActionBundle(rt, turn.player, _actor, dieValue, turn.party, turn.enemy, resolveCount, sourceSkill);
         if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill) && hasPreviewPlan && previewPlan.repeatCount > 0)
             TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, previewPlan.repeatCount + 1);
-        if (selectedAsset != null && SkillUiMetadataUtility.TryGetSkillCosts(selectedAsset, out _, out int slotsRequired) &&
-            turn.TryGetPrototypeSkillSimpleEnchantPreview(selectedAsset, slotsRequired, out var simplePreview))
+
+        DiceCombatEnchantRuntimeUtility.SimpleEnchantPreview simplePreview = default;
+        if (selectedAsset != null && SkillUiMetadataUtility.TryGetSkillCosts(selectedAsset, out _, out int slotsRequired))
+            simplePreview = GetSimpleEnchantPreview(selectedAsset, rt, slotsRequired);
+
+        if (TryBuildSelfGuardFinalPreview(rt, sourceSkill, dieValue, guardLocalIndex, resolveCount, simplePreview.guardGain, out TargetPreviewData selfGuardPreview))
+        {
+            bundle.targetPreviews[turn.player] = selfGuardPreview;
+            bundle.valid = true;
+        }
+        else
         {
             TargetPreviewBuilder.AddSelfResourcePreview(turn.player, simplePreview.guardGain, 0, ref bundle);
         }
+
         if (!bundle.valid)
             return;
 
@@ -124,17 +137,27 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         ClearAllPreviews(allUIs);
 
         ScriptableObject asset = null;
+        DraggableSkillIcon previewSource = null;
         if (UiDragState.IsDragging && eventData != null && eventData.pointerDrag != null)
         {
             DraggableSkillIcon drag = eventData.pointerDrag.GetComponent<DraggableSkillIcon>();
             if (drag != null)
+            {
+                previewSource = drag;
                 asset = drag.GetSkillAsset();
+            }
         }
 
         if (asset == null && UiDragState.SelectedSkill != null)
+        {
+            previewSource = UiDragState.SelectedSkill;
             asset = UiDragState.SelectedSkill.GetSkillAsset();
+        }
 
-        RestoreHudResourceBaseline(asset);
+        if (previewSource != null && asset != null)
+            previewSource.ShowResourcePreview(asset);
+        else
+            RestoreHudResourceBaseline(asset);
     }
 
     private ActorWorldUI GetWorldUI()
@@ -178,6 +201,108 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
 
         return null;
     }
+
+    private static int ResolveTargetPreviewDieValue(SkillRuntime runtime, int fallbackDieValue, int guardLocalIndex)
+    {
+        if (runtime == null || runtime.kind != SkillKind.Guard || runtime.guardValueMode != BaseEffectValueMode.X)
+            return fallbackDieValue;
+
+        int guardValue = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(runtime, Mathf.Max(0, guardLocalIndex));
+        return guardValue > 0 ? guardValue : fallbackDieValue;
+    }
+
+    private bool TryBuildSelfGuardFinalPreview(
+        SkillRuntime runtime,
+        SkillDamageSO sourceSkill,
+        int dieValue,
+        int guardLocalIndex,
+        int resolveCount,
+        int diceEnchantGuardGain,
+        out TargetPreviewData data)
+    {
+        data = default;
+        if (runtime == null || turn == null || turn.player == null || _actor != turn.player || runtime.kind != SkillKind.Guard)
+            return false;
+
+        CombatActor player = turn.player;
+        int skillGuardGain = ResolveSelfGuardGain(runtime, sourceSkill, player, dieValue, guardLocalIndex);
+        if (resolveCount > 1)
+            skillGuardGain *= resolveCount;
+
+        int totalGuardGain = Mathf.Max(0, skillGuardGain) + Mathf.Max(0, diceEnchantGuardGain);
+        if (totalGuardGain <= 0)
+            return false;
+
+        data = new TargetPreviewData
+        {
+            valid = true,
+            currentHp = player.hp,
+            currentMaxHp = player.maxHP,
+            currentGuard = player.guardPool,
+            previewHpAfter = player.hp,
+            previewGuardAfter = player.guardPool + totalGuardGain,
+            currentlyStaggered = player.status != null && player.status.staggered,
+            currentBurn = player.status != null ? player.status.burnStacks : 0,
+            currentBleed = player.status != null ? player.status.bleedStacks : 0,
+            currentMarked = player.status != null && player.status.marked,
+            currentFrozen = player.status != null && player.status.frozen,
+            previewBurnAfter = player.status != null ? player.status.burnStacks : 0,
+            previewBleedAfter = player.status != null ? player.status.bleedStacks : 0,
+            previewMarkedAfter = player.status != null && player.status.marked,
+            previewFrozenAfter = player.status != null && player.status.frozen,
+            isSelfTarget = true,
+            selfGuardGain = totalGuardGain
+        };
+        return true;
+    }
+
+    private static int ResolveSelfGuardGain(SkillRuntime runtime, SkillDamageSO sourceSkill, CombatActor caster, int dieValue, int guardLocalIndex)
+    {
+        if (runtime == null || runtime.kind != SkillKind.Guard)
+            return 0;
+
+        if (sourceSkill == null)
+            sourceSkill = SkillGameplayResolver.GetSourceSkill(runtime);
+        if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+        {
+            SkillResolvedResult resolved = SkillGameplayResolver.Resolve(
+                sourceSkill,
+                runtime,
+                caster,
+                caster,
+                SkillGameplayResolver.BuildConditionContext(runtime, caster, caster));
+            if (resolved == null || !resolved.canCast || resolved.effects == null)
+                return 0;
+
+            int resolvedGuard = 0;
+            for (int i = 0; i < resolved.effects.Count; i++)
+            {
+                ResolvedEffect effect = resolved.effects[i];
+                if (effect == null || effect.sameActionFollowUp || effect.type != SkillEffectType.GainGuard)
+                    continue;
+                CombatActor target = effect.targetActor != null ? effect.targetActor : caster;
+                if (target == caster)
+                    resolvedGuard += Mathf.Max(0, effect.value);
+            }
+
+            return Mathf.Max(0, resolvedGuard);
+        }
+
+        int baseGuard;
+        if (runtime.guardValueMode == BaseEffectValueMode.Flat && runtime.guardFlat > 0)
+            baseGuard = SkillOutputValueUtility.AddActionAddedValue(runtime.guardFlat, runtime);
+        else if (runtime.guardValueMode == BaseEffectValueMode.X)
+            baseGuard = ResolveTargetPreviewDieValue(runtime, dieValue, guardLocalIndex);
+        else
+            baseGuard = runtime.CalculateGuard(dieValue);
+
+        PassiveSystem passiveSystem = caster != null ? caster.GetComponent<PassiveSystem>() : null;
+        float pct = passiveSystem != null ? passiveSystem.GetGuardGainPercent() : 0f;
+        float multiplier = 1f + Mathf.Max(-0.99f, pct);
+        return Mathf.Max(0, Mathf.FloorToInt(baseGuard * multiplier));
+    }
+
+    
 
     private void ShowBundlePreviews(TargetPreviewBuilder.ActionPreviewBundle bundle, ActorWorldUI[] allUIs)
     {

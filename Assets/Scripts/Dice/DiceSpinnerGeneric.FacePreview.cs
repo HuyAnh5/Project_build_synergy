@@ -252,21 +252,34 @@ public partial class DiceSpinnerGeneric
         DiceFaceEnchantKind displayedEnchant = hasPreviewEnchant ? previewEnchant : face.enchant;
 
         Sprite icon = null;
-        Color iconTint = Color.white;
+        Color ignoredIconTint;
         bool hasEnchantIcon =
             !face.broken &&
             DiceFaceEnchantUtility.HasEnchant(displayedEnchant) &&
             iconLibrary != null &&
-            iconLibrary.TryGetDiceFaceEnchantIcon(displayedEnchant, out icon, out iconTint) &&
+            iconLibrary.TryGetDiceFaceEnchantIcon(displayedEnchant, out icon, out ignoredIconTint) &&
             icon != null;
 
-        CacheFaceIconBaseColor(faceIndex, iconRenderer);
         CacheFaceIconBaseLocalScale(faceIndex, iconRenderer);
         iconRenderer.sprite = hasEnchantIcon ? icon : null;
-        iconRenderer.color = hasEnchantIcon ? iconTint : Color.white;
+        iconRenderer.color = Color.white;
         iconRenderer.enabled = hasEnchantIcon;
+        ApplyFaceIconMaterialColor(iconRenderer, hasEnchantIcon ? Color.white : Color.clear);
+        if (_faceIconBaseColors != null && faceIndex < _faceIconBaseColors.Length)
+            _faceIconBaseColors[faceIndex] = Color.white;
         ApplyFaceEnchantIconFit(faceIndex, iconRenderer, hasEnchantIcon ? icon : null);
         ApplyFaceIconBlink(faceIndex, iconRenderer, hasEnchantIcon && hasPreviewEnchant && _facePreviewEnchantBlink[faceIndex]);
+    }
+
+    private void ApplyFaceIconMaterialColor(SpriteRenderer iconRenderer, Color color)
+    {
+        if (iconRenderer == null)
+            return;
+
+        MaterialPropertyBlock block = new MaterialPropertyBlock();
+        iconRenderer.GetPropertyBlock(block);
+        block.SetColor("_Color", color);
+        iconRenderer.SetPropertyBlock(block);
     }
 
     private void EnsureFacePreviewState()

@@ -83,7 +83,7 @@ public sealed partial class SkillTooltipUI
             rect.pivot = new Vector2(0f, 1f);
         }
 
-        text.enableWordWrapping = true;
+        text.textWrappingMode = TextWrappingModes.Normal;
         text.overflowMode = TextOverflowModes.Overflow;
         text.alignment = TextAlignmentOptions.TopLeft;
         text.margin = Vector4.zero;
@@ -407,7 +407,7 @@ public sealed partial class SkillTooltipUI
     private bool TryResolveElementIcon(ElementType element, out Sprite icon)
     {
         icon = null;
-        ActorWorldUI[] worldUis = FindObjectsOfType<ActorWorldUI>(true);
+        ActorWorldUI[] worldUis = FindObjectsByType<ActorWorldUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < worldUis.Length; i++)
         {
             SkillUiIconLibrarySO library = worldUis[i] != null ? worldUis[i].iconLibrary : null;
@@ -452,7 +452,7 @@ public sealed partial class SkillTooltipUI
         text.fontStyle = style;
         text.color = Color.white;
         text.alignment = alignment;
-        text.enableWordWrapping = true;
+        text.textWrappingMode = TextWrappingModes.Normal;
         text.raycastTarget = false;
         return text;
     }

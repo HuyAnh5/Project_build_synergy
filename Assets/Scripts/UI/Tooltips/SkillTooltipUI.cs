@@ -214,7 +214,10 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
     {
         Canvas existing = FindTooltipOverlayCanvas();
         if (existing != null)
+        {
+            ConfigureTooltipOverlayCanvas(existing, sourceCanvas);
             return existing;
+        }
 
         GameObject canvasGo = new GameObject(
             TooltipOverlayCanvasName,
@@ -224,10 +227,7 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
             typeof(GraphicRaycaster));
 
         Canvas overlayCanvas = canvasGo.GetComponent<Canvas>();
-        overlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        overlayCanvas.overrideSorting = true;
-        overlayCanvas.sortingOrder = short.MaxValue;
-        overlayCanvas.pixelPerfect = false;
+        ConfigureTooltipOverlayCanvas(overlayCanvas, sourceCanvas);
 
         CanvasScaler scaler = canvasGo.GetComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
@@ -235,16 +235,36 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
         scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
         scaler.matchWidthOrHeight = 0.5f;
 
-        if (sourceCanvas != null)
-            canvasGo.layer = sourceCanvas.gameObject.layer;
-
-        DontDestroyOnLoad(canvasGo);
         return overlayCanvas;
+    }
+
+    private static void ConfigureTooltipOverlayCanvas(Canvas overlayCanvas, Canvas sourceCanvas)
+    {
+        if (overlayCanvas == null)
+            return;
+
+        overlayCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        overlayCanvas.worldCamera = null;
+        overlayCanvas.overrideSorting = true;
+        overlayCanvas.sortingOrder = short.MaxValue;
+        overlayCanvas.pixelPerfect = false;
+
+        CanvasScaler scaler = overlayCanvas.GetComponent<CanvasScaler>();
+        if (scaler != null)
+        {
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
+        }
+
+        if (sourceCanvas != null)
+            overlayCanvas.gameObject.layer = sourceCanvas.gameObject.layer;
     }
 
     private static Canvas FindTooltipOverlayCanvas()
     {
-        Canvas[] canvases = FindObjectsOfType<Canvas>(true);
+        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         for (int i = 0; i < canvases.Length; i++)
         {
             Canvas canvas = canvases[i];

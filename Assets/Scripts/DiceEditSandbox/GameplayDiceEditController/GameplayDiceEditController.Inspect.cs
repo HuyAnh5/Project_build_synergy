@@ -39,7 +39,7 @@ public partial class GameplayDiceEditController
         Vector3 cloneLocalPosition = inspectLocalPosition;
         cloneLocalPosition.z += inspectExtraDistanceFromCamera;
         _inspectCloneInstance.transform.localPosition = cloneLocalPosition;
-        _inspectCloneInstance.transform.localRotation = Quaternion.identity;
+        _inspectCloneInstance.transform.localRotation = Quaternion.Euler(inspectLocalEuler);
         _inspectCloneInstance.transform.localScale = inspectLocalScale;
         DisableGameplayComponentsOnInspectClone(_inspectCloneInstance);
 

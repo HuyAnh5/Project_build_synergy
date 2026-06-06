@@ -72,7 +72,8 @@ public static partial class TargetPreviewBuilder
         int dieValue,
         BattlePartyManager2D party,
         CombatActor fallbackEnemy,
-        int resolveCount = 1)
+        int resolveCount = 1,
+        SkillDamageSO sourceSkill = null)
     {
         ActionPreviewBundle bundle = new ActionPreviewBundle
         {
@@ -86,60 +87,71 @@ public static partial class TargetPreviewBuilder
         if (rt == null || caster == null)
             return bundle;
 
-        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
-        if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+        ScriptableObject previousSourceAsset = rt.sourceAsset;
+        if (sourceSkill != null)
+            rt.sourceAsset = sourceSkill;
+
+        try
         {
-            if (CombatActionPreviewSimulator.TrySimulateTargetFinalState(rt, caster, clickedTarget, dieValue, resolveCount, out TargetPreviewData simulatedData))
+            sourceSkill = sourceSkill != null ? sourceSkill : SkillGameplayResolver.GetSourceSkill(rt);
+            if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
             {
-                bundle.targetPreviews[clickedTarget] = simulatedData;
-                bundle.valid = simulatedData.valid;
+                if (CombatActionPreviewSimulator.TrySimulateTargetFinalState(rt, caster, clickedTarget, dieValue, resolveCount, out TargetPreviewData simulatedData))
+                {
+                    bundle.targetPreviews[clickedTarget] = simulatedData;
+                    bundle.valid = simulatedData.valid;
+                    return bundle;
+                }
+
+                return BuildResolvedGameplayBundle(rt, caster, clickedTarget, bundle);
+            }
+
+            List<CombatActor> actionTargets = ResolveActionTargets(rt, caster, clickedTarget, party, fallbackEnemy);
+            if (actionTargets.Count <= 0)
                 return bundle;
-            }
 
-            return BuildResolvedGameplayBundle(rt, caster, clickedTarget, bundle);
-        }
+            int lightningShockProcCount = 0;
+            int lightningShockDamagePerProc = 0;
 
-        List<CombatActor> actionTargets = ResolveActionTargets(rt, caster, clickedTarget, party, fallbackEnemy);
-        if (actionTargets.Count <= 0)
-            return bundle;
-
-        int lightningShockProcCount = 0;
-        int lightningShockDamagePerProc = 0;
-
-        for (int i = 0; i < actionTargets.Count; i++)
-        {
-            CombatActor target = actionTargets[i];
-            if (target == null)
-                continue;
-
-            TargetPreviewData data = Build(rt, caster, target, dieValue);
-            bundle.targetPreviews[target] = data;
-            bundle.totalSelfFocusGain += Mathf.Max(0, data.selfFocusGain);
-            bool previewAlreadyOnCaster = target == caster && (rt.kind == SkillKind.Guard || rt.kind == SkillKind.Utility);
-            if (!previewAlreadyOnCaster)
-                bundle.totalSelfGuardGain += Mathf.Max(0, data.selfGuardGain);
-            bundle.totalSelfHealGain += Mathf.Max(0, data.selfHealGain);
-            bundle.valid |= data.valid;
-
-            if (ShouldTriggerLightningShock(rt, target))
+            for (int i = 0; i < actionTargets.Count; i++)
             {
-                lightningShockProcCount++;
-                lightningShockDamagePerProc = Mathf.Max(lightningShockDamagePerProc, GetLightningShockDamagePerProc(rt, caster));
-                data.willTriggerMarkShock = true;
+                CombatActor target = actionTargets[i];
+                if (target == null)
+                    continue;
+
+                TargetPreviewData data = Build(rt, caster, target, dieValue);
                 bundle.targetPreviews[target] = data;
+                bundle.totalSelfFocusGain += Mathf.Max(0, data.selfFocusGain);
+                bool previewAlreadyOnCaster = target == caster && (rt.kind == SkillKind.Guard || rt.kind == SkillKind.Utility);
+                if (!previewAlreadyOnCaster)
+                    bundle.totalSelfGuardGain += Mathf.Max(0, data.selfGuardGain);
+                bundle.totalSelfHealGain += Mathf.Max(0, data.selfHealGain);
+                bundle.valid |= data.valid;
+
+                if (ShouldTriggerLightningShock(rt, target))
+                {
+                    lightningShockProcCount++;
+                    lightningShockDamagePerProc = Mathf.Max(lightningShockDamagePerProc, GetLightningShockDamagePerProc(rt, caster));
+                    data.willTriggerMarkShock = true;
+                    bundle.targetPreviews[target] = data;
+                }
+
             }
 
+            if (bundle.totalSelfGuardGain > 0)
+                AddCasterGuardPreview(caster, bundle.totalSelfGuardGain, ref bundle);
+            if (bundle.totalSelfHealGain > 0)
+                AddCasterHealPreview(caster, bundle.totalSelfHealGain, ref bundle);
+
+            if (lightningShockProcCount > 0 && lightningShockDamagePerProc > 0)
+                ApplyLightningShockBoardPreview(rt, caster, party, fallbackEnemy, lightningShockDamagePerProc, lightningShockProcCount, ref bundle);
+
+            return bundle;
         }
-
-        if (bundle.totalSelfGuardGain > 0)
-            AddCasterGuardPreview(caster, bundle.totalSelfGuardGain, ref bundle);
-        if (bundle.totalSelfHealGain > 0)
-            AddCasterHealPreview(caster, bundle.totalSelfHealGain, ref bundle);
-
-        if (lightningShockProcCount > 0 && lightningShockDamagePerProc > 0)
-            ApplyLightningShockBoardPreview(rt, caster, party, fallbackEnemy, lightningShockDamagePerProc, lightningShockProcCount, ref bundle);
-
-        return bundle;
+        finally
+        {
+            rt.sourceAsset = previousSourceAsset;
+        }
     }
 
     public static void ApplyRepeatPreviewMultiplier(ref ActionPreviewBundle bundle, int multiplier)

@@ -60,6 +60,7 @@ internal sealed class SkillIconPreviewController
         }
 
         ShowTargetOverlays(asset);
+        ShowSelfEnchantGuardPreview();
         _resourcePreviewActive = true;
     }
 
@@ -141,14 +142,26 @@ internal sealed class SkillIconPreviewController
         if (!TurnManagerTargetingUtility.IsValidTargetForPendingSkill(_cachedDragRuntime, hoveredActor, _turn.player, _turn.party, _turn.enemy))
             return;
 
-        int dieValue = _previewPlan.valid ? _previewPlan.resolvedDieValue : _getPreviewDieValue(_cachedDragRuntime);
+        int rawDieValue = _previewPlan.valid ? _previewPlan.resolvedDieValue : _getPreviewDieValue(_cachedDragRuntime);
+        int guardLocalIndex = _previewPlan.valid ? Mathf.Clamp(_previewPlan.anchor0 - _previewPlan.start0, 0, 2) : 0;
+        int dieValue = ResolveTargetPreviewDieValue(_cachedDragRuntime, rawDieValue, guardLocalIndex);
         int resolveCount = _previewPlan.valid ? Mathf.Max(1, _previewPlan.repeatCount + 1) : 1;
+        SkillDamageSO selectedDamageSkill = _getSkillAsset() as SkillDamageSO;
+        SkillDamageSO sourceSkill = selectedDamageSkill != null ? selectedDamageSkill : SkillGameplayResolver.GetSourceSkill(_cachedDragRuntime);
         TargetPreviewBuilder.ActionPreviewBundle bundle =
-            TargetPreviewBuilder.BuildActionBundle(_cachedDragRuntime, _turn.player, hoveredActor, dieValue, _turn.party, _turn.enemy, resolveCount);
-        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(_cachedDragRuntime);
+            TargetPreviewBuilder.BuildActionBundle(_cachedDragRuntime, _turn.player, hoveredActor, dieValue, _turn.party, _turn.enemy, resolveCount, sourceSkill);
         if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill) && _previewPlan.valid && _previewPlan.repeatCount > 0)
             TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, _previewPlan.repeatCount + 1);
-        TargetPreviewBuilder.AddSelfResourcePreview(_turn.player, _simpleEnchantPreview.guardGain, 0, ref bundle);
+
+        if (TryBuildSelfGuardFinalPreview(_cachedDragRuntime, sourceSkill, hoveredActor, dieValue, guardLocalIndex, resolveCount, _simpleEnchantPreview.guardGain, out TargetPreviewData selfGuardPreview))
+        {
+            bundle.targetPreviews[_turn.player] = selfGuardPreview;
+            bundle.valid = true;
+        }
+        else
+        {
+            TargetPreviewBuilder.AddSelfResourcePreview(_turn.player, _simpleEnchantPreview.guardGain, 0, ref bundle);
+        }
 
         if (!bundle.valid)
             return;
@@ -228,7 +241,110 @@ internal sealed class SkillIconPreviewController
                 if (hud != null)
                     hud.ShowFocusPreview(focusCost, _simpleEnchantPreview.focusGain, _turn.player.focus < focusCost);
             }
+
+            ShowSelfEnchantGuardPreview();
         }
+    }
+
+    private static int ResolveTargetPreviewDieValue(SkillRuntime runtime, int fallbackDieValue, int guardLocalIndex)
+    {
+        if (runtime == null || runtime.kind != SkillKind.Guard || runtime.guardValueMode != BaseEffectValueMode.X)
+            return fallbackDieValue;
+
+        int guardValue = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(runtime, Mathf.Max(0, guardLocalIndex));
+        return guardValue > 0 ? guardValue : fallbackDieValue;
+    }
+
+    private bool TryBuildSelfGuardFinalPreview(
+        SkillRuntime runtime,
+        SkillDamageSO sourceSkill,
+        CombatActor hoveredActor,
+        int dieValue,
+        int guardLocalIndex,
+        int resolveCount,
+        int diceEnchantGuardGain,
+        out TargetPreviewData data)
+    {
+        data = default;
+        if (runtime == null || _turn == null || _turn.player == null || hoveredActor != _turn.player || runtime.kind != SkillKind.Guard)
+            return false;
+
+        CombatActor player = _turn.player;
+        int skillGuardGain = ResolveSelfGuardGain(runtime, sourceSkill, player, dieValue, guardLocalIndex);
+        if (resolveCount > 1)
+            skillGuardGain *= resolveCount;
+
+        int totalGuardGain = Mathf.Max(0, skillGuardGain) + Mathf.Max(0, diceEnchantGuardGain);
+        if (totalGuardGain <= 0)
+            return false;
+
+        data = new TargetPreviewData
+        {
+            valid = true,
+            currentHp = player.hp,
+            currentMaxHp = player.maxHP,
+            currentGuard = player.guardPool,
+            previewHpAfter = player.hp,
+            previewGuardAfter = player.guardPool + totalGuardGain,
+            currentlyStaggered = player.status != null && player.status.staggered,
+            currentBurn = player.status != null ? player.status.burnStacks : 0,
+            currentBleed = player.status != null ? player.status.bleedStacks : 0,
+            currentMarked = player.status != null && player.status.marked,
+            currentFrozen = player.status != null && player.status.frozen,
+            previewBurnAfter = player.status != null ? player.status.burnStacks : 0,
+            previewBleedAfter = player.status != null ? player.status.bleedStacks : 0,
+            previewMarkedAfter = player.status != null && player.status.marked,
+            previewFrozenAfter = player.status != null && player.status.frozen,
+            isSelfTarget = true,
+            selfGuardGain = totalGuardGain
+        };
+        return true;
+    }
+
+    private static int ResolveSelfGuardGain(SkillRuntime runtime, SkillDamageSO sourceSkill, CombatActor caster, int dieValue, int guardLocalIndex)
+    {
+        if (runtime == null || runtime.kind != SkillKind.Guard)
+            return 0;
+
+        if (sourceSkill == null)
+            sourceSkill = SkillGameplayResolver.GetSourceSkill(runtime);
+        if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+        {
+            SkillResolvedResult resolved = SkillGameplayResolver.Resolve(
+                sourceSkill,
+                runtime,
+                caster,
+                caster,
+                SkillGameplayResolver.BuildConditionContext(runtime, caster, caster));
+            if (resolved == null || !resolved.canCast || resolved.effects == null)
+                return 0;
+
+            int resolvedGuard = 0;
+            for (int i = 0; i < resolved.effects.Count; i++)
+            {
+                ResolvedEffect effect = resolved.effects[i];
+                if (effect == null || effect.sameActionFollowUp || effect.type != SkillEffectType.GainGuard)
+                    continue;
+                CombatActor target = effect.targetActor != null ? effect.targetActor : caster;
+                if (target == caster)
+                    resolvedGuard += Mathf.Max(0, effect.value);
+            }
+
+            return Mathf.Max(0, resolvedGuard);
+        }
+
+        int baseGuard;
+        if (runtime.guardValueMode == BaseEffectValueMode.Flat && runtime.guardFlat > 0)
+            baseGuard = SkillOutputValueUtility.AddActionAddedValue(runtime.guardFlat, runtime);
+        else if (runtime.guardValueMode == BaseEffectValueMode.X)
+            baseGuard = ResolveTargetPreviewDieValue(runtime, dieValue, guardLocalIndex);
+        else
+            baseGuard = runtime.CalculateGuard(dieValue);
+
+        PassiveSystem passiveSystem = caster != null ? caster.GetComponent<PassiveSystem>() : null;
+        float pct = passiveSystem != null ? passiveSystem.GetGuardGainPercent() : 0f;
+        float multiplier = 1f + Mathf.Max(-0.99f, pct);
+        return Mathf.Max(0, Mathf.FloorToInt(baseGuard * multiplier));
     }
 
     private void ShowActionPreviewBundle(TargetPreviewBuilder.ActionPreviewBundle bundle)
@@ -273,7 +389,7 @@ internal sealed class SkillIconPreviewController
 
     private void ShowSelfEnchantGuardPreview()
     {
-        if (_turn == null || _turn.player == null)
+        if (_turn == null || _turn.player == null || _simpleEnchantPreview.guardGain <= 0)
             return;
 
         ActorWorldUI playerUi = FindActorWorldUi(_turn.player);
@@ -281,51 +397,6 @@ internal sealed class SkillIconPreviewController
             return;
 
         CombatActor player = _turn.player;
-        TargetPreviewBuilder.ActionPreviewBundle bundle = default;
-        SkillRuntime runtime = _cachedDragRuntime;
-        if (runtime == null)
-        {
-            ScriptableObject asset = _getSkillAsset();
-            if (asset != null && !(asset is SkillPassiveSO))
-            {
-                if (_previewPlan.valid && _previewPlan.runtime != null)
-                    runtime = _previewPlan.runtime;
-                else if (!_turn.TryGetPrototypeSkillTooltipRuntime(asset, out runtime))
-                {
-                    if (asset is SkillDamageSO damageSkill)
-                        runtime = SkillRuntime.FromDamage(damageSkill);
-                    else if (asset is SkillBuffDebuffSO buffSkill)
-                        runtime = SkillRuntime.FromBuffDebuff(buffSkill);
-                }
-            }
-        }
-
-        bool canSelfPreview = runtime != null &&
-                              ((runtime.useV2Targeting && runtime.targetRuleV2 == SkillTargetRule.Self) ||
-                               runtime.kind == SkillKind.Guard ||
-                               runtime.coreAction == CoreAction.BasicGuard);
-
-        if (runtime != null && canSelfPreview)
-        {
-            int dieValue = _previewPlan.valid ? _previewPlan.resolvedDieValue : _getPreviewDieValue(runtime);
-            int resolveCount = _previewPlan.valid ? Mathf.Max(1, _previewPlan.repeatCount + 1) : 1;
-            bundle = TargetPreviewBuilder.BuildActionBundle(runtime, player, player, dieValue, _turn.party, _turn.enemy, resolveCount);
-            SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(runtime);
-            if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill) && _previewPlan.valid && _previewPlan.repeatCount > 0)
-                TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, _previewPlan.repeatCount + 1);
-            TargetPreviewBuilder.AddSelfResourcePreview(player, _simpleEnchantPreview.guardGain, 0, ref bundle);
-
-            if (bundle.valid && bundle.targetPreviews != null && bundle.targetPreviews.TryGetValue(player, out TargetPreviewData bundleData) && bundleData.valid)
-            {
-                playerUi.ShowTargetPreview(bundleData);
-                _currentPreviewTarget = playerUi;
-                return;
-            }
-        }
-
-        if (_simpleEnchantPreview.guardGain <= 0)
-            return;
-
         TargetPreviewData data = new TargetPreviewData
         {
             valid = true,
@@ -348,7 +419,6 @@ internal sealed class SkillIconPreviewController
         };
 
         playerUi.ShowTargetPreview(data);
-        _currentPreviewTarget = playerUi;
     }
 
     private CombatActor RaycastForActor(PointerEventData eventData)

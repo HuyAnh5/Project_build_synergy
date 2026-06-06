@@ -43,6 +43,50 @@ public static class GameplayDiceEditSceneSetupTool
         Selection.activeGameObject = controller.gameObject;
     }
 
+    [MenuItem("Tools/Build Synergy/Prototype/Setup Scene Local Dice Edit UI Layers")]
+    public static void SetupSceneLocalDiceEditUiLayers()
+    {
+        EnsureEventSystem();
+
+        Transform uiRoot = FindOrCreateSceneRoot("SceneLocalCombatUIRoot");
+        uiRoot.gameObject.SetActive(true);
+
+        Canvas panelCanvas = FindOrCreatePanelCanvas(uiRoot, "GameplayDiceEditPanelCanvas", 30000);
+        Canvas tooltipCanvas = FindOrCreateOverlayCanvas(uiRoot, "SkillTooltipOverlayCanvas", short.MaxValue);
+
+        GameplayDiceEditPanelUI panelUi = FindOrCreatePanel(panelCanvas.transform);
+        Transform fallbackAnchor = FindOrCreateInspectAnchor();
+        GameplayDiceEditController controller = FindOrCreateController();
+
+        SerializedObject controllerSo = new SerializedObject(controller);
+        controllerSo.FindProperty("panelUi").objectReferenceValue = panelUi;
+        controllerSo.FindProperty("inspectAnchor").objectReferenceValue = fallbackAnchor;
+        controllerSo.FindProperty("runInventory").objectReferenceValue = Object.FindFirstObjectByType<RunInventoryManager>(FindObjectsInactive.Include);
+        controllerSo.FindProperty("diceRig").objectReferenceValue = Object.FindFirstObjectByType<DiceSlotRig>(FindObjectsInactive.Include);
+        controllerSo.ApplyModifiedPropertiesWithoutUndo();
+
+        ConsumableBarUIManager bar = Object.FindFirstObjectByType<ConsumableBarUIManager>(FindObjectsInactive.Include);
+        if (bar != null)
+        {
+            SerializedObject barSo = new SerializedObject(bar);
+            barSo.FindProperty("diceEditController").objectReferenceValue = controller;
+            barSo.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(bar);
+        }
+
+        panelCanvas.gameObject.SetActive(true);
+        tooltipCanvas.gameObject.SetActive(true);
+        DisableLegacyInspectPreviewObjects();
+        DiceFaceHighlightMetadataSetupTool.GenerateForSceneDice();
+
+        EditorUtility.SetDirty(panelUi);
+        EditorUtility.SetDirty(controller);
+        EditorUtility.SetDirty(panelCanvas);
+        EditorUtility.SetDirty(tooltipCanvas);
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Selection.activeGameObject = uiRoot.gameObject;
+    }
+
     private static GameplayDiceEditController FindOrCreateController()
     {
         GameplayDiceEditController existing = Object.FindFirstObjectByType<GameplayDiceEditController>(FindObjectsInactive.Include);
@@ -54,17 +98,36 @@ public static class GameplayDiceEditSceneSetupTool
         return Undo.AddComponent<GameplayDiceEditController>(go);
     }
 
+    private static GameObject FindSceneGameObjectByName(string name)
+    {
+        Transform[] transforms = Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            Transform transform = transforms[i];
+            if (transform != null && transform.name == name && transform.gameObject.scene.IsValid())
+                return transform.gameObject;
+        }
+
+        return null;
+    }
+
     private static GameplayDiceEditPanelUI FindOrCreatePanel(Transform canvas)
     {
-        GameObject root = FindOrCreateChild(canvas, PanelRootName, typeof(RectTransform), typeof(Image));
-        RectTransform rootRt = root.GetComponent<RectTransform>();
+        Transform existing = canvas != null ? canvas.Find(PanelRootName) : null;
+        GameObject root = existing != null ? existing.gameObject : FindSceneGameObjectByName(PanelRootName);
+        if (root == null)
+            root = new GameObject(PanelRootName, typeof(RectTransform), typeof(Image));
+        if (canvas != null && root.transform.parent != canvas)
+            Undo.SetTransformParent(root.transform, canvas, "Move Gameplay Dice Edit Panel");
+
+        RectTransform rootRt = root.GetComponent<RectTransform>() ?? Undo.AddComponent<RectTransform>(root);
         rootRt.anchorMin = Vector2.zero;
         rootRt.anchorMax = Vector2.one;
         rootRt.pivot = new Vector2(0.5f, 0.5f);
         rootRt.offsetMin = Vector2.zero;
         rootRt.offsetMax = Vector2.zero;
 
-        Image bg = root.GetComponent<Image>();
+        Image bg = root.GetComponent<Image>() ?? Undo.AddComponent<Image>(root);
         bg.color = new Color(0f, 0f, 0f, 0f);
         bg.raycastTarget = false;
 
@@ -140,6 +203,90 @@ public static class GameplayDiceEditSceneSetupTool
         return go.transform;
     }
 
+
+    private static Transform FindOrCreateSceneRoot(string name)
+    {
+        GameObject existing = FindSceneGameObjectByName(name);
+        if (existing != null)
+            return existing.transform;
+
+        GameObject root = new GameObject(name, typeof(RectTransform));
+        Undo.RegisterCreatedObjectUndo(root, "Create " + name);
+        RectTransform rect = root.GetComponent<RectTransform>();
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        return root.transform;
+    }
+
+    private static Canvas FindOrCreateOverlayCanvas(Transform parent, string name, int sortingOrder)
+    {
+        Transform existing = parent != null ? parent.Find(name) : null;
+        GameObject canvasGo = existing != null ? existing.gameObject : FindSceneGameObjectByName(name);
+        if (canvasGo == null)
+        {
+            canvasGo = new GameObject(name, typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            Undo.RegisterCreatedObjectUndo(canvasGo, "Create " + name);
+        }
+
+        if (parent != null && canvasGo.transform.parent != parent)
+            Undo.SetTransformParent(canvasGo.transform, parent, "Move " + name);
+
+        RectTransform rect = canvasGo.GetComponent<RectTransform>() ?? Undo.AddComponent<RectTransform>(canvasGo);
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        rect.localScale = Vector3.one;
+
+        Canvas canvas = canvasGo.GetComponent<Canvas>() ?? Undo.AddComponent<Canvas>(canvasGo);
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = sortingOrder;
+        canvas.pixelPerfect = false;
+
+        CanvasScaler scaler = canvasGo.GetComponent<CanvasScaler>() ?? Undo.AddComponent<CanvasScaler>(canvasGo);
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920f, 1080f);
+        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        scaler.matchWidthOrHeight = 0.5f;
+
+        GraphicRaycaster raycaster = canvasGo.GetComponent<GraphicRaycaster>() ?? Undo.AddComponent<GraphicRaycaster>(canvasGo);
+        raycaster.enabled = true;
+        return canvas;
+    }
+
+    private static Canvas FindOrCreatePanelCanvas(Transform parent, string name, int sortingOrder)
+    {
+        Canvas canvas = FindOrCreateOverlayCanvas(parent, name, sortingOrder);
+        Camera mainCamera = Camera.main;
+        if (mainCamera != null)
+        {
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = mainCamera;
+            canvas.planeDistance = 7.5f;
+        }
+
+        return canvas;
+    }
+
+    private static void DisableLegacyInspectPreviewObjects()
+    {
+        GameObject imageGo = FindSceneGameObjectByName("InspectDiceRawImage");
+        if (imageGo != null)
+            imageGo.SetActive(false);
+
+        GameObject cameraGo = FindSceneGameObjectByName("DicePreviewCamera");
+        if (cameraGo != null)
+        {
+            Camera camera = cameraGo.GetComponent<Camera>();
+            if (camera != null)
+                camera.targetTexture = null;
+            cameraGo.SetActive(false);
+        }
+    }
+
     private static Canvas FindOrCreateCanvas()
     {
         Canvas canvas = Object.FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
@@ -186,7 +333,7 @@ public static class GameplayDiceEditSceneSetupTool
         tmp.fontStyle = style;
         tmp.alignment = alignment;
         tmp.color = Color.white;
-        tmp.enableWordWrapping = true;
+        tmp.textWrappingMode = TextWrappingModes.Normal;
         return tmp;
     }
 
