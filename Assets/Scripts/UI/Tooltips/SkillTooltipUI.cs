@@ -113,6 +113,15 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
         HideCurrent();
     }
 
+    public static bool IsCurrentSource(ISkillTooltipSource source)
+    {
+        return source != null &&
+               _instance != null &&
+               _instance._root != null &&
+               _instance._root.gameObject.activeInHierarchy &&
+               ReferenceEquals(_instance._currentSource, source);
+    }
+
     public static bool IsPointerOverCurrentTooltip(GameObject pointerTarget = null)
     {
         if (_instance == null || _instance._root == null || !_instance._root.gameObject.activeInHierarchy)

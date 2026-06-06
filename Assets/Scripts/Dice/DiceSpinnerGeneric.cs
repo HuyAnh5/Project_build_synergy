@@ -88,6 +88,14 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
     private bool[] _facePreviewEnchantBlink;
     private Tween[] _facePreviewIconTweens;
     private Color[] _faceIconBaseColors;
+
+    [Header("Face Enchant Icon Fit")]
+    [Tooltip("Maximum local width/height for face enchant SpriteRenderer icons after fitting the sprite into its slot.")]
+    [SerializeField] private Vector2 faceEnchantIconMaxLocalSize = new Vector2(0.28f, 0.28f);
+    [Tooltip("If enabled, small enchant sprites are scaled up to fill the max icon size. If disabled, only oversized sprites are scaled down.")]
+    [SerializeField] private bool upscaleSmallFaceEnchantIcons;
+    private Vector3[] _faceIconBaseLocalScales;
+    private bool[] _faceIconBaseLocalScaleCached;
     private Material[][] _wholeDieMaterialInstances;
     private Color[][] _wholeDieOriginalColors;
     private GameObject[] _feedbackOutlineObjects;
@@ -681,6 +689,25 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         SkillTooltipUI.Show(this);
     }
 
+    public bool TryResolveHoveredEnchantFace(Camera cam, out int logicalFaceIndex, out Rect hoverRect)
+    {
+        return TryResolveWorldTooltipFace(cam, out logicalFaceIndex, out hoverRect);
+    }
+
+    public bool TryGetFaceEnchantScreenRect(Camera cam, int faceIndex, out Rect screenRect)
+    {
+        screenRect = default;
+        if (!ValidateFaces() || faceIndex < 0 || faceIndex >= faces.Length)
+            return false;
+
+        DiceFace face = faces[faceIndex];
+        DiceFaceEnchantKind displayedEnchant = GetDisplayedFaceEnchant(faceIndex);
+        if (face.broken || !DiceFaceEnchantUtility.HasEnchant(displayedEnchant))
+            return false;
+
+        return TryBuildFaceEnchantIconScreenRect(face, cam, out screenRect, padding: 2f);
+    }
+
     private bool TryResolveWorldTooltipFace(Camera cam, out int logicalFaceIndex, out Rect hoverRect)
     {
         logicalFaceIndex = -1;
@@ -694,7 +721,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
             if (face.broken || !DiceFaceEnchantUtility.HasEnchant(displayedEnchant))
                 continue;
 
-            if (!TryBuildFaceIconScreenRect(face, cam, out Rect screenRect, padding: 12f))
+            if (!TryBuildFaceEnchantIconScreenRect(face, cam, out Rect screenRect, padding: 2f))
                 continue;
 
             if (!screenRect.Contains(pointer))
@@ -734,6 +761,11 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         screenRect.yMin -= padding;
         screenRect.yMax += padding;
         return screenRect.width > 0f && screenRect.height > 0f;
+    }
+
+    private bool TryBuildFaceEnchantIconScreenRect(DiceFace face, Camera cam, out Rect screenRect, float padding)
+    {
+        return TryBuildRendererScreenRect(face.faceIconSpriteRenderer, cam, out screenRect, padding);
     }
 
     private Rect UnionScreenRects(Rect a, Rect b)
@@ -790,7 +822,8 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
     private void ClearWorldEnchantTooltip()
     {
         _worldTooltipFaceIndex = -1;
-        SkillTooltipUI.HideCurrentUnlessPointerOverTooltip();
+        if (SkillTooltipUI.IsCurrentSource(this))
+            SkillTooltipUI.HideCurrentUnlessPointerOverTooltip();
     }
 
     public bool TryGetSkillTooltip(out Canvas canvas, out RectTransform target, out ScriptableObject asset, out SkillRuntime runtime)

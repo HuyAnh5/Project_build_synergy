@@ -10,11 +10,22 @@ public class DiceEquipDropZone : MonoBehaviour, IDropHandler
     {
         if (manager == null) return;
 
-        DiceDraggableUI drag = eventData.pointerDrag != null
-            ? eventData.pointerDrag.GetComponent<DiceDraggableUI>()
-            : null;
+        DiceDraggableUI drag = ResolveDraggedDice(eventData.pointerDrag);
 
         if (drag != null)
             manager.HandleDropToEquipSlot(drag, slotIndex);
+    }
+
+    private static DiceDraggableUI ResolveDraggedDice(GameObject pointerDrag)
+    {
+        if (pointerDrag == null)
+            return null;
+
+        DiceDraggableUI drag = pointerDrag.GetComponent<DiceDraggableUI>();
+        if (drag != null)
+            return drag;
+
+        DiceEnchantHoverProxy enchantProxy = pointerDrag.GetComponent<DiceEnchantHoverProxy>();
+        return enchantProxy != null ? enchantProxy.Owner : null;
     }
 }

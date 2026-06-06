@@ -36,6 +36,10 @@ public partial class DiceEquipUIManager : MonoBehaviour
     public Vector2 diceUiSize = new Vector2(100f, 100f);
     public bool autoCreateMissingUi = true;
 
+    [Header("Enchant Hover Zone")]
+    public bool autoPositionEnchantHoverZones;
+    public Vector2 manualEnchantHoverZoneSize = new Vector2(48f, 48f);
+
     [Header("Tween")]
     public float itemSnapDuration = 0.18f;
     public Ease itemEase = Ease.OutBack;
@@ -128,6 +132,7 @@ public partial class DiceEquipUIManager : MonoBehaviour
 
         dice.manager = this;
         dice.tweenDuration = itemSnapDuration;
+        dice.EnsureManagedEnchantHoverZone();
     }
 
     [ContextMenu("Rebuild From Children")]
@@ -275,6 +280,20 @@ public partial class DiceEquipUIManager : MonoBehaviour
         SyncOutputs(notifyInventoryChanged: !ShouldUseDiceRigOrderForRefresh());
     }
 
+    public Camera GetDiceWorldHoverCamera()
+    {
+        Camera uiCamera = DiceEquipWorldSyncUtility.GetUICamera(_rootCanvas);
+        return DiceEquipWorldSyncUtility.GetWorldFollowCamera(worldFollowCamera, uiCamera);
+    }
+
+    public RectTransform GetDiceHoverZoneContainer()
+    {
+        return GetLayoutContainer();
+    }
+
+    public bool AutoPositionEnchantHoverZones => autoPositionEnchantHoverZones;
+
+    public Vector2 ManualEnchantHoverZoneSize => manualEnchantHoverZoneSize;
 
     private void CommitDrag(int insertIndex)
     {

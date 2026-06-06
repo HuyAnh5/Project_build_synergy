@@ -4,6 +4,8 @@ using UnityEngine.UI;
 
 public partial class DiceEquipUIManager
 {
+    private const string RuntimeDiceCardName = "DiceCard";
+
     private void RefreshFromAuthoritativeOrder(bool instant)
     {
         CacheDiceUi();
@@ -57,15 +59,18 @@ public partial class DiceEquipUIManager
 
     private void CacheDiceUi()
     {
+        CleanupManagedEnchantHoverZones();
+        CleanupEmptyManagedDiceCards();
         _uiByDice.Clear();
-        CacheDiceUiFromRoot(transform);
+        HashSet<DiceDraggableUI> seen = new HashSet<DiceDraggableUI>();
+        CacheDiceUiFromRoot(transform, seen);
         if (layoutContainer != null && layoutContainer != transform)
-            CacheDiceUiFromRoot(layoutContainer);
+            CacheDiceUiFromRoot(layoutContainer, seen);
         if (dragLayer != null && dragLayer != transform)
-            CacheDiceUiFromRoot(dragLayer);
+            CacheDiceUiFromRoot(dragLayer, seen);
     }
 
-    private void CacheDiceUiFromRoot(Transform root)
+    private void CacheDiceUiFromRoot(Transform root, HashSet<DiceDraggableUI> seen)
     {
         if (root == null)
             return;
@@ -74,12 +79,106 @@ public partial class DiceEquipUIManager
         for (int i = 0; i < diceUi.Length; i++)
         {
             DiceDraggableUI ui = diceUi[i];
-            if (ui == null || ui.dice == null || _uiByDice.ContainsKey(ui.dice))
+            if (ui == null || !seen.Add(ui) || ui.dice == null)
                 continue;
+
+            if (_uiByDice.TryGetValue(ui.dice, out DiceDraggableUI existing) && existing != null)
+            {
+                DiceDraggableUI keep = ChooseDiceUiToKeep(existing, ui);
+                DiceDraggableUI remove = keep == existing ? ui : existing;
+                if (keep != existing)
+                {
+                    _uiByDice[ui.dice] = keep;
+                    Register(keep);
+                }
+
+                DestroyDuplicateDiceUi(remove);
+                continue;
+            }
 
             _uiByDice.Add(ui.dice, ui);
             Register(ui);
         }
+    }
+
+    private void CleanupEmptyManagedDiceCards()
+    {
+        if (!Application.isPlaying)
+            return;
+
+        HashSet<DiceDraggableUI> seen = new HashSet<DiceDraggableUI>();
+        CleanupEmptyManagedDiceCardsFromRoot(transform, seen);
+        if (layoutContainer != null && layoutContainer != transform)
+            CleanupEmptyManagedDiceCardsFromRoot(layoutContainer, seen);
+        if (dragLayer != null && dragLayer != transform)
+            CleanupEmptyManagedDiceCardsFromRoot(dragLayer, seen);
+    }
+
+    private static void CleanupEmptyManagedDiceCardsFromRoot(Transform root, HashSet<DiceDraggableUI> seen)
+    {
+        if (root == null)
+            return;
+
+        DiceDraggableUI[] diceUi = root.GetComponentsInChildren<DiceDraggableUI>(true);
+        for (int i = 0; i < diceUi.Length; i++)
+        {
+            DiceDraggableUI ui = diceUi[i];
+            if (ui == null || !seen.Add(ui) || ui.dice != null)
+                continue;
+
+            DestroyManagedObject(ui.gameObject);
+        }
+    }
+
+    private static DiceDraggableUI ChooseDiceUiToKeep(DiceDraggableUI current, DiceDraggableUI candidate)
+    {
+        if (current == null)
+            return candidate;
+        if (candidate == null)
+            return current;
+
+        if (!current.gameObject.activeSelf && candidate.gameObject.activeSelf)
+            return candidate;
+
+        return current;
+    }
+
+    private static void DestroyDuplicateDiceUi(DiceDraggableUI duplicate)
+    {
+        if (duplicate == null)
+            return;
+
+        DestroyManagedObject(duplicate.gameObject);
+    }
+
+    private void CleanupManagedEnchantHoverZones()
+    {
+        RectTransform hoverContainer = GetLayoutContainer();
+        DiceEnchantHoverProxy[] proxies = Object.FindObjectsByType<DiceEnchantHoverProxy>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < proxies.Length; i++)
+        {
+            DiceEnchantHoverProxy proxy = proxies[i];
+            if (proxy == null || !proxy.name.StartsWith("EnchantHoverZone_"))
+                continue;
+
+            DiceDraggableUI owner = proxy.Owner;
+            bool orphaned = owner == null;
+            bool belongsToThisManager = owner != null && owner.manager == this;
+            bool wrongParent = hoverContainer != null && proxy.transform.parent != hoverContainer;
+            if (orphaned || (belongsToThisManager && wrongParent))
+                DestroyManagedObject(proxy.gameObject);
+        }
+    }
+
+    private static void DestroyManagedObject(GameObject target)
+    {
+        if (target == null)
+            return;
+
+        if (Application.isPlaying)
+            Object.Destroy(target);
+        else
+            Object.DestroyImmediate(target);
     }
 
     private void RebuildUiOrderFromDiceList()
@@ -119,7 +218,7 @@ public partial class DiceEquipUIManager
             return null;
 
         Transform parent = GetLayoutContainer() != null ? GetLayoutContainer() : transform;
-        GameObject go = new GameObject($"DiceCard_{dice.name}", typeof(RectTransform), typeof(Image), typeof(CanvasGroup), typeof(DiceDraggableUI));
+        GameObject go = new GameObject(RuntimeDiceCardName, typeof(RectTransform), typeof(Image), typeof(CanvasGroup), typeof(DiceDraggableUI));
         go.layer = gameObject.layer;
         go.transform.SetParent(parent, false);
 

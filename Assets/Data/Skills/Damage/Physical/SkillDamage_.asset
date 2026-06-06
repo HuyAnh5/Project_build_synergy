@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a042d137857b6b447b1a911238dc40d8, type: 3}
-  m_Name: Skill_Physical_BrutalSmash
+  m_Name: SkillDamage_
   m_EditorClassIdentifier: Assembly-CSharp::SkillDamageSO
   hasCondition: 0
   conditionEditorMode: 0
@@ -93,13 +93,12 @@ MonoBehaviour:
     lowestOutcome: 0
     highestOutcome: 0
     burnTurns: 3
-  icon: {fileID: 3036406079360279078, guid: 2ae33b38b49790240b35176bd59b783d, type: 3}
-  displayName: Brutal Smash
-  description: Deal "6 damage". If total Base Value in group >= 9, deal "9 damage"
-    more.
+  icon: {fileID: 0}
+  displayName: SkillDamage_
+  description: 
   gameplay:
     useNewGameplayPipeline: 1
-    descriptionTemplate: Deal {base1} damage.
+    descriptionTemplate: 
     requirements:
     - type: 0
       failureText: 
@@ -108,7 +107,7 @@ MonoBehaviour:
         scope: 0
         logic: 0
         clauses:
-        - reference: 6
+        - reference: 0
           comparison: 4
           value: 9
     baseEffects:
@@ -116,8 +115,8 @@ MonoBehaviour:
       target: 0
       status: 1
       value:
-        baseAmount: 9
-        mode: 1
+        baseAmount: 7
+        mode: 0
         status: 1
         divisor: 1
         matchBaseValue: 7
@@ -130,30 +129,29 @@ MonoBehaviour:
     rarity: 0
     specState: 0
     buildRole: 1
-    implementationCoverage: 1
-    normalizedText: Deal "6 damage". If total Base Value in group >= 9, deal "9 damage"
-      more.
-    designIntent: Simple Physical payoff when total Base Value in group reaches 9.
-  behaviorFamily: 5
+    implementationCoverage: 0
+    normalizedText: 
+    designIntent: 
+  behaviorFamily: 0
   fireBehaviorId: 0
   iceBehaviorId: 0
   lightningBehaviorId: 0
   bleedBehaviorId: 0
-  physicalBehaviorId: 2
+  physicalBehaviorId: 0
   kind: 0
   coreAction: 0
   target: 1
   group: 0
   element: 4
-  range: 0
+  range: 1
   hitAllEnemies: 0
   hitAllAllies: 0
-  slotsRequired: 2
-  focusCost: 1
+  slotsRequired: 1
+  focusCost: 0
   focusGainOnCast: 0
   baseDamageValueMode: 0
-  dieMultiplier: 0
-  flatDamage: 6
+  dieMultiplier: 1
+  flatDamage: 0
   sunderBonusIfTargetHasGuard: 1
   sunderGuardDamageMultiplier: 2
   guardValueMode: 1

@@ -137,6 +137,13 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
         SkillTooltipUI.HideCurrentUnlessPointerOverTooltip();
     }
 
+    private void ForceClearFaceEnchantTooltip()
+    {
+        _hoverTooltipInteractable = null;
+        _hoverTooltipFaceIndex = -1;
+        SkillTooltipUI.HideCurrent();
+    }
+
     public bool TryGetSkillTooltip(out Canvas canvas, out RectTransform target, out ScriptableObject asset, out SkillRuntime runtime)
     {
         canvas = ResolveTooltipCanvas();
@@ -376,7 +383,10 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
             return;
 
         if (_selectedLogicalFaceIndices.Contains(logicalFaceIndex))
+        {
             _selectedLogicalFaceIndices.Remove(logicalFaceIndex);
+            ForceClearFaceEnchantTooltip();
+        }
         else if (_selectedLogicalFaceIndices.Count < limit)
             _selectedLogicalFaceIndices.Add(logicalFaceIndex);
     }
@@ -509,6 +519,7 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
 
         _selectedInteractable = null;
         _focusedInteractable = null;
+        ForceClearFaceEnchantTooltip();
         RefreshAllHighlights();
         panelUi?.Refresh();
         SelectionStateChanged?.Invoke();

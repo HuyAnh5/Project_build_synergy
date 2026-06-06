@@ -63,6 +63,12 @@ public enum SkillConditionReference
     TargetHasMark,
     TargetHasBleed,
     TargetHasStagger,
+    AnyAddedValueInGroup,
+    FirstAddedValueInGroup,
+    MiddleAddedValueInGroup,
+    LastAddedValueInGroup,
+    HighestAddedValueInGroup,
+    TotalAddedValueInGroup,
 }
 
 public enum SkillConditionComparison
@@ -324,6 +330,24 @@ public partial class SkillConditionData
 
             case SkillConditionReference.TargetHasStagger:
                 return EvaluateBool(clause, context.targetHasStagger);
+
+            case SkillConditionReference.AnyAddedValueInGroup:
+                return EvaluateAnyAddedValue(clause, context.localOutputBaseValues, context.localBaseValues, context.localResolvedValues, context.localNumericFlags);
+
+            case SkillConditionReference.FirstAddedValueInGroup:
+                return EvaluateIndexedAddedValue(clause, context.localOutputBaseValues, context.localBaseValues, context.localResolvedValues, context.localNumericFlags, 0);
+
+            case SkillConditionReference.MiddleAddedValueInGroup:
+                return EvaluateIndexedAddedValue(clause, context.localOutputBaseValues, context.localBaseValues, context.localResolvedValues, context.localNumericFlags, 1);
+
+            case SkillConditionReference.LastAddedValueInGroup:
+                return EvaluateIndexedAddedValue(clause, context.localOutputBaseValues, context.localBaseValues, context.localResolvedValues, context.localNumericFlags, GetLastAddedValueIndex(context.localOutputBaseValues, context.localBaseValues, context.localResolvedValues));
+
+            case SkillConditionReference.HighestAddedValueInGroup:
+                return EvaluateInt(clause, GetHighestAddedValue(context.localOutputBaseValues, context.localBaseValues, context.localResolvedValues, context.localNumericFlags));
+
+            case SkillConditionReference.TotalAddedValueInGroup:
+                return EvaluateInt(clause, SumAddedValues(context.localOutputBaseValues, context.localBaseValues, context.localResolvedValues, context.localNumericFlags));
 
             default:
                 return false;

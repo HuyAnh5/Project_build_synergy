@@ -261,9 +261,11 @@ public partial class DiceSpinnerGeneric
             icon != null;
 
         CacheFaceIconBaseColor(faceIndex, iconRenderer);
+        CacheFaceIconBaseLocalScale(faceIndex, iconRenderer);
         iconRenderer.sprite = hasEnchantIcon ? icon : null;
         iconRenderer.color = hasEnchantIcon ? iconTint : Color.white;
         iconRenderer.enabled = hasEnchantIcon;
+        ApplyFaceEnchantIconFit(faceIndex, iconRenderer, hasEnchantIcon ? icon : null);
         ApplyFaceIconBlink(faceIndex, iconRenderer, hasEnchantIcon && hasPreviewEnchant && _facePreviewEnchantBlink[faceIndex]);
     }
 
@@ -289,6 +291,10 @@ public partial class DiceSpinnerGeneric
             _facePreviewIconTweens = new Tween[faceCount];
         if (_faceIconBaseColors == null || _faceIconBaseColors.Length != faceCount)
             _faceIconBaseColors = new Color[faceCount];
+        if (_faceIconBaseLocalScales == null || _faceIconBaseLocalScales.Length != faceCount)
+            _faceIconBaseLocalScales = new Vector3[faceCount];
+        if (_faceIconBaseLocalScaleCached == null || _faceIconBaseLocalScaleCached.Length != faceCount)
+            _faceIconBaseLocalScaleCached = new bool[faceCount];
     }
 
     private void CacheFaceBaseColor(int faceIndex, TMP_Text faceText)
@@ -321,6 +327,79 @@ public partial class DiceSpinnerGeneric
         }
 
         _faceIconBaseColors[faceIndex] = iconRenderer.color;
+    }
+
+    private void CacheFaceIconBaseLocalScale(int faceIndex, SpriteRenderer iconRenderer)
+    {
+        if (_faceIconBaseLocalScales == null ||
+            _faceIconBaseLocalScaleCached == null ||
+            faceIndex < 0 ||
+            faceIndex >= _faceIconBaseLocalScales.Length ||
+            faceIndex >= _faceIconBaseLocalScaleCached.Length ||
+            iconRenderer == null)
+        {
+            return;
+        }
+
+        if (_faceIconBaseLocalScaleCached[faceIndex])
+            return;
+
+        _faceIconBaseLocalScales[faceIndex] = iconRenderer.transform.localScale;
+        _faceIconBaseLocalScaleCached[faceIndex] = true;
+    }
+
+    private void ApplyFaceEnchantIconFit(int faceIndex, SpriteRenderer iconRenderer, Sprite icon)
+    {
+        if (iconRenderer == null)
+            return;
+
+        Vector3 baseScale = GetFaceIconBaseLocalScale(faceIndex, iconRenderer);
+        if (icon == null)
+        {
+            iconRenderer.transform.localScale = baseScale;
+            return;
+        }
+
+        Vector2 maxSize = faceEnchantIconMaxLocalSize;
+        if (maxSize.x <= 0f || maxSize.y <= 0f)
+        {
+            iconRenderer.transform.localScale = baseScale;
+            return;
+        }
+
+        Vector2 spriteSize = icon.bounds.size;
+        float baseWidth = spriteSize.x * Mathf.Abs(baseScale.x);
+        float baseHeight = spriteSize.y * Mathf.Abs(baseScale.y);
+        if (baseWidth <= 0f || baseHeight <= 0f)
+        {
+            iconRenderer.transform.localScale = baseScale;
+            return;
+        }
+
+        float fitScale = Mathf.Min(maxSize.x / baseWidth, maxSize.y / baseHeight);
+        if (!upscaleSmallFaceEnchantIcons)
+            fitScale = Mathf.Min(1f, fitScale);
+
+        fitScale = Mathf.Max(0.001f, fitScale);
+        iconRenderer.transform.localScale = new Vector3(
+            baseScale.x * fitScale,
+            baseScale.y * fitScale,
+            baseScale.z);
+    }
+
+    private Vector3 GetFaceIconBaseLocalScale(int faceIndex, SpriteRenderer iconRenderer)
+    {
+        if (_faceIconBaseLocalScales != null &&
+            _faceIconBaseLocalScaleCached != null &&
+            faceIndex >= 0 &&
+            faceIndex < _faceIconBaseLocalScales.Length &&
+            faceIndex < _faceIconBaseLocalScaleCached.Length &&
+            _faceIconBaseLocalScaleCached[faceIndex])
+        {
+            return _faceIconBaseLocalScales[faceIndex];
+        }
+
+        return iconRenderer != null ? iconRenderer.transform.localScale : Vector3.one;
     }
 
     private void ApplyFaceBlink(int faceIndex, TMP_Text faceText, bool shouldBlink)

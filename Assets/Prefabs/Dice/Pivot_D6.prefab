@@ -498,7 +498,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: e6e8dc8a74768ea4aa09b3c204e37068, type: 2}
+  - {fileID: 0}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -1853,6 +1853,8 @@ MonoBehaviour:
   loopsMin: {x: 2, y: 2, z: 2}
   loopsMax: {x: 5, y: 5, z: 5}
   accelPortion: 0.25
+  faceEnchantIconMaxLocalSize: {x: 1, y: 1}
+  upscaleSmallFaceEnchantIcons: 1
 --- !u!1 &9175548232628482123
 GameObject:
   m_ObjectHideFlags: 0

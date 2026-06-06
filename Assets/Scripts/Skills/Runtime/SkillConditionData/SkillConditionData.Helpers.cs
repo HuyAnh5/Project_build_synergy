@@ -118,6 +118,117 @@ public partial class SkillConditionData
         return sum;
     }
 
+    // Checks whether any Added Value in the group satisfies the clause comparison.
+    private static bool EvaluateAnyAddedValue(
+        SkillConditionClause clause,
+        IReadOnlyList<int> outputBaseValues,
+        IReadOnlyList<int> baseValues,
+        IReadOnlyList<int> resolvedValues,
+        IReadOnlyList<bool> numericFlags)
+    {
+        int count = GetAddedValueCount(outputBaseValues, baseValues, resolvedValues);
+        for (int i = 0; i < count; i++)
+        {
+            if (!IsNumeric(numericFlags, i))
+                continue;
+            if (EvaluateInt(clause, GetAddedValueAt(outputBaseValues, baseValues, resolvedValues, i)))
+                return true;
+        }
+
+        return false;
+    }
+
+    // Evaluates Added Value at a specific local dice index.
+    private static bool EvaluateIndexedAddedValue(
+        SkillConditionClause clause,
+        IReadOnlyList<int> outputBaseValues,
+        IReadOnlyList<int> baseValues,
+        IReadOnlyList<int> resolvedValues,
+        IReadOnlyList<bool> numericFlags,
+        int index)
+    {
+        if (index < 0 || index >= GetAddedValueCount(outputBaseValues, baseValues, resolvedValues))
+            return false;
+        if (!IsNumeric(numericFlags, index))
+            return false;
+
+        return EvaluateInt(clause, GetAddedValueAt(outputBaseValues, baseValues, resolvedValues, index));
+    }
+
+    // Returns the highest Added Value in the group.
+    private static int GetHighestAddedValue(
+        IReadOnlyList<int> outputBaseValues,
+        IReadOnlyList<int> baseValues,
+        IReadOnlyList<int> resolvedValues,
+        IReadOnlyList<bool> numericFlags)
+    {
+        int count = GetAddedValueCount(outputBaseValues, baseValues, resolvedValues);
+        bool found = false;
+        int best = 0;
+        for (int i = 0; i < count; i++)
+        {
+            if (!IsNumeric(numericFlags, i))
+                continue;
+
+            int added = GetAddedValueAt(outputBaseValues, baseValues, resolvedValues, i);
+            if (!found || added > best)
+            {
+                best = added;
+                found = true;
+            }
+        }
+
+        return found ? best : 0;
+    }
+
+    // Sums Added Value across the group.
+    private static int SumAddedValues(
+        IReadOnlyList<int> outputBaseValues,
+        IReadOnlyList<int> baseValues,
+        IReadOnlyList<int> resolvedValues,
+        IReadOnlyList<bool> numericFlags)
+    {
+        int count = GetAddedValueCount(outputBaseValues, baseValues, resolvedValues);
+        int sum = 0;
+        for (int i = 0; i < count; i++)
+        {
+            if (!IsNumeric(numericFlags, i))
+                continue;
+
+            sum += GetAddedValueAt(outputBaseValues, baseValues, resolvedValues, i);
+        }
+
+        return sum;
+    }
+
+    private static int GetLastAddedValueIndex(IReadOnlyList<int> outputBaseValues, IReadOnlyList<int> baseValues, IReadOnlyList<int> resolvedValues)
+    {
+        return GetAddedValueCount(outputBaseValues, baseValues, resolvedValues) - 1;
+    }
+
+    private static int GetAddedValueCount(IReadOnlyList<int> outputBaseValues, IReadOnlyList<int> baseValues, IReadOnlyList<int> resolvedValues)
+    {
+        if (resolvedValues == null || resolvedValues.Count == 0)
+            return 0;
+
+        IReadOnlyList<int> baseSource = outputBaseValues != null && outputBaseValues.Count == resolvedValues.Count
+            ? outputBaseValues
+            : baseValues;
+        if (baseSource == null || baseSource.Count == 0)
+            return 0;
+
+        return resolvedValues.Count < baseSource.Count ? resolvedValues.Count : baseSource.Count;
+    }
+
+    private static int GetAddedValueAt(IReadOnlyList<int> outputBaseValues, IReadOnlyList<int> baseValues, IReadOnlyList<int> resolvedValues, int index)
+    {
+        IReadOnlyList<int> baseSource = outputBaseValues != null && outputBaseValues.Count == resolvedValues.Count
+            ? outputBaseValues
+            : baseValues;
+        int added = resolvedValues[index] - baseSource[index];
+        return added > 0 ? added : 0;
+    }
+
     // Checks whether any flag is true.
     private static bool AnyTrue(IReadOnlyList<bool> flags)
     {

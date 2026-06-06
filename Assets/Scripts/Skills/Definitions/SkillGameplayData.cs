@@ -191,6 +191,13 @@ public class SkillEffectData
 [Serializable, InlineProperty]
 public class SkillRequirementData
 {
+    [ShowInInspector, ReadOnly, HideLabel]
+    [PropertyOrder(-20)]
+    public string Summary => condition != null && condition.HasAnyClause
+        ? $"Requires {condition.logic} condition"
+        : "Requirement missing condition";
+
+    [InfoBox("Requirements block skill use when false. Put cast gates here; use Conditional Outcomes only for extra effects after a successful cast.", InfoMessageType.Info)]
     [LabelText("Type")]
     public SkillRequirementType type = SkillRequirementType.Condition;
 
@@ -220,6 +227,7 @@ public class SkillConditionalOutcomeDataV2
         ? $"When {condition.logic} condition is met"
         : "When condition is missing";
 
+    [InfoBox("Conditional Outcomes do not block skill use. They only add the effects below when their condition is true. Use Requirements to stop a skill from being cast.", InfoMessageType.Info)]
     [FoldoutGroup("Display", expanded: true)]
     [LabelText("Tooltip Text")]
     [TextArea(1, 3)]
@@ -264,9 +272,10 @@ public class SkillGameplayData
     public string descriptionTemplate;
 
     [BoxGroup("Requirements")]
+    [InfoBox("Requirements block skill use. Add dice/resource/target gates here when the skill must not cast unless the condition is true.", InfoMessageType.Info)]
     [InfoBox("None", InfoMessageType.None, nameof(HasNoRequirements))]
     [HideLabel]
-    [ListDrawerSettings(Expanded = false, DraggableItems = true, ShowIndexLabels = false)]
+    [ListDrawerSettings(Expanded = false, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<SkillRequirementData> requirements = new List<SkillRequirementData>();
 
     [BoxGroup("Base Effects")]
@@ -276,6 +285,7 @@ public class SkillGameplayData
     public List<SkillEffectData> baseEffects = new List<SkillEffectData>();
 
     [BoxGroup("Conditional Outcomes")]
+    [InfoBox("Conditional Outcomes are bonus/follow-up effects. They do not stop Base Effects from casting; put cast gates in Requirements.", InfoMessageType.Info)]
     [InfoBox("None", InfoMessageType.None, nameof(HasNoConditionalOutcomes))]
     [HideLabel]
     [ListDrawerSettings(Expanded = false, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]

@@ -75,7 +75,7 @@ public static partial class SkillRuntimeEvaluator
                 if (i < 0 || i > 2) continue;
                 if (!diceRig.IsSlotActive(i)) continue;
                 if (paymentMask >= 0 && (paymentMask & (1 << i)) == 0) continue;
-                list.Add(diceRig.IsNumericFaceForConditions(i) ? diceRig.GetDieValue(i) : 0);
+                list.Add(diceRig.IsNumericFaceForConditions(i) ? diceRig.GetBaseValue(i) : 0);
             }
             return list;
         }
@@ -83,7 +83,7 @@ public static partial class SkillRuntimeEvaluator
         for (int i = 0; i < 3; i++)
         {
             if (!diceRig.IsSlotActive(i)) continue;
-            list.Add(diceRig.IsNumericFaceForConditions(i) ? diceRig.GetDieValue(i) : 0);
+            list.Add(diceRig.IsNumericFaceForConditions(i) ? diceRig.GetBaseValue(i) : 0);
         }
         return list;
     }
