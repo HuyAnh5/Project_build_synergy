@@ -110,7 +110,7 @@ MonoBehaviour:
         clauses:
         - reference: 6
           comparison: 4
-          value: 4
+          value: 9
     baseEffects:
     - type: 0
       target: 0

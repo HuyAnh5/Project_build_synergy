@@ -661,7 +661,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
             return;
         }
 
-        if (!TryResolveWorldTooltipFace(cam, out int logicalFaceIndex, out Rect hoverRect) ||
+        if (!TryResolveCurrentWorldTooltipFace(cam, out int logicalFaceIndex, out Rect hoverRect) ||
             logicalFaceIndex < 0 ||
             logicalFaceIndex >= faces.Length)
         {
@@ -706,6 +706,31 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
             return false;
 
         return TryBuildFaceEnchantIconScreenRect(face, cam, out screenRect, padding: 2f);
+    }
+
+    private bool TryResolveCurrentWorldTooltipFace(Camera cam, out int logicalFaceIndex, out Rect hoverRect)
+    {
+        logicalFaceIndex = -1;
+        hoverRect = default;
+
+        int currentFaceIndex = LastFaceIndex;
+        if (currentFaceIndex < 0 || currentFaceIndex >= faces.Length)
+            return false;
+
+        DiceFace face = faces[currentFaceIndex];
+        DiceFaceEnchantKind displayedEnchant = GetDisplayedFaceEnchant(currentFaceIndex);
+        if (face.broken || !DiceFaceEnchantUtility.HasEnchant(displayedEnchant))
+            return false;
+
+        if (!TryBuildFaceEnchantIconScreenRect(face, cam, out Rect screenRect, padding: 2f))
+            return false;
+
+        if (!screenRect.Contains(Input.mousePosition))
+            return false;
+
+        logicalFaceIndex = currentFaceIndex;
+        hoverRect = screenRect;
+        return true;
     }
 
     private bool TryResolveWorldTooltipFace(Camera cam, out int logicalFaceIndex, out Rect hoverRect)
