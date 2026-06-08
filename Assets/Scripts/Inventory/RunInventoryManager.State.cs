@@ -12,12 +12,10 @@ public partial class RunInventoryManager
         RunInventoryState snapshot = new RunInventoryState();
         DiceSpinnerGeneric[] dice = CaptureEquippedDicePrefabLayout();
         ScriptableObject[] skills = CaptureOwnedSkillAssets();
-        SkillPassiveSO[] passives = CapturePassiveAssets();
         RunConsumableSlotState[] relics = CaptureConsumableState();
 
         snapshot.SetDiceState(dice, dice);
         snapshot.SetSkillState(skills, skills);
-        snapshot.SetPassiveState(passives, passives);
         snapshot.SetConsumableState(relics, relics);
         return snapshot;
     }
@@ -62,10 +60,9 @@ public partial class RunInventoryManager
         EnsureSizes();
         ApplyDiceState(snapshot.EquippedDice);
         ApplyOwnedSkills(snapshot.EquippedSkills);
-        ApplyPassives(snapshot.EquippedPassive);
         ApplyConsumables(HasAnyConsumable(snapshot.RelicSlots) ? snapshot.RelicSlots : snapshot.Consumables);
 
-        RunInventoryBindingUtility.ApplyBindingsToIcons(this, fixedSlots, ownedSlots, passiveSlots);
+        RunInventoryBindingUtility.ApplyBindingsToIcons(this, ownedSlots);
         if (notifyChanged)
         {
             InventoryChanged?.Invoke();
@@ -97,17 +94,6 @@ public partial class RunInventoryManager
         for (int i = 0; i < snapshot.Length; i++)
         {
             snapshot[i] = ownedSlots[i]?.skillAsset;
-        }
-
-        return snapshot;
-    }
-
-    private SkillPassiveSO[] CapturePassiveAssets()
-    {
-        SkillPassiveSO[] snapshot = new SkillPassiveSO[PASSIVE_SLOT_COUNT];
-        for (int i = 0; i < snapshot.Length; i++)
-        {
-            snapshot[i] = passiveSlots[i]?.passiveAsset;
         }
 
         return snapshot;
@@ -152,19 +138,6 @@ public partial class RunInventoryManager
             }
 
             ownedSlots[i].skillAsset = skills != null && i < skills.Length ? skills[i] : null;
-        }
-    }
-
-    private void ApplyPassives(SkillPassiveSO[] passives)
-    {
-        for (int i = 0; i < passiveSlots.Length; i++)
-        {
-            if (passiveSlots[i] == null)
-            {
-                passiveSlots[i] = new PassiveSlotBinding();
-            }
-
-            passiveSlots[i].passiveAsset = passives != null && i < passives.Length ? passives[i] : null;
         }
     }
 

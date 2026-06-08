@@ -8,7 +8,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// UI icon for a skill. Source of truth should be RunInventoryManager.
-/// - If Bind To Inventory Slot = true: skill is resolved from inventory (Fixed/Owned + index)
+/// - If Bind To Inventory Slot = true: skill is resolved from inventory (slot index)
 /// - Else: use Skill Asset Override (single ScriptableObject)
 ///
 /// Supports drag/click equip for active skills (SkillDamageSO / SkillBuffDebuffSO).
@@ -25,16 +25,14 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     private const string ElementBadgeName = "ElementBadge";
 
     [Title("Source")]
-    [Tooltip("If enabled, this icon always reads the skill from RunInventoryManager (Fixed/Owned slot).")]
+    [Tooltip("If enabled, this icon always reads the skill from RunInventoryManager.")]
     [SerializeField] private bool bindToInventorySlot = true;
 
     [ShowIf(nameof(bindToInventorySlot))]
     [SerializeField] private RunInventoryManager inventory;
 
-    public enum InventorySkillSource { Fixed, Owned }
-
     [ShowIf(nameof(bindToInventorySlot))]
-    [SerializeField] private InventorySkillSource inventorySource = InventorySkillSource.Owned;
+    [SerializeField] private RunInventoryManager.SkillSource inventorySource = RunInventoryManager.SkillSource.Owned;
 
     [ShowIf(nameof(bindToInventorySlot))]
     [Min(0)]
@@ -211,11 +209,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     {
         if (bindToInventorySlot && inventory != null)
         {
-            var src = (inventorySource == InventorySkillSource.Fixed)
-                ? RunInventoryManager.SkillSource.Fixed
-                : RunInventoryManager.SkillSource.Owned;
-
-            _resolvedAsset = inventory.GetSkill(src, inventoryIndex);
+            _resolvedAsset = inventory.GetSkill(inventorySource, inventoryIndex);
             return _resolvedAsset;
         }
 
@@ -267,10 +261,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
 
         if (bindToInventorySlot && inventory != null)
         {
-            var src = inventorySource == InventorySkillSource.Fixed
-                ? RunInventoryManager.SkillSource.Fixed
-                : RunInventoryManager.SkillSource.Owned;
-            nameText.text = inventory.GetSkillDisplayName(src, inventoryIndex);
+            nameText.text = inventory.GetSkillDisplayName(inventorySource, inventoryIndex);
         }
         else
         {
@@ -369,7 +360,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         ScriptableObject asset = GetSkillAsset();
         Sprite currentIcon = GetIcon();
         string currentName = bindToInventorySlot && inventory != null
-            ? inventory.GetSkillDisplayName(inventorySource == InventorySkillSource.Fixed ? RunInventoryManager.SkillSource.Fixed : RunInventoryManager.SkillSource.Owned, inventoryIndex)
+            ? inventory.GetSkillDisplayName(inventorySource, inventoryIndex)
             : SkillUiMetadataUtility.ResolveDisplayName(asset);
 
         bool hasCosts = SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out int slotsRequired);
@@ -404,7 +395,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         _lastVisualAsset = asset;
         _lastVisualIcon = GetIcon();
         _lastVisualName = bindToInventorySlot && inventory != null
-            ? inventory.GetSkillDisplayName(inventorySource == InventorySkillSource.Fixed ? RunInventoryManager.SkillSource.Fixed : RunInventoryManager.SkillSource.Owned, inventoryIndex)
+            ? inventory.GetSkillDisplayName(inventorySource, inventoryIndex)
             : SkillUiMetadataUtility.ResolveDisplayName(asset);
 
         if (SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out int slotsRequired))

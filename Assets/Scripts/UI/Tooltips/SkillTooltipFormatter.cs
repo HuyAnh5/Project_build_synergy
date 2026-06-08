@@ -51,7 +51,9 @@ public static partial class SkillTooltipFormatter
                 break;
             case DiceFaceEnchantTooltipAsset diceEnchant:
                 content.targeting = string.Empty;
-                content.effectText = DiceFaceEnchantUtility.GetShortRulesText(diceEnchant.Enchant);
+                content.effectText = diceEnchant.IsBroken
+                    ? "This face is Broken and cannot be used until the next combat."
+                    : DiceFaceEnchantUtility.GetShortRulesText(diceEnchant.Enchant);
                 break;
         }
 
@@ -73,7 +75,9 @@ public static partial class SkillTooltipFormatter
             case SkillPassiveSO passive:
                 return string.IsNullOrWhiteSpace(passive.displayName) ? passive.name : passive.displayName;
             case DiceFaceEnchantTooltipAsset diceEnchant:
-                return DiceFaceEnchantUtility.GetDisplayName(diceEnchant.Enchant);
+                return diceEnchant.IsBroken
+                    ? "Broken"
+                    : DiceFaceEnchantUtility.GetDisplayName(diceEnchant.Enchant);
             default:
                 return asset != null ? asset.name : string.Empty;
         }
@@ -130,16 +134,19 @@ public sealed class DiceFaceEnchantTooltipAsset : ScriptableObject
     [SerializeField] private DiceFaceEnchantKind enchant;
     [SerializeField] private int faceValue;
     [SerializeField] private string sourceDieName;
+    [SerializeField] private bool isBroken;
 
     public DiceFaceEnchantKind Enchant => enchant;
     public int FaceValue => faceValue;
     public string SourceDieName => sourceDieName;
+    public bool IsBroken => isBroken;
 
-    public void Configure(DiceFaceEnchantKind enchantKind, int currentFaceValue, string dieName)
+    public void Configure(DiceFaceEnchantKind enchantKind, int currentFaceValue, string dieName, bool broken = false)
     {
         enchant = enchantKind;
         faceValue = currentFaceValue;
         sourceDieName = dieName ?? string.Empty;
-        name = $"DiceFaceEnchant_{enchantKind}";
+        isBroken = broken;
+        name = broken ? "DiceFaceEnchant_Broken" : $"DiceFaceEnchant_{enchantKind}";
     }
 }

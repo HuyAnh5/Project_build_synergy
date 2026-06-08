@@ -227,6 +227,7 @@ public partial class DiceSlotRig
     private int _consumePreviewCount;
     private bool _consumePreviewInvalid; // true = thiếu dice
     private int _consumePreviewMask = -1;
+    private DiceCombatEnchantRuntimeUtility.CommittedFaceUsePlan _consumePreviewPlan;
     private CombatHUD _cachedHud;
 
     // Cache all DiceDraggableUI instances once per show/clear cycle
@@ -263,6 +264,9 @@ public partial class DiceSlotRig
         _consumePreviewInvalid = paymentMask < 0 && _consumePreviewCount > available;
         _consumePreviewActive = true;
         _consumePreviewMask = paymentMask;
+        _consumePreviewPlan = paymentMask >= 0
+            ? DiceCombatEnchantRuntimeUtility.BuildPaymentPlanFromMask(this, paymentMask)
+            : null;
     }
 
     private int CountAvailableConsumePreviewContribution(System.Collections.Generic.HashSet<DiceSpinnerGeneric> spentDice)
@@ -329,6 +333,7 @@ public partial class DiceSlotRig
         _consumePreviewCount = 0;
         _consumePreviewInvalid = false;
         _consumePreviewMask = -1;
+        _consumePreviewPlan = null;
 
         // Restore tất cả DiceDraggableUI về trạng thái bình thường
         EnsureSlots();
@@ -426,6 +431,7 @@ public partial class DiceSlotRig
 
             if ((previewPaymentMask & (1 << i)) != 0)
             {
+                ApplyCommittedBreakPreview(i, die);
                 if (die.GetCurrentFaceEnchant() == DiceFaceEnchantKind.Double && die.LastFaceIndex >= 0)
                 {
                     die.SetFacePreviewValue(die.LastFaceIndex, die.GetDisplayedRolledValue() * 2, true);
@@ -451,12 +457,14 @@ public partial class DiceSlotRig
             }
             else if (IsRelayPreviewTarget(i, previewPaymentMask))
             {
+                die.ClearAllFacePreviews();
                 ui.SetPreviewTint(new Color32(137, 255, 142, 255), false);
                 ui.ClearPreviewRollFeedback();
                 ui.ClearPreviewSpentLike(true);
             }
             else if (IsEchoPreviewSource(i, previewPaymentMask))
             {
+                die.ClearAllFacePreviews();
                 ui.SetPreviewTint(new Color32(136, 219, 255, 255), false);
                 ui.ClearPreviewRollFeedback();
                 ui.ClearPreviewSpentLike(true);
@@ -470,6 +478,26 @@ public partial class DiceSlotRig
                 ui.ClearPreviewSpentLike(true);
             }
         }
+    }
+
+    private void ApplyCommittedBreakPreview(int slot0, DiceSpinnerGeneric die)
+    {
+        if (die == null)
+            return;
+
+        die.ClearAllFacePreviews();
+
+        if (_consumePreviewPlan == null || !_consumePreviewPlan.IsSelected(slot0))
+            return;
+
+        int faceIndex = _consumePreviewPlan.committedFaceIndices != null && slot0 < _consumePreviewPlan.committedFaceIndices.Length
+            ? _consumePreviewPlan.committedFaceIndices[slot0]
+            : die.LastFaceIndex;
+        if (faceIndex < 0)
+            return;
+
+        if (_consumePreviewPlan.ShouldBreak(slot0))
+            die.SetFacePreviewBroken(faceIndex, true);
     }
 
     private bool IsRelayPreviewTarget(int slot0, int previewPaymentMask)

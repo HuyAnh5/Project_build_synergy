@@ -3,19 +3,17 @@ using UnityEngine;
 using Sirenix.OdinInspector;
 
 /// <summary>
-/// Runtime source of truth for the player's run inventory, including skills, passives, dice, consumables, and gold.
+/// Runtime source of truth for the player's run inventory, including skills, dice, consumables, and gold.
 /// </summary>
 [DisallowMultipleComponent]
 public partial class RunInventoryManager : MonoBehaviour
 {
-    public const int FIXED_SKILL_COUNT = 2;
-    public const int OWNED_SKILL_COUNT = 4;
+    public const int OWNED_SKILL_COUNT = 5;
     public const int RELIC_SLOT_COUNT = 3;
     public const int DEFAULT_CONSUMABLE_CAPACITY = 5;
     public const int MAX_CONSUMABLE_CAPACITY = 10;
     public const int EQUIPPED_DICE_COUNT = 3;
     public const int PASSIVE_SLOT_COUNT = 1;
-
     [Title("Runtime Links (Optional)")]
     [SerializeField] private DiceSlotRig diceRig;
 
@@ -24,13 +22,8 @@ public partial class RunInventoryManager : MonoBehaviour
     [SerializeField] private DiceSpinnerGeneric[] equippedDicePrefabs = new DiceSpinnerGeneric[EQUIPPED_DICE_COUNT];
     [SerializeField, HideInInspector] private DiceSpinnerGeneric[] equippedDice = new DiceSpinnerGeneric[EQUIPPED_DICE_COUNT];
 
-    [Title("Build State - Passive")]
-    [InfoBox("Passive now uses its own dedicated single-slot binding. Passive is no longer stored in owned skill slots.", InfoMessageType.Info)]
-    [SerializeField] private PassiveSlotBinding[] passiveSlots = new PassiveSlotBinding[PASSIVE_SLOT_COUNT];
-
     [Title("Skill + UI Bindings")]
-    [InfoBox("Each slot contains BOTH:\n- UI Icon (usually fixed)\n- Skill Asset (changes often)\n\nFixed = 2 default skills (Strike/Guard)\nOwned = 4 flexible slots\n\nUse 'Apply Bindings To Icons' after assigning icons.", InfoMessageType.Info)]
-    [SerializeField] private SlotBinding[] fixedSlots = new SlotBinding[FIXED_SKILL_COUNT];
+    [InfoBox("Each slot contains BOTH:\n- UI Icon binding\n- Skill Asset reference\n\nOwned = 5 flexible slots.\n\nUse 'Apply Bindings To Icons' after assigning icons.", InfoMessageType.Info)]
     [SerializeField] private SlotBinding[] ownedSlots = new SlotBinding[OWNED_SKILL_COUNT];
 
     [Title("Consumables")]
@@ -67,7 +60,6 @@ public partial class RunInventoryManager : MonoBehaviour
 
     public enum SkillSource
     {
-        Fixed,
         Owned
     }
 
@@ -76,16 +68,6 @@ public partial class RunInventoryManager : MonoBehaviour
     /// </summary>
     public ScriptableObject GetSkill(SkillSource source, int index)
     {
-        if (source == SkillSource.Fixed)
-        {
-            if (index < 0 || index >= FIXED_SKILL_COUNT)
-            {
-                return null;
-            }
-
-            return fixedSlots[index].skillAsset;
-        }
-
         if (index < 0 || index >= OWNED_SKILL_COUNT)
         {
             return null;
@@ -95,13 +77,12 @@ public partial class RunInventoryManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Returns the display name shown for a skill slot, including fallback names for default fixed slots.
+    /// Returns the display name shown for a skill slot.
     /// </summary>
     public string GetSkillDisplayName(SkillSource source, int index)
     {
         ScriptableObject asset = GetSkill(source, index);
-        bool isFixed = source == SkillSource.Fixed;
-        return ResolveSkillDisplayName(asset, isFixed, index);
+        return ResolveSkillDisplayName(asset);
     }
 
     /// <summary>
@@ -109,26 +90,13 @@ public partial class RunInventoryManager : MonoBehaviour
     /// </summary>
     public void SetSkill(SkillSource source, int index, ScriptableObject assetOrNull)
     {
-        if (source == SkillSource.Fixed)
+        if (index < 0 || index >= OWNED_SKILL_COUNT)
         {
-            if (index < 0 || index >= FIXED_SKILL_COUNT)
-            {
-                return;
-            }
-
-            fixedSlots[index].skillAsset = assetOrNull;
-            RunInventoryBindingUtility.PushSlotToIcon(fixedSlots, ownedSlots, isFixed: true, index);
+            return;
         }
-        else
-        {
-            if (index < 0 || index >= OWNED_SKILL_COUNT)
-            {
-                return;
-            }
 
-            ownedSlots[index].skillAsset = assetOrNull;
-            RunInventoryBindingUtility.PushSlotToIcon(fixedSlots, ownedSlots, isFixed: false, index);
-        }
+        ownedSlots[index].skillAsset = assetOrNull;
+        RunInventoryBindingUtility.PushSlotToIcon(ownedSlots, index);
 
         InventoryChanged?.Invoke();
     }
@@ -196,16 +164,14 @@ public partial class RunInventoryManager : MonoBehaviour
     {
         consumableCapacity = Mathf.Clamp(consumableCapacity, 1, MAX_CONSUMABLE_CAPACITY);
         RunInventorySetupUtility.EnsureSizes(
-            ref fixedSlots,
             ref ownedSlots,
             ref consumableSlots,
             ref equippedDicePrefabs,
             ref equippedDice,
-            ref passiveSlots,
             consumableCapacity);
     }
 
-    private static string ResolveSkillDisplayName(ScriptableObject asset, bool isFixed, int index)
+    private static string ResolveSkillDisplayName(ScriptableObject asset)
     {
         if (asset is SkillDamageSO damage)
         {
@@ -231,27 +197,6 @@ public partial class RunInventoryManager : MonoBehaviour
                 return buffDebuff.displayName;
             }
         }
-        else if (asset is SkillPassiveSO passive)
-        {
-            if (!string.IsNullOrWhiteSpace(passive.displayName))
-            {
-                return passive.displayName;
-            }
-        }
-
-        if (isFixed)
-        {
-            if (index == 0)
-            {
-                return "Basic Attack";
-            }
-
-            if (index == 1)
-            {
-                return "Basic Guard";
-            }
-        }
-
         return string.Empty;
     }
 }

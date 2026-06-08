@@ -145,10 +145,11 @@ MonoBehaviour:
   d8Prefab: {fileID: 0}
   skillGroups:
   - label: 
-    skillA: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
-    skillB: {fileID: 11400000, guid: d0a72a3e8f4a917bf4280516f7087207, type: 2}
-    skillC: {fileID: 11400000, guid: ccf6192d7e39806ae317f405e6f76106, type: 2}
-    skillD: {fileID: 11400000, guid: e1b83b4f905ba28c0539162708198308, type: 2}
+    skillA: {fileID: 11400000, guid: ab7245a08603728499aea812ac7d28a5, type: 2}
+    skillB: {fileID: 11400000, guid: ae03d7f30437ba9468c724b3c4ad15f0, type: 2}
+    skillC: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
+    skillD: {fileID: 11400000, guid: d0a72a3e8f4a917bf4280516f7087207, type: 2}
+    skillE: {fileID: 11400000, guid: ccf6192d7e39806ae317f405e6f76106, type: 2}
   consumables: []
   consumableRewardFolder: {fileID: 102900000, guid: 8bd1c9755e74e4c4a90dfba32ed4ecd1, type: 3}
   consumableRewardPool:

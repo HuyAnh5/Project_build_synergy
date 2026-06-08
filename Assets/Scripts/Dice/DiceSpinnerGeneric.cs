@@ -86,6 +86,8 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
     private Color[] _faceBaseColors;
     private DiceFaceEnchantKind[] _facePreviewEnchants;
     private bool[] _facePreviewEnchantBlink;
+    private bool[] _facePreviewBroken;
+    private bool[] _facePreviewBrokenBlink;
     private Tween[] _facePreviewIconTweens;
     private Color[] _faceIconBaseColors;
 
@@ -693,7 +695,8 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
 
         DiceFace face = faces[logicalFaceIndex];
         DiceFaceEnchantKind displayedEnchant = GetDisplayedFaceEnchant(logicalFaceIndex);
-        if (face.broken || !DiceFaceEnchantUtility.HasEnchant(displayedEnchant))
+        bool showBrokenTooltip = face.broken && iconLibrary != null && iconLibrary.TryGetBrokenFaceIcon(out _, out _);
+        if ((!showBrokenTooltip && face.broken) || (!face.broken && !DiceFaceEnchantUtility.HasEnchant(displayedEnchant)))
         {
             ClearWorldEnchantTooltip();
             return;
@@ -706,7 +709,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         }
 
         EnsureWorldTooltipAsset();
-        _worldTooltipAsset.Configure(displayedEnchant, face.value, name);
+        _worldTooltipAsset.Configure(displayedEnchant, face.value, name, face.broken);
         _worldTooltipFaceIndex = logicalFaceIndex;
         SkillTooltipUI.Show(this);
     }
@@ -724,7 +727,8 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
 
         DiceFace face = faces[faceIndex];
         DiceFaceEnchantKind displayedEnchant = GetDisplayedFaceEnchant(faceIndex);
-        if (face.broken || !DiceFaceEnchantUtility.HasEnchant(displayedEnchant))
+        bool showBrokenTooltip = face.broken && iconLibrary != null && iconLibrary.TryGetBrokenFaceIcon(out _, out _);
+        if ((!showBrokenTooltip && face.broken) || (!face.broken && !DiceFaceEnchantUtility.HasEnchant(displayedEnchant)))
             return false;
 
         return TryBuildFaceEnchantIconScreenRect(face, cam, out screenRect, padding: 2f);

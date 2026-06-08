@@ -55,6 +55,8 @@ public class SkillUiIconLibrarySO : ScriptableObject
 
     [Header("Dice Face Enchant Icons")]
     [SerializeField] private DiceFaceEnchantIconEntry[] diceFaceEnchantIcons = Array.Empty<DiceFaceEnchantIconEntry>();
+    [SerializeField] private Sprite brokenFaceIcon;
+    [SerializeField] private Color brokenFaceIconTint = Color.white;
 
     public bool TryGetElementIcon(ElementType element, out Sprite icon, out Color badgeBackgroundColor, out Color iconTint)
     {
@@ -131,5 +133,12 @@ public class SkillUiIconLibrarySO : ScriptableObject
         icon = null;
         iconTint = Color.white;
         return false;
+    }
+
+    public bool TryGetBrokenFaceIcon(out Sprite icon, out Color iconTint)
+    {
+        icon = brokenFaceIcon;
+        iconTint = brokenFaceIconTint == default ? Color.white : brokenFaceIconTint;
+        return icon != null;
     }
 }

@@ -141,11 +141,11 @@ public partial class DraggableSkillIcon
         _ghostRT.gameObject.SetActive(false);
     }
 
-    public void SetBindToInventory(RunInventoryManager inv, bool isFixed, int index)
+    public void SetBindToInventory(RunInventoryManager inv, int index)
     {
         bindToInventorySlot = true;
         inventory = inv;
-        inventorySource = isFixed ? InventorySkillSource.Fixed : InventorySkillSource.Owned;
+        inventorySource = RunInventoryManager.SkillSource.Owned;
         inventoryIndex = index;
         Refresh();
     }

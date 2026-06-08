@@ -33,12 +33,7 @@ public static class RewardGachaApplier
                 return false;
 
             case RewardGachaItemKind.Passive:
-                if (inventory.TryAddPassiveToFirstEmptySlot(card.asset as SkillPassiveSO))
-                {
-                    message = "Added passive: " + card.displayName;
-                    return true;
-                }
-                message = "No empty passive slot for " + card.displayName + ".";
+                message = card.displayName + " is a passive reward, but passive slots are no longer supported in RunInventoryManager.";
                 return false;
 
             case RewardGachaItemKind.Consumable:

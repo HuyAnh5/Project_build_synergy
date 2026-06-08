@@ -14,11 +14,10 @@ public class CombatLabPrototypeController : MonoBehaviour
     [SerializeField] private RunInventoryManager runInventory;
     [SerializeField] private TurnManager turnManager;
     [SerializeField] private PrototypeConsumableRewardScreen rewardScreen;
-    [SerializeField] private bool shuffleSelectedSkillOrder = true;
 
     private readonly List<DiceSpinnerGeneric> _dicePrefabOptions = new List<DiceSpinnerGeneric>(2);
     private readonly List<CombatLabPrototypeConfigSO.SkillPairEntry> _skillGroupOptions = new List<CombatLabPrototypeConfigSO.SkillPairEntry>(6);
-    private readonly List<ScriptableObject> _selectedSkills = new List<ScriptableObject>(4);
+    private readonly List<ScriptableObject> _selectedSkills = new List<ScriptableObject>(RunInventoryManager.OWNED_SKILL_COUNT);
     private readonly List<ConsumableDataSO> _heldConsumables = new List<ConsumableDataSO>(RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY);
     private int _currentCombatIndex;
     private bool _runEnded;
@@ -66,7 +65,6 @@ public class CombatLabPrototypeController : MonoBehaviour
         _runEnded = false;
         ApplyRandomSkillLoadout();
         ClearConsumables();
-        ClearPassiveSlot();
         ApplyRandomDiceLoadout();
 
         if (turnManager != null)
@@ -155,7 +153,7 @@ public class CombatLabPrototypeController : MonoBehaviour
         BuildSkillGroupOptions();
         if (_skillGroupOptions.Count <= 0)
         {
-            Debug.LogWarning("[CombatLabPrototypeController] Need at least 1 valid 4-skill group configured.", this);
+            Debug.LogWarning("[CombatLabPrototypeController] Need at least 1 valid 5-skill group configured.", this);
             return;
         }
 
@@ -166,9 +164,7 @@ public class CombatLabPrototypeController : MonoBehaviour
         _selectedSkills.Add(group.skillB);
         _selectedSkills.Add(group.skillC);
         _selectedSkills.Add(group.skillD);
-
-        if (shuffleSelectedSkillOrder)
-            Shuffle(_selectedSkills);
+        _selectedSkills.Add(group.skillE);
 
         for (int i = 0; i < _selectedSkills.Count && i < RunInventoryManager.OWNED_SKILL_COUNT; i++)
             runInventory.SetSkill(RunInventoryManager.SkillSource.Owned, i, _selectedSkills[i]);
@@ -178,12 +174,6 @@ public class CombatLabPrototypeController : MonoBehaviour
     {
         for (int i = runInventory.ConsumableCapacity - 1; i >= 0; i--)
             runInventory.ClearConsumable(i);
-    }
-
-    private void ClearPassiveSlot()
-    {
-        for (int i = 0; i < RunInventoryManager.PASSIVE_SLOT_COUNT; i++)
-            runInventory.ClearEquippedPassive(i);
     }
 
     private void ApplyRandomDiceLoadout()
@@ -267,7 +257,8 @@ public class CombatLabPrototypeController : MonoBehaviour
         return IsActiveSkill(group.skillA) &&
                IsActiveSkill(group.skillB) &&
                IsActiveSkill(group.skillC) &&
-               IsActiveSkill(group.skillD);
+               IsActiveSkill(group.skillD) &&
+               IsActiveSkill(group.skillE);
     }
 
     private CombatLabPrototypeConfigSO.SkillPairEntry PickRandomSkillGroup()
@@ -320,7 +311,8 @@ public class CombatLabPrototypeController : MonoBehaviour
             GetSkillKey(group.skillA),
             GetSkillKey(group.skillB),
             GetSkillKey(group.skillC),
-            GetSkillKey(group.skillD));
+            GetSkillKey(group.skillD),
+            GetSkillKey(group.skillE));
     }
 
     private static string GetSkillKey(ScriptableObject skill)

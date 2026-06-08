@@ -40,13 +40,6 @@ internal static class PassiveEquipPresentationUtility
 
     public static void SyncToRunInventory(PassiveDraggableUI[] equipped, RunInventoryManager runInventory)
     {
-        if (runInventory == null)
-            return;
-
-        SkillPassiveSO[] assets = new SkillPassiveSO[RunInventoryManager.PASSIVE_SLOT_COUNT];
-        for (int i = 0; i < assets.Length && i < equipped.Length; i++)
-            assets[i] = equipped[i] != null ? equipped[i].passive : null;
-
-        runInventory.SetPassiveLayout(assets);
+        // Passive slots are no longer stored in RunInventoryManager.
     }
 }

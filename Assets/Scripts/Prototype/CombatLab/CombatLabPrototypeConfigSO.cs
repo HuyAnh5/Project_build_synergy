@@ -29,6 +29,7 @@ public class CombatLabPrototypeConfigSO : ScriptableObject
         public ScriptableObject skillB;
         public ScriptableObject skillC;
         public ScriptableObject skillD;
+        public ScriptableObject skillE;
     }
 
     [Serializable]
@@ -72,7 +73,7 @@ public class CombatLabPrototypeConfigSO : ScriptableObject
     public DiceSpinnerGeneric d8Prefab;
 
     [Header("Random Skill Groups")]
-    [Tooltip("Author each entry as a 4-skill themed group, such as 4 Fire skills or 4 Ice skills. Each reset, prototype picks 1 group and fills all 4 owned skill slots from it.")]
+    [Tooltip("Author each entry as a 5-skill themed group. Each reset, prototype picks 1 group and fills all 5 owned skill slots from it.")]
     [FormerlySerializedAs("skillPairs")]
     public SkillPairEntry[] skillGroups = Array.Empty<SkillPairEntry>();
 

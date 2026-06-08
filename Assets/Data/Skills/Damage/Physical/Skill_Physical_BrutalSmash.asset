@@ -110,13 +110,13 @@ MonoBehaviour:
         clauses:
         - reference: 6
           comparison: 4
-          value: 9
+          value: 5
     baseEffects:
     - type: 0
       target: 0
       status: 1
       value:
-        baseAmount: 9
+        baseAmount: 12
         mode: 1
         status: 1
         divisor: 1
@@ -148,8 +148,8 @@ MonoBehaviour:
   range: 0
   hitAllEnemies: 0
   hitAllAllies: 0
-  slotsRequired: 2
-  focusCost: 1
+  slotsRequired: 1
+  focusCost: 2
   focusGainOnCast: 0
   baseDamageValueMode: 0
   dieMultiplier: 0

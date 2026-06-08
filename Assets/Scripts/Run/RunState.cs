@@ -44,8 +44,6 @@ public class RunState
     public DiceSpinnerGeneric[] EquippedDice => inventoryState.EquippedDice;
     public ScriptableObject[] SkillInventory => inventoryState.SkillInventory;
     public ScriptableObject[] EquippedSkills => inventoryState.EquippedSkills;
-    public SkillPassiveSO[] PassiveInventory => inventoryState.PassiveInventory;
-    public SkillPassiveSO[] EquippedPassive => inventoryState.EquippedPassive;
     public RunConsumableSlotState[] Consumables => inventoryState.Consumables;
     public RunConsumableSlotState[] RelicSlots => inventoryState.RelicSlots;
 
@@ -147,8 +145,6 @@ public sealed class RunInventoryState
     [SerializeField] private DiceSpinnerGeneric[] equippedDice = new DiceSpinnerGeneric[RunInventoryManager.EQUIPPED_DICE_COUNT];
     [SerializeField] private ScriptableObject[] skillInventory = new ScriptableObject[RunInventoryManager.OWNED_SKILL_COUNT];
     [SerializeField] private ScriptableObject[] equippedSkills = new ScriptableObject[RunInventoryManager.OWNED_SKILL_COUNT];
-    [SerializeField] private SkillPassiveSO[] passiveInventory = new SkillPassiveSO[RunInventoryManager.PASSIVE_SLOT_COUNT];
-    [SerializeField] private SkillPassiveSO[] equippedPassive = new SkillPassiveSO[RunInventoryManager.PASSIVE_SLOT_COUNT];
     [SerializeField] private RunConsumableSlotState[] consumables = new RunConsumableSlotState[RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY];
     [SerializeField] private RunConsumableSlotState[] relicSlots = new RunConsumableSlotState[RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY];
 
@@ -156,8 +152,6 @@ public sealed class RunInventoryState
     public DiceSpinnerGeneric[] EquippedDice => equippedDice;
     public ScriptableObject[] SkillInventory => skillInventory;
     public ScriptableObject[] EquippedSkills => equippedSkills;
-    public SkillPassiveSO[] PassiveInventory => passiveInventory;
-    public SkillPassiveSO[] EquippedPassive => equippedPassive;
     public RunConsumableSlotState[] Consumables => consumables;
     public RunConsumableSlotState[] RelicSlots => relicSlots;
 
@@ -167,8 +161,6 @@ public sealed class RunInventoryState
         equippedDice = new DiceSpinnerGeneric[RunInventoryManager.EQUIPPED_DICE_COUNT];
         skillInventory = new ScriptableObject[RunInventoryManager.OWNED_SKILL_COUNT];
         equippedSkills = new ScriptableObject[RunInventoryManager.OWNED_SKILL_COUNT];
-        passiveInventory = new SkillPassiveSO[RunInventoryManager.PASSIVE_SLOT_COUNT];
-        equippedPassive = new SkillPassiveSO[RunInventoryManager.PASSIVE_SLOT_COUNT];
         consumables = new RunConsumableSlotState[RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY];
         relicSlots = new RunConsumableSlotState[RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY];
     }
@@ -185,8 +177,6 @@ public sealed class RunInventoryState
         equippedDice = CopyArray(source.equippedDice);
         skillInventory = CopyArray(source.skillInventory);
         equippedSkills = CopyArray(source.equippedSkills);
-        passiveInventory = CopyArray(source.passiveInventory);
-        equippedPassive = CopyArray(source.equippedPassive);
         consumables = CopyArray(source.consumables);
         relicSlots = CopyArray(source.relicSlots);
         EnsureSlotSizes();
@@ -206,13 +196,6 @@ public sealed class RunInventoryState
         EnsureSlotSizes();
     }
 
-    public void SetPassiveState(SkillPassiveSO[] inventory, SkillPassiveSO[] equipped)
-    {
-        passiveInventory = CopyArray(inventory);
-        equippedPassive = CopyArray(equipped);
-        EnsureSlotSizes();
-    }
-
     public void SetConsumableState(RunConsumableSlotState[] inventory, RunConsumableSlotState[] equippedRelics)
     {
         consumables = CopyArray(inventory);
@@ -226,8 +209,6 @@ public sealed class RunInventoryState
         EnsureLength(ref equippedDice, RunInventoryManager.EQUIPPED_DICE_COUNT);
         EnsureLength(ref skillInventory, RunInventoryManager.OWNED_SKILL_COUNT);
         EnsureLength(ref equippedSkills, RunInventoryManager.OWNED_SKILL_COUNT);
-        EnsureLength(ref passiveInventory, RunInventoryManager.PASSIVE_SLOT_COUNT);
-        EnsureLength(ref equippedPassive, RunInventoryManager.PASSIVE_SLOT_COUNT);
         EnsureMinLength(ref consumables, RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY);
         EnsureMinLength(ref relicSlots, RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY);
     }

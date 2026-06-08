@@ -64,6 +64,17 @@ public partial class DiceSpinnerGeneric
         RefreshFaceValueText(faceIndex);
     }
 
+    public void SetFacePreviewBroken(int faceIndex, bool blink = true)
+    {
+        if (faces == null || faceIndex < 0 || faceIndex >= faces.Length)
+            return;
+
+        EnsureFacePreviewState();
+        _facePreviewBroken[faceIndex] = true;
+        _facePreviewBrokenBlink[faceIndex] = blink;
+        RefreshFaceValueText(faceIndex);
+    }
+
     public void ClearFacePreview(int faceIndex)
     {
         if (faces == null || faceIndex < 0 || faceIndex >= faces.Length)
@@ -74,6 +85,8 @@ public partial class DiceSpinnerGeneric
         _facePreviewBlink[faceIndex] = false;
         _facePreviewEnchants[faceIndex] = DiceFaceEnchantKind.None;
         _facePreviewEnchantBlink[faceIndex] = false;
+        _facePreviewBroken[faceIndex] = false;
+        _facePreviewBrokenBlink[faceIndex] = false;
         RefreshFaceValueText(faceIndex);
     }
 
@@ -92,6 +105,8 @@ public partial class DiceSpinnerGeneric
             _facePreviewBlink[i] = false;
             _facePreviewEnchants[i] = DiceFaceEnchantKind.None;
             _facePreviewEnchantBlink[i] = false;
+            _facePreviewBroken[i] = false;
+            _facePreviewBrokenBlink[i] = false;
             RefreshFaceValueText(i);
         }
     }
@@ -212,11 +227,11 @@ public partial class DiceSpinnerGeneric
         }
         else if (faces[faceIndex].broken)
         {
-            faceText.text = "X";
+            faceText.text = string.Empty;
         }
         else if (faces[faceIndex].enchant == DiceFaceEnchantKind.Stone)
         {
-            faceText.text = "STONE";
+            faceText.text = string.Empty;
         }
         else
         {
@@ -249,26 +264,43 @@ public partial class DiceSpinnerGeneric
         bool hasPreviewEnchant = _facePreviewEnchantBlink != null &&
                                  faceIndex < _facePreviewEnchantBlink.Length &&
                                  (_facePreviewEnchantBlink[faceIndex] || previewEnchant != DiceFaceEnchantKind.None);
+        bool hasPreviewBroken = _facePreviewBroken != null &&
+                                faceIndex < _facePreviewBroken.Length &&
+                                _facePreviewBroken[faceIndex];
         DiceFaceEnchantKind displayedEnchant = hasPreviewEnchant ? previewEnchant : face.enchant;
 
         Sprite icon = null;
-        Color ignoredIconTint;
-        bool hasEnchantIcon =
-            !face.broken &&
-            DiceFaceEnchantUtility.HasEnchant(displayedEnchant) &&
-            iconLibrary != null &&
-            iconLibrary.TryGetDiceFaceEnchantIcon(displayedEnchant, out icon, out ignoredIconTint) &&
-            icon != null;
+        Color iconTint = Color.white;
+        bool hasEnchantIcon = false;
+
+        if (iconLibrary != null && (face.broken || hasPreviewBroken))
+        {
+            hasEnchantIcon = iconLibrary.TryGetBrokenFaceIcon(out icon, out iconTint) && icon != null;
+        }
+
+        if (!hasEnchantIcon)
+        {
+            hasEnchantIcon =
+                !face.broken &&
+                DiceFaceEnchantUtility.HasEnchant(displayedEnchant) &&
+                iconLibrary != null &&
+                iconLibrary.TryGetDiceFaceEnchantIcon(displayedEnchant, out icon, out iconTint) &&
+                icon != null;
+        }
 
         CacheFaceIconBaseLocalScale(faceIndex, iconRenderer);
         iconRenderer.sprite = hasEnchantIcon ? icon : null;
-        iconRenderer.color = Color.white;
+        iconRenderer.color = hasEnchantIcon ? iconTint : Color.white;
         iconRenderer.enabled = hasEnchantIcon;
-        ApplyFaceIconMaterialColor(iconRenderer, hasEnchantIcon ? Color.white : Color.clear);
+        ApplyFaceIconMaterialColor(iconRenderer, hasEnchantIcon ? iconTint : Color.clear);
         if (_faceIconBaseColors != null && faceIndex < _faceIconBaseColors.Length)
-            _faceIconBaseColors[faceIndex] = Color.white;
+            _faceIconBaseColors[faceIndex] = hasEnchantIcon ? iconTint : Color.white;
         ApplyFaceEnchantIconFit(faceIndex, iconRenderer, hasEnchantIcon ? icon : null);
-        ApplyFaceIconBlink(faceIndex, iconRenderer, hasEnchantIcon && hasPreviewEnchant && _facePreviewEnchantBlink[faceIndex]);
+        bool shouldBlinkIcon =
+            hasEnchantIcon &&
+            ((hasPreviewEnchant && _facePreviewEnchantBlink[faceIndex]) ||
+             (hasPreviewBroken && _facePreviewBrokenBlink != null && faceIndex < _facePreviewBrokenBlink.Length && _facePreviewBrokenBlink[faceIndex]));
+        ApplyFaceIconBlink(faceIndex, iconRenderer, shouldBlinkIcon);
     }
 
     private void ApplyFaceIconMaterialColor(SpriteRenderer iconRenderer, Color color)
@@ -300,6 +332,10 @@ public partial class DiceSpinnerGeneric
             _facePreviewEnchants = new DiceFaceEnchantKind[faceCount];
         if (_facePreviewEnchantBlink == null || _facePreviewEnchantBlink.Length != faceCount)
             _facePreviewEnchantBlink = new bool[faceCount];
+        if (_facePreviewBroken == null || _facePreviewBroken.Length != faceCount)
+            _facePreviewBroken = new bool[faceCount];
+        if (_facePreviewBrokenBlink == null || _facePreviewBrokenBlink.Length != faceCount)
+            _facePreviewBrokenBlink = new bool[faceCount];
         if (_facePreviewIconTweens == null || _facePreviewIconTweens.Length != faceCount)
             _facePreviewIconTweens = new Tween[faceCount];
         if (_faceIconBaseColors == null || _faceIconBaseColors.Length != faceCount)

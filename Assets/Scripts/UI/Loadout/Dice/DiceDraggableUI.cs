@@ -721,7 +721,8 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
 
         DiceFace face = dice.GetFace(faceIndex);
         DiceFaceEnchantKind displayedEnchant = dice.GetDisplayedFaceEnchant(faceIndex);
-        if (face.broken || !DiceFaceEnchantUtility.HasEnchant(displayedEnchant))
+        bool showBrokenTooltip = face.broken;
+        if ((!showBrokenTooltip && face.broken) || (!face.broken && !DiceFaceEnchantUtility.HasEnchant(displayedEnchant)))
         {
             SkillTooltipUI.HideCurrentUnlessPointerOverTooltip(gameObject);
             return;
@@ -733,7 +734,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
             _hoverTooltipAsset.hideFlags = HideFlags.HideAndDontSave;
         }
 
-        _hoverTooltipAsset.Configure(displayedEnchant, face.value, dice.name);
+        _hoverTooltipAsset.Configure(displayedEnchant, face.value, dice.name, face.broken);
         Canvas canvas = _rootCanvas != null ? SkillTooltipUI.GetOrCreateSharedOverlayCanvas(_rootCanvas) : null;
         if (canvas == null || _rt == null)
         {

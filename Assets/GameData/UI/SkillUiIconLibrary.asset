@@ -85,3 +85,8 @@ MonoBehaviour:
   - enchant: 12
     icon: {fileID: 6453661803084663350, guid: b5de9fcfd196c1a47b1068ac12138a6c, type: 3}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - enchant: 0
+    icon: {fileID: 0}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
+  brokenFaceIcon: {fileID: -2616831335413515072, guid: 6ac07cea7e1187540992411779429fd2, type: 3}
+  brokenFaceIconTint: {r: 1, g: 1, b: 1, a: 1}

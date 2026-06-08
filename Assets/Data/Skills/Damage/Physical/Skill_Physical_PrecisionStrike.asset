@@ -116,7 +116,7 @@ MonoBehaviour:
       status: 1
       value:
         baseAmount: 7
-        mode: 1
+        mode: 0
         status: 1
         divisor: 1
         matchBaseValue: 7

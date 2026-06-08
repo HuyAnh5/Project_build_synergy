@@ -20,7 +20,7 @@ public partial class RunInventoryManager
     public class SlotBinding
     {
         [LabelText("UI Icon")]
-        [Tooltip("Drag the DraggableSkillIcon for this slot here (usually fixed).")]
+        [Tooltip("Drag the DraggableSkillIcon for this slot here.")]
         public DraggableSkillIcon uiIcon;
 
         [LabelText("Skill")]
@@ -32,11 +32,11 @@ public partial class RunInventoryManager
     public class PassiveSlotBinding
     {
         [LabelText("UI Icon")]
-        [Tooltip("Optional passive UI binding for this passive slot.")]
+        [Tooltip("Legacy passive UI binding. RunInventoryManager no longer stores passive slots.")]
         public PassiveDraggableUI uiIcon;
 
         [LabelText("Passive")]
-        [Tooltip("The passive asset stored in this dedicated passive slot.")]
+        [Tooltip("Legacy passive asset field retained for compatibility with older passive UI scripts.")]
         public SkillPassiveSO passiveAsset;
     }
 
@@ -47,7 +47,7 @@ public partial class RunInventoryManager
     private void ApplyBindingsToIcons()
     {
         EnsureSizes();
-        RunInventoryBindingUtility.ApplyBindingsToIcons(this, fixedSlots, ownedSlots, passiveSlots);
+        RunInventoryBindingUtility.ApplyBindingsToIcons(this, ownedSlots);
 
         InventoryChanged?.Invoke();
         Debug.Log("[RunInventoryManager] Applied slot bindings to UI icons.");

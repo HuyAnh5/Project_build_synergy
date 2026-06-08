@@ -15,7 +15,6 @@ public static partial class SkillUiPrefabSetupTool
     private const string UiAssetFolder = "Assets/GameData/UI";
     private const string IconLibraryAssetPath = UiAssetFolder + "/CombatUiIconLibrary.asset";
     private const string RuntimeRootName = "SkillUiRuntimeRoot";
-    private const string FixedRowName = "FixedSkillsRow";
     private const string OwnedRowName = "OwnedSkillsRow";
     private const string TooltipInstanceName = "SkillTooltip";
     private const string WorldUiPrefabPath = "Assets/Prefabs/Entities/world-ui.prefab";
@@ -63,7 +62,6 @@ public static partial class SkillUiPrefabSetupTool
     {
         Canvas canvas = FindOrCreateCanvas();
         RectTransform runtimeRoot = FindOrCreateRuntimeRoot(canvas.transform);
-        RectTransform fixedRow = FindOrCreateRow(runtimeRoot, FixedRowName, new Vector2(0f, 84f));
         RectTransform ownedRow = FindOrCreateRow(runtimeRoot, OwnedRowName, new Vector2(0f, 0f));
 
         SetupTooltipInstance(canvas.transform);
@@ -73,7 +71,7 @@ public static partial class SkillUiPrefabSetupTool
         ActorWorldUI[] worldUis = Object.FindObjectsByType<ActorWorldUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
         foreach (RunInventoryManager inventory in inventories)
-            SetupInventoryIcons(inventory, fixedRow, ownedRow, turnManager, iconLibrary);
+            SetupInventoryIcons(inventory, ownedRow, turnManager, iconLibrary);
 
         foreach (ActorWorldUI worldUi in worldUis)
         {
@@ -109,17 +107,15 @@ public static partial class SkillUiPrefabSetupTool
         }
     }
 
-    private static void SetupInventoryIcons(RunInventoryManager inventory, RectTransform fixedRow, RectTransform ownedRow, TurnManager turnManager, SkillUiIconLibrarySO iconLibrary)
+    private static void SetupInventoryIcons(RunInventoryManager inventory, RectTransform ownedRow, TurnManager turnManager, SkillUiIconLibrarySO iconLibrary)
     {
         if (inventory == null)
             return;
 
         SerializedObject inventorySo = new SerializedObject(inventory);
-        SerializedProperty fixedSlots = inventorySo.FindProperty("fixedSlots");
         SerializedProperty ownedSlots = inventorySo.FindProperty("ownedSlots");
 
-        SetupSlotArray(inventory, fixedSlots, fixedRow, isFixed: true, turnManager, iconLibrary);
-        SetupSlotArray(inventory, ownedSlots, ownedRow, isFixed: false, turnManager, iconLibrary);
+        SetupSlotArray(inventory, ownedSlots, ownedRow, turnManager, iconLibrary);
 
         inventorySo.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(inventory);
@@ -129,7 +125,6 @@ public static partial class SkillUiPrefabSetupTool
         RunInventoryManager inventory,
         SerializedProperty slotArray,
         RectTransform parentRow,
-        bool isFixed,
         TurnManager turnManager,
         SkillUiIconLibrarySO iconLibrary)
     {
@@ -141,12 +136,12 @@ public static partial class SkillUiPrefabSetupTool
             SerializedProperty binding = slotArray.GetArrayElementAtIndex(i);
             SerializedProperty uiIconProp = binding.FindPropertyRelative("uiIcon");
             DraggableSkillIcon existing = uiIconProp.objectReferenceValue as DraggableSkillIcon;
-            DraggableSkillIcon resolved = EnsureSkillSlotInstance(existing, parentRow, isFixed, i, turnManager, iconLibrary);
+            DraggableSkillIcon resolved = EnsureSkillSlotInstance(existing, parentRow, i, turnManager, iconLibrary);
             uiIconProp.objectReferenceValue = resolved;
 
             if (resolved != null)
             {
-                resolved.SetBindToInventory(inventory, isFixed, i);
+                resolved.SetBindToInventory(inventory, i);
                 resolved.Refresh();
                 EditorUtility.SetDirty(resolved);
             }
@@ -156,7 +151,6 @@ public static partial class SkillUiPrefabSetupTool
     private static DraggableSkillIcon EnsureSkillSlotInstance(
         DraggableSkillIcon existing,
         RectTransform parentRow,
-        bool isFixed,
         int index,
         TurnManager turnManager,
         SkillUiIconLibrarySO iconLibrary)
@@ -170,9 +164,9 @@ public static partial class SkillUiPrefabSetupTool
 
         if (existing != null && PrefabUtility.GetCorrespondingObjectFromSource(existing.gameObject) == prefab)
         {
-            ConfigureSkillIcon(existing, turnManager, iconLibrary, isFixed, index);
+            ConfigureSkillIcon(existing, turnManager, iconLibrary, index);
             existing.transform.SetParent(parentRow, false);
-            existing.name = BuildSlotName(isFixed, index);
+            existing.name = BuildSlotName(index);
             return existing;
         }
 
@@ -201,7 +195,7 @@ public static partial class SkillUiPrefabSetupTool
         if (instance == null)
             return existing;
 
-        instance.name = BuildSlotName(isFixed, index);
+        instance.name = BuildSlotName(index);
         RectTransform rt = instance.transform as RectTransform;
         if (rt != null)
         {
@@ -219,11 +213,11 @@ public static partial class SkillUiPrefabSetupTool
         }
 
         DraggableSkillIcon icon = instance.GetComponent<DraggableSkillIcon>();
-        ConfigureSkillIcon(icon, turnManager, iconLibrary, isFixed, index);
+        ConfigureSkillIcon(icon, turnManager, iconLibrary, index);
         return icon;
     }
 
-    private static void ConfigureSkillIcon(DraggableSkillIcon icon, TurnManager turnManager, SkillUiIconLibrarySO iconLibrary, bool isFixed, int index)
+    private static void ConfigureSkillIcon(DraggableSkillIcon icon, TurnManager turnManager, SkillUiIconLibrarySO iconLibrary, int index)
     {
         if (icon == null)
             return;
@@ -236,7 +230,7 @@ public static partial class SkillUiPrefabSetupTool
         iconSo.FindProperty("turn").objectReferenceValue = turnManager;
         iconSo.FindProperty("iconLibrary").objectReferenceValue = iconLibrary;
         iconSo.FindProperty("bindToInventorySlot").boolValue = true;
-        iconSo.FindProperty("inventorySource").enumValueIndex = isFixed ? 0 : 1;
+        iconSo.FindProperty("inventorySource").enumValueIndex = (int)RunInventoryManager.SkillSource.Owned;
         iconSo.FindProperty("inventoryIndex").intValue = index;
         iconSo.ApplyModifiedPropertiesWithoutUndo();
     }
@@ -341,9 +335,9 @@ public static partial class SkillUiPrefabSetupTool
         return rt;
     }
 
-    private static string BuildSlotName(bool isFixed, int index)
+    private static string BuildSlotName(int index)
     {
-        return (isFixed ? "FixedSkill_" : "OwnedSkill_") + (index + 1);
+        return "OwnedSkill_" + (index + 1);
     }
 
     private static Canvas FindOrCreateCanvas()
