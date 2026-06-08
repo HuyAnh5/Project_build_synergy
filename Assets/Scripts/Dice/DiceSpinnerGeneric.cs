@@ -745,7 +745,8 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
 
         DiceFace face = faces[currentFaceIndex];
         DiceFaceEnchantKind displayedEnchant = GetDisplayedFaceEnchant(currentFaceIndex);
-        if (face.broken || !DiceFaceEnchantUtility.HasEnchant(displayedEnchant))
+        bool showBrokenTooltip = face.broken && iconLibrary != null && iconLibrary.TryGetBrokenFaceIcon(out _, out _);
+        if ((!showBrokenTooltip && face.broken) || (!face.broken && !DiceFaceEnchantUtility.HasEnchant(displayedEnchant)))
             return false;
 
         if (!TryBuildFaceEnchantIconScreenRect(face, cam, out Rect screenRect, padding: 2f))
@@ -769,7 +770,8 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         {
             DiceFace face = faces[i];
             DiceFaceEnchantKind displayedEnchant = GetDisplayedFaceEnchant(i);
-            if (face.broken || !DiceFaceEnchantUtility.HasEnchant(displayedEnchant))
+            bool showBrokenTooltip = face.broken && iconLibrary != null && iconLibrary.TryGetBrokenFaceIcon(out _, out _);
+            if ((!showBrokenTooltip && face.broken) || (!face.broken && !DiceFaceEnchantUtility.HasEnchant(displayedEnchant)))
                 continue;
 
             if (!TryBuildFaceEnchantIconScreenRect(face, cam, out Rect screenRect, padding: 2f))

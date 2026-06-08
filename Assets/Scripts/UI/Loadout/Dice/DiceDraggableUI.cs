@@ -813,7 +813,10 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
             return false;
 
         DiceFace face = dice.GetFace(faceIndex);
-        return !face.broken && DiceFaceEnchantUtility.HasEnchant(dice.GetDisplayedFaceEnchant(faceIndex));
+        if (face.broken)
+            return true;
+
+        return DiceFaceEnchantUtility.HasEnchant(dice.GetDisplayedFaceEnchant(faceIndex));
     }
 
     private bool TryResolveHoveredEnchantFace(out int faceIndex)
