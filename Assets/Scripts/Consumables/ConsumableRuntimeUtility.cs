@@ -416,6 +416,10 @@ public static class ConsumableRuntimeUtility
         if (!belongsToRig)
             return;
 
+        PassiveSystem passiveSystem = turnManager.player != null ? turnManager.player.GetComponent<PassiveSystem>() : null;
+        if (passiveSystem != null)
+            passiveSystem.SyncTrackedBaseFaceValues(changedDie);
+
         turnManager.diceRig.RefreshRollInfoCache();
         turnManager.RefreshPlanningAfterDiceValueReorder();
     }

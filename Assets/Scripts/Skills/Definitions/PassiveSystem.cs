@@ -310,7 +310,7 @@ public class PassiveSystem : MonoBehaviour
     {
         _diceForgingTriggeredThisCombat = false;
         _combatAllFaceBonuses.Clear();
-        CaptureKnownDiceFaces();
+        CaptureKnownDiceFaces(refreshTrackedBaseValues: true);
         ReapplyAllTrackedFaceBonuses();
     }
 
@@ -400,7 +400,7 @@ public class PassiveSystem : MonoBehaviour
         return false;
     }
 
-    private void CaptureKnownDiceFaces()
+    private void CaptureKnownDiceFaces(bool refreshTrackedBaseValues = false)
     {
         DiceSlotRig diceRig = GetDiceRig();
         if (diceRig == null || diceRig.slots == null)
@@ -414,28 +414,56 @@ public class PassiveSystem : MonoBehaviour
             if (die == null || die.faces == null)
                 continue;
 
-            EnsureDieTracked(die);
+            EnsureDieTracked(die, refreshTrackedBaseValues);
         }
     }
 
-    private void EnsureDieTracked(DiceSpinnerGeneric die)
+    private void EnsureDieTracked(DiceSpinnerGeneric die, bool refreshBaseValues = false)
     {
         if (die == null || die.faces == null)
             return;
 
-        if (!_baseFaceValues.ContainsKey(die))
+        if (!_baseFaceValues.TryGetValue(die, out int[] baseValues) || baseValues == null || baseValues.Length != die.faces.Length)
         {
-            int[] baseValues = new int[die.faces.Length];
+            baseValues = new int[die.faces.Length];
             for (int i = 0; i < die.faces.Length; i++)
                 baseValues[i] = die.faces[i].value;
             _baseFaceValues[die] = baseValues;
         }
 
-        if (!_permanentFaceBonuses.ContainsKey(die))
+        if (!_permanentFaceBonuses.TryGetValue(die, out int[] permanentBonuses) || permanentBonuses == null || permanentBonuses.Length != die.faces.Length)
             _permanentFaceBonuses[die] = new int[die.faces.Length];
 
         if (!_combatAllFaceBonuses.ContainsKey(die))
             _combatAllFaceBonuses[die] = 0;
+
+        if (refreshBaseValues)
+            SyncBaseFaceValuesFromCurrent(die);
+    }
+
+    public void SyncTrackedBaseFaceValues(DiceSpinnerGeneric die)
+    {
+        if (die == null || die.faces == null)
+            return;
+
+        EnsureDieTracked(die, refreshBaseValues: true);
+        ReapplyTrackedFaceBonuses(die);
+    }
+
+    private void SyncBaseFaceValuesFromCurrent(DiceSpinnerGeneric die)
+    {
+        if (die == null || die.faces == null || !_baseFaceValues.TryGetValue(die, out int[] baseValues) || baseValues == null)
+            return;
+
+        int[] permanentBonuses = _permanentFaceBonuses.TryGetValue(die, out int[] bonuses) ? bonuses : null;
+        int combatAdd = _combatAllFaceBonuses.TryGetValue(die, out int add) ? add : 0;
+
+        int count = Mathf.Min(die.faces.Length, baseValues.Length);
+        for (int i = 0; i < count; i++)
+        {
+            int permanentAdd = permanentBonuses != null && i < permanentBonuses.Length ? permanentBonuses[i] : 0;
+            baseValues[i] = Mathf.Max(1, die.faces[i].value - permanentAdd - combatAdd);
+        }
     }
 
     private void AddPermanentFaceBonus(DiceSpinnerGeneric die, int faceIndex, int amount)
