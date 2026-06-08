@@ -44,6 +44,7 @@ public static class DiceCombatEnchantRuntimeUtility
             if (die == null || WholeDieStates.ContainsKey(die))
                 continue;
 
+            die.ResetCombatFaceState();
             WholeDieStates[die] = new WholeDieCombatState();
         }
     }

@@ -528,6 +528,28 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         RefreshDisplayedState();
     }
 
+    public void ResetCombatFaceState()
+    {
+        if (!ValidateFaces())
+            return;
+
+        bool changed = false;
+        for (int i = 0; i < faces.Length; i++)
+        {
+            if (!faces[i].broken)
+                continue;
+
+            DiceFace face = faces[i];
+            face.broken = false;
+            faces[i] = face;
+            RefreshFaceValueText(i);
+            changed = true;
+        }
+
+        if (changed)
+            RefreshDisplayedState();
+    }
+
     public int GetModifiedFaceValue(int baseValue)
     {
         return ClampFaceValue(baseValue + _phaseValueModifier);
