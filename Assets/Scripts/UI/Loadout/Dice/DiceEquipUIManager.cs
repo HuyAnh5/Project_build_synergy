@@ -122,7 +122,7 @@ public partial class DiceEquipUIManager : MonoBehaviour
         if (turnManager == null || !turnManager.isActiveAndEnabled)
             return true;
 
-        return turnManager.IsPlanning;
+        return turnManager.IsPlanning && !turnManager.IsDiceReorderLocked;
     }
 
     public void Register(DiceDraggableUI dice)

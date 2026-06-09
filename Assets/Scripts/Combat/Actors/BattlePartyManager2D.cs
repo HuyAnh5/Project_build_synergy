@@ -171,7 +171,9 @@ public class BattlePartyManager2D : MonoBehaviour
         Transform anchor = (side == CombatActor.TeamSide.Ally) ? alliesAnchor : enemiesAnchor;
         Vector3 spawnPos = anchor ? anchor.position : Vector3.zero;
 
-        var go = Instantiate(prefab.gameObject, spawnPos, Quaternion.identity);
+        var go = anchor != null
+            ? Instantiate(prefab.gameObject, spawnPos, Quaternion.identity, anchor)
+            : Instantiate(prefab.gameObject, spawnPos, Quaternion.identity);
         var actor = go.GetComponent<CombatActor>();
         if (!actor)
         {

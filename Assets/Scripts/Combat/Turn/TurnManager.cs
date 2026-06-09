@@ -49,6 +49,7 @@ public partial class TurnManager : MonoBehaviour
     public bool IsPlanning => phase == Phase.Planning;
     public bool CanInteractWithSkills => phase == Phase.Planning && !IsSkillInteractionLockedForCurrentRollWindow() && !ArePlayerCommandsLocked && !_endTurnQueued;
     public bool ArePlayerCommandsLocked => _externalPlayerInteractionLock || _defeatResolvedThisCombat || player == null || player.IsDead;
+    public bool IsDiceReorderLocked => _diceReorderLocked;
     public event Action CombatVictoryResolved;
 
     private readonly ActionSlotDrop[] _drops = new ActionSlotDrop[3];
@@ -66,6 +67,7 @@ public partial class TurnManager : MonoBehaviour
     private bool _victoryResolvedThisCombat;
     private bool _defeatResolvedThisCombat;
     private bool _externalPlayerInteractionLock;
+    private bool _diceReorderLocked;
     private bool _isProcessingQueuedPlayerCommands;
     private bool _endTurnQueued;
     private Coroutine _autoRollCoroutine;

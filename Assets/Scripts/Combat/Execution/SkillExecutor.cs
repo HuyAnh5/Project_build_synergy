@@ -19,6 +19,7 @@ public partial class SkillExecutor : MonoBehaviour
     public float meleeLungeTime = 0.10f;
     public float meleeReturnTime = 0.08f;
     public bool lungeIgnoreTimeScale = false;
+    [Min(0f)] public float meleeTargetStopDistance = 0.35f;
 
     [Header("Damage Popup")]
     public DamagePopupSystem damagePopups;
@@ -28,6 +29,15 @@ public partial class SkillExecutor : MonoBehaviour
         if (damagePopups != null) return damagePopups;
         damagePopups = FindObjectOfType<DamagePopupSystem>();
         return damagePopups;
+    }
+
+    private TurnManager GetTurnManager()
+    {
+        TurnManager fromComponent = GetComponent<TurnManager>();
+        if (fromComponent != null)
+            return fromComponent;
+
+        return FindObjectOfType<TurnManager>(true);
     }
 
     private BattlePartyManager2D GetParty()
@@ -100,7 +110,19 @@ public partial class SkillExecutor : MonoBehaviour
         if (ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
         {
             PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, clickedTarget, targets);
-            yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, castPaymentMask, caster, clickedTarget, targets, mode, applyBuffEffects);
+            TurnManager turnManager = GetTurnManager();
+            if (turnManager != null)
+                turnManager.SetDiceReorderLocked(true);
+
+            try
+            {
+                yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, castPaymentMask, caster, clickedTarget, targets, mode, applyBuffEffects);
+            }
+            finally
+            {
+                if (turnManager != null)
+                    turnManager.SetDiceReorderLocked(false);
+            }
         }
         else
         {
@@ -204,7 +226,19 @@ public partial class SkillExecutor : MonoBehaviour
             if (ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
             {
                 PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, primaryTarget, null);
-                yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, castPaymentMask, caster, primaryTarget, null, mode, applyGuard);
+                TurnManager turnManager = GetTurnManager();
+                if (turnManager != null)
+                    turnManager.SetDiceReorderLocked(true);
+
+                try
+                {
+                    yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, castPaymentMask, caster, primaryTarget, null, mode, applyGuard);
+                }
+                finally
+                {
+                    if (turnManager != null)
+                        turnManager.SetDiceReorderLocked(false);
+                }
             }
             else
             {
@@ -217,12 +251,13 @@ public partial class SkillExecutor : MonoBehaviour
 
         if (rt.kind == SkillKind.Attack)
         {
-            if (ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
+            bool usePlayerDiceCastAnimation = ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan);
+            if (usePlayerDiceCastAnimation)
             {
                 AttackApplyResult singleResult = default;
                 AttackApplyResult aoeResult = default;
-                bool impactResolved = false;
                 bool followUpCompleted = false;
+                bool actionVisualResolved = false;
 
                 System.Action applyAttackAtImpact = () =>
                 {
@@ -236,33 +271,58 @@ public partial class SkillExecutor : MonoBehaviour
                         singleResult = ApplyAttack(rt, caster, primaryTarget, dieValue);
                         StartCoroutine(ResolveDelayedAttackFollowUpsAtImpact(rt, caster, primaryTarget, singleResult, () => followUpCompleted = true));
                     }
-
-                    impactResolved = true;
                 };
 
-                PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, primaryTarget, aoeTargets);
-                yield return GetPlayerDiceCastAnimator().PlayCast(castDiceRig, castStart0, castSpan, castPaymentMask, caster, primaryTarget, aoeTargets, mode, applyAttackAtImpact);
+                IEnumerator ResolveAttackVisualAfterDice()
+                {
+                    if (rt.range == RangeType.Melee)
+                    {
+                        yield return MeleeLungeDOTween_HitMoment(caster, primaryTarget, applyAttackAtImpact);
+                    }
+                    else if (rt.range == RangeType.Ranged && rt.projectilePrefab != null && caster.firePoint != null)
+                    {
+                        yield return RangedProjectileHitMoment(rt, caster, primaryTarget, applyAttackAtImpact);
+                    }
+                    else
+                    {
+                        applyAttackAtImpact();
+                    }
 
-                if (impactResolved)
-                {
-                    while (!followUpCompleted)
-                        yield return null;
+                    actionVisualResolved = true;
                 }
-                else if (useAoe)
+
+                PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, primaryTarget, aoeTargets);
+                TurnManager turnManager = GetTurnManager();
+                if (turnManager != null)
+                    turnManager.SetDiceReorderLocked(true);
+
+                try
                 {
-                    aoeResult = ApplyAttackToTargets(rt, caster, aoeTargets, dieValue);
-                    yield return ResolveDelayedAttackFollowUps(rt, caster, primaryTarget, aoeResult);
+                    yield return GetPlayerDiceCastAnimator().PlayCast(
+                        castDiceRig,
+                        castStart0,
+                        castSpan,
+                        castPaymentMask,
+                        caster,
+                        primaryTarget,
+                        aoeTargets,
+                        mode,
+                        () => StartCoroutine(ResolveAttackVisualAfterDice()));
                 }
-                else
+                finally
                 {
-                    singleResult = ApplyAttack(rt, caster, primaryTarget, dieValue);
-                    yield return ResolveDelayedAttackFollowUps(rt, caster, primaryTarget, singleResult);
+                    if (turnManager != null)
+                        turnManager.SetDiceReorderLocked(false);
                 }
+
+                while (!actionVisualResolved || !followUpCompleted)
+                    yield return null;
 
                 caster.GainFocus(rt.focusGainOnCast);
                 yield return new WaitForSeconds(delayBetweenActions);
                 yield break;
             }
+
             // MELEE (visual 1 lần)
             if (rt.range == RangeType.Melee)
             {
@@ -353,21 +413,70 @@ public partial class SkillExecutor : MonoBehaviour
         }
     }
 
+    private IEnumerator RangedProjectileHitMoment(SkillRuntime rt, CombatActor caster, CombatActor primaryTarget, System.Action onHit)
+    {
+        if (rt == null || caster == null)
+            yield break;
+
+        if (rt.projectilePrefab == null || caster.firePoint == null || primaryTarget == null)
+        {
+            onHit?.Invoke();
+            yield break;
+        }
+
+        bool done = false;
+        float elapsed = 0f;
+
+        Projectile2D proj = Instantiate(rt.projectilePrefab, caster.firePoint.position, caster.firePoint.rotation);
+        proj.Launch(primaryTarget.transform, () =>
+        {
+            onHit?.Invoke();
+            done = true;
+
+            if (proj != null)
+                Destroy(proj.gameObject);
+        });
+
+        while (!done && elapsed < projectileMaxWaitSeconds)
+        {
+            elapsed += Time.deltaTime;
+            yield return null;
+        }
+
+        if (!done)
+        {
+            if (proj != null)
+                Destroy(proj.gameObject);
+
+            onHit?.Invoke();
+        }
+    }
+
     private IEnumerator MeleeLungeDOTween_HitMoment(CombatActor caster, CombatActor target, System.Action onHit)
     {
         if (caster == null) yield break;
 
         Transform t = caster.transform;
-        float startX = t.position.x;
+        Vector3 startPosition = t.position;
+        Vector3 midPosition = startPosition;
 
-        float dirX = 1f;
         if (target != null)
         {
-            float dx = target.transform.position.x - startX;
-            if (!Mathf.Approximately(dx, 0f)) dirX = Mathf.Sign(dx);
+            Vector3 toTarget = target.transform.position - startPosition;
+            float distanceToTarget = toTarget.magnitude;
+            if (distanceToTarget > 0.001f)
+            {
+                Vector3 direction = toTarget / distanceToTarget;
+                float travelDistance = Mathf.Min(
+                    Mathf.Max(0f, meleeLungeDistanceX),
+                    Mathf.Max(0f, distanceToTarget - meleeTargetStopDistance));
+                midPosition = startPosition + direction * travelDistance;
+            }
         }
-
-        float midX = startX + dirX * meleeLungeDistanceX;
+        else
+        {
+            midPosition.x += Mathf.Max(0f, meleeLungeDistanceX);
+        }
 
         t.DOKill(false);
 
@@ -376,7 +485,7 @@ public partial class SkillExecutor : MonoBehaviour
         Sequence seq = DOTween.Sequence();
 
         // đi tới apex
-        seq.Append(t.DOMoveX(midX, Mathf.Max(0.01f, meleeLungeTime)).SetEase(Ease.OutQuad));
+        seq.Append(t.DOMove(midPosition, Mathf.Max(0.01f, meleeLungeTime)).SetEase(Ease.OutQuad));
 
         // HIT MOMENT: ngay khi tới apex
         seq.AppendCallback(() =>
@@ -387,17 +496,13 @@ public partial class SkillExecutor : MonoBehaviour
         });
 
         // lùi về
-        seq.Append(t.DOMoveX(startX, Mathf.Max(0.01f, meleeReturnTime)).SetEase(Ease.InQuad));
+        seq.Append(t.DOMove(startPosition, Mathf.Max(0.01f, meleeReturnTime)).SetEase(Ease.InQuad));
 
         if (lungeIgnoreTimeScale) seq.SetUpdate(true);
 
         yield return seq.WaitForCompletion();
 
         if (t != null)
-        {
-            Vector3 p = t.position;
-            p.x = startX;
-            t.position = p;
-        }
+            t.position = startPosition;
     }
 }

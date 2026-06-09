@@ -56,4 +56,13 @@ public partial class TurnManager
         _externalPlayerInteractionLock = locked;
         RefreshPlanningInteractivity();
     }
+
+    public void SetDiceReorderLocked(bool locked)
+    {
+        if (_diceReorderLocked == locked)
+            return;
+
+        _diceReorderLocked = locked;
+        RefreshPlanningInteractivity();
+    }
 }
