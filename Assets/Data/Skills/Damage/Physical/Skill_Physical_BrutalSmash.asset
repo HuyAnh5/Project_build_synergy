@@ -116,7 +116,7 @@ MonoBehaviour:
       target: 0
       status: 1
       value:
-        baseAmount: 12
+        baseAmount: 5
         mode: 1
         status: 1
         divisor: 1

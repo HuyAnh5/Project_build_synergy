@@ -12,7 +12,7 @@ using UnityEngine.InputSystem;
 
 public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
 {
-    private const int GumWeightBonusPerSource = 2;
+    private const int GumWeightBonusPerSource = 4;
     public const int MinFaceValue = 1;
     public const int MaxFaceValue = 99;
 
