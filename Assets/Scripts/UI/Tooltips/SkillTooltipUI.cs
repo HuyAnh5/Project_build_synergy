@@ -16,6 +16,7 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
     private const float TooltipHorizontalCanvasPadding = 8f;
     private const float TooltipVerticalCanvasPadding = 8f;
     private const float TooltipVerticalOffset = 10f;
+    private const float PanelContentHorizontalInset = 24f;
 
     private static SkillTooltipUI _instance;
 
@@ -46,6 +47,8 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
     private Camera _targetCamera;
     private RectTransform _currentTarget;
     private ISkillTooltipSource _currentSource;
+    private bool _currentUsesPanel;
+    private bool _currentPinnedToSelection;
     private SkillTooltipLayout _layout;
     private bool _lastExpandedState;
     private string _lastContentSignature;
@@ -64,6 +67,18 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
         }
 
         ShowInternal(canvas, target, asset, runtime, source);
+    }
+
+    public static void ShowSkillPanel(ISkillTooltipSource source, bool pinToSelection)
+    {
+        if (source == null ||
+            !source.TryGetSkillTooltip(out Canvas canvas, out RectTransform target, out ScriptableObject asset, out SkillRuntime runtime))
+        {
+            HideCurrent();
+            return;
+        }
+
+        ShowInternal(canvas, target, asset, runtime, source, preferPanel: true, pinToSelection: pinToSelection);
     }
 
     /// <summary>Rebuilds the currently visible tooltip from its source, preserving hover ownership.</summary>
@@ -88,7 +103,7 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
             return;
         }
 
-        ShowInternal(canvas, target, asset, runtime, source);
+        ShowInternal(canvas, target, asset, runtime, source, _instance._currentUsesPanel, _instance._currentPinnedToSelection);
     }
 
     public static void HideCurrent()
@@ -100,13 +115,27 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
                 _instance._hoverBridge.gameObject.SetActive(false);
             _instance._currentSource = null;
             _instance._currentTarget = null;
+            _instance._currentUsesPanel = false;
+            _instance._currentPinnedToSelection = false;
             _instance._lastExpandedState = false;
             _instance._lastContentSignature = null;
         }
     }
 
+    public static void HideCurrentIfSource(ISkillTooltipSource source)
+    {
+        if (IsPinnedSelectedSource(source))
+            return;
+
+        if (IsCurrentSource(source))
+            HideCurrent();
+    }
+
     public static void HideCurrentUnlessPointerOverTooltip(GameObject pointerTarget = null)
     {
+        if (IsPinnedSelectedSource(_instance != null ? _instance._currentSource : null))
+            return;
+
         if (IsPointerOverCurrentTooltip(pointerTarget))
             return;
 
@@ -120,6 +149,18 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
                _instance._root != null &&
                _instance._root.gameObject.activeInHierarchy &&
                ReferenceEquals(_instance._currentSource, source);
+    }
+
+    private static bool IsPinnedSelectedSource(ISkillTooltipSource source)
+    {
+        return source != null &&
+               _instance != null &&
+               _instance._root != null &&
+               _instance._root.gameObject.activeInHierarchy &&
+               _instance._currentUsesPanel &&
+               _instance._currentPinnedToSelection &&
+               ReferenceEquals(_instance._currentSource, source) &&
+               ReferenceEquals(UiDragState.SelectedSkill, source);
     }
 
     public static bool IsPointerOverCurrentTooltip(GameObject pointerTarget = null)
@@ -166,7 +207,31 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
         }
 
         tooltip._currentSource = source;
-        tooltip.ShowInternal(target, asset, runtime);
+        tooltip._currentUsesPanel = false;
+        tooltip._currentPinnedToSelection = false;
+        tooltip.ShowInternal(target, asset, runtime, null);
+    }
+
+    private static void ShowInternal(Canvas canvas, RectTransform target, ScriptableObject asset, SkillRuntime runtime, ISkillTooltipSource source, bool preferPanel, bool pinToSelection)
+    {
+        if (UiDragState.IsDragging || canvas == null || target == null || asset == null)
+        {
+            HideCurrent();
+            return;
+        }
+
+        SkillTooltipUI tooltip = GetOrCreate(canvas);
+        if (tooltip == null)
+        {
+            HideCurrent();
+            return;
+        }
+
+        SkillTooltipPanelAnchor panelAnchor = preferPanel ? SkillTooltipPanelAnchor.FindForCanvas(canvas) : null;
+        tooltip._currentSource = source;
+        tooltip._currentUsesPanel = panelAnchor != null;
+        tooltip._currentPinnedToSelection = panelAnchor != null && pinToSelection;
+        tooltip.ShowInternal(target, asset, runtime, panelAnchor);
     }
 
     private static SkillTooltipUI GetOrCreate(Canvas canvas)
@@ -307,6 +372,9 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
             return;
         }
 
+        if (_currentUsesPanel && _currentPinnedToSelection)
+            return;
+
         if (!IsPointerOverCurrentTooltip())
             HideCurrent();
     }
@@ -314,5 +382,71 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
     private static bool IsExpandedInputActive()
     {
         return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+    }
+}
+
+[DisallowMultipleComponent]
+public sealed class SkillTooltipPanelAnchor : MonoBehaviour
+{
+    private static readonly string[] FallbackNames = { "SkillTooltipPanel", "SkillTooltipPanelAnchor" };
+
+    [SerializeField] private bool useForSkillTooltips = true;
+    [SerializeField] private Vector2 fallbackSize = new Vector2(470f, 220f);
+    [SerializeField] private bool hidePreviewGraphicInPlayMode;
+
+    public RectTransform RectTransform => transform as RectTransform;
+    public Vector2 FallbackSize => fallbackSize;
+
+    private void Awake()
+    {
+        if (!hidePreviewGraphicInPlayMode)
+            return;
+
+        Graphic graphic = GetComponent<Graphic>();
+        if (graphic != null)
+            graphic.enabled = false;
+    }
+
+    public static SkillTooltipPanelAnchor FindForCanvas(Canvas sourceCanvas)
+    {
+        SkillTooltipPanelAnchor[] anchors = FindObjectsByType<SkillTooltipPanelAnchor>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        SkillTooltipPanelAnchor fallback = null;
+
+        for (int i = 0; i < anchors.Length; i++)
+        {
+            SkillTooltipPanelAnchor anchor = anchors[i];
+            if (anchor == null || !anchor.useForSkillTooltips || anchor.RectTransform == null)
+                continue;
+
+            if (fallback == null)
+                fallback = anchor;
+
+            Canvas anchorCanvas = anchor.GetComponentInParent<Canvas>();
+            if (sourceCanvas != null && anchorCanvas == sourceCanvas)
+                return anchor;
+        }
+
+        if (fallback != null)
+            return fallback;
+
+        RectTransform namedPanel = FindNamedPanel(sourceCanvas);
+        return namedPanel != null ? namedPanel.gameObject.AddComponent<SkillTooltipPanelAnchor>() : null;
+    }
+
+    private static RectTransform FindNamedPanel(Canvas sourceCanvas)
+    {
+        for (int i = 0; i < FallbackNames.Length; i++)
+        {
+            GameObject found = GameObject.Find(FallbackNames[i]);
+            RectTransform rect = found != null ? found.transform as RectTransform : null;
+            if (rect == null)
+                continue;
+
+            Canvas canvas = rect.GetComponentInParent<Canvas>();
+            if (sourceCanvas == null || canvas == sourceCanvas)
+                return rect;
+        }
+
+        return null;
     }
 }

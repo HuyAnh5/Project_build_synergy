@@ -21,6 +21,10 @@ public sealed partial class SkillTooltipUI
         Rect rect = _canvasRect.rect;
         Vector2 desired = anchorLocal + new Vector2(0f, TooltipVerticalOffset);
 
+        _root.anchorMin = new Vector2(0.5f, 0.5f);
+        _root.anchorMax = new Vector2(0.5f, 0.5f);
+        _root.pivot = new Vector2(0.5f, 0f);
+
         float halfWidth = size.x * 0.5f;
         float minX = rect.xMin + halfWidth + TooltipHorizontalCanvasPadding;
         float maxX = rect.xMax - halfWidth - TooltipHorizontalCanvasPadding;
@@ -30,6 +34,27 @@ public sealed partial class SkillTooltipUI
         desired.x = Mathf.Clamp(desired.x, minX, maxX);
         desired.y = Mathf.Clamp(desired.y, minY, maxY);
         _root.anchoredPosition = desired;
+    }
+
+    private void PositionAtPanel(SkillTooltipPanelAnchor panelAnchor)
+    {
+        if (_canvasRect == null || _root == null || panelAnchor == null || panelAnchor.RectTransform == null)
+            return;
+
+        RectTransform anchorRect = panelAnchor.RectTransform;
+        Canvas anchorCanvas = anchorRect.GetComponentInParent<Canvas>();
+        Camera anchorCamera = anchorCanvas != null && anchorCanvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? anchorCanvas.worldCamera
+            : null;
+
+        Vector2 screen = RectTransformUtility.WorldToScreenPoint(anchorCamera, anchorRect.position);
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_canvasRect, screen, _uiCamera, out Vector2 localPoint))
+            return;
+
+        _root.anchorMin = new Vector2(0.5f, 0.5f);
+        _root.anchorMax = new Vector2(0.5f, 0.5f);
+        _root.pivot = anchorRect.pivot;
+        _root.anchoredPosition = localPoint;
     }
 
     private void EnsureHoverBridge()

@@ -434,11 +434,23 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         if (!_pointerInside)
             return;
 
+        DraggableSkillIcon selected = UiDragState.SelectedSkill;
+        if (selected != null && selected != this)
+        {
+            ScriptableObject selectedAsset = selected.GetSkillAsset();
+            if (selectedAsset != null)
+            {
+                SkillTooltipUI.ShowSkillPanel(selected, pinToSelection: true);
+                selected.ShowResourcePreview(selectedAsset);
+            }
+            return;
+        }
+
         ScriptableObject asset = GetSkillAsset();
         if (asset == null)
             return;
 
-        SkillTooltipUI.Show(this);
+        SkillTooltipUI.ShowSkillPanel(this, pinToSelection: false);
         ShowResourcePreview(asset);
     }
 

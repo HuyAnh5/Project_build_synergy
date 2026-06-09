@@ -12,11 +12,23 @@ public partial class DraggableSkillIcon
         if (UiDragState.IsDragging)
             return;
 
+        DraggableSkillIcon selected = UiDragState.SelectedSkill;
+        if (selected != null && selected != this)
+        {
+            ScriptableObject selectedAsset = selected.GetSkillAsset();
+            if (selectedAsset != null)
+            {
+                SkillTooltipUI.ShowSkillPanel(selected, pinToSelection: true);
+                selected.ShowResourcePreview(selectedAsset);
+            }
+            return;
+        }
+
         ScriptableObject asset = GetSkillAsset();
         if (asset == null)
             return;
 
-        SkillTooltipUI.Show(this);
+        SkillTooltipUI.ShowSkillPanel(this, pinToSelection: false);
         ShowResourcePreview(asset);
     }
 
@@ -27,24 +39,23 @@ public partial class DraggableSkillIcon
         if (UiDragState.IsDragging)
             return;
 
-        SkillTooltipUI.HideCurrentUnlessPointerOverTooltip(eventData != null ? eventData.pointerCurrentRaycast.gameObject : null);
-
         DraggableSkillIcon selected = UiDragState.SelectedSkill;
-
-        // Náº¿u báº£n thÃ¢n Ä‘ang Ä‘Æ°á»£c chá»n, KHÃ”NG BAO GIá»œ clear resource preview khi chuá»™t rá»i Ä‘i
         if (selected == this)
             return;
 
-        // Náº¿u cÃ³ skill khÃ¡c Ä‘ang Ä‘Æ°á»£c chá»n, khÃ´i phá»¥c preview cá»§a nÃ³
+        SkillTooltipUI.HideCurrentIfSource(this);
+
         if (selected != null)
         {
             ScriptableObject selectedAsset = selected.GetSkillAsset();
             if (selectedAsset != null)
+            {
+                SkillTooltipUI.ShowSkillPanel(selected, pinToSelection: true);
                 selected.ShowResourcePreview(selectedAsset);
+            }
             return;
         }
 
-        // Náº¿u khÃ´ng cÃ³ gÃ¬ Ä‘Æ°á»£c chá»n, clear bÃ¬nh thÆ°á»ng
         ClearResourcePreview();
     }
 
@@ -77,14 +88,29 @@ public partial class DraggableSkillIcon
         StartBlinkCoroutine();
         var a = GetSkillAsset();
         if (a != null)
+        {
+            SkillTooltipUI.ShowSkillPanel(this, pinToSelection: true);
             ShowResourcePreview(a);
+        }
     }
 
     public void OnDeselected()
     {
         _selected = false;
         StopBlinkCoroutine();
-        ClearResourcePreview();
+
+        ScriptableObject asset = GetSkillAsset();
+        if (_pointerInside && asset != null && !UiDragState.IsDragging)
+        {
+            SkillTooltipUI.ShowSkillPanel(this, pinToSelection: false);
+            ShowResourcePreview(asset);
+        }
+        else
+        {
+            SkillTooltipUI.HideCurrentIfSource(this);
+            ClearResourcePreview();
+        }
+
         if (_img != null)
             _img.color = Color.white;
     }

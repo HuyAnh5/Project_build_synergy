@@ -108,8 +108,8 @@ MonoBehaviour:
         scope: 0
         logic: 0
         clauses:
-        - reference: 6
-          comparison: 4
+        - reference: 11
+          comparison: 6
           value: 5
     baseEffects:
     - type: 0

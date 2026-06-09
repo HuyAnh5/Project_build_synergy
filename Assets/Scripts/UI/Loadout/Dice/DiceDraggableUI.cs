@@ -45,8 +45,6 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     [SerializeField] private RectTransform critFailPopupAnchor;
 
     [Header("Dice Enchant Tooltip")]
-    [SerializeField] private float diceEnchantTooltipLiftY = 64f;
-
     private RectTransform _rt;
     private Canvas _rootCanvas;
     private CanvasGroup _cg;
@@ -77,7 +75,6 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private RectTransform _enchantHoverZone;
     private Image _enchantHoverZoneImage;
     private int _enchantHoverZoneFaceIndex = -1;
-    private RectTransform _diceEnchantTooltipAnchor;
     private DiceFaceEnchantTooltipAsset _hoverTooltipAsset;
 
     private void Awake()
@@ -742,35 +739,15 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
             return;
         }
 
-        SkillTooltipUI.Show(canvas, GetDiceEnchantTooltipTarget(), _hoverTooltipAsset);
-    }
-
-    private RectTransform GetDiceEnchantTooltipTarget()
-    {
-        if (_rt == null)
-            return null;
-
-        if (_diceEnchantTooltipAnchor == null)
+        EnsureEnchantHoverZone();
+        UpdateEnchantHoverZone();
+        if (_enchantHoverZone == null || !_enchantHoverZone.gameObject.activeInHierarchy)
         {
-            Transform existing = _rt.Find("DiceEnchantTooltipAnchor");
-            if (existing != null)
-                _diceEnchantTooltipAnchor = existing as RectTransform;
-
-            if (_diceEnchantTooltipAnchor == null)
-            {
-                GameObject anchorObject = new GameObject("DiceEnchantTooltipAnchor", typeof(RectTransform));
-                _diceEnchantTooltipAnchor = anchorObject.GetComponent<RectTransform>();
-                _diceEnchantTooltipAnchor.SetParent(_rt, false);
-            }
+            SkillTooltipUI.HideCurrentUnlessPointerOverTooltip(gameObject);
+            return;
         }
 
-        _diceEnchantTooltipAnchor.anchorMin = new Vector2(0f, 0f);
-        _diceEnchantTooltipAnchor.anchorMax = new Vector2(1f, 1f);
-        _diceEnchantTooltipAnchor.pivot = new Vector2(0.5f, 0.5f);
-        _diceEnchantTooltipAnchor.offsetMin = new Vector2(0f, diceEnchantTooltipLiftY);
-        _diceEnchantTooltipAnchor.offsetMax = new Vector2(0f, diceEnchantTooltipLiftY);
-        _diceEnchantTooltipAnchor.SetAsFirstSibling();
-        return _diceEnchantTooltipAnchor;
+        SkillTooltipUI.Show(canvas, _enchantHoverZone, _hoverTooltipAsset);
     }
 
     private int ResolveTooltipFaceIndex()
@@ -845,7 +822,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     {
         EnsureInitialized();
         canvas = _rootCanvas != null ? SkillTooltipUI.GetOrCreateSharedOverlayCanvas(_rootCanvas) : null;
-        target = _rt;
+        target = _enchantHoverZone != null && _enchantHoverZone.gameObject.activeInHierarchy ? _enchantHoverZone : null;
         asset = _hoverTooltipAsset;
         runtime = null;
         return canvas != null && target != null && asset != null;

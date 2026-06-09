@@ -112,7 +112,7 @@ public sealed partial class SkillTooltipUI
     }
 
     /// <summary>Applies formatted tooltip content to the active layout and refreshes size/position.</summary>
-    private void ShowInternal(RectTransform target, ScriptableObject asset, SkillRuntime runtime)
+    private void ShowInternal(RectTransform target, ScriptableObject asset, SkillRuntime runtime, SkillTooltipPanelAnchor panelAnchor)
     {
         if (_root == null || _title == null || _targeting == null || _effect == null || _requiresHeader == null || _requires == null || _conditionHeader == null || _condition == null)
             return;
@@ -132,15 +132,26 @@ public sealed partial class SkillTooltipUI
         ApplyContent(content);
         _root.gameObject.SetActive(true);
         _root.SetAsLastSibling();
+        bool usePanel = panelAnchor != null;
         if (_hoverBridge != null)
-            _hoverBridge.gameObject.SetActive(true);
+            _hoverBridge.gameObject.SetActive(!usePanel);
 
-        ApplyDynamicSizing();
+        if (usePanel)
+            ApplyPanelSizing(panelAnchor);
+        else
+            ApplyDynamicSizing();
         if (contentChanged)
             _lastContentSignature = contentSignature;
 
-        PositionNear(target);
-        PositionHoverBridge(target);
+        if (usePanel)
+        {
+            PositionAtPanel(panelAnchor);
+        }
+        else
+        {
+            PositionNear(target);
+            PositionHoverBridge(target);
+        }
     }
 
     private void ApplyDynamicSizing()
@@ -190,6 +201,50 @@ public sealed partial class SkillTooltipUI
 
         _root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, contentWidth + horizontalPadding);
         _root.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, preferredHeight);
+        ApplyManualTextLayout(contentWidth, horizontalPadding, verticalPadding, spacing);
+    }
+
+    private void ApplyPanelSizing(SkillTooltipPanelAnchor panelAnchor)
+    {
+        if (_root == null || panelAnchor == null)
+            return;
+
+        Vector2 panelSize = panelAnchor.RectTransform != null ? panelAnchor.RectTransform.rect.size : Vector2.zero;
+        if (panelSize.x <= 0f || panelSize.y <= 0f)
+            panelSize = panelAnchor.FallbackSize;
+
+        float horizontalPadding = 0f;
+        float verticalPadding = 0f;
+        float spacing = 0f;
+        VerticalLayoutGroup layoutGroup = _layout != null ? _layout.VerticalLayout : GetComponent<VerticalLayoutGroup>();
+        if (layoutGroup != null)
+        {
+            horizontalPadding = layoutGroup.padding.left + layoutGroup.padding.right;
+            verticalPadding = layoutGroup.padding.top + layoutGroup.padding.bottom;
+            spacing = layoutGroup.spacing;
+        }
+
+        float contentWidth = Mathf.Max(DefaultMinContentWidth, panelSize.x - horizontalPadding - PanelContentHorizontalInset);
+
+        if (_titleLayout != null)
+            _titleLayout.preferredWidth = contentWidth;
+        if (_costLayout != null)
+            _costLayout.preferredWidth = contentWidth;
+        if (_targetingLayout != null)
+            _targetingLayout.preferredWidth = contentWidth;
+        if (_effectLayout != null)
+            _effectLayout.preferredWidth = contentWidth;
+        if (_requiresHeaderLayout != null)
+            _requiresHeaderLayout.preferredWidth = contentWidth;
+        if (_requiresLayout != null)
+            _requiresLayout.preferredWidth = contentWidth;
+        if (_conditionHeaderLayout != null)
+            _conditionHeaderLayout.preferredWidth = contentWidth;
+        if (_conditionLayout != null)
+            _conditionLayout.preferredWidth = contentWidth;
+
+        _root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, panelSize.x);
+        _root.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, panelSize.y);
         ApplyManualTextLayout(contentWidth, horizontalPadding, verticalPadding, spacing);
     }
 
