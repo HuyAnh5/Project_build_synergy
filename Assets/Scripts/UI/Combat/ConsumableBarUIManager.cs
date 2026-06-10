@@ -134,6 +134,8 @@ public partial class ConsumableBarUIManager : MonoBehaviour
 
     private void Update()
     {
+        UpdateHoveredSlotFromPointer();
+
         bool locked = IsInteractionLocked();
         if (locked == _lastInteractionLocked)
         {
@@ -192,7 +194,7 @@ public partial class ConsumableBarUIManager : MonoBehaviour
 
     public void HandleSlotHoverExit(int index)
     {
-        if (_hoveredSlot == index)
+        if (_hoveredSlot == index && !IsPointerOverTooltipPresentation(index))
             _hoveredSlot = -1;
 
         if (_ignoreHoverSlotUntilExit == index)
@@ -202,6 +204,18 @@ public partial class ConsumableBarUIManager : MonoBehaviour
             _suppressClickSlot = -1;
 
         RefreshFloatingPresentation();
+    }
+
+    private void UpdateHoveredSlotFromPointer()
+    {
+        if (_hoveredSlot < 0)
+            return;
+
+        if (UiDragState.IsDragging || !IsPointerOverTooltipPresentation(_hoveredSlot))
+        {
+            _hoveredSlot = -1;
+            RefreshFloatingPresentation();
+        }
     }
 
     public void HandleSlotClicked(int index)

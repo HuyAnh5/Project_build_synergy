@@ -28,6 +28,11 @@ MonoBehaviour:
     slotBackgroundColor: {r: 0.69411767, g: 0.6482414, b: 0.3254902, a: 1}
     badgeBackgroundColor: {r: 0.69411767, g: 0.64705884, b: 0.3254902, a: 1}
     iconTint: {r: 0, g: 0, b: 0, a: 0}
+  - element: 4
+    icon: {fileID: 3036406079360279078, guid: 2ae33b38b49790240b35176bd59b783d, type: 3}
+    slotBackgroundColor: {r: 0, g: 0, b: 0, a: 0}
+    badgeBackgroundColor: {r: 0, g: 0, b: 0, a: 0}
+    iconTint: {r: 0, g: 0, b: 0, a: 0}
   oneSlotDiceIcon: {fileID: 8289616819064259453, guid: 55a7c93b81a2a12478f65f81a5d05f0f, type: 3}
   twoSlotDiceIcon: {fileID: -810852965082497749, guid: 27a64e37fa000a142b3fbe590aa1df32, type: 3}
   threeSlotDiceIcon: {fileID: 2681980343471214512, guid: ec3853f60a0497a47a7f1e874124d220, type: 3}

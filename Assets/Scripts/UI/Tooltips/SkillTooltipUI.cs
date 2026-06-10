@@ -1,12 +1,14 @@
 using TMPro;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 // Public facade and lifecycle owner for skill tooltips. Layout/content and
 // positioning details are split into partial files to keep responsibilities small.
-public sealed partial class SkillTooltipUI : MonoBehaviour
+public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
 {
-    private const string TooltipPrefabResourcePath = "UI/SkillTooltipLayout";
+    private const string TooltipPrefabSettingsResourcePath = "UI/SkillTooltipPrefabSettings";
     private const string TooltipOverlayCanvasName = "SkillTooltipOverlayCanvas";
     private const string TooltipHoverBridgeName = "SkillTooltipHoverBridge";
     private const string TooltipRequiresHeader = "---------- Requires ----------";
@@ -28,7 +30,6 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
     private TMP_Text _requires;
     private TMP_Text _conditionHeader;
     private TMP_Text _condition;
-    private Image _elementIcon;
     private LayoutElement _titleLayout;
     private LayoutElement _costLayout;
     private LayoutElement _targetingLayout;
@@ -47,8 +48,14 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
     private RectTransform _currentTarget;
     private ISkillTooltipSource _currentSource;
     private SkillTooltipLayout _layout;
+    private SkillTooltipKeywordGlossarySO _keywordGlossary;
+    private readonly List<KeywordTooltipView> _keywordTooltipViews = new List<KeywordTooltipView>();
+    private string _activeKeywordId;
     private bool _lastExpandedState;
     private string _lastContentSignature;
+
+    private static SkillTooltipPrefabSettingsSO _prefabSettings;
+    private static SkillTooltipPrefabProvider _prefabProvider;
 
     public static void Show(Canvas canvas, RectTransform target, ScriptableObject asset, SkillRuntime runtime = null)
         => ShowInternal(canvas, target, asset, runtime, null);
@@ -98,8 +105,10 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
             _instance._root.gameObject.SetActive(false);
             if (_instance._hoverBridge != null)
                 _instance._hoverBridge.gameObject.SetActive(false);
+            _instance.HideAllKeywordTooltips();
             _instance._currentSource = null;
             _instance._currentTarget = null;
+            _instance._activeKeywordId = null;
             _instance._lastExpandedState = false;
             _instance._lastContentSignature = null;
         }
@@ -147,7 +156,18 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
             return true;
         }
 
+        if (_instance.IsPointerOverAnyKeywordTooltip())
+            return true;
+
         return false;
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (_root == null || !_root.gameObject.activeInHierarchy)
+            return;
+
+        HideCurrent();
     }
 
     private static void ShowInternal(Canvas canvas, RectTransform target, ScriptableObject asset, SkillRuntime runtime, ISkillTooltipSource source)
@@ -155,6 +175,17 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
         if (UiDragState.IsDragging || canvas == null || target == null || asset == null)
         {
             HideCurrent();
+            return;
+        }
+
+        if (_instance != null &&
+            _instance._root != null &&
+            _instance._root.gameObject.activeInHierarchy &&
+            _instance._currentTarget != null &&
+            IsPointerOverCurrentTooltip() &&
+            !ReferenceEquals(_instance._currentSource, source) &&
+            _instance._currentTarget != target)
+        {
             return;
         }
 
@@ -189,10 +220,12 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
             return _instance;
         }
 
-        GameObject prefab = Resources.Load<GameObject>(TooltipPrefabResourcePath);
+        GameObject prefab = GetSkillTooltipPrefab();
         if (prefab == null)
         {
-            Debug.LogError($"Skill tooltip prefab not found at Resources/{TooltipPrefabResourcePath}.", canvas);
+            Debug.LogError(
+                $"Skill tooltip prefab is missing. Assign it on {nameof(SkillTooltipPrefabSettingsSO)} at Resources/{TooltipPrefabSettingsResourcePath}.",
+                canvas);
             return null;
         }
 
@@ -278,6 +311,32 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
     public static Canvas GetOrCreateSharedOverlayCanvas(Canvas sourceCanvas)
         => GetOrCreateOverlayCanvas(sourceCanvas);
 
+    private static SkillTooltipPrefabSettingsSO GetPrefabSettings()
+    {
+        if (_prefabSettings == null)
+            _prefabSettings = Resources.Load<SkillTooltipPrefabSettingsSO>(TooltipPrefabSettingsResourcePath);
+
+        return _prefabSettings;
+    }
+
+    private static SkillTooltipPrefabProvider GetPrefabProvider()
+    {
+        if (_prefabProvider == null)
+            _prefabProvider = FindFirstObjectByType<SkillTooltipPrefabProvider>(FindObjectsInactive.Include);
+
+        return _prefabProvider;
+    }
+
+    private static GameObject GetSkillTooltipPrefab()
+    {
+        SkillTooltipPrefabProvider provider = GetPrefabProvider();
+        if (provider != null && provider.SkillTooltipPrefab != null)
+            return provider.SkillTooltipPrefab;
+
+        SkillTooltipPrefabSettingsSO settings = GetPrefabSettings();
+        return settings != null ? settings.SkillTooltipPrefab : null;
+    }
+
     private void OnEnable()
     {
         UiDragState.DragStateChanged += HandleDragStateChanged;
@@ -286,6 +345,7 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
     private void OnDisable()
     {
         UiDragState.DragStateChanged -= HandleDragStateChanged;
+        HideAllKeywordTooltips();
     }
 
     private void HandleDragStateChanged()
@@ -306,6 +366,8 @@ public sealed partial class SkillTooltipUI : MonoBehaviour
             RefreshCurrent();
             return;
         }
+
+        UpdateKeywordTooltips();
 
         if (!IsPointerOverCurrentTooltip())
             HideCurrent();

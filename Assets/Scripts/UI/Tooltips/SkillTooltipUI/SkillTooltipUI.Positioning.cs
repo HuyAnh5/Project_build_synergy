@@ -54,7 +54,7 @@ public sealed partial class SkillTooltipUI
 
         _hoverBridge.anchorMin = new Vector2(0.5f, 0.5f);
         _hoverBridge.anchorMax = new Vector2(0.5f, 0.5f);
-        _hoverBridge.pivot = new Vector2(0.5f, 0f);
+        _hoverBridge.pivot = new Vector2(0.5f, 0.5f);
 
         _hoverBridgeImage = _hoverBridge.GetComponent<Image>();
         if (_hoverBridgeImage == null)
@@ -82,25 +82,28 @@ public sealed partial class SkillTooltipUI
         if (_hoverBridge == null || _currentTarget == null || _hoverBridgeCanvasRect == null)
             return;
 
-        Vector3[] targetCorners = new Vector3[4];
-        _currentTarget.GetWorldCorners(targetCorners);
-        Vector3 targetTopCenterWorld = (targetCorners[1] + targetCorners[2]) * 0.5f;
-        Vector2 targetTopScreen = RectTransformUtility.WorldToScreenPoint(_targetCamera, targetTopCenterWorld);
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_hoverBridgeCanvasRect, targetTopScreen, _hoverBridgeCamera, out Vector2 targetTopLocal))
+        if (!TryGetHoverBridgeScreenRect(out Rect bridgeScreenRect))
+        {
+            _hoverBridge.gameObject.SetActive(false);
+            return;
+        }
+
+        Vector2 bridgeMinScreen = new Vector2(bridgeScreenRect.xMin, bridgeScreenRect.yMin);
+        Vector2 bridgeMaxScreen = new Vector2(bridgeScreenRect.xMax, bridgeScreenRect.yMax);
+        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_hoverBridgeCanvasRect, bridgeMinScreen, _hoverBridgeCamera, out Vector2 bridgeMinLocal) ||
+            !RectTransformUtility.ScreenPointToLocalPointInRectangle(_hoverBridgeCanvasRect, bridgeMaxScreen, _hoverBridgeCamera, out Vector2 bridgeMaxLocal))
             return;
 
-        Vector3 tooltipBottomCenterWorld = _root.TransformPoint(new Vector3(0f, 0f, 0f));
-        Vector2 tooltipBottomScreen = RectTransformUtility.WorldToScreenPoint(_uiCamera, tooltipBottomCenterWorld);
-        if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(_hoverBridgeCanvasRect, tooltipBottomScreen, _hoverBridgeCamera, out Vector2 tooltipBottomLocal))
-            return;
-
-        float width = _currentTarget.rect.width;
-        float height = Mathf.Max(0f, tooltipBottomLocal.y - targetTopLocal.y);
+        Vector2 localMin = Vector2.Min(bridgeMinLocal, bridgeMaxLocal);
+        Vector2 localMax = Vector2.Max(bridgeMinLocal, bridgeMaxLocal);
+        Vector2 localSize = localMax - localMin;
+        Vector2 localCenter = (localMin + localMax) * 0.5f;
 
         _hoverBridge.SetAsLastSibling();
-        _hoverBridge.anchoredPosition = targetTopLocal;
-        _hoverBridge.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
-        _hoverBridge.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
+        _hoverBridge.anchoredPosition = localCenter;
+        _hoverBridge.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, localSize.x);
+        _hoverBridge.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, localSize.y);
+        _hoverBridge.gameObject.SetActive(localSize.x > 0.01f && localSize.y > 0.01f);
     }
 
     private bool IsScreenPointInsideRect(RectTransform rect, Vector2 screenPoint, Camera camera)
@@ -112,37 +115,108 @@ public sealed partial class SkillTooltipUI
 
     private bool IsScreenPointInsideHoverBridgeZone(Vector2 screenPoint)
     {
+        if (!TryGetHoverBridgeScreenRect(out Rect bridgeScreenRect))
+            return false;
+
+        return bridgeScreenRect.Contains(screenPoint);
+    }
+
+    private bool TryGetHoverBridgeScreenRect(out Rect bridgeScreenRect)
+    {
+        bridgeScreenRect = default;
         if (_currentTarget == null || _root == null || !_root.gameObject.activeInHierarchy)
             return false;
 
-        Vector3[] targetCorners = new Vector3[4];
-        _currentTarget.GetWorldCorners(targetCorners);
+        Rect targetScreenRect = GetScreenRect(_currentTarget, _targetCamera);
+        Rect tooltipScreenRect = GetScreenRect(_root, _uiCamera);
+        if (targetScreenRect.width <= 0f || targetScreenRect.height <= 0f ||
+            tooltipScreenRect.width <= 0f || tooltipScreenRect.height <= 0f)
+        {
+            return false;
+        }
 
-        Vector2 targetBottomLeft = RectTransformUtility.WorldToScreenPoint(_targetCamera, targetCorners[0]);
-        Vector2 targetTopLeft = RectTransformUtility.WorldToScreenPoint(_targetCamera, targetCorners[1]);
-        Vector2 targetTopRight = RectTransformUtility.WorldToScreenPoint(_targetCamera, targetCorners[2]);
-
-        Vector3 tooltipBottomCenterWorld = _root.TransformPoint(Vector3.zero);
-        Vector2 tooltipBottomCenter = RectTransformUtility.WorldToScreenPoint(_uiCamera, tooltipBottomCenterWorld);
-
-        float minX = Mathf.Min(targetTopLeft.x, targetTopRight.x);
-        float maxX = Mathf.Max(targetTopLeft.x, targetTopRight.x);
-        float minY = Mathf.Min(targetTopLeft.y, tooltipBottomCenter.y);
-        float maxY = Mathf.Max(targetTopLeft.y, tooltipBottomCenter.y);
-
-        if (maxY <= minY)
+        if (targetScreenRect.Overlaps(tooltipScreenRect, true))
             return false;
 
-        bool insideBridgeColumn = screenPoint.x >= minX && screenPoint.x <= maxX;
-        bool insideBridgeHeight = screenPoint.y >= minY && screenPoint.y <= maxY;
-        if (insideBridgeColumn && insideBridgeHeight)
-            return true;
+        bool verticalGap = targetScreenRect.yMax < tooltipScreenRect.yMin || tooltipScreenRect.yMax < targetScreenRect.yMin;
+        bool horizontalGap = targetScreenRect.xMax < tooltipScreenRect.xMin || tooltipScreenRect.xMax < targetScreenRect.xMin;
 
-        bool stillOnIcon = screenPoint.x >= Mathf.Min(targetBottomLeft.x, targetTopRight.x) &&
-                           screenPoint.x <= Mathf.Max(targetBottomLeft.x, targetTopRight.x) &&
-                           screenPoint.y >= Mathf.Min(targetBottomLeft.y, targetTopLeft.y) &&
-                           screenPoint.y <= Mathf.Max(targetBottomLeft.y, targetTopLeft.y);
+        if (verticalGap && !horizontalGap)
+        {
+            float xMin = Mathf.Max(targetScreenRect.xMin, tooltipScreenRect.xMin);
+            float xMax = Mathf.Min(targetScreenRect.xMax, tooltipScreenRect.xMax);
+            float yMin = Mathf.Min(targetScreenRect.yMax, tooltipScreenRect.yMax);
+            float yMax = Mathf.Max(targetScreenRect.yMin, tooltipScreenRect.yMin);
+            bridgeScreenRect = Rect.MinMaxRect(xMin, yMin, xMax, yMax);
+        }
+        else if (horizontalGap && !verticalGap)
+        {
+            float xMin = Mathf.Min(targetScreenRect.xMax, tooltipScreenRect.xMax);
+            float xMax = Mathf.Max(targetScreenRect.xMin, tooltipScreenRect.xMin);
+            float yMin = Mathf.Max(targetScreenRect.yMin, tooltipScreenRect.yMin);
+            float yMax = Mathf.Min(targetScreenRect.yMax, tooltipScreenRect.yMax);
+            bridgeScreenRect = Rect.MinMaxRect(xMin, yMin, xMax, yMax);
+        }
+        else
+        {
+            Vector2 targetPoint = ClosestPointOnRect(targetScreenRect, tooltipScreenRect.center);
+            Vector2 tooltipPoint = ClosestPointOnRect(tooltipScreenRect, targetPoint);
+            targetPoint = ClosestPointOnRect(targetScreenRect, tooltipPoint);
+            bridgeScreenRect = Rect.MinMaxRect(
+                Mathf.Min(targetPoint.x, tooltipPoint.x),
+                Mathf.Min(targetPoint.y, tooltipPoint.y),
+                Mathf.Max(targetPoint.x, tooltipPoint.x),
+                Mathf.Max(targetPoint.y, tooltipPoint.y));
+        }
 
-        return stillOnIcon;
+        bridgeScreenRect = ExpandThinRect(bridgeScreenRect, 6f);
+        return bridgeScreenRect.width > 0f && bridgeScreenRect.height > 0f;
+    }
+
+    private static Rect GetScreenRect(RectTransform rect, Camera camera)
+    {
+        if (rect == null)
+            return default;
+
+        Vector3[] corners = new Vector3[4];
+        rect.GetWorldCorners(corners);
+        Vector2 min = RectTransformUtility.WorldToScreenPoint(camera, corners[0]);
+        Vector2 max = min;
+        for (int i = 1; i < corners.Length; i++)
+        {
+            Vector2 screenCorner = RectTransformUtility.WorldToScreenPoint(camera, corners[i]);
+            min = Vector2.Min(min, screenCorner);
+            max = Vector2.Max(max, screenCorner);
+        }
+
+        return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+    }
+
+    private static Vector2 ClosestPointOnRect(Rect rect, Vector2 point)
+    {
+        return new Vector2(
+            Mathf.Clamp(point.x, rect.xMin, rect.xMax),
+            Mathf.Clamp(point.y, rect.yMin, rect.yMax));
+    }
+
+    private static Rect ExpandThinRect(Rect rect, float minThickness)
+    {
+        float width = rect.width;
+        float height = rect.height;
+        if (width < minThickness)
+        {
+            float extra = (minThickness - width) * 0.5f;
+            rect.xMin -= extra;
+            rect.xMax += extra;
+        }
+
+        if (height < minThickness)
+        {
+            float extra = (minThickness - height) * 0.5f;
+            rect.yMin -= extra;
+            rect.yMax += extra;
+        }
+
+        return rect;
     }
 }

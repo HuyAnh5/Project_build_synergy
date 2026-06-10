@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
@@ -15,6 +16,9 @@ public class SkillTooltipLayout : MonoBehaviour
     [SerializeField] private TMP_Text conditionHeaderText;
     [SerializeField] private TMP_Text conditionText;
     [SerializeField] private Image elementIconImage;
+    [SerializeField] private SkillTooltipKeywordGlossarySO keywordGlossary;
+    [FormerlySerializedAs("keywordTooltipTemplate")]
+    [SerializeField] private SkillTooltipKeywordTooltipTemplate keywordTooltipPrefab;
     [SerializeField] private VerticalLayoutGroup verticalLayout;
     [SerializeField] private ContentSizeFitter contentSizeFitter;
     [SerializeField] private float minContentWidth = 170f;
@@ -33,6 +37,8 @@ public class SkillTooltipLayout : MonoBehaviour
     public TMP_Text ConditionHeaderText => conditionHeaderText;
     public TMP_Text ConditionText => conditionText;
     public Image ElementIconImage => elementIconImage;
+    public SkillTooltipKeywordGlossarySO KeywordGlossary => keywordGlossary;
+    public SkillTooltipKeywordTooltipTemplate KeywordTooltipPrefab => keywordTooltipPrefab;
     public VerticalLayoutGroup VerticalLayout => verticalLayout;
     public ContentSizeFitter ContentSizeFitter => contentSizeFitter;
     public float MinContentWidth => minContentWidth > 0f ? minContentWidth : 170f;

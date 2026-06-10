@@ -919,6 +919,7 @@ GameObject:
   - component: {fileID: 85672276}
   - component: {fileID: 85672275}
   - component: {fileID: 85672274}
+  - component: {fileID: 85672277}
   m_Layer: 0
   m_Name: GameplayDiceEditDiceCanvas
   m_TagString: Untagged
@@ -1009,6 +1010,20 @@ Canvas:
   m_SortingLayerID: 0
   m_SortingOrder: 30001
   m_TargetDisplay: 0
+--- !u!114 &85672277
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 85672272}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7ffb0bfb5121e674c94c097139c91bea, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::SkillTooltipPrefabProvider
+  skillTooltipPrefab: {fileID: 6632977448167715698, guid: 0bf39510207b9d94f9f65b8f8050dac0, type: 3}
+  keywordTooltipPrefab: {fileID: 8961096009701959843, guid: 0b0a277a735a9b244808de231f5aab9c, type: 3}
 --- !u!1 &96135722
 GameObject:
   m_ObjectHideFlags: 0
@@ -3793,6 +3808,8 @@ MonoBehaviour:
   conditionHeaderText: {fileID: 0}
   conditionText: {fileID: 0}
   elementIconImage: {fileID: 0}
+  keywordGlossary: {fileID: 0}
+  keywordTooltipPrefab: {fileID: 0}
   verticalLayout: {fileID: 801903712}
   contentSizeFitter: {fileID: 801903711}
   minContentWidth: 1
@@ -5051,7 +5068,7 @@ MonoBehaviour:
   - uiIcon: {fileID: 0}
     skillAsset: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
   - uiIcon: {fileID: 0}
-    skillAsset: {fileID: 11400000, guid: d0a72a3e8f4a917bf4280516f7087207, type: 2}
+    skillAsset: {fileID: 11400000, guid: 77a1c4d829e44d1b9c8a2a9fbf0e1101, type: 2}
   - uiIcon: {fileID: 0}
     skillAsset: {fileID: 11400000, guid: ccf6192d7e39806ae317f405e6f76106, type: 2}
   consumableCapacity: 5
@@ -8917,7 +8934,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2009635724}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cd1d59d93ddcb04468c3839cce3a8e44, type: 3}
   m_Name: 
@@ -9499,7 +9516,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 0
+  m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 32767

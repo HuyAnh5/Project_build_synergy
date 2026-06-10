@@ -497,6 +497,138 @@ public partial class ConsumableBarUIManager
 
         return isTooltip ? tooltipOffset : actionPanelOffset;
     }
+
+    private bool IsPointerOverTooltipPresentation(int slotIndex)
+    {
+        ConsumableSlotView slot = GetSlot(slotIndex);
+        RectTransform source = GetSlotVisualTarget(slot);
+        RectTransform tooltip = GetTooltipRootForSlot(slot);
+        if (source == null || tooltip == null || !tooltip.gameObject.activeInHierarchy)
+            return false;
+
+        Canvas canvas = source.GetComponentInParent<Canvas>();
+        Camera eventCamera = GetCanvasEventCamera(canvas);
+        Vector2 screenPoint = Input.mousePosition;
+        if (RectTransformUtility.RectangleContainsScreenPoint(source, screenPoint, eventCamera) ||
+            RectTransformUtility.RectangleContainsScreenPoint(tooltip, screenPoint, eventCamera))
+        {
+            return true;
+        }
+
+        if (!TryBuildHoverBridgeScreenRect(source, tooltip, eventCamera, out Rect bridgeRect))
+            return false;
+
+        return bridgeRect.Contains(screenPoint);
+    }
+
+    private RectTransform GetTooltipRootForSlot(ConsumableSlotView slot)
+    {
+        if (slot != null && slot.localTooltipRoot != null)
+            return slot.localTooltipRoot;
+
+        return tooltipRoot;
+    }
+
+    private static bool TryBuildHoverBridgeScreenRect(RectTransform source, RectTransform tooltip, Camera eventCamera, out Rect bridgeRect)
+    {
+        bridgeRect = default;
+        if (source == null || tooltip == null)
+            return false;
+
+        Rect sourceRect = GetScreenRect(source, eventCamera);
+        Rect tooltipRect = GetScreenRect(tooltip, eventCamera);
+        if (sourceRect.width <= 0f || sourceRect.height <= 0f ||
+            tooltipRect.width <= 0f || tooltipRect.height <= 0f ||
+            sourceRect.Overlaps(tooltipRect, true))
+        {
+            return false;
+        }
+
+        bool verticalGap = sourceRect.yMax < tooltipRect.yMin || tooltipRect.yMax < sourceRect.yMin;
+        bool horizontalGap = sourceRect.xMax < tooltipRect.xMin || tooltipRect.xMax < sourceRect.xMin;
+
+        if (verticalGap && !horizontalGap)
+        {
+            float xMin = Mathf.Max(sourceRect.xMin, tooltipRect.xMin);
+            float xMax = Mathf.Min(sourceRect.xMax, tooltipRect.xMax);
+            float yMin = Mathf.Min(sourceRect.yMax, tooltipRect.yMax);
+            float yMax = Mathf.Max(sourceRect.yMin, tooltipRect.yMin);
+            bridgeRect = Rect.MinMaxRect(xMin, yMin, xMax, yMax);
+        }
+        else if (horizontalGap && !verticalGap)
+        {
+            float xMin = Mathf.Min(sourceRect.xMax, tooltipRect.xMax);
+            float xMax = Mathf.Max(sourceRect.xMin, tooltipRect.xMin);
+            float yMin = Mathf.Max(sourceRect.yMin, tooltipRect.yMin);
+            float yMax = Mathf.Min(sourceRect.yMax, tooltipRect.yMax);
+            bridgeRect = Rect.MinMaxRect(xMin, yMin, xMax, yMax);
+        }
+        else
+        {
+            Vector2 sourcePoint = ClosestPointOnRect(sourceRect, tooltipRect.center);
+            Vector2 tooltipPoint = ClosestPointOnRect(tooltipRect, sourcePoint);
+            sourcePoint = ClosestPointOnRect(sourceRect, tooltipPoint);
+            bridgeRect = Rect.MinMaxRect(
+                Mathf.Min(sourcePoint.x, tooltipPoint.x),
+                Mathf.Min(sourcePoint.y, tooltipPoint.y),
+                Mathf.Max(sourcePoint.x, tooltipPoint.x),
+                Mathf.Max(sourcePoint.y, tooltipPoint.y));
+        }
+
+        bridgeRect = ExpandThinRect(bridgeRect, 6f);
+        return bridgeRect.width > 0f && bridgeRect.height > 0f;
+    }
+
+    private static Rect GetScreenRect(RectTransform rect, Camera camera)
+    {
+        Vector3[] corners = new Vector3[4];
+        rect.GetWorldCorners(corners);
+
+        Vector2 min = RectTransformUtility.WorldToScreenPoint(camera, corners[0]);
+        Vector2 max = min;
+        for (int i = 1; i < corners.Length; i++)
+        {
+            Vector2 screenCorner = RectTransformUtility.WorldToScreenPoint(camera, corners[i]);
+            min = Vector2.Min(min, screenCorner);
+            max = Vector2.Max(max, screenCorner);
+        }
+
+        return Rect.MinMaxRect(min.x, min.y, max.x, max.y);
+    }
+
+    private static Vector2 ClosestPointOnRect(Rect rect, Vector2 point)
+    {
+        return new Vector2(
+            Mathf.Clamp(point.x, rect.xMin, rect.xMax),
+            Mathf.Clamp(point.y, rect.yMin, rect.yMax));
+    }
+
+    private static Rect ExpandThinRect(Rect rect, float minThickness)
+    {
+        if (rect.width < minThickness)
+        {
+            float extra = (minThickness - rect.width) * 0.5f;
+            rect.xMin -= extra;
+            rect.xMax += extra;
+        }
+
+        if (rect.height < minThickness)
+        {
+            float extra = (minThickness - rect.height) * 0.5f;
+            rect.yMin -= extra;
+            rect.yMax += extra;
+        }
+
+        return rect;
+    }
+
+    private static Camera GetCanvasEventCamera(Canvas canvas)
+    {
+        if (canvas == null || canvas.renderMode == RenderMode.ScreenSpaceOverlay)
+            return null;
+
+        return canvas.worldCamera;
+    }
 }
 
 

@@ -14,10 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillTooltipKeywordGlossarySO
   entries:
   - keyword: Burn
-    displayName: 
-    icon: {fileID: 0}
+    displayName: Burn
+    icon: {fileID: 1192862653530567456, guid: 5a0d3fd8e60fcda41b083875f9a9dffd, type: 3}
     descriptionMode: 0
-    description: Stack on the enemy; does not deal damage on its own and can be Consumed by skills.
+    description: Stack on the enemy; does not deal damage on its own and can be Consumed
+      by skills.
   - keyword: Consume
     displayName: 
     icon: {fileID: 0}
@@ -47,7 +48,8 @@ MonoBehaviour:
     displayName: 
     icon: {fileID: 0}
     descriptionMode: 0
-    description: Lightning mark; some skills become stronger when hitting a target with Mark.
+    description: Lightning mark; some skills become stronger when hitting a target
+      with Mark.
   - keyword: Stagger
     displayName: 
     icon: {fileID: 0}
@@ -57,9 +59,15 @@ MonoBehaviour:
     displayName: 
     icon: {fileID: 0}
     descriptionMode: 0
-    description: Bonus that increases the main skill value; green numbers receive this bonus.
-  - keyword: '...'
+    description: Bonus that increases the main skill value; green numbers receive
+      this bonus.
+  - keyword: ...
     displayName: 
     icon: {fileID: 0}
     descriptionMode: 1
     description: Current value is {value} after Add Value and modifiers are applied.
+  - keyword: Guard
+    displayName: Guard
+    icon: {fileID: 412434694075372973, guid: 20cc956aa78757d4085a0944de8d0612, type: 3}
+    descriptionMode: 0
+    description: shield

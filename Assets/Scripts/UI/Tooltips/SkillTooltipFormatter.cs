@@ -33,7 +33,7 @@ public static partial class SkillTooltipFormatter
             requires = new List<string>(),
             conditions = new List<string>(),
             costText = expanded ? BuildCostText(asset) : string.Empty,
-            element = expanded ? ResolveElement(asset) : null
+            element = ResolveElement(asset)
         };
 
         switch (asset)

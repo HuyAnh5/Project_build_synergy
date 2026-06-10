@@ -8,6 +8,7 @@ using UnityEngine.UI;
 // Static show/hide ownership stays in SkillTooltipUI.cs.
 public sealed partial class SkillTooltipUI
 {
+    private const float TargetingCostGap = 35f;
     /// <summary>Initializes child references from the prefab or creates missing text/icon nodes.</summary>
     private void InitializeFromExisting(Canvas canvas)
     {
@@ -56,45 +57,24 @@ public sealed partial class SkillTooltipUI
             fitter.enabled = false;
         }
 
-        NormalizeTextSettings(_title);
-        NormalizeTextSettings(_cost);
-        NormalizeTextSettings(_targeting);
-        NormalizeTextSettings(_effect);
-        NormalizeTextSettings(_requiresHeader);
-        NormalizeTextSettings(_requires);
-        NormalizeTextSettings(_conditionHeader);
-        NormalizeTextSettings(_condition);
+        DisableTextRaycasts(_title);
+        DisableTextRaycasts(_cost);
+        DisableTextRaycasts(_targeting);
+        DisableTextRaycasts(_effect);
+        DisableTextRaycasts(_requiresHeader);
+        DisableTextRaycasts(_requires);
+        DisableTextRaycasts(_conditionHeader);
+        DisableTextRaycasts(_condition);
         if (_hoverBridgeImage != null)
             _hoverBridgeImage.raycastTarget = false;
-        if (_elementIcon != null)
-            _elementIcon.raycastTarget = false;
+        BindKeywordGlossary();
     }
 
-    private static void NormalizeTextSettings(TMP_Text text)
+    private static void DisableTextRaycasts(TMP_Text text)
     {
         if (text == null)
             return;
-
-        RectTransform rect = text.rectTransform;
-        if (rect != null)
-        {
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(0f, 1f);
-        }
-
-        text.textWrappingMode = TextWrappingModes.Normal;
-        text.overflowMode = TextOverflowModes.Overflow;
-        text.alignment = TextAlignmentOptions.TopLeft;
-        text.margin = Vector4.zero;
         text.raycastTarget = false;
-
-        LayoutElement layout = EnsureLayoutElement(text);
-        if (layout != null)
-        {
-            layout.flexibleWidth = 0f;
-            layout.flexibleHeight = 0f;
-        }
     }
 
     private void BindCanvas(Canvas canvas)
@@ -141,6 +121,7 @@ public sealed partial class SkillTooltipUI
 
         PositionNear(target);
         PositionHoverBridge(target);
+        UpdateKeywordTooltips();
     }
 
     private void ApplyDynamicSizing()
@@ -197,8 +178,7 @@ public sealed partial class SkillTooltipUI
     {
         float max = 0f;
         max = Mathf.Max(max, GetTextPreferredWidth(_title, maxContentWidth));
-        max = Mathf.Max(max, GetTextPreferredWidth(_cost, maxContentWidth));
-        max = Mathf.Max(max, GetTextPreferredWidth(_targeting, maxContentWidth));
+        max = Mathf.Max(max, GetTargetingRowPreferredWidth(maxContentWidth));
         max = Mathf.Max(max, GetTextPreferredWidth(_effect, maxContentWidth));
         max = Mathf.Max(max, GetTextPreferredWidth(_requiresHeader, maxContentWidth));
         max = Mathf.Max(max, GetTextPreferredWidth(_requires, maxContentWidth));
@@ -211,8 +191,7 @@ public sealed partial class SkillTooltipUI
     {
         float total = 0f;
         total += GetTextPreferredHeight(_title, contentWidth);
-        total += GetTextPreferredHeight(_cost, contentWidth);
-        total += GetTextPreferredHeight(_targeting, contentWidth);
+        total += GetTargetingRowPreferredHeight(contentWidth);
         total += GetTextPreferredHeight(_requiresHeader, contentWidth);
         total += GetTextPreferredHeight(_requires, contentWidth);
         total += GetTextPreferredHeight(_effect, contentWidth);
@@ -239,8 +218,7 @@ public sealed partial class SkillTooltipUI
     {
         int visible = 0;
         visible += IsVisible(_title) ? 1 : 0;
-        visible += IsVisible(_cost) ? 1 : 0;
-        visible += IsVisible(_targeting) ? 1 : 0;
+        visible += HasVisibleTargetingRow() ? 1 : 0;
         visible += IsVisible(_effect) ? 1 : 0;
         visible += IsVisible(_requiresHeader) ? 1 : 0;
         visible += IsVisible(_requires) ? 1 : 0;
@@ -263,36 +241,13 @@ public sealed partial class SkillTooltipUI
         float right = padding.right;
         float currentY = -top;
 
-        TMP_Text[] blocks =
-        {
-            _title, _cost, _targeting, _requiresHeader, _requires, _effect, _conditionHeader, _condition
-        };
+        currentY = LayoutTitleBlock(left, currentY, contentWidth, spacing);
+        currentY = LayoutTargetingRow(left, right, currentY, contentWidth, spacing);
 
+        TMP_Text[] blocks = { _requiresHeader, _requires, _effect, _conditionHeader, _condition };
         for (int i = 0; i < blocks.Length; i++)
-        {
-            TMP_Text block = blocks[i];
-            if (!IsVisible(block))
-                continue;
+            currentY = LayoutSingleBlock(blocks[i], left, currentY, contentWidth, spacing);
 
-            RectTransform rect = block.rectTransform;
-            float height = Mathf.Ceil(GetTextPreferredHeight(block, contentWidth));
-            rect.anchorMin = new Vector2(0f, 1f);
-            rect.anchorMax = new Vector2(0f, 1f);
-            rect.pivot = new Vector2(0f, 1f);
-            rect.anchoredPosition = new Vector2(left, currentY);
-            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, contentWidth);
-            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
-            currentY -= height + spacing;
-        }
-
-        if (_elementIcon != null)
-        {
-            RectTransform iconRect = _elementIcon.rectTransform;
-            iconRect.anchorMin = new Vector2(1f, 1f);
-            iconRect.anchorMax = new Vector2(1f, 1f);
-            iconRect.pivot = new Vector2(1f, 1f);
-            iconRect.anchoredPosition = new Vector2(-right, -top);
-        }
     }
 
     private static string BuildContentSignature(SkillTooltipFormatter.TooltipContent content, bool expanded)
@@ -306,8 +261,6 @@ public sealed partial class SkillTooltipUI
         AppendLines(sb, content.requires);
         sb.Append('|');
         AppendLines(sb, content.conditions);
-        sb.Append('|');
-        sb.Append(content.element.HasValue ? ((int)content.element.Value).ToString() : "none");
         return sb.ToString();
     }
 
@@ -324,23 +277,16 @@ public sealed partial class SkillTooltipUI
 
     private void ApplyContent(SkillTooltipFormatter.TooltipContent content)
     {
-        bool expanded = !string.IsNullOrWhiteSpace(content.costText);
-        _title.text = expanded
-            ? $"{content.title}    {content.costText}"
-            : (content.title ?? string.Empty);
-        _cost.text = string.Empty;
-        _targeting.text = content.targeting ?? string.Empty;
-        _effect.text = content.effectText ?? string.Empty;
+        _title.text = content.title ?? string.Empty;
+        _cost.text = content.costText ?? string.Empty;
+        _targeting.text = ApplyKeywordMarkup(content.targeting ?? string.Empty);
+        _effect.text = ApplyKeywordMarkup(content.effectText ?? string.Empty);
 
         bool hasRequires = content.requires != null && content.requires.Count > 0;
         bool hasConditions = content.conditions != null && content.conditions.Count > 0;
-        _requiresHeader.text = TooltipRequiresHeader;
-        _requires.text = BuildSectionText(content.requires);
-        _conditionHeader.text = TooltipConditionHeader;
-        _condition.text = BuildSectionText(content.conditions);
-        ApplyBlockSiblingOrder();
-
-        SetVisible(_cost, false);
+        _requires.text = ApplyKeywordMarkup(BuildSectionText(content.requires));
+        _condition.text = ApplyKeywordMarkup(BuildSectionText(content.conditions));
+        SetVisible(_cost, !string.IsNullOrWhiteSpace(_cost.text));
         SetVisible(_targeting, !string.IsNullOrWhiteSpace(_targeting.text));
         SetVisible(_effect, !string.IsNullOrWhiteSpace(_effect.text));
         SetVisible(_requiresHeader, hasRequires);
@@ -348,33 +294,106 @@ public sealed partial class SkillTooltipUI
         SetVisible(_conditionHeader, hasConditions);
         SetVisible(_condition, hasConditions);
 
-        if (_elementIcon != null)
+        ForceTooltipLayoutRefresh();
+    }
+
+    private bool HasVisibleTargetingRow()
+        => IsVisible(_cost) || IsVisible(_targeting);
+
+    private float GetTargetingRowPreferredHeight(float contentWidth)
+    {
+        if (!HasVisibleTargetingRow())
+            return 0f;
+
+        float costWidth = GetCostPreferredWidth(contentWidth);
+        float targetingWidth = GetTargetingPreferredWidth(contentWidth);
+        float costHeight = IsVisible(_cost) ? GetTextPreferredHeight(_cost, costWidth) : 0f;
+        float targetingHeight = IsVisible(_targeting) ? GetTextPreferredHeight(_targeting, targetingWidth) : 0f;
+        return Mathf.Max(costHeight, targetingHeight);
+    }
+
+    private float GetTargetingRowPreferredWidth(float maxContentWidth)
+    {
+        if (!HasVisibleTargetingRow())
+            return 0f;
+
+        float targetingWidth = GetTargetingPreferredWidth(maxContentWidth);
+        float costWidth = GetCostPreferredWidth(maxContentWidth);
+        float gap = IsVisible(_targeting) && IsVisible(_cost) ? TargetingCostGap : 0f;
+        return Mathf.Min(maxContentWidth, targetingWidth + gap + costWidth);
+    }
+
+    private float GetTargetingPreferredWidth(float contentWidth)
+    {
+        if (!IsVisible(_targeting))
+            return 0f;
+
+        return Mathf.Min(GetTextPreferredWidth(_targeting, contentWidth), contentWidth);
+    }
+
+    private float GetCostPreferredWidth(float contentWidth)
+    {
+        if (!IsVisible(_cost))
+            return 0f;
+
+        float preferredWidth = GetTextPreferredWidth(_cost, contentWidth);
+        return Mathf.Min(preferredWidth, contentWidth);
+    }
+
+    private float LayoutSingleBlock(TMP_Text block, float left, float currentY, float contentWidth, float spacing)
+    {
+        if (!IsVisible(block))
+            return currentY;
+
+        RectTransform rect = block.rectTransform;
+        float height = Mathf.Ceil(GetTextPreferredHeight(block, contentWidth));
+        rect.anchorMin = new Vector2(0f, 1f);
+        rect.anchorMax = new Vector2(0f, 1f);
+        rect.pivot = new Vector2(0f, 1f);
+        rect.anchoredPosition = new Vector2(left, currentY);
+        rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, contentWidth);
+        rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, height);
+        return currentY - height - spacing;
+    }
+
+    private float LayoutTitleBlock(float left, float currentY, float contentWidth, float spacing)
+    {
+        return LayoutSingleBlock(_title, left, currentY, contentWidth, spacing);
+    }
+
+    private float LayoutTargetingRow(float left, float right, float currentY, float contentWidth, float spacing)
+    {
+        if (!HasVisibleTargetingRow())
+            return currentY;
+
+        float targetingWidth = GetTargetingPreferredWidth(contentWidth);
+        float costWidth = GetCostPreferredWidth(contentWidth);
+        float gap = IsVisible(_targeting) && IsVisible(_cost) ? TargetingCostGap : 0f;
+        float rowHeight = GetTargetingRowPreferredHeight(contentWidth);
+
+        if (IsVisible(_targeting))
         {
-            Sprite sprite = null;
-            bool showIcon = expanded && content.element.HasValue && TryResolveElementIcon(content.element.Value, out sprite);
-            _elementIcon.sprite = showIcon ? sprite : null;
-            _elementIcon.gameObject.SetActive(showIcon);
+            RectTransform targetingRect = _targeting.rectTransform;
+            targetingRect.anchorMin = new Vector2(0f, 1f);
+            targetingRect.anchorMax = new Vector2(0f, 1f);
+            targetingRect.pivot = new Vector2(0f, 1f);
+            targetingRect.anchoredPosition = new Vector2(left, currentY);
+            targetingRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, targetingWidth);
+            targetingRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, rowHeight);
         }
-    }
 
-    private void ApplyBlockSiblingOrder()
-    {
-        SetSiblingIndex(_title, 0);
-        SetSiblingIndex(_cost, 1);
-        SetSiblingIndex(_targeting, 2);
-        SetSiblingIndex(_requiresHeader, 3);
-        SetSiblingIndex(_requires, 4);
-        SetSiblingIndex(_effect, 5);
-        SetSiblingIndex(_conditionHeader, 6);
-        SetSiblingIndex(_condition, 7);
-    }
+        if (IsVisible(_cost))
+        {
+            RectTransform costRect = _cost.rectTransform;
+            costRect.anchorMin = new Vector2(0f, 1f);
+            costRect.anchorMax = new Vector2(0f, 1f);
+            costRect.pivot = new Vector2(0f, 1f);
+            costRect.anchoredPosition = new Vector2(left + targetingWidth + gap, currentY);
+            costRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, costWidth);
+            costRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, rowHeight);
+        }
 
-    private static void SetSiblingIndex(Component component, int index)
-    {
-        if (component == null)
-            return;
-
-        component.transform.SetSiblingIndex(index);
+        return currentY - rowHeight - spacing;
     }
 
     private static string BuildSectionText(List<string> lines)
@@ -404,18 +423,27 @@ public sealed partial class SkillTooltipUI
             component.gameObject.SetActive(visible);
     }
 
-    private bool TryResolveElementIcon(ElementType element, out Sprite icon)
+    private void ForceTooltipLayoutRefresh()
     {
-        icon = null;
-        ActorWorldUI[] worldUis = FindObjectsByType<ActorWorldUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < worldUis.Length; i++)
-        {
-            SkillUiIconLibrarySO library = worldUis[i] != null ? worldUis[i].iconLibrary : null;
-            if (library != null && library.TryGetElementIcon(element, out icon, out _, out _))
-                return icon != null;
-        }
+        ForceTextRefresh(_title);
+        ForceTextRefresh(_cost);
+        ForceTextRefresh(_targeting);
+        ForceTextRefresh(_requiresHeader);
+        ForceTextRefresh(_requires);
+        ForceTextRefresh(_effect);
+        ForceTextRefresh(_conditionHeader);
+        ForceTextRefresh(_condition);
+        Canvas.ForceUpdateCanvases();
+        LayoutRebuilder.ForceRebuildLayoutImmediate(_root);
+        Canvas.ForceUpdateCanvases();
+    }
 
-        return false;
+    private static void ForceTextRefresh(TMP_Text text)
+    {
+        if (text == null || !text.gameObject.activeInHierarchy)
+            return;
+
+        text.ForceMeshUpdate();
     }
 
     private void EnsureStructuredLayoutChildren()
@@ -428,19 +456,21 @@ public sealed partial class SkillTooltipUI
         _requires = _layout != null ? _layout.RequiresText : FindText(texts, "Requires");
         _conditionHeader = _layout != null ? _layout.ConditionHeaderText : FindText(texts, "ConditionHeader");
         _condition = _layout != null ? _layout.ConditionText : FindText(texts, "Condition");
-        _elementIcon = _layout != null ? _layout.ElementIconImage : GetComponentInChildren<Image>(true);
-
         if (_cost == null) _cost = CreateText("Cost", 13f, FontStyles.Normal, TextAlignmentOptions.TopRight);
         if (_targeting == null) _targeting = CreateText("Targeting", 14f, FontStyles.Normal, TextAlignmentOptions.TopLeft);
         if (_effect == null) _effect = CreateText("Effect", 14f, FontStyles.Normal, TextAlignmentOptions.TopLeft);
-        if (_requiresHeader == null) _requiresHeader = CreateText("RequiresHeader", 14f, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        if (_requiresHeader == null)
+        {
+            _requiresHeader = CreateText("RequiresHeader", 14f, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+            _requiresHeader.text = TooltipRequiresHeader;
+        }
         if (_requires == null) _requires = CreateText("Requires", 14f, FontStyles.Normal, TextAlignmentOptions.TopLeft);
-        if (_conditionHeader == null) _conditionHeader = CreateText("ConditionHeader", 14f, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+        if (_conditionHeader == null)
+        {
+            _conditionHeader = CreateText("ConditionHeader", 14f, FontStyles.Normal, TextAlignmentOptions.TopLeft);
+            _conditionHeader.text = TooltipConditionHeader;
+        }
         if (_condition == null) _condition = CreateText("Condition", 14f, FontStyles.Normal, TextAlignmentOptions.TopLeft);
-        if (_elementIcon == null) _elementIcon = CreateElementIcon();
-
-        _requiresHeader.text = TooltipRequiresHeader;
-        _conditionHeader.text = TooltipConditionHeader;
     }
 
     private TMP_Text CreateText(string name, float fontSize, FontStyles style, TextAlignmentOptions alignment)
@@ -455,22 +485,6 @@ public sealed partial class SkillTooltipUI
         text.textWrappingMode = TextWrappingModes.Normal;
         text.raycastTarget = false;
         return text;
-    }
-
-    private Image CreateElementIcon()
-    {
-        GameObject go = new GameObject("ElementIcon", typeof(RectTransform), typeof(Image));
-        go.transform.SetParent(transform, false);
-        RectTransform rt = go.transform as RectTransform;
-        rt.anchorMin = new Vector2(1f, 0f);
-        rt.anchorMax = new Vector2(1f, 0f);
-        rt.pivot = new Vector2(1f, 0f);
-        rt.sizeDelta = new Vector2(24f, 24f);
-        Image image = go.GetComponent<Image>();
-        image.raycastTarget = false;
-        LayoutElement layout = go.AddComponent<LayoutElement>();
-        layout.ignoreLayout = true;
-        return image;
     }
 
     private static TMP_Text FindText(TMP_Text[] texts, string name)

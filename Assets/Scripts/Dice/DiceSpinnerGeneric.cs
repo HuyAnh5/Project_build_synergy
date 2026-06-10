@@ -13,6 +13,7 @@ using UnityEngine.InputSystem;
 public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
 {
     private const int GumWeightBonusPerSource = 4;
+    private const float CombatWorldTooltipExtraGap = 10f;
     public const int MinFaceValue = 1;
     public const int MaxFaceValue = 99;
 
@@ -932,8 +933,9 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         _worldTooltipAnchor.anchorMin = new Vector2(0.5f, 0.5f);
         _worldTooltipAnchor.anchorMax = new Vector2(0.5f, 0.5f);
         _worldTooltipAnchor.pivot = new Vector2(0.5f, 0.5f);
-        _worldTooltipAnchor.anchoredPosition = localPoint;
-        _worldTooltipAnchor.sizeDelta = BuildWorldTooltipHoverSize(screenRect, canvasRect, eventCamera);
+        _worldTooltipAnchor.anchoredPosition = localPoint + new Vector2(0f, CombatWorldTooltipExtraGap * 0.5f);
+        _worldTooltipAnchor.sizeDelta = BuildWorldTooltipHoverSize(screenRect, canvasRect, eventCamera) +
+                                        new Vector2(0f, CombatWorldTooltipExtraGap);
         return true;
     }
 

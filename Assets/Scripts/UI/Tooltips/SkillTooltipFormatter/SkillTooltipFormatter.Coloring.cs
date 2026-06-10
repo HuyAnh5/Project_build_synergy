@@ -4,8 +4,16 @@ using System.Text;
 // Provides rich-text coloring and quoted segment replacement helpers for skill tooltips.
 public static partial class SkillTooltipFormatter
 {
+    private const string KeywordHighlightColor = "#FFD166";
+
     // Colors gameplay keywords in gold.
-    private static string FormatKeyword(string text) => "<color=#FFD166>" + text + "</color>";
+    private static string FormatKeyword(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+            return string.Empty;
+
+        return $"<link=\"{text}\"><color={KeywordHighlightColor}>{text}</color></link>";
+    }
 
     // Colors text as the default dynamic Added Value color.
     private static string Blue(string text) => ColorText(text, AddedValueColor);
