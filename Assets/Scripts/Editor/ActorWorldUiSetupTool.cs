@@ -6,7 +6,7 @@ using UnityEngine.UI;
 public static class ActorWorldUiSetupTool
 {
     private const string PrefabPath = "Assets/Prefabs/Entities/world-ui.prefab";
-    private const string IconLibraryAssetPath = "Assets/GameData/UI/CombatUiIconLibrary.asset";
+    private const string IconLibraryAssetPath = "Assets/GameData/UI/SkillUiIconLibrary.asset";
     private const int StatusSlotCount = 8;
 
     [MenuItem("Tools/Build Synergy/Legacy/Setup World UI Prefab")]

@@ -44,6 +44,7 @@ public class BattlePartyManager2D : MonoBehaviour
 
     [Header("World UI")]
     public ActorWorldUI worldUiPrefab;
+    public ActorWorldUI bossWorldUiPrefab;
     public bool autoSpawnWorldUI = true;
 
     [Header("Battle Reset Rule (prototype)")]
@@ -257,14 +258,27 @@ public class BattlePartyManager2D : MonoBehaviour
 
     public void EnsureWorldUIFor(CombatActor actor)
     {
-        if (!worldUiPrefab) return;
         if (!actor) return;
 
         if (_uiMap.TryGetValue(actor, out var existing) && existing) return;
 
-        var ui = Instantiate(worldUiPrefab);
+        ActorWorldUI prefab = ResolveWorldUiPrefab(actor);
+        if (!prefab) return;
+
+        var ui = Instantiate(prefab);
         ui.Bind(actor);
         _uiMap[actor] = ui;
+    }
+
+    private ActorWorldUI ResolveWorldUiPrefab(CombatActor actor)
+    {
+        if (actor == null)
+            return null;
+
+        if (actor.worldUiMode == CombatActor.WorldUiMode.Boss && bossWorldUiPrefab != null)
+            return bossWorldUiPrefab;
+
+        return worldUiPrefab;
     }
 
     [ContextMenu("Layout All")]

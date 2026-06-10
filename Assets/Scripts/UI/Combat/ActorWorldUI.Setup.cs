@@ -86,8 +86,7 @@ public partial class ActorWorldUI
         if (actor == null)
             return;
 
-        // Bỏ qua uiAnchor, luôn ép UI Canvas dính vào đúng gốc của Actor
-        Transform anchor = actor.transform;
+        Transform anchor = actor.uiAnchor != null ? actor.uiAnchor : actor.transform;
         if (anchor == null)
             return;
 

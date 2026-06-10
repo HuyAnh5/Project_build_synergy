@@ -13,7 +13,7 @@ public static partial class SkillUiPrefabSetupTool
     private const string SkillSlotPrefabPath = PrefabFolder + "/SkillSlotLayout.prefab";
     private const string SkillTooltipPrefabPath = TooltipResourcesFolder + "/SkillTooltipLayout.prefab";
     private const string UiAssetFolder = "Assets/GameData/UI";
-    private const string IconLibraryAssetPath = UiAssetFolder + "/CombatUiIconLibrary.asset";
+    private const string IconLibraryAssetPath = UiAssetFolder + "/SkillUiIconLibrary.asset";
     private const string RuntimeRootName = "SkillUiRuntimeRoot";
     private const string OwnedRowName = "OwnedSkillsRow";
     private const string TooltipInstanceName = "SkillTooltip";
