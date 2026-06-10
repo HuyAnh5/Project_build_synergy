@@ -101,6 +101,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     private int _lastVisualSlotsRequired = int.MinValue;
     private bool _lastVisualHasElement;
     private ElementType _lastVisualElement = ElementType.Neutral;
+    private SkillUiIconLibrarySO _lastResolvedIconLibrary;
     private readonly List<Image> _activeAuraWaves = new List<Image>();
     private Image _activeAuraRim;
     private readonly List<Tween> _activeAuraTweens = new List<Tween>();
@@ -228,6 +229,10 @@ public partial class DraggableSkillIcon : MonoBehaviour,
 
     public void Refresh()
     {
+        if (skillSlotLayout == null)
+            skillSlotLayout = GetComponent<SkillSlotLayout>();
+
+        ApplyLayoutBindings();
         EnsureCostBadgeUi();
         if (_img != null)
         {
@@ -371,6 +376,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         }
 
         bool hasElement = SkillUiMetadataUtility.TryGetElementType(asset, out ElementType element);
+        SkillUiIconLibrarySO resolvedIconLibrary = ResolveIconLibrary();
         RefreshActiveRuntimeState();
 
         if (asset == _lastVisualAsset &&
@@ -380,6 +386,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
             slotsRequired == _lastVisualSlotsRequired &&
             hasElement == _lastVisualHasElement &&
             (!hasElement || element == _lastVisualElement) &&
+            resolvedIconLibrary == _lastResolvedIconLibrary &&
             _isActiveRuntimeSkill == _lastActiveRuntimeSkill &&
             _activeRuntimeTurns == _lastActiveRuntimeTurns)
         {
@@ -413,6 +420,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         if (!_lastVisualHasElement)
             _lastVisualElement = ElementType.Neutral;
 
+        _lastResolvedIconLibrary = ResolveIconLibrary();
         _lastActiveRuntimeSkill = _isActiveRuntimeSkill;
         _lastActiveRuntimeTurns = _activeRuntimeTurns;
     }

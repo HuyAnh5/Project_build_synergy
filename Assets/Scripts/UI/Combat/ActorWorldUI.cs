@@ -173,6 +173,7 @@ public partial class ActorWorldUI : MonoBehaviour
         actor = a;
         if (actor == null)
         {
+            HideUnboundRuntimeVisuals();
             gameObject.SetActive(false);
             return;
         }
@@ -201,7 +202,11 @@ public partial class ActorWorldUI : MonoBehaviour
         DisableLegacyChildren();
 
         if (Application.isPlaying)
+        {
             HidePreviewDummyRuntime();
+            if (actor == null)
+                HideUnboundRuntimeVisuals();
+        }
         else
             RefreshEditorPreview();
     }
@@ -404,7 +409,10 @@ public partial class ActorWorldUI : MonoBehaviour
     private void RefreshRuntime()
     {
         if (actor == null)
+        {
+            HideUnboundRuntimeVisuals();
             return;
+        }
 
         if (Application.isPlaying && (actor.IsDead || !actor.gameObject.activeInHierarchy))
         {
@@ -421,6 +429,30 @@ public partial class ActorWorldUI : MonoBehaviour
         RefreshHpAndGuard(actor.hp, actor.maxHP, actor.guardPool, staggered);
         RefreshStatusIcons(actor.status);
         RefreshIntent();
+    }
+
+    private void HideUnboundRuntimeVisuals()
+    {
+        CleanupSpawnedStatusSlots();
+
+        if (intentRoot != null)
+            intentRoot.gameObject.SetActive(false);
+
+        if (guardRoot != null && autoToggleGuardRootInPlayMode)
+            guardRoot.gameObject.SetActive(false);
+
+        if (statusSlotTemplateRoot != null)
+            statusSlotTemplateRoot.gameObject.SetActive(false);
+
+        if (statusSlots == null)
+            return;
+
+        for (int i = 0; i < statusSlots.Length; i++)
+        {
+            StatusIconSlot slot = statusSlots[i];
+            if (slot?.root != null)
+                slot.root.gameObject.SetActive(false);
+        }
     }
 
     // ---------------------------

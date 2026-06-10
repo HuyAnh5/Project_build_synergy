@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -225,10 +226,52 @@ public partial class ActorWorldUI
         }
     }
 
+    private void CleanupSpawnedStatusSlots()
+    {
+        for (int i = _spawnedStatusSlots.Count - 1; i >= 0; i--)
+        {
+            StatusIconSlot slot = _spawnedStatusSlots[i];
+            if (slot?.root == null)
+                continue;
+
+            if (Application.isPlaying)
+                Destroy(slot.root.gameObject);
+            else
+                DestroyImmediate(slot.root.gameObject);
+        }
+
+        _spawnedStatusSlots.Clear();
+
+        if (statusRowRoot == null || statusSlotTemplateRoot == null)
+            return;
+
+        for (int i = statusRowRoot.childCount - 1; i >= 0; i--)
+        {
+            RectTransform child = statusRowRoot.GetChild(i) as RectTransform;
+            if (child == null || child == statusSlotTemplateRoot)
+                continue;
+
+            if (!child.name.StartsWith("Status_", StringComparison.Ordinal))
+                continue;
+
+            if (Application.isPlaying)
+                Destroy(child.gameObject);
+            else
+                DestroyImmediate(child.gameObject);
+        }
+    }
+
     private IList<StatusIconSlot> GetResolvedStatusSlots(int requiredCount)
     {
         if (statusSlotTemplateRoot != null)
         {
+            if (!Application.isPlaying)
+            {
+                CleanupSpawnedStatusSlots();
+                EnsureStatusSlotsArray();
+                return statusSlots;
+            }
+
             EnsureSpawnedStatusSlotCapacity(requiredCount);
             return _spawnedStatusSlots;
         }

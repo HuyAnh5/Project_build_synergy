@@ -274,7 +274,8 @@ MonoBehaviour:
   guardPool: 0
   firePoint: {fileID: 2662277246265213219}
   status: {fileID: 5189020765822597547}
-  uiAnchor: {fileID: 4641939241168335096}
+  worldUiMode: 0
+  uiAnchor: {fileID: 160035848761791491}
   autoSetupUiAnchor: 1
   uiAnchorName: UIAnchor
 --- !u!114 &7070623645544398135

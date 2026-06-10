@@ -262,6 +262,14 @@ public class BattlePartyManager2D : MonoBehaviour
 
         if (_uiMap.TryGetValue(actor, out var existing) && existing) return;
 
+        ActorWorldUI embeddedUi = FindEmbeddedWorldUI(actor);
+        if (embeddedUi != null)
+        {
+            embeddedUi.Bind(actor);
+            _uiMap[actor] = embeddedUi;
+            return;
+        }
+
         ActorWorldUI prefab = ResolveWorldUiPrefab(actor);
         if (!prefab) return;
 
@@ -279,6 +287,27 @@ public class BattlePartyManager2D : MonoBehaviour
             return bossWorldUiPrefab;
 
         return worldUiPrefab;
+    }
+
+    private static ActorWorldUI FindEmbeddedWorldUI(CombatActor actor)
+    {
+        if (actor == null)
+            return null;
+
+        ActorWorldUI[] worldUis = actor.GetComponentsInChildren<ActorWorldUI>(true);
+        for (int i = 0; i < worldUis.Length; i++)
+        {
+            ActorWorldUI ui = worldUis[i];
+            if (ui == null)
+                continue;
+
+            if (ui.transform == actor.transform)
+                continue;
+
+            return ui;
+        }
+
+        return null;
     }
 
     [ContextMenu("Layout All")]
