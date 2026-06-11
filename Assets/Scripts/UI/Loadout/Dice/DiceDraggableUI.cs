@@ -5,7 +5,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(RectTransform))]
-public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler, ISkillTooltipSource
+public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler, ISkillTooltipSource
 {
     private const string CritFailPopupAnchorName = "DiceCard_Pivot";
     private const string EnchantHoverZoneName = "EnchantHoverZone";
@@ -24,6 +24,10 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     public Image backgroundImage;
     public Color selectedBackgroundColor = new Color(1f, 0.84f, 0.2f, 1f);
     public float selectedLiftY = 14f;
+
+    [Header("Hold Inspect")]
+    public float holdInspectDelay = 0.45f;
+    public float holdInspectMoveThreshold = 22f;
 
     [Header("Combat State")]
     public float spentDropY = 20f;
@@ -79,6 +83,11 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private int _enchantHoverZoneFaceIndex = -1;
     private RectTransform _diceEnchantTooltipAnchor;
     private DiceFaceEnchantTooltipAsset _hoverTooltipAsset;
+    private bool _pointerHeld;
+    private bool _holdInspectTriggered;
+    private bool _suppressNextClick;
+    private Vector2 _pointerDownScreenPosition;
+    private float _pointerDownTime;
 
     private void Awake()
     {
@@ -243,6 +252,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     public void OnBeginDrag(PointerEventData eventData)
     {
         EnsureInitialized();
+        CancelHoldInspect();
         _dragging = false;
         if (manager == null) return;
         if (!manager.CanInteract()) return;
@@ -328,10 +338,32 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     public void OnPointerClick(PointerEventData eventData)
     {
         EnsureInitialized();
+        if (_suppressNextClick)
+        {
+            _suppressNextClick = false;
+            return;
+        }
         if (_dragging) return;
         if (manager == null) return;
         if (!manager.CanInteract()) return;
         manager.HandleDiceClicked(this);
+    }
+
+    public void OnPointerDown(PointerEventData eventData)
+    {
+        EnsureInitialized();
+        if (_dragging || manager == null || !manager.CanInteract())
+            return;
+
+        _pointerHeld = true;
+        _holdInspectTriggered = false;
+        _pointerDownScreenPosition = eventData.position;
+        _pointerDownTime = Time.unscaledTime;
+    }
+
+    public void OnPointerUp(PointerEventData eventData)
+    {
+        CancelHoldInspect(keepSuppressClick: _holdInspectTriggered);
     }
 
     public void OnPointerEnter(PointerEventData eventData)
@@ -368,9 +400,38 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
 
     private void Update()
     {
+        UpdateHoldInspect();
         RefreshCardHoverTooltipStateFromPointer();
         if (IsHoverTooltipActive)
             RefreshHoverTooltip();
+    }
+
+    private void UpdateHoldInspect()
+    {
+        if (!_pointerHeld || _holdInspectTriggered || _dragging || manager == null || !manager.CanInteract())
+            return;
+
+        Vector2 currentPointerPosition = Input.mousePosition;
+        float moveThreshold = Mathf.Max(0f, holdInspectMoveThreshold);
+        if ((currentPointerPosition - _pointerDownScreenPosition).sqrMagnitude > moveThreshold * moveThreshold)
+        {
+            CancelHoldInspect();
+            return;
+        }
+
+        if (Time.unscaledTime - _pointerDownTime < Mathf.Max(0.05f, holdInspectDelay))
+            return;
+
+        _holdInspectTriggered = manager.HandleDiceInspectHold(this);
+        _suppressNextClick = _holdInspectTriggered;
+    }
+
+    private void CancelHoldInspect(bool keepSuppressClick = false)
+    {
+        _pointerHeld = false;
+        _holdInspectTriggered = false;
+        if (!keepSuppressClick)
+            _suppressNextClick = false;
     }
 
     private void RefreshCardHoverTooltipStateFromPointer()

@@ -283,7 +283,7 @@ public class GameplayDiceEditInteractable : MonoBehaviour
         if (_spinner == null || _spinner.IsRolling)
             return;
         StopInspectMotion();
-        _spinner.RollRandomFace();
+        _spinner.RollRandomFaceForPreviewPanel();
     }
 
     public bool CanAutoUprightInspectDie()

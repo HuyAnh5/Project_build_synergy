@@ -76,6 +76,31 @@ public partial class GameplayDiceEditController
         return true;
     }
 
+    // Opens the inspect panel without binding a consumable, used by click-and-hold on combat dice.
+    public bool TryOpenInspectPanelForDie(DiceSpinnerGeneric die)
+    {
+        AutoResolveReferences();
+        AttachToDiceRig();
+        if (die == null)
+            return false;
+        if (turnManager != null && turnManager.phase != TurnManager.Phase.Planning)
+            return false;
+        if (IsPanelOpen)
+            return false;
+
+        GameplayDiceEditInteractable selectedInteractable = ResolveSceneInteractableForSpinner(die);
+        if (selectedInteractable == null)
+            return false;
+
+        _pendingConsumableSlot = -1;
+        _activeConsumable = null;
+        _selectedLogicalFaceIndices.Clear();
+        _copySourceFaceIndex = -1;
+        _copyTargetFaceIndex = -1;
+        OpenPanelForInteractable(selectedInteractable);
+        return true;
+    }
+
     // Tells external UI that a Zodiac is selected but the player has not picked a dice yet.
     public bool IsAwaitingDieSelection()
     {
@@ -116,12 +141,18 @@ public partial class GameplayDiceEditController
     // Provides the active Zodiac name for the panel header.
     public string GetDisplayName()
     {
+        if (IsInspectOnlyMode && _sourceInteractable != null && _sourceInteractable.Spinner != null)
+            return _sourceInteractable.Spinner.name;
+
         return _activeConsumable != null ? _activeConsumable.displayName : "No Zodiac";
     }
 
     // Provides the active Zodiac rules text for the panel body.
     public string GetEffectText()
     {
+        if (IsInspectOnlyMode)
+            return "Inspect this die. Use Roll or Face Up to examine it, or Cancel to close.";
+
         return _activeConsumable != null ? _activeConsumable.description : string.Empty;
     }
 

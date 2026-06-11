@@ -3541,7 +3541,7 @@ MonoBehaviour:
     orderInRow: 0
   enemySlots:
   - label: 
-    prefab: {fileID: 3343973332019958161, guid: e860ccc4012c60a48848448d68b66565, type: 3}
+    prefab: {fileID: 3343973332019958161, guid: 6bf97bb884a1a5f4ba052749dd43a07b, type: 3}
     row: 0
     orderInRow: 0
   depthOffset: 0.5
@@ -3549,8 +3549,13 @@ MonoBehaviour:
   applyScaleByRow: 0
   frontScale: 1
   backScale: 1
-  worldUiPrefab: {fileID: 8398901548839995563, guid: 9bdaa2a1824010c44b806a7079a2a3b1, type: 3}
-  bossWorldUiPrefab: {fileID: 0}
+  worldUiPrefabs:
+  - tag: Standard
+    prefab: {fileID: 8398901548839995563, guid: 9bdaa2a1824010c44b806a7079a2a3b1, type: 3}
+  - tag: Boss false hydra
+    prefab: {fileID: 8398901548839995563, guid: 13257fe25b3fc9044a5becb9ff96fd96, type: 3}
+  - tag: Boss Dragon
+    prefab: {fileID: 8398901548839995563, guid: e9cec1860288a5649ad0cb041810e942, type: 3}
   autoSpawnWorldUI: 1
   resetHPOnBattleStart: 0
   turnManager: {fileID: 733054728}
@@ -5062,11 +5067,11 @@ MonoBehaviour:
     skillAsset: {fileID: 11400000, guid: ccf6192d7e39806ae317f405e6f76106, type: 2}
   consumableCapacity: 5
   consumableSlots:
-  - asset: {fileID: 11400000, guid: a7dd451959da9a542b329f88613cb7d6, type: 2}
+  - asset: {fileID: 11400000, guid: 08bc3de1a9ed40743a71c83948a18144, type: 2}
     charges: 0
   - asset: {fileID: 11400000, guid: daac03b175d89f44aaadeed13907ac6f, type: 2}
     charges: 0
-  - asset: {fileID: 11400000, guid: 804aba642dcd7af41a649562fbbe4f27, type: 2}
+  - asset: {fileID: 11400000, guid: 2d7bee2ebb48c5343bf07800fd3a48ed, type: 2}
     charges: 0
   - asset: {fileID: 11400000, guid: 31217922bea208b458ea0470a6e71265, type: 2}
     charges: 0
@@ -8900,7 +8905,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &2009635725
 Transform:
   m_ObjectHideFlags: 0
@@ -8923,7 +8928,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2009635724}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: cd1d59d93ddcb04468c3839cce3a8e44, type: 3}
   m_Name: 

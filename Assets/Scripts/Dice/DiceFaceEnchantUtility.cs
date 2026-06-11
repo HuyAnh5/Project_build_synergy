@@ -60,6 +60,17 @@ public static class DiceFaceEnchantUtility
         return false;
     }
 
+    public static bool AffectsRollProbability(DiceFaceEnchantKind enchant)
+    {
+        switch (enchant)
+        {
+            case DiceFaceEnchantKind.Gum:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public static bool BreaksAfterCommittedUse(DiceFaceEnchantKind enchant)
     {
         switch (enchant)

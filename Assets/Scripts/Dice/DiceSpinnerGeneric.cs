@@ -190,6 +190,17 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         return faces[idx].value;
     }
 
+    // Used by inspect/edit preview panels so only probability-changing preview enchants affect the roll.
+    public int RollRandomFaceForPreviewPanel()
+    {
+        if (!ValidateFaces())
+            return 0;
+
+        int idx = RollWeightedFaceIndex(useDisplayedProbabilityEnchants: true);
+        RollToFaceIndex(idx);
+        return faces[idx].value;
+    }
+
     public int RollRandomFaceWithTiming(float accelDuration, float totalDuration)
     {
         if (!ValidateFaces())
@@ -390,7 +401,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         return SetFaceBroken(LastFaceIndex, true);
     }
 
-    private int RollWeightedFaceIndex()
+    private int RollWeightedFaceIndex(bool useDisplayedProbabilityEnchants = false)
     {
         if (!ValidateFaces())
             return 0;
@@ -399,7 +410,7 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         int[] weights = new int[faces.Length];
         for (int i = 0; i < faces.Length; i++)
         {
-            int weight = 1 + CountGumSourcesForFace(i) * GumWeightBonusPerSource;
+            int weight = 1 + CountProbabilityWeightSourcesForFace(i, useDisplayedProbabilityEnchants) * GumWeightBonusPerSource;
             weights[i] = Mathf.Max(0, weight);
             totalWeight += weights[i];
         }
@@ -418,16 +429,21 @@ public partial class DiceSpinnerGeneric : MonoBehaviour, ISkillTooltipSource
         return weights.Length - 1;
     }
 
-    private int CountGumSourcesForFace(int faceIndex)
+    private int CountProbabilityWeightSourcesForFace(int faceIndex, bool useDisplayedProbabilityEnchants)
     {
         int count = 0;
         for (int i = 0; i < faces.Length; i++)
         {
             if (faces[i].broken)
                 continue;
-            if (faces[i].enchant != DiceFaceEnchantKind.Gum)
+
+            DiceFaceEnchantKind enchant = useDisplayedProbabilityEnchants
+                ? GetDisplayedFaceEnchant(i)
+                : faces[i].enchant;
+            if (!DiceFaceEnchantUtility.AffectsRollProbability(enchant))
                 continue;
-            if (GetOppositeFaceIndex(i) == faceIndex)
+
+            if (enchant == DiceFaceEnchantKind.Gum && GetOppositeFaceIndex(i) == faceIndex)
                 count++;
         }
 

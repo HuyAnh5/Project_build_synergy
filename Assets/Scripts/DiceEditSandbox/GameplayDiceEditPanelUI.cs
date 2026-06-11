@@ -48,6 +48,7 @@ public class GameplayDiceEditPanelUI : MonoBehaviour
     public void Refresh()
     {
         bool isOpen = _controller != null && _controller.IsPanelOpen;
+        bool inspectOnly = isOpen && _controller != null && _controller.IsInspectOnlyMode;
         string title = isOpen ? _controller.GetDisplayName() : "No Zodiac";
         string body = isOpen ? _controller.GetEffectText() : "Choose a Zodiac consumable, then click a dice to edit it.";
 
@@ -58,7 +59,10 @@ public class GameplayDiceEditPanelUI : MonoBehaviour
             effectText.text = body;
 
         if (useButton != null)
-            useButton.interactable = isOpen && _controller.CanUseCurrentConsumable();
+        {
+            useButton.gameObject.SetActive(!inspectOnly);
+            useButton.interactable = !inspectOnly && isOpen && _controller.CanUseCurrentConsumable();
+        }
 
         if (cancelButton != null)
             cancelButton.interactable = isOpen;

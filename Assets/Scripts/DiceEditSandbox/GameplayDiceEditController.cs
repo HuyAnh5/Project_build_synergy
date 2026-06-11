@@ -50,7 +50,8 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
     private int _copySourceFaceIndex = -1;
     private int _copyTargetFaceIndex = -1;
 
-    public bool IsPanelOpen => _inspectCloneInstance != null && _activeInteractable != null && _activeConsumable != null;
+    public bool IsPanelOpen => _inspectCloneInstance != null && _activeInteractable != null;
+    public bool IsInspectOnlyMode => IsPanelOpen && _activeConsumable == null;
     public event System.Action SelectionStateChanged;
 
     // Initializes runtime links and binds scene dice so combat UI can open the edit panel safely.

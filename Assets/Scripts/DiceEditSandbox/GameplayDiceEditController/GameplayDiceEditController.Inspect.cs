@@ -7,7 +7,7 @@ public partial class GameplayDiceEditController
     // Opens modal editing for the selected scene dice.
     private void OpenPanelForInteractable(GameplayDiceEditInteractable interactable)
     {
-        if (interactable == null || _activeConsumable == null)
+        if (interactable == null)
             return;
 
         DestroyInspectClone();

@@ -60,6 +60,7 @@ public partial class DiceEquipUIManager : MonoBehaviour
     private RectTransform _container;
     private readonly List<DiceDraggableUI> _selectedDice = new List<DiceDraggableUI>(RunInventoryManager.EQUIPPED_DICE_COUNT);
     private DiceDraggableUI _draggingDice;
+    private GameplayDiceEditController _diceEditController;
     private int _dragSourceIndex = -1;
     private int _previewInsertIndex = -1;
     private bool _suppressInventoryRefresh;
@@ -231,6 +232,17 @@ public partial class DiceEquipUIManager : MonoBehaviour
         }
 
         ToggleSelectedDice(dice);
+    }
+
+    public bool HandleDiceInspectHold(DiceDraggableUI dice)
+    {
+        if (dice == null || dice.dice == null || !CanInteract())
+            return false;
+
+        if (_diceEditController == null)
+            _diceEditController = FindObjectOfType<GameplayDiceEditController>(true);
+
+        return _diceEditController != null && _diceEditController.TryOpenInspectPanelForDie(dice.dice);
     }
 
     public void HandleDiceBeginDrag(DiceDraggableUI dice)
