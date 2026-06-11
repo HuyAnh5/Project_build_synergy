@@ -301,26 +301,6 @@ public partial class PlayerDiceCastAnimator
         DiceEquipWorldSyncUtility.EndTemporaryRelease(root);
     }
 
-    private void RestoreDetachedTransform(Transform target, DetachedTransformState state)
-    {
-        if (target == null)
-        {
-            return;
-        }
-
-        target.SetParent(state.parent, true);
-
-        if (state.parent != null)
-        {
-            int maxIndex = Mathf.Max(0, state.parent.childCount - 1);
-            target.SetSiblingIndex(Mathf.Clamp(state.siblingIndex, 0, maxIndex));
-        }
-
-        target.localPosition = state.localPosition;
-        target.localRotation = state.localRotation;
-        target.localScale = state.localScale;
-    }
-
     private static void SetRenderableVisibility(Transform root, bool visible)
     {
         if (root == null)

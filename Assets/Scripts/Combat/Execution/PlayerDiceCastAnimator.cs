@@ -57,18 +57,7 @@ public partial class PlayerDiceCastAnimator : MonoBehaviour
         public Transform spinnerTransform;
     }
 
-    private struct DetachedTransformState
-    {
-        public Transform parent;
-        public int siblingIndex;
-        public Vector3 localPosition;
-        public Quaternion localRotation;
-        public Vector3 localScale;
-        public Vector3 worldScale;
-    }
-
     private readonly Dictionary<Transform, TransformState> _baselineStates = new Dictionary<Transform, TransformState>();
-    private readonly Dictionary<Transform, DetachedTransformState> _detachedStates = new Dictionary<Transform, DetachedTransformState>();
     private readonly Dictionary<DiceSpinnerGeneric, DiceDraggableUI> _diceUiBySpinner = new Dictionary<DiceSpinnerGeneric, DiceDraggableUI>();
     private readonly List<Tween> _activeTweens = new List<Tween>();
     private readonly List<GameObject> _activeProxyObjects = new List<GameObject>();
@@ -156,13 +145,6 @@ public partial class PlayerDiceCastAnimator : MonoBehaviour
         }
 
         _temporarilyReleasedWorldSyncRoots.Clear();
-
-        foreach (KeyValuePair<Transform, DetachedTransformState> kvp in _detachedStates)
-        {
-            RestoreDetachedTransform(kvp.Key, kvp.Value);
-        }
-
-        _detachedStates.Clear();
 
         foreach (Transform hiddenRoot in _hiddenOriginalRoots)
         {
