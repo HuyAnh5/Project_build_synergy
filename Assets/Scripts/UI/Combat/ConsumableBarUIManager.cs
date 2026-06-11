@@ -208,12 +208,30 @@ public partial class ConsumableBarUIManager : MonoBehaviour
 
     private void UpdateHoveredSlotFromPointer()
     {
-        if (_hoveredSlot < 0)
-            return;
-
-        if (UiDragState.IsDragging || !IsPointerOverTooltipPresentation(_hoveredSlot))
+        if (UiDragState.IsDragging)
         {
-            _hoveredSlot = -1;
+            if (_hoveredSlot >= 0)
+            {
+                _hoveredSlot = -1;
+                RefreshFloatingPresentation();
+            }
+            return;
+        }
+
+        if (_hoveredSlot >= 0)
+        {
+            if (!IsPointerOverTooltipPresentation(_hoveredSlot))
+            {
+                _hoveredSlot = -1;
+                RefreshFloatingPresentation();
+            }
+
+            return;
+        }
+
+        if (TryGetHoveredSlotUnderPointer(out int hoveredSlot))
+        {
+            _hoveredSlot = hoveredSlot;
             RefreshFloatingPresentation();
         }
     }

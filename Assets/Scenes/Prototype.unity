@@ -3539,11 +3539,7 @@ MonoBehaviour:
     prefab: {fileID: 0}
     row: 0
     orderInRow: 0
-  enemySlots:
-  - label: 
-    prefab: {fileID: 3343973332019958161, guid: 6bf97bb884a1a5f4ba052749dd43a07b, type: 3}
-    row: 0
-    orderInRow: 0
+  enemySlots: []
   depthOffset: 0.5
   memberSpacing: 2
   applyScaleByRow: 0
@@ -8905,7 +8901,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!4 &2009635725
 Transform:
   m_ObjectHideFlags: 0

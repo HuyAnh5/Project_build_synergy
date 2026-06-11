@@ -63,14 +63,14 @@ MonoBehaviour:
     isBoss: 1
     enemies:
     - enabled: 1
-      prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
+      prefab: {fileID: 3343973332019958161, guid: 6bf97bb884a1a5f4ba052749dd43a07b, type: 3}
       row: 0
       orderInRow: 0
-    - enabled: 0
-      prefab: {fileID: 3343973332019958161, guid: 7bebe51e0cc345d4a803534dd2915177, type: 3}
+    - enabled: 1
+      prefab: {fileID: 0}
       row: 0
-      orderInRow: 1
-    - enabled: 0
+      orderInRow: 0
+    - enabled: 1
       prefab: {fileID: 0}
       row: 0
       orderInRow: 0
