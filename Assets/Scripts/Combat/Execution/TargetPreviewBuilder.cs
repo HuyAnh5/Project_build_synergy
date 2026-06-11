@@ -342,6 +342,7 @@ internal static class CombatActionPreviewSimulator
 
         destination.burnStacks = source.burnStacks;
         destination.burnTurns = source.burnTurns;
+        CopyBurnBatches(source, destination);
         destination.marked = source.marked;
         destination.bleedStacks = source.bleedStacks;
         destination.frozen = source.frozen;
@@ -353,6 +354,26 @@ internal static class CombatActionPreviewSimulator
         destination.emberWeaponBurnOnCritOnly = source.emberWeaponBurnOnCritOnly;
         destination.cinderbrandTurns = source.cinderbrandTurns;
         destination.cinderbrandBonusPerBurn = source.cinderbrandBonusPerBurn;
+    }
+
+    private static void CopyBurnBatches(StatusController source, StatusController destination)
+    {
+        List<StatusController.BurnBatchState> sourceBatches = source.GetBurnBatches();
+        List<StatusController.BurnBatchState> destinationBatches = destination.GetBurnBatches();
+        destinationBatches.Clear();
+
+        for (int i = 0; i < sourceBatches.Count; i++)
+        {
+            StatusController.BurnBatchState batch = sourceBatches[i];
+            if (batch == null)
+                continue;
+
+            destinationBatches.Add(new StatusController.BurnBatchState
+            {
+                stacks = batch.stacks,
+                turnsRemaining = batch.turnsRemaining
+            });
+        }
     }
 
     private readonly struct ActorSnapshot
@@ -386,9 +407,22 @@ internal static class CombatActionPreviewSimulator
 
     private readonly struct StatusSnapshot
     {
+        private readonly struct BurnBatchSnapshot
+        {
+            public readonly int stacks;
+            public readonly int turnsRemaining;
+
+            public BurnBatchSnapshot(int stacks, int turnsRemaining)
+            {
+                this.stacks = stacks;
+                this.turnsRemaining = turnsRemaining;
+            }
+        }
+
         private readonly bool _hasStatus;
         private readonly int _burnStacks;
         private readonly int _burnTurns;
+        private readonly BurnBatchSnapshot[] _burnBatches;
         private readonly bool _marked;
         private readonly int _bleedStacks;
         private readonly bool _frozen;
@@ -400,6 +434,7 @@ internal static class CombatActionPreviewSimulator
             _hasStatus = status != null;
             _burnStacks = status != null ? status.burnStacks : 0;
             _burnTurns = status != null ? status.burnTurns : 0;
+            _burnBatches = CaptureBurnBatches(status);
             _marked = status != null && status.marked;
             _bleedStacks = status != null ? status.bleedStacks : 0;
             _frozen = status != null && status.frozen;
@@ -416,11 +451,55 @@ internal static class CombatActionPreviewSimulator
 
             status.burnStacks = _burnStacks;
             status.burnTurns = _burnTurns;
+            RestoreBurnBatches(status, _burnBatches);
             status.marked = _marked;
             status.bleedStacks = _bleedStacks;
             status.frozen = _frozen;
             status.chilledTurns = _chilledTurns;
             status.staggered = _staggered;
+        }
+
+        private static BurnBatchSnapshot[] CaptureBurnBatches(StatusController status)
+        {
+            if (status == null)
+                return null;
+
+            List<StatusController.BurnBatchState> burnBatches = status.GetBurnBatches();
+            if (burnBatches == null || burnBatches.Count == 0)
+                return System.Array.Empty<BurnBatchSnapshot>();
+
+            var snapshot = new BurnBatchSnapshot[burnBatches.Count];
+            for (int i = 0; i < burnBatches.Count; i++)
+            {
+                StatusController.BurnBatchState batch = burnBatches[i];
+                snapshot[i] = batch == null
+                    ? new BurnBatchSnapshot(0, 0)
+                    : new BurnBatchSnapshot(batch.stacks, batch.turnsRemaining);
+            }
+
+            return snapshot;
+        }
+
+        private static void RestoreBurnBatches(StatusController status, BurnBatchSnapshot[] burnBatches)
+        {
+            List<StatusController.BurnBatchState> destination = status.GetBurnBatches();
+            destination.Clear();
+
+            if (burnBatches == null)
+                return;
+
+            for (int i = 0; i < burnBatches.Length; i++)
+            {
+                BurnBatchSnapshot batch = burnBatches[i];
+                if (batch.stacks <= 0 || batch.turnsRemaining <= 0)
+                    continue;
+
+                destination.Add(new StatusController.BurnBatchState
+                {
+                    stacks = batch.stacks,
+                    turnsRemaining = batch.turnsRemaining
+                });
+            }
         }
     }
 }
