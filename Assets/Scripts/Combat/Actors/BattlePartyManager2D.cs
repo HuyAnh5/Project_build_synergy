@@ -13,6 +13,13 @@ public class BattlePartyManager2D : MonoBehaviour
         [HideInInspector] public int orderInRow = 0;
     }
 
+    [Serializable]
+    public class WorldUiPrefabEntry
+    {
+        public string tag = CombatActor.DefaultWorldUiTag;
+        public ActorWorldUI prefab;
+    }
+
     [Header("Limits")]
     public int maxAllies = 3;
     public int maxEnemies = 3;
@@ -43,8 +50,8 @@ public class BattlePartyManager2D : MonoBehaviour
     public float backScale = 0.92f;
 
     [Header("World UI")]
-    public ActorWorldUI worldUiPrefab;
-    public ActorWorldUI bossWorldUiPrefab;
+    [Tooltip("Data-driven mapping from actor worldUiTag to the prefab that should be spawned.")]
+    public List<WorldUiPrefabEntry> worldUiPrefabs = new();
     public bool autoSpawnWorldUI = true;
 
     [Header("Battle Reset Rule (prototype)")]
@@ -283,10 +290,50 @@ public class BattlePartyManager2D : MonoBehaviour
         if (actor == null)
             return null;
 
-        if (actor.worldUiMode == CombatActor.WorldUiMode.Boss && bossWorldUiPrefab != null)
-            return bossWorldUiPrefab;
+        string resolvedTag = actor.GetResolvedWorldUiTag();
+        ActorWorldUI mappedPrefab = FindWorldUiPrefabByTag(resolvedTag);
+        if (mappedPrefab != null)
+            return mappedPrefab;
 
-        return worldUiPrefab;
+        return FindWorldUiPrefabByTag(CombatActor.DefaultWorldUiTag);
+    }
+
+    private ActorWorldUI FindWorldUiPrefabByTag(string tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag) || worldUiPrefabs == null)
+            return null;
+
+        for (int i = 0; i < worldUiPrefabs.Count; i++)
+        {
+            WorldUiPrefabEntry entry = worldUiPrefabs[i];
+            if (entry == null || entry.prefab == null || string.IsNullOrWhiteSpace(entry.tag))
+                continue;
+
+            if (string.Equals(entry.tag.Trim(), tag.Trim(), StringComparison.OrdinalIgnoreCase))
+                return entry.prefab;
+        }
+
+        return null;
+    }
+
+    private void OnValidate()
+    {
+        if (worldUiPrefabs == null)
+            worldUiPrefabs = new List<WorldUiPrefabEntry>();
+
+        for (int i = worldUiPrefabs.Count - 1; i >= 0; i--)
+        {
+            WorldUiPrefabEntry entry = worldUiPrefabs[i];
+            if (entry == null)
+            {
+                worldUiPrefabs.RemoveAt(i);
+                continue;
+            }
+
+            entry.tag = string.IsNullOrWhiteSpace(entry.tag)
+                ? CombatActor.DefaultWorldUiTag
+                : entry.tag.Trim();
+        }
     }
 
     private static ActorWorldUI FindEmbeddedWorldUI(CombatActor actor)
@@ -411,7 +458,16 @@ public class BattlePartyManager2D : MonoBehaviour
 
         // destroy world UI
         foreach (var kv in _uiMap)
-            if (kv.Value) Destroy(kv.Value.gameObject);
+        {
+            if (!kv.Value)
+                continue;
+
+            // Detach first so the same-frame prototype respawn path does not
+            // rediscover a UI that is already queued for destruction.
+            kv.Value.actor = null;
+            kv.Value.transform.SetParent(null, false);
+            Destroy(kv.Value.gameObject);
+        }
         _uiMap.Clear();
 
         // optionally destroy player too (here we keep it if already spawned)

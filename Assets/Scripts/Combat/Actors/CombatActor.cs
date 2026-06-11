@@ -5,13 +5,10 @@ using UnityEditor;
 
 public class CombatActor : MonoBehaviour
 {
+    public const string DefaultWorldUiTag = "Standard";
+
     public enum TeamSide { Ally, Enemy }
     public enum RowTag { Front, Back }
-    public enum WorldUiMode
-    {
-        Standard,
-        Boss
-    }
 
     [Header("Identity")]
     public TeamSide team = TeamSide.Enemy;
@@ -38,12 +35,19 @@ public class CombatActor : MonoBehaviour
     public StatusController status;
 
     [Header("World UI")]
-    [Tooltip("Cho phép actor này chọn layout world UI thường hay boss.")]
-    public WorldUiMode worldUiMode = WorldUiMode.Standard;
+    [Tooltip("Tag world UI dùng để resolve prefab từ BattlePartyManager2D.")]
+    public string worldUiTag = DefaultWorldUiTag;
     [Tooltip("World UI anchor. If empty, one is auto-created at the actor visual center.")]
     public Transform uiAnchor;
     public bool autoSetupUiAnchor = true;
     public string uiAnchorName = "UIAnchor";
+
+    public string GetResolvedWorldUiTag()
+    {
+        return string.IsNullOrWhiteSpace(worldUiTag)
+            ? DefaultWorldUiTag
+            : worldUiTag.Trim();
+    }
 
     private void Awake()
     {

@@ -62,8 +62,8 @@ public static class CombatActorVariantPrefabTool
             return;
         }
 
-        ConfigureVariant(enemyPath, CombatActor.WorldUiMode.Standard, embedBossWorldUi: false);
-        ConfigureVariant(bossPath, CombatActor.WorldUiMode.Boss, embedBossWorldUi: true);
+        ConfigureVariant(enemyPath, CombatActor.DefaultWorldUiTag, embedBossWorldUi: false);
+        ConfigureVariant(bossPath, "Boss", embedBossWorldUi: true);
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
@@ -75,7 +75,7 @@ public static class CombatActorVariantPrefabTool
         Debug.Log($"Created variants:\nEnemy: {enemyPath}\nBoss: {bossPath}");
     }
 
-    private static void ConfigureVariant(string prefabPath, CombatActor.WorldUiMode worldUiMode, bool embedBossWorldUi)
+    private static void ConfigureVariant(string prefabPath, string worldUiTag, bool embedBossWorldUi)
     {
         GameObject root = PrefabUtility.LoadPrefabContents(prefabPath);
         if (root == null)
@@ -90,8 +90,8 @@ public static class CombatActorVariantPrefabTool
                 return;
             }
 
-            actor.worldUiMode = worldUiMode;
-            EnsureUiAnchor(actor, alignToVisualCenter: worldUiMode == CombatActor.WorldUiMode.Standard);
+            actor.worldUiTag = string.IsNullOrWhiteSpace(worldUiTag) ? CombatActor.DefaultWorldUiTag : worldUiTag.Trim();
+            EnsureUiAnchor(actor, alignToVisualCenter: actor.worldUiTag == CombatActor.DefaultWorldUiTag);
 
             if (embedBossWorldUi)
                 EnsureEmbeddedBossWorldUi(root, actor);

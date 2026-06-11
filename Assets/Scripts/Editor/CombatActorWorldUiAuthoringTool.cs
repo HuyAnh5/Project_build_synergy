@@ -6,13 +6,13 @@ public static class CombatActorWorldUiAuthoringTool
     [MenuItem("Tools/Build Synergy/Combat/Mark Selected Actors As Boss World UI")]
     public static void MarkSelectedActorsAsBossWorldUi()
     {
-        ApplyWorldUiModeToSelection(CombatActor.WorldUiMode.Boss, alignAnchorToVisualCenter: false);
+        ApplyWorldUiTagToSelection("Boss", alignAnchorToVisualCenter: false);
     }
 
     [MenuItem("Tools/Build Synergy/Combat/Mark Selected Actors As Standard World UI")]
     public static void MarkSelectedActorsAsStandardWorldUi()
     {
-        ApplyWorldUiModeToSelection(CombatActor.WorldUiMode.Standard, alignAnchorToVisualCenter: true);
+        ApplyWorldUiTagToSelection(CombatActor.DefaultWorldUiTag, alignAnchorToVisualCenter: true);
     }
 
     [MenuItem("Tools/Build Synergy/Combat/Create Or Refresh UIAnchor For Selected Actors")]
@@ -35,7 +35,7 @@ public static class CombatActorWorldUiAuthoringTool
         Debug.Log($"Refreshed UIAnchor for {actors.Length} CombatActor object(s).");
     }
 
-    private static void ApplyWorldUiModeToSelection(CombatActor.WorldUiMode mode, bool alignAnchorToVisualCenter)
+    private static void ApplyWorldUiTagToSelection(string tag, bool alignAnchorToVisualCenter)
     {
         CombatActor[] actors = Selection.GetFiltered<CombatActor>(SelectionMode.Editable | SelectionMode.TopLevel);
         if (actors.Length == 0)
@@ -46,14 +46,14 @@ public static class CombatActorWorldUiAuthoringTool
 
         foreach (CombatActor actor in actors)
         {
-            Undo.RecordObject(actor, $"Set {nameof(CombatActor.worldUiMode)}");
-            actor.worldUiMode = mode;
+            Undo.RecordObject(actor, $"Set {nameof(CombatActor.worldUiTag)}");
+            actor.worldUiTag = string.IsNullOrWhiteSpace(tag) ? CombatActor.DefaultWorldUiTag : tag.Trim();
             EnsureUiAnchor(actor, alignAnchorToVisualCenter);
             EditorUtility.SetDirty(actor);
         }
 
         AssetDatabase.SaveAssets();
-        Debug.Log($"Updated {actors.Length} CombatActor object(s) to {mode} world UI mode.");
+        Debug.Log($"Updated {actors.Length} CombatActor object(s) to world UI tag '{tag}'.");
     }
 
     private static void EnsureUiAnchor(CombatActor actor, bool alignToVisualCenter)
