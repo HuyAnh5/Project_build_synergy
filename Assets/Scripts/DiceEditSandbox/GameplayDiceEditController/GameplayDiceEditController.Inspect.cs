@@ -14,6 +14,8 @@ public partial class GameplayDiceEditController
         _sourceInteractable = interactable;
         _selectedInteractable = interactable;
         _selectedLogicalFaceIndices.Clear();
+        _inspectFaceMarks.Clear();
+        _inspectActiveMarkColorIndex = 0;
         _copySourceFaceIndex = -1;
         _copyTargetFaceIndex = -1;
         CreateInspectCloneFromSource();

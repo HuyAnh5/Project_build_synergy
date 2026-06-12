@@ -98,7 +98,7 @@ MonoBehaviour:
   description: Deal "X damage". X is the highest Base Value in this 2-dice group.
   gameplay:
     useNewGameplayPipeline: 1
-    descriptionTemplate: Deal {base1} damage.
+    descriptionTemplate: Deal X({base1}) damage.
     requirements: []
     baseEffects:
     - type: 0

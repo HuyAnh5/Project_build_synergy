@@ -127,6 +127,8 @@ public partial class GameplayDiceEditController
         _pendingConsumableSlot = -1;
         _activeConsumable = null;
         _selectedLogicalFaceIndices.Clear();
+        _inspectFaceMarks.Clear();
+        _inspectActiveMarkColorIndex = 0;
         _copySourceFaceIndex = -1;
         _copyTargetFaceIndex = -1;
         RefreshAllHighlights();
@@ -151,7 +153,7 @@ public partial class GameplayDiceEditController
     public string GetEffectText()
     {
         if (IsInspectOnlyMode)
-            return "Inspect this die. Use Roll or Face Up to examine it, or Cancel to close.";
+            return "Inspect this die. Click faces to cycle highlight colors for notes, use Roll or Face Up to examine it, or Cancel to close.";
 
         return _activeConsumable != null ? _activeConsumable.description : string.Empty;
     }

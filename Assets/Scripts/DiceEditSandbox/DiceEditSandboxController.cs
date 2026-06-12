@@ -16,7 +16,11 @@ public partial class DiceEditSandboxController : MonoBehaviour
         Committed,
         CopySource,
         CopyTarget,
-        GumLinked
+        GumLinked,
+        MarkA,
+        MarkB,
+        MarkC,
+        MarkD
     }
 
     private const bool DebugLogs = false;

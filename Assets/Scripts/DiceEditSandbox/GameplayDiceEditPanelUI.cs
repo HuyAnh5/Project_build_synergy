@@ -2,6 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
+using System.Collections.Generic;
 
 public class GameplayDiceEditPanelUI : MonoBehaviour
 {
@@ -14,9 +15,21 @@ public class GameplayDiceEditPanelUI : MonoBehaviour
     [SerializeField] private Button cancelButton;
     [SerializeField] private Button autoUprightButton;
     [SerializeField] private Button rollButton;
+    [SerializeField] private TMP_Text useButtonText;
+    [SerializeField] private RectTransform inspectPaletteRoot;
+    [SerializeField] private Button[] inspectColorButtons = new Button[4];
+
+    private static readonly Color[] InspectPaletteColors =
+    {
+        new Color(1f, 0.43f, 0.43f, 1f),
+        new Color(0.35f, 0.72f, 1f, 1f),
+        new Color(0.74f, 0.52f, 1f, 1f),
+        new Color(1f, 0.78f, 0.26f, 1f),
+    };
 
     private GameplayDiceEditController _controller;
     private Image _modalBlockerImage;
+    private readonly List<Image> _inspectColorButtonImages = new List<Image>();
 
     private void OnEnable()
     {
@@ -27,6 +40,7 @@ public class GameplayDiceEditPanelUI : MonoBehaviour
     public void Initialize(GameplayDiceEditController controller)
     {
         _controller = controller;
+        EnsureInspectPalette();
         WireButtons();
         Refresh();
     }
@@ -60,9 +74,20 @@ public class GameplayDiceEditPanelUI : MonoBehaviour
 
         if (useButton != null)
         {
-            useButton.gameObject.SetActive(!inspectOnly);
-            useButton.interactable = !inspectOnly && isOpen && _controller.CanUseCurrentConsumable();
+            useButton.gameObject.SetActive(isOpen);
+            useButton.interactable = inspectOnly
+                ? _controller.CanClearInspectHighlights()
+                : isOpen && _controller.CanUseCurrentConsumable();
         }
+
+        if (useButtonText != null)
+            useButtonText.text = inspectOnly ? "UNHIGHLIGHT ALL" : "USE";
+
+        EnsureInspectPalette();
+        if (inspectPaletteRoot != null)
+            inspectPaletteRoot.gameObject.SetActive(inspectOnly);
+
+        RefreshInspectPalette(inspectOnly);
 
         if (cancelButton != null)
             cancelButton.interactable = isOpen;
@@ -79,7 +104,8 @@ public class GameplayDiceEditPanelUI : MonoBehaviour
         return IsPointerOverButton(useButton, screenPosition) ||
                IsPointerOverButton(cancelButton, screenPosition) ||
                IsPointerOverButton(autoUprightButton, screenPosition) ||
-               IsPointerOverButton(rollButton, screenPosition);
+               IsPointerOverButton(rollButton, screenPosition) ||
+               IsPointerOverAnyInspectColorButton(screenPosition);
     }
 
     public bool IsPointerOverPanel(Vector2 screenPosition)
@@ -97,6 +123,8 @@ public class GameplayDiceEditPanelUI : MonoBehaviour
 
     private void WireButtons()
     {
+        EnsureInspectPalette();
+
         if (useButton != null)
         {
             useButton.onClick.RemoveListener(HandleUseClicked);
@@ -119,6 +147,116 @@ public class GameplayDiceEditPanelUI : MonoBehaviour
         {
             rollButton.onClick.RemoveListener(HandleRollClicked);
             rollButton.onClick.AddListener(HandleRollClicked);
+        }
+
+        for (int i = 0; i < inspectColorButtons.Length; i++)
+        {
+            Button button = inspectColorButtons[i];
+            if (button == null)
+                continue;
+
+            int capturedIndex = i;
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() => HandleInspectColorClicked(capturedIndex));
+        }
+    }
+
+    private void EnsureInspectPalette()
+    {
+        if (inspectPaletteRoot == null)
+        {
+            RectTransform anchor = useButton != null ? useButton.transform.parent as RectTransform : panelRoot;
+            if (anchor != null)
+            {
+                Transform existing = anchor.Find("InspectPalette");
+                inspectPaletteRoot = existing as RectTransform;
+                if (inspectPaletteRoot == null)
+                {
+                    GameObject paletteGo = new GameObject("InspectPalette", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+                    inspectPaletteRoot = paletteGo.GetComponent<RectTransform>();
+                    inspectPaletteRoot.SetParent(anchor, false);
+                    inspectPaletteRoot.anchorMin = new Vector2(0.5f, 0f);
+                    inspectPaletteRoot.anchorMax = new Vector2(0.5f, 0f);
+                    inspectPaletteRoot.pivot = new Vector2(0.5f, 0f);
+                    inspectPaletteRoot.anchoredPosition = new Vector2(0f, 52f);
+                    inspectPaletteRoot.sizeDelta = new Vector2(200f, 28f);
+
+                    HorizontalLayoutGroup layout = inspectPaletteRoot.GetComponent<HorizontalLayoutGroup>();
+                    layout.spacing = 8f;
+                    layout.childAlignment = TextAnchor.MiddleCenter;
+                    layout.childControlHeight = false;
+                    layout.childControlWidth = false;
+                    layout.childForceExpandHeight = false;
+                    layout.childForceExpandWidth = false;
+                }
+            }
+        }
+
+        if (inspectPaletteRoot == null)
+            return;
+
+        if (inspectColorButtons == null || inspectColorButtons.Length != 4)
+            inspectColorButtons = new Button[4];
+
+        _inspectColorButtonImages.Clear();
+        for (int i = 0; i < inspectColorButtons.Length; i++)
+        {
+            if (inspectColorButtons[i] == null)
+                inspectColorButtons[i] = FindOrCreateInspectColorButton(i);
+
+            if (inspectColorButtons[i] != null)
+            {
+                Image image = inspectColorButtons[i].GetComponent<Image>();
+                if (image != null)
+                    _inspectColorButtonImages.Add(image);
+            }
+        }
+    }
+
+    private Button FindOrCreateInspectColorButton(int index)
+    {
+        if (inspectPaletteRoot == null)
+            return null;
+
+        string buttonName = $"InspectColorButton_{index}";
+        Transform existing = inspectPaletteRoot.Find(buttonName);
+        if (existing != null)
+            return existing.GetComponent<Button>();
+
+        GameObject buttonGo = new GameObject(buttonName, typeof(RectTransform), typeof(Image), typeof(Button), typeof(LayoutElement));
+        RectTransform rect = buttonGo.GetComponent<RectTransform>();
+        rect.SetParent(inspectPaletteRoot, false);
+        rect.sizeDelta = new Vector2(34f, 24f);
+
+        LayoutElement layout = buttonGo.GetComponent<LayoutElement>();
+        layout.preferredWidth = 34f;
+        layout.preferredHeight = 24f;
+
+        Image image = buttonGo.GetComponent<Image>();
+        image.color = InspectPaletteColors[Mathf.Clamp(index, 0, InspectPaletteColors.Length - 1)];
+
+        return buttonGo.GetComponent<Button>();
+    }
+
+    private void RefreshInspectPalette(bool inspectOnly)
+    {
+        if (!inspectOnly || _controller == null)
+            return;
+
+        int activeIndex = _controller.GetInspectActiveMarkColorIndex();
+        for (int i = 0; i < inspectColorButtons.Length; i++)
+        {
+            Button button = inspectColorButtons[i];
+            if (button == null)
+                continue;
+
+            button.interactable = true;
+            Image image = button.GetComponent<Image>();
+            if (image == null)
+                continue;
+
+            image.color = InspectPaletteColors[i];
+            image.transform.localScale = i == activeIndex ? new Vector3(1.15f, 1.15f, 1f) : Vector3.one;
         }
     }
 
@@ -175,7 +313,13 @@ public class GameplayDiceEditPanelUI : MonoBehaviour
 
     private void HandleUseClicked()
     {
-        _controller?.UseCurrentConsumable();
+        if (_controller == null)
+            return;
+
+        if (_controller.IsInspectOnlyMode)
+            _controller.ClearInspectHighlights();
+        else
+            _controller.UseCurrentConsumable();
     }
 
     private void HandleCancelClicked()
@@ -193,6 +337,11 @@ public class GameplayDiceEditPanelUI : MonoBehaviour
         _controller?.RollFocusedDie();
     }
 
+    private void HandleInspectColorClicked(int colorIndex)
+    {
+        _controller?.SetInspectActiveMarkColorIndex(colorIndex);
+    }
+
     private static bool IsPointerOverButton(Button button, Vector2 screenPosition)
     {
         if (button == null || !button.gameObject.activeInHierarchy)
@@ -208,5 +357,19 @@ public class GameplayDiceEditPanelUI : MonoBehaviour
             : null;
 
         return RectTransformUtility.RectangleContainsScreenPoint(rt, screenPosition, cam);
+    }
+
+    private bool IsPointerOverAnyInspectColorButton(Vector2 screenPosition)
+    {
+        if (inspectColorButtons == null)
+            return false;
+
+        for (int i = 0; i < inspectColorButtons.Length; i++)
+        {
+            if (IsPointerOverButton(inspectColorButtons[i], screenPosition))
+                return true;
+        }
+
+        return false;
     }
 }

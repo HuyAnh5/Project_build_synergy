@@ -7,6 +7,10 @@ public class DiceFaceHighlightRenderer : MonoBehaviour
     [SerializeField] private Color previewColor = new Color(1f, 0.83f, 0.18f, 0.65f);
     [SerializeField] private Color committedColor = new Color(0.2f, 1f, 0.75f, 0.7f);
     [SerializeField] private Color alternateColor = new Color(0.24f, 0.88f, 0.36f, 0.72f);
+    [SerializeField] private Color markAColor = new Color(1f, 0.43f, 0.43f, 0.74f);
+    [SerializeField] private Color markBColor = new Color(0.35f, 0.72f, 1f, 0.74f);
+    [SerializeField] private Color markCColor = new Color(0.74f, 0.52f, 1f, 0.74f);
+    [SerializeField] private Color markDColor = new Color(1f, 0.78f, 0.26f, 0.74f);
     [SerializeField] private float normalOffset = 0.003f;
 
     private DiceSpinnerGeneric _spinner;
@@ -14,6 +18,10 @@ public class DiceFaceHighlightRenderer : MonoBehaviour
     private Material _previewMaterial;
     private Material _committedMaterial;
     private Material _alternateMaterial;
+    private Material _markAMaterial;
+    private Material _markBMaterial;
+    private Material _markCMaterial;
+    private Material _markDMaterial;
     private readonly List<Entry> _entries = new List<Entry>();
     private readonly List<int> _currentFaces = new List<int>();
     private bool _currentCommitted;
@@ -212,12 +220,22 @@ public class DiceFaceHighlightRenderer : MonoBehaviour
 
     private void EnsureMaterials()
     {
-        if (_previewMaterial != null && _committedMaterial != null && _alternateMaterial != null)
+        if (_previewMaterial != null &&
+            _committedMaterial != null &&
+            _alternateMaterial != null &&
+            _markAMaterial != null &&
+            _markBMaterial != null &&
+            _markCMaterial != null &&
+            _markDMaterial != null)
             return;
 
         _previewMaterial = BuildMaterial(previewColor);
         _committedMaterial = BuildMaterial(committedColor);
         _alternateMaterial = BuildMaterial(alternateColor);
+        _markAMaterial = BuildMaterial(markAColor);
+        _markBMaterial = BuildMaterial(markBColor);
+        _markCMaterial = BuildMaterial(markCColor);
+        _markDMaterial = BuildMaterial(markDColor);
     }
 
     private Material ResolveMaterial(DiceEditSandboxController.SandboxFaceHighlightKind highlightKind)
@@ -229,6 +247,14 @@ public class DiceFaceHighlightRenderer : MonoBehaviour
             case DiceEditSandboxController.SandboxFaceHighlightKind.CopyTarget:
             case DiceEditSandboxController.SandboxFaceHighlightKind.GumLinked:
                 return _alternateMaterial;
+            case DiceEditSandboxController.SandboxFaceHighlightKind.MarkA:
+                return _markAMaterial;
+            case DiceEditSandboxController.SandboxFaceHighlightKind.MarkB:
+                return _markBMaterial;
+            case DiceEditSandboxController.SandboxFaceHighlightKind.MarkC:
+                return _markCMaterial;
+            case DiceEditSandboxController.SandboxFaceHighlightKind.MarkD:
+                return _markDMaterial;
             case DiceEditSandboxController.SandboxFaceHighlightKind.Preview:
             case DiceEditSandboxController.SandboxFaceHighlightKind.CopySource:
             default:

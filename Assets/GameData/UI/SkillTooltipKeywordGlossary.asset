@@ -71,3 +71,8 @@ MonoBehaviour:
     icon: {fileID: 412434694075372973, guid: 20cc956aa78757d4085a0944de8d0612, type: 3}
     descriptionMode: 0
     description: shield
+  - keyword: X
+    displayName: X
+    icon: {fileID: 0}
+    descriptionMode: 0
+    description: Final value from the selected dice after all dice modifiers.

@@ -32,6 +32,8 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
     private readonly List<GameplayDiceEditInteractable> _interactables = new List<GameplayDiceEditInteractable>();
     private readonly List<VisibilityState> _hiddenSceneDice = new List<VisibilityState>();
     private readonly List<int> _selectedLogicalFaceIndices = new List<int>();
+    private readonly Dictionary<int, int> _inspectFaceMarks = new Dictionary<int, int>();
+    private int _inspectActiveMarkColorIndex;
 
     private int _pendingConsumableSlot = -1;
     private ConsumableDataSO _activeConsumable;
@@ -92,7 +94,9 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
         if (interactable != _activeInteractable)
             return;
 
-        if (IsCopyPasteFaceMode())
+        if (IsInspectOnlyMode)
+            HandleInspectOnlyFaceSelection(logicalFaceIndex);
+        else if (IsCopyPasteFaceMode())
             HandleCopyPasteFaceSelection(logicalFaceIndex);
         else
             HandleStandardFaceSelection(logicalFaceIndex);
@@ -132,6 +136,9 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
 
         if (interactable == null || interactable != _activeInteractable)
             return DiceEditSandboxController.SandboxFaceHighlightKind.None;
+
+        if (IsInspectOnlyMode)
+            return GetInspectOnlyHighlightKind(logicalFaceIndex);
 
         if (IsCopyPasteFaceMode())
         {
@@ -200,6 +207,35 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
         panelUi?.Refresh();
     }
 
+    public bool CanClearInspectHighlights()
+    {
+        return IsInspectOnlyMode && _inspectFaceMarks.Count > 0;
+    }
+
+    public void ClearInspectHighlights()
+    {
+        if (!IsInspectOnlyMode || _inspectFaceMarks.Count <= 0)
+            return;
+
+        _inspectFaceMarks.Clear();
+        RefreshAllHighlights();
+        panelUi?.Refresh();
+    }
+
+    public int GetInspectActiveMarkColorIndex()
+    {
+        return Mathf.Clamp(_inspectActiveMarkColorIndex, 0, 3);
+    }
+
+    public void SetInspectActiveMarkColorIndex(int colorIndex)
+    {
+        if (!IsInspectOnlyMode)
+            return;
+
+        _inspectActiveMarkColorIndex = Mathf.Clamp(colorIndex, 0, 3);
+        panelUi?.Refresh();
+    }
+
     // Refreshes the panel when the inspect dice reports a local state change.
     public void NotifyInspectDieStateChanged()
     {
@@ -233,6 +269,32 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
             _copySourceFaceIndex = logicalFaceIndex;
         else if (_copyTargetFaceIndex < 0)
             _copyTargetFaceIndex = logicalFaceIndex;
+    }
+
+    private void HandleInspectOnlyFaceSelection(int logicalFaceIndex)
+    {
+        if (logicalFaceIndex < 0)
+            return;
+
+        int activeColor = GetInspectActiveMarkColorIndex();
+        if (_inspectFaceMarks.TryGetValue(logicalFaceIndex, out int colorIndex) && colorIndex == activeColor)
+            _inspectFaceMarks.Remove(logicalFaceIndex);
+        else
+            _inspectFaceMarks[logicalFaceIndex] = activeColor;
+    }
+
+    private DiceEditSandboxController.SandboxFaceHighlightKind GetInspectOnlyHighlightKind(int logicalFaceIndex)
+    {
+        if (!_inspectFaceMarks.TryGetValue(logicalFaceIndex, out int colorIndex))
+            return DiceEditSandboxController.SandboxFaceHighlightKind.None;
+
+        switch (Mathf.Clamp(colorIndex, 0, 3))
+        {
+            case 0: return DiceEditSandboxController.SandboxFaceHighlightKind.MarkA;
+            case 1: return DiceEditSandboxController.SandboxFaceHighlightKind.MarkB;
+            case 2: return DiceEditSandboxController.SandboxFaceHighlightKind.MarkC;
+            default: return DiceEditSandboxController.SandboxFaceHighlightKind.MarkD;
+        }
     }
 
     // Applies temporary value previews to the inspect dice before the consumable is confirmed.
