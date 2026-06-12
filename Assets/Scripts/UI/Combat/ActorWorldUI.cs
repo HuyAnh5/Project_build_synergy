@@ -13,6 +13,12 @@ public partial class ActorWorldUI : MonoBehaviour
 {
     private const int DefaultStatusSlotCount = 8;
 
+    public enum WorldUiTooltipSpawnDirection
+    {
+        Right = 0,
+        Left = 1
+    }
+
     [Serializable]
     public sealed class StatusIconSlot
     {
@@ -49,6 +55,9 @@ public partial class ActorWorldUI : MonoBehaviour
     public RectTransform worldCanvasRoot;
     public Canvas worldCanvas;
     public CanvasGroup worldCanvasGroup;
+    public RectTransform tooltipAnchorRoot;
+    public RectTransform tooltipBottomLimitRoot;
+    public WorldUiTooltipSpawnDirection tooltipSpawnDirection = WorldUiTooltipSpawnDirection.Right;
     public Vector2 rootSize = new Vector2(220f, 156f);
     public Vector3 worldCanvasScale = new Vector3(0.01f, 0.01f, 0.01f);
 
@@ -249,6 +258,7 @@ public partial class ActorWorldUI : MonoBehaviour
         AttachToActorAnchor();
         ResolveReferences();
         RefreshRuntime();
+        RefreshWorldUiTooltips();
 
         // Update overlay blink
         if (_targetOverlayActive && _targetOverlayImage != null)

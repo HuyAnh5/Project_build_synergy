@@ -10,6 +10,7 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
 {
     private const string TooltipPrefabSettingsResourcePath = "UI/SkillTooltipPrefabSettings";
     private const string TooltipOverlayCanvasName = "SkillTooltipOverlayCanvas";
+    private const string SharedTooltipHostCanvasName = "GameplayDiceEditPanelCanvas";
     private const string TooltipHoverBridgeName = "SkillTooltipHoverBridge";
     private const string TooltipRequiresHeader = "---------- Requires ----------";
     private const string TooltipConditionHeader = "---------- Condition ----------";
@@ -245,6 +246,10 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
 
     private static Canvas GetOrCreateOverlayCanvas(Canvas sourceCanvas)
     {
+        Canvas sharedHost = FindSharedTooltipHostCanvas();
+        if (sharedHost != null)
+            return sharedHost;
+
         Canvas existing = FindTooltipOverlayCanvas();
         if (existing != null)
         {
@@ -302,6 +307,19 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
         {
             Canvas canvas = canvases[i];
             if (canvas != null && canvas.name == TooltipOverlayCanvasName)
+                return canvas;
+        }
+
+        return null;
+    }
+
+    private static Canvas FindSharedTooltipHostCanvas()
+    {
+        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            Canvas canvas = canvases[i];
+            if (canvas != null && canvas.name == SharedTooltipHostCanvasName)
                 return canvas;
         }
 

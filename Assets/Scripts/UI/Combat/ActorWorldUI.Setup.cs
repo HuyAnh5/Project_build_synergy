@@ -19,6 +19,8 @@ public partial class ActorWorldUI
             worldCanvas = worldCanvasRoot.GetComponent<Canvas>();
         if (worldCanvasGroup == null)
             worldCanvasGroup = worldCanvasRoot.GetComponent<CanvasGroup>();
+        tooltipAnchorRoot = ResolveRectTransform(tooltipAnchorRoot, "WorldCanvasRoot/TooltipAnchor");
+        tooltipBottomLimitRoot = ResolveRectTransform(tooltipBottomLimitRoot, "WorldCanvasRoot/TooltipBottomLimit");
 
         previewDummyRoot = ResolveRectTransform(previewDummyRoot, "WorldCanvasRoot/PreviewDummy");
         if (previewDummyImage == null && previewDummyRoot != null)

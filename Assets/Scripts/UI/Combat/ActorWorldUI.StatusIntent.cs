@@ -1,9 +1,34 @@
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public partial class ActorWorldUI
 {
+    private readonly List<ActorWorldKeywordTooltipUI.TooltipContent> _tooltipContents = new List<ActorWorldKeywordTooltipUI.TooltipContent>(8);
+
+    private enum WorldUiTooltipHotspotKind
+    {
+        None,
+        Intent,
+        Guard,
+        Status
+    }
+
+    private readonly struct WorldUiTooltipHotspot
+    {
+        public readonly WorldUiTooltipHotspotKind kind;
+        public readonly RectTransform target;
+        public readonly int statusIndex;
+
+        public WorldUiTooltipHotspot(WorldUiTooltipHotspotKind kind, RectTransform target, int statusIndex = -1)
+        {
+            this.kind = kind;
+            this.target = target;
+            this.statusIndex = statusIndex;
+        }
+    }
+
     private void RefreshIntent()
     {
         if (intentRoot == null)
@@ -231,5 +256,262 @@ public partial class ActorWorldUI
                 slot.valueText.gameObject.SetActive(!string.IsNullOrEmpty(data.valueText));
             }
         }
+    }
+
+    private void RefreshWorldUiTooltips()
+    {
+        if (!Application.isPlaying || actor == null || worldCanvas == null)
+        {
+            ActorWorldKeywordTooltipUI.Hide();
+            return;
+        }
+
+        if (!TryGetHoveredWorldUiHotspot(out WorldUiTooltipHotspot hotspot))
+        {
+            if (ActorWorldKeywordTooltipUI.IsShowingFor(this))
+                ActorWorldKeywordTooltipUI.Hide();
+            return;
+        }
+
+        _tooltipContents.Clear();
+        bool showAll = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        if (showAll)
+            BuildAllTooltipContents(_tooltipContents);
+        else
+            BuildHotspotTooltipContents(hotspot, _tooltipContents);
+
+        if (_tooltipContents.Count <= 0)
+        {
+            if (ActorWorldKeywordTooltipUI.IsShowingFor(this))
+                ActorWorldKeywordTooltipUI.Hide();
+            return;
+        }
+
+        Camera targetCamera = GetWorldUiEventCamera();
+        RectTransform tooltipAnchor = tooltipAnchorRoot != null ? tooltipAnchorRoot : hotspot.target;
+        RectTransform tooltipBottomLimit = tooltipBottomLimitRoot;
+        RectTransform hoverTarget = hotspot.target != null ? hotspot.target : worldCanvasRoot;
+        ActorWorldKeywordTooltipUI.Show(
+            worldCanvas,
+            tooltipAnchor,
+            tooltipBottomLimit,
+            hoverTarget,
+            targetCamera,
+            _tooltipContents,
+            this,
+            tooltipSpawnDirection == WorldUiTooltipSpawnDirection.Right);
+    }
+
+    private bool TryGetHoveredWorldUiHotspot(out WorldUiTooltipHotspot hotspot)
+    {
+        hotspot = default;
+        Vector2 screenPoint = Input.mousePosition;
+        Camera eventCamera = GetWorldUiEventCamera();
+
+        if (intentRoot != null &&
+            intentRoot.gameObject.activeInHierarchy &&
+            RectTransformUtility.RectangleContainsScreenPoint(intentRoot, screenPoint, eventCamera))
+        {
+            hotspot = new WorldUiTooltipHotspot(WorldUiTooltipHotspotKind.Intent, intentRoot);
+            return true;
+        }
+
+        if (guardRoot != null &&
+            guardRoot.gameObject.activeInHierarchy &&
+            RectTransformUtility.RectangleContainsScreenPoint(guardRoot, screenPoint, eventCamera))
+        {
+            hotspot = new WorldUiTooltipHotspot(WorldUiTooltipHotspotKind.Guard, guardRoot);
+            return true;
+        }
+
+        IList<StatusIconSlot> slots = GetResolvedStatusSlots(_statusBuffer.Count);
+        if (slots != null)
+        {
+            for (int i = 0; i < _statusBuffer.Count && i < slots.Count; i++)
+            {
+                StatusIconSlot slot = slots[i];
+                if (slot?.root == null || !slot.root.gameObject.activeInHierarchy)
+                    continue;
+
+                if (!RectTransformUtility.RectangleContainsScreenPoint(slot.root, screenPoint, eventCamera))
+                    continue;
+
+                hotspot = new WorldUiTooltipHotspot(WorldUiTooltipHotspotKind.Status, slot.root, i);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private Camera GetWorldUiEventCamera()
+    {
+        if (worldCanvas == null || worldCanvas.renderMode == RenderMode.ScreenSpaceOverlay)
+            return null;
+
+        if (worldCanvas.worldCamera != null)
+            return worldCanvas.worldCamera;
+
+        if (Camera.main != null)
+            return Camera.main;
+
+        return Camera.current;
+    }
+
+    private void BuildHotspotTooltipContents(WorldUiTooltipHotspot hotspot, List<ActorWorldKeywordTooltipUI.TooltipContent> contents)
+    {
+        switch (hotspot.kind)
+        {
+            case WorldUiTooltipHotspotKind.Intent:
+                if (TryBuildIntentTooltip(out ActorWorldKeywordTooltipUI.TooltipContent intent))
+                    contents.Add(intent);
+                break;
+            case WorldUiTooltipHotspotKind.Guard:
+                if (TryBuildGuardTooltip(out ActorWorldKeywordTooltipUI.TooltipContent guard))
+                    contents.Add(guard);
+                break;
+            case WorldUiTooltipHotspotKind.Status:
+                if (TryBuildStatusTooltip(hotspot.statusIndex, out ActorWorldKeywordTooltipUI.TooltipContent status))
+                    contents.Add(status);
+                break;
+        }
+    }
+
+    private void BuildAllTooltipContents(List<ActorWorldKeywordTooltipUI.TooltipContent> contents)
+    {
+        if (TryBuildIntentTooltip(out ActorWorldKeywordTooltipUI.TooltipContent intent))
+            contents.Add(intent);
+
+        if (TryBuildGuardTooltip(out ActorWorldKeywordTooltipUI.TooltipContent guard))
+            contents.Add(guard);
+
+        if (TryBuildStaggerTooltip(out ActorWorldKeywordTooltipUI.TooltipContent stagger))
+            contents.Add(stagger);
+
+        for (int i = 0; i < _statusBuffer.Count; i++)
+        {
+            if (TryBuildStatusTooltip(i, out ActorWorldKeywordTooltipUI.TooltipContent status))
+                contents.Add(status);
+        }
+    }
+
+    private bool TryBuildIntentTooltip(out ActorWorldKeywordTooltipUI.TooltipContent content)
+    {
+        content = default;
+        if (_brain == null || !_brain.CurrentIntent.hasIntent || _brain.definition == null)
+            return false;
+
+        int moveIndex = _brain.CurrentIntent.moveIndex;
+        if (moveIndex < 0 || moveIndex >= _brain.definition.moves.Count)
+            return false;
+
+        EnemyDefinitionSO.EnemyMoveSlot move = _brain.definition.moves[moveIndex];
+        if (move == null)
+            return false;
+
+        string title = "Intent";
+        string body = string.Empty;
+        Sprite icon = intentIcon != null && intentIcon.enabled ? intentIcon.sprite : intentFallbackSprite;
+
+        if (move.damageSkill != null)
+        {
+            SkillRuntime runtime = SkillRuntime.FromDamage(move.damageSkill);
+            title = string.IsNullOrWhiteSpace(move.damageSkill.displayName) ? move.damageSkill.name : move.damageSkill.displayName;
+            body = !string.IsNullOrWhiteSpace(move.damageSkill.description)
+                ? move.damageSkill.description.Trim()
+                : SkillTooltipFormatter.BuildContent(move.damageSkill, runtime).effectText;
+        }
+        else if (move.buffDebuffSkill != null)
+        {
+            title = string.IsNullOrWhiteSpace(move.buffDebuffSkill.displayName) ? move.buffDebuffSkill.name : move.buffDebuffSkill.displayName;
+            body = !string.IsNullOrWhiteSpace(move.buffDebuffSkill.description)
+                ? move.buffDebuffSkill.description.Trim()
+                : SkillTooltipFormatter.BuildContent(move.buffDebuffSkill).effectText;
+        }
+
+        if (string.IsNullOrWhiteSpace(body))
+            body = "This is the enemy's next planned action.";
+
+        content = new ActorWorldKeywordTooltipUI.TooltipContent(title, body, icon);
+        return true;
+    }
+
+    private bool TryBuildGuardTooltip(out ActorWorldKeywordTooltipUI.TooltipContent content)
+    {
+        content = default;
+        int guard = actor != null ? Mathf.Max(0, actor.guardPool) : 0;
+        if (guard <= 0)
+            return false;
+
+        string body = $"Current Guard: {guard}\n\nBlocks incoming damage before HP. If Guard is broken, the target becomes Staggered.";
+        content = new ActorWorldKeywordTooltipUI.TooltipContent("Guard", body, guardIcon != null ? guardIcon.sprite : null);
+        return true;
+    }
+
+    private bool TryBuildStaggerTooltip(out ActorWorldKeywordTooltipUI.TooltipContent content)
+    {
+        content = default;
+        if (actor == null || actor.status == null || !actor.status.staggered)
+            return false;
+
+        content = new ActorWorldKeywordTooltipUI.TooltipContent(
+            "Staggered",
+            "This target's Guard is broken and it is currently exposed.",
+            null);
+        return true;
+    }
+
+    private bool TryBuildStatusTooltip(int statusIndex, out ActorWorldKeywordTooltipUI.TooltipContent content)
+    {
+        content = default;
+        if (statusIndex < 0 || statusIndex >= _statusBuffer.Count)
+            return false;
+
+        StatusVisualData data = _statusBuffer[statusIndex];
+        string title = data.shortLabel;
+        string body = string.Empty;
+        Sprite icon = data.sprite;
+
+        switch (data.shortLabel)
+        {
+            case "FR":
+                title = "Freeze";
+                body = "Frozen targets cannot act until the freeze is removed.";
+                break;
+            case "CH":
+                title = "Chilled";
+                body = $"Chilled for {GetTooltipValueText(data.valueText)} turn(s).";
+                break;
+            case "MK":
+                title = "Mark";
+                body = "Marked targets are primed for mark payoff effects.";
+                break;
+            case "BU":
+                title = "Burn";
+                body = $"Burn stacks: {GetTooltipValueText(data.valueText)}.";
+                break;
+            case "BL":
+                title = "Bleed";
+                body = $"Bleed stacks: {GetTooltipValueText(data.valueText)}.";
+                break;
+            default:
+                if (actor != null && actor.status != null && actor.status.HasAilment(out AilmentType ailment, out int turnsLeft))
+                {
+                    title = ailment.ToString();
+                    body = $"{ailment} for {Mathf.Max(1, turnsLeft)} turn(s).";
+                }
+                break;
+        }
+
+        if (string.IsNullOrWhiteSpace(body))
+            return false;
+
+        content = new ActorWorldKeywordTooltipUI.TooltipContent(title, body, icon);
+        return true;
+    }
+
+    private static string GetTooltipValueText(string valueText)
+    {
+        return string.IsNullOrWhiteSpace(valueText) ? "0" : valueText.Trim();
     }
 }

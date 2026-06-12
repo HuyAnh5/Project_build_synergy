@@ -75,4 +75,4 @@ MonoBehaviour:
     displayName: X
     icon: {fileID: 0}
     descriptionMode: 0
-    description: Final value from the selected dice after all dice modifiers.
+    description: Final value from selected dice after all dice modifiers.

@@ -94,7 +94,7 @@ MonoBehaviour:
     highestOutcome: 0
     burnTurns: 3
   icon: {fileID: -8407507342819822086, guid: b40f2e87024b7be408e498f909f2f482, type: 3}
-  displayName: EnemyBruise_BasicAttack
+  displayName: abc
   description: 
   gameplay:
     useNewGameplayPipeline: 1
