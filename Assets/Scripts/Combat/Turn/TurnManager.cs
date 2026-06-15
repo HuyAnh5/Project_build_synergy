@@ -61,6 +61,7 @@ public partial class TurnManager : MonoBehaviour
     private readonly CombatActorRuntimeContext _playerContext = new CombatActorRuntimeContext();
     private readonly EnemyTurnCoordinator _enemyTurnCoordinator = new EnemyTurnCoordinator();
     private readonly Queue<TurnManagerQueuedPlayerCommand> _queuedPlayerCommands = new Queue<TurnManagerQueuedPlayerCommand>();
+    private readonly List<DiceSpinnerGeneric> _usedSelectedDiceBuffer = new List<DiceSpinnerGeneric>(RunInventoryManager.EQUIPPED_DICE_COUNT);
     private int _cursor = 0;
     private readonly HashSet<DiceSpinnerGeneric> _spentDiceThisTurn = new HashSet<DiceSpinnerGeneric>();
     private readonly HashSet<DiceSpinnerGeneric> _pendingUsedVisualDiceThisTurn = new HashSet<DiceSpinnerGeneric>();
@@ -71,6 +72,7 @@ public partial class TurnManager : MonoBehaviour
     private bool _isProcessingQueuedPlayerCommands;
     private bool _endTurnQueued;
     private Coroutine _autoRollCoroutine;
+    private DiceEquipUIManager _diceEquipUiManager;
 
     void Start()
     {

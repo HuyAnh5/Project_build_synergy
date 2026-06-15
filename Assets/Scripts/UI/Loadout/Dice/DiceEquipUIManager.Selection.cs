@@ -35,6 +35,36 @@ public partial class DiceEquipUIManager
         ClearDiceSelection(instant);
     }
 
+    public void ClearSelectedDice(IEnumerable<DiceSpinnerGeneric> diceBuffer, bool instant = false)
+    {
+        if (diceBuffer == null)
+        {
+            ClearDiceSelection(instant);
+            return;
+        }
+
+        PruneSelection();
+
+        bool changed = false;
+        foreach (DiceSpinnerGeneric die in diceBuffer)
+        {
+            if (die == null)
+                continue;
+
+            if (!_uiByDice.TryGetValue(die, out DiceDraggableUI diceUi) || diceUi == null)
+                continue;
+
+            if (!_selectedDice.Remove(diceUi))
+                continue;
+
+            diceUi.SetSelected(false, instant);
+            changed = true;
+        }
+
+        if (changed)
+            SelectionChanged?.Invoke();
+    }
+
     public void PlayInvalidFeedbackForDice(IEnumerable<DiceSpinnerGeneric> diceBuffer)
     {
         if (diceBuffer == null)

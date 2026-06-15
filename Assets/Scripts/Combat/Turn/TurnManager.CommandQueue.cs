@@ -166,6 +166,7 @@ public partial class TurnManager
     {
         yield return TurnManagerCommandExecutionUtility.ExecuteQueuedCommand(command, executor, player, party, enemy, diceRig, _playerContext, logPhase, this);
         FinalizePendingUsedVisualRange(command.start0, command.span, command.paymentMask);
+        ClearSelectedDiceConsumedByPaymentMask(command.paymentMask);
 
         if (TryHandleCombatDefeat())
             yield break;
@@ -213,5 +214,42 @@ public partial class TurnManager
 
         _isProcessingQueuedPlayerCommands = true;
         StartCoroutine(ProcessQueuedPlayerCommands());
+    }
+
+    private void ClearSelectedDiceConsumedByPaymentMask(int paymentMask)
+    {
+        if (paymentMask < 0 || diceRig == null)
+            return;
+
+        DiceEquipUIManager diceEquipUiManager = GetDiceEquipUiManager();
+        if (diceEquipUiManager == null)
+            return;
+
+        _usedSelectedDiceBuffer.Clear();
+        for (int i = 0; i < RunInventoryManager.EQUIPPED_DICE_COUNT; i++)
+        {
+            if ((paymentMask & (1 << i)) == 0)
+                continue;
+
+            DiceSpinnerGeneric die = diceRig.GetDice(i);
+            if (die != null)
+                _usedSelectedDiceBuffer.Add(die);
+        }
+
+        if (_usedSelectedDiceBuffer.Count > 0)
+            diceEquipUiManager.ClearSelectedDice(_usedSelectedDiceBuffer, instant: true);
+    }
+
+    private DiceEquipUIManager GetDiceEquipUiManager()
+    {
+        if (_diceEquipUiManager != null)
+            return _diceEquipUiManager;
+
+#if UNITY_2023_1_OR_NEWER
+        _diceEquipUiManager = FindFirstObjectByType<DiceEquipUIManager>(FindObjectsInactive.Include);
+#else
+        _diceEquipUiManager = FindObjectOfType<DiceEquipUIManager>(true);
+#endif
+        return _diceEquipUiManager;
     }
 }
