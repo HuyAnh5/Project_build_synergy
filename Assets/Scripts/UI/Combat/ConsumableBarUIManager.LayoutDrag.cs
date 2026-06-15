@@ -6,6 +6,21 @@ using UnityEngine.UI;
 
 public partial class ConsumableBarUIManager
 {
+    private void HideLegacyTooltips()
+    {
+        if (tooltipRoot != null)
+            tooltipRoot.gameObject.SetActive(false);
+
+        if (slots == null)
+            return;
+
+        for (int i = 0; i < slots.Length; i++)
+        {
+            if (slots[i]?.localTooltipRoot != null)
+                slots[i].localTooltipRoot.gameObject.SetActive(false);
+        }
+    }
+
     private void HideAllActionPanels()
     {
         if (actionPanelRoot != null)
@@ -23,17 +38,9 @@ public partial class ConsumableBarUIManager
 
     private void HideAllTooltips()
     {
-        if (tooltipRoot != null)
-            tooltipRoot.gameObject.SetActive(false);
-
-        if (slots == null)
-            return;
-
-        for (int i = 0; i < slots.Length; i++)
-        {
-            if (slots[i]?.localTooltipRoot != null)
-                slots[i].localTooltipRoot.gameObject.SetActive(false);
-        }
+        SkillTooltipUI.HideCurrent();
+        HideConsumableKeywordTooltips();
+        HideLegacyTooltips();
     }
 
     private RectTransform GetActiveActionPanelRoot()

@@ -49,6 +49,9 @@ public static partial class SkillTooltipFormatter
                     ? string.Empty
                     : ColorQuotedAddedValues(passive.description.Trim());
                 break;
+            case ConsumableDataSO consumable:
+                FillConsumableContent(ref content, consumable);
+                break;
             case DiceFaceEnchantTooltipAsset diceEnchant:
                 content.targeting = string.Empty;
                 content.effectText = diceEnchant.IsBroken
@@ -74,6 +77,8 @@ public static partial class SkillTooltipFormatter
                 return string.IsNullOrWhiteSpace(buffDebuff.displayName) ? buffDebuff.name : buffDebuff.displayName;
             case SkillPassiveSO passive:
                 return string.IsNullOrWhiteSpace(passive.displayName) ? passive.name : passive.displayName;
+            case ConsumableDataSO consumable:
+                return string.IsNullOrWhiteSpace(consumable.displayName) ? consumable.name : consumable.displayName;
             case DiceFaceEnchantTooltipAsset diceEnchant:
                 return diceEnchant.IsBroken
                     ? "Broken"
@@ -81,6 +86,38 @@ public static partial class SkillTooltipFormatter
             default:
                 return asset != null ? asset.name : string.Empty;
         }
+    }
+
+    private static void FillConsumableContent(ref TooltipContent content, ConsumableDataSO consumable)
+    {
+        if (consumable == null)
+            return;
+
+        content.targeting = $"{consumable.useContext} | {consumable.targetKind}";
+        content.effectText = BuildConsumableEffectText(consumable);
+    }
+
+    private static string BuildConsumableEffectText(ConsumableDataSO consumable)
+    {
+        if (consumable == null)
+            return string.Empty;
+
+        string description = string.IsNullOrWhiteSpace(consumable.description)
+            ? string.Empty
+            : consumable.description.Trim();
+
+        if (consumable.effectId == ConsumableEffectId.ApplyFaceEnchant &&
+            consumable.faceEnchant != DiceFaceEnchantKind.None)
+        {
+            string enchantName = DiceFaceEnchantUtility.GetDisplayName(consumable.faceEnchant);
+            string highlightedEnchant = FormatKeyword(enchantName);
+            if (!string.IsNullOrEmpty(description))
+                return description.Replace(enchantName, highlightedEnchant);
+
+            return $"Apply {highlightedEnchant} enchant to 1 face permanently.";
+        }
+
+        return ColorQuotedAddedValues(description);
     }
 
     private static void FillDamageContent(ref TooltipContent content, SkillDamageSO skill, SkillRuntime runtime)

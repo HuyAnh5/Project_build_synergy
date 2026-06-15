@@ -214,24 +214,28 @@ public partial class ConsumableBarUIManager
 
     private void RefreshTooltip()
     {
-        HideAllTooltips();
+        HideLegacyTooltips();
 
         if (UiDragState.IsDragging)
         {
+            HideConsumableKeywordTooltips();
             return;
         }
 
         int tooltipSlot = _hoveredSlot;
         bool show = tooltipSlot >= 0 && GetDisplayedConsumable(tooltipSlot) != null;
         if (!show)
+        {
+            HideConsumableKeywordTooltips();
             return;
+        }
 
         ConsumableSlotView slot = GetSlot(tooltipSlot);
         ConsumableDataSO data = GetDisplayedConsumable(tooltipSlot);
         RectTransform activeTooltipRoot = slot != null && slot.localTooltipRoot != null ? slot.localTooltipRoot : tooltipRoot;
         TMP_Text activeTooltipTitle = slot != null && slot.localTooltipTitleText != null ? slot.localTooltipTitleText : tooltipTitleText;
         TMP_Text activeTooltipBody = slot != null && slot.localTooltipBodyText != null ? slot.localTooltipBodyText : tooltipBodyText;
-        if (activeTooltipRoot == null)
+        if (activeTooltipRoot == null || data == null)
             return;
 
         activeTooltipRoot.gameObject.SetActive(true);
@@ -246,9 +250,10 @@ public partial class ConsumableBarUIManager
             activeTooltipTitle.text = data.displayName;
 
         if (activeTooltipBody != null)
-            activeTooltipBody.text = BuildTooltipBody(data);
+            activeTooltipBody.text = ApplyConsumableKeywordMarkup(data);
 
         EnsureTooltipAutoSize(activeTooltipRoot, activeTooltipTitle, activeTooltipBody);
+        UpdateConsumableKeywordTooltips(activeTooltipRoot, activeTooltipBody);
     }
 
     private string BuildTooltipBody(ConsumableDataSO data)

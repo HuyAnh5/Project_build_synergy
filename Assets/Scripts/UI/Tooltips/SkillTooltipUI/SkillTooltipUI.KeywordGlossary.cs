@@ -196,19 +196,42 @@ public sealed partial class SkillTooltipUI
     private bool TryBuildKeywordTooltipContent(string keywordId, string currentValueText, out KeywordTooltipContent content)
     {
         content = default;
-        if (_keywordGlossary == null || string.IsNullOrWhiteSpace(keywordId) || !_keywordGlossary.TryGetEntry(keywordId, out SkillTooltipKeywordGlossarySO.KeywordEntry entry))
+        if (string.IsNullOrWhiteSpace(keywordId))
             return false;
 
-        string description = _keywordGlossary.ResolveDescription(entry, currentValueText);
-        if (string.IsNullOrWhiteSpace(description))
+        if (_keywordGlossary != null &&
+            _keywordGlossary.TryGetEntry(keywordId, out SkillTooltipKeywordGlossarySO.KeywordEntry entry))
+        {
+            string description = _keywordGlossary.ResolveDescription(entry, currentValueText);
+            if (!string.IsNullOrWhiteSpace(description))
+            {
+                content = new KeywordTooltipContent
+                {
+                    keywordId = entry.keyword,
+                    title = _keywordGlossary.ResolveDisplayName(entry),
+                    description = description.Trim(),
+                    icon = entry.icon
+                };
+                return true;
+            }
+        }
+
+        if (!System.Enum.TryParse(keywordId, ignoreCase: true, out DiceFaceEnchantKind enchant) ||
+            !DiceFaceEnchantUtility.HasEnchant(enchant))
+        {
+            return false;
+        }
+
+        string enchantDescription = DiceFaceEnchantUtility.GetShortRulesText(enchant);
+        if (string.IsNullOrWhiteSpace(enchantDescription))
             return false;
 
         content = new KeywordTooltipContent
         {
-            keywordId = entry.keyword,
-            title = _keywordGlossary.ResolveDisplayName(entry),
-            description = description.Trim(),
-            icon = entry.icon
+            keywordId = DiceFaceEnchantUtility.GetDisplayName(enchant),
+            title = DiceFaceEnchantUtility.GetDisplayName(enchant),
+            description = enchantDescription.Trim(),
+            icon = null
         };
         return true;
     }
