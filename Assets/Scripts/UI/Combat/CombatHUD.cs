@@ -35,6 +35,7 @@ public class CombatHUD : MonoBehaviour
     private int _lastMaxFocus = int.MinValue;
     private int _previewFocusCost;
     private int _previewFocusGain;
+    private int _previewFocusNetDelta;
     private bool _previewFocusActive;
     private bool _previewFocusInvalid;
     private Image _focusBarBackgroundImage;
@@ -79,6 +80,7 @@ public class CombatHUD : MonoBehaviour
     {
         _previewFocusCost = Mathf.Max(0, cost);
         _previewFocusGain = Mathf.Max(0, gain);
+        _previewFocusNetDelta = isInvalid ? 0 : _previewFocusGain - _previewFocusCost;
         _previewFocusActive = _previewFocusCost > 0 || _previewFocusGain > 0 || isInvalid;
         _previewFocusInvalid = isInvalid;
 
@@ -99,6 +101,7 @@ public class CombatHUD : MonoBehaviour
         _previewFocusInvalid = false;
         _previewFocusCost = 0;
         _previewFocusGain = 0;
+        _previewFocusNetDelta = 0;
 
         if (_focusBarBackgroundImage != null)
             _focusBarBackgroundImage.color = _focusBarBackgroundOriginalColor;
@@ -233,7 +236,7 @@ public class CombatHUD : MonoBehaviour
 
         int current = Mathf.Clamp(player.focus, 0, playerFocusSegments.Length);
         int max = Mathf.Clamp(player.maxFocus, 0, playerFocusSegments.Length);
-        int previewFinalFocus = Mathf.Clamp(current - _previewFocusCost + _previewFocusGain, 0, max);
+        int previewFinalFocus = Mathf.Clamp(current + _previewFocusNetDelta, 0, max);
         float blinkAlpha = _previewFocusActive ? 0.55f + 0.45f * Mathf.PingPong(Time.unscaledTime * focusPreviewBlinkSpeed, 1f) : 1f;
 
         if (playerFocusText != null)
@@ -242,9 +245,11 @@ public class CombatHUD : MonoBehaviour
             playerFocusText.color = _previewFocusInvalid ? playerFocusInvalidColor : (_previewFocusActive ? playerFocusPreviewColor : _playerFocusTextOriginalColor);
         }
 
-        int previewStart = current - _previewFocusCost;
+        int previewDelta = previewFinalFocus - current;
+        int lossStart = previewFinalFocus;
+        int lossEnd = current - 1;
         int gainStart = current;
-        int gainEnd = current + _previewFocusGain - 1;
+        int gainEnd = previewFinalFocus - 1;
         Color focusGainColor = ResolveFocusGainColor();
 
         for (int i = 0; i < playerFocusSegments.Length; i++)
@@ -261,8 +266,8 @@ public class CombatHUD : MonoBehaviour
                 continue;
             }
 
-            bool consumed = _previewFocusActive && filled && i >= previewStart && i < current;
-            bool gained = _previewFocusActive && !filled && i >= gainStart && i <= gainEnd;
+            bool consumed = _previewFocusActive && previewDelta < 0 && filled && i >= lossStart && i <= lossEnd;
+            bool gained = _previewFocusActive && previewDelta > 0 && !filled && i >= gainStart && i <= gainEnd;
             if (consumed)
                 segment.color = WithAlpha(_previewFocusInvalid ? playerFocusInvalidColor : playerFocusPreviewColor, blinkAlpha);
             else if (gained)

@@ -246,10 +246,6 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
 
     private static Canvas GetOrCreateOverlayCanvas(Canvas sourceCanvas)
     {
-        Canvas sharedHost = FindSharedTooltipHostCanvas();
-        if (sharedHost != null)
-            return sharedHost;
-
         Canvas existing = FindTooltipOverlayCanvas();
         if (existing != null)
         {
@@ -328,6 +324,15 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
 
     public static Canvas GetOrCreateSharedOverlayCanvas(Canvas sourceCanvas)
         => GetOrCreateOverlayCanvas(sourceCanvas);
+
+    public static Canvas GetOrCreateSharedHostCanvas(Canvas sourceCanvas)
+    {
+        Canvas sharedHost = FindSharedTooltipHostCanvas();
+        if (sharedHost != null)
+            return sharedHost;
+
+        return GetOrCreateOverlayCanvas(sourceCanvas);
+    }
 
     private static SkillTooltipPrefabSettingsSO GetPrefabSettings()
     {

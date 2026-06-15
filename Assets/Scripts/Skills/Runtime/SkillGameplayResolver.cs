@@ -193,7 +193,7 @@ public static partial class SkillGameplayResolver
                 continue;
             }
 
-            List<CombatActor> targets = ResolveEffectTargets(effect.target, context);
+            List<CombatActor> targets = ResolveTargetsForEffect(effect, context);
             for (int targetIndex = 0; targetIndex < targets.Count; targetIndex++)
             {
                 CombatActor effectTarget = targets[targetIndex];
@@ -283,6 +283,18 @@ public static partial class SkillGameplayResolver
                 });
                 break;
         }
+    }
+
+    private static List<CombatActor> ResolveTargetsForEffect(SkillEffectData effect, SkillResolveContext context)
+    {
+        if (effect == null)
+            return new List<CombatActor>();
+
+        // AP gain is authored as a self resource reward even when the clicked target is an enemy.
+        if (effect.type == SkillEffectType.GainAP)
+            return ResolveEffectTargets(SkillEffectTarget.Self, context);
+
+        return ResolveEffectTargets(effect.target, context);
     }
 
     private static void CaptureConsumedStacks(StatusKind status, SkillResolveContext context)

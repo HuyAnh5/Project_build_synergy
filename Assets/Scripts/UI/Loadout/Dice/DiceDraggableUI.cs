@@ -26,8 +26,13 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     public float selectedLiftY = 14f;
 
     [Header("Hold Inspect")]
-    public float holdInspectDelay = 0.45f;
+    public float holdInspectDelay = 0.75f;
     public float holdInspectMoveThreshold = 22f;
+    public float holdInspectVisualDelay = 0.15f;
+    public float holdInspectRingSize = 35f;
+    public float holdInspectRingThicknessRatio = 0.60f;
+    public float holdInspectRingCursorOffsetY = 0f;
+    public Color holdInspectRingColor = new Color(0.55f, 1f, 0.22f, 0.95f);
 
     [Header("Combat State")]
     public float spentDropY = 20f;
@@ -88,6 +93,9 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private bool _suppressNextClick;
     private Vector2 _pointerDownScreenPosition;
     private float _pointerDownTime;
+    private RectTransform _holdInspectRingRect;
+    private Image _holdInspectRingImage;
+    private static Sprite s_holdInspectRingSprite;
 
     private void Awake()
     {
@@ -381,6 +389,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
 
     private void OnDisable()
     {
+        HideHoldInspectRing();
         _cardHoverTooltipActive = false;
         _enchantHoverTooltipActive = false;
         _enchantHoverZoneFaceIndex = -1;
@@ -394,6 +403,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
 
     private void OnDestroy()
     {
+        HideHoldInspectRing();
         if (_enchantHoverZone != null)
             Destroy(_enchantHoverZone.gameObject);
     }
@@ -409,9 +419,25 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private void UpdateHoldInspect()
     {
         if (!_pointerHeld || _holdInspectTriggered || _dragging || manager == null || !manager.CanInteract())
+        {
+            HideHoldInspectRing();
             return;
+        }
 
         Vector2 currentPointerPosition = Input.mousePosition;
+        float holdDelay = Mathf.Max(0.05f, holdInspectDelay);
+        float visualDelay = Mathf.Clamp(holdInspectVisualDelay, 0f, holdDelay);
+        float elapsed = Time.unscaledTime - _pointerDownTime;
+        if (elapsed >= visualDelay)
+        {
+            float visibleDuration = Mathf.Max(0.01f, holdDelay - visualDelay);
+            float holdProgress = Mathf.Clamp01((elapsed - visualDelay) / visibleDuration);
+            UpdateHoldInspectRing(_pointerDownScreenPosition, holdProgress);
+        }
+        else
+        {
+            HideHoldInspectRing();
+        }
         float moveThreshold = Mathf.Max(0f, holdInspectMoveThreshold);
         if ((currentPointerPosition - _pointerDownScreenPosition).sqrMagnitude > moveThreshold * moveThreshold)
         {
@@ -419,19 +445,128 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
             return;
         }
 
-        if (Time.unscaledTime - _pointerDownTime < Mathf.Max(0.05f, holdInspectDelay))
+        if (elapsed < holdDelay)
             return;
 
         _holdInspectTriggered = manager.HandleDiceInspectHold(this);
         _suppressNextClick = _holdInspectTriggered;
+        HideHoldInspectRing();
     }
 
     private void CancelHoldInspect(bool keepSuppressClick = false)
     {
         _pointerHeld = false;
         _holdInspectTriggered = false;
+        HideHoldInspectRing();
         if (!keepSuppressClick)
             _suppressNextClick = false;
+    }
+
+    private void UpdateHoldInspectRing(Vector2 screenPosition, float progress)
+    {
+        EnsureHoldInspectRing();
+        if (_holdInspectRingRect == null || _holdInspectRingImage == null)
+            return;
+
+        _holdInspectRingImage.fillAmount = Mathf.Clamp01(progress);
+        _holdInspectRingImage.color = holdInspectRingColor;
+
+        Canvas sourceCanvas = _rootCanvas != null ? _rootCanvas : GetComponentInParent<Canvas>();
+        Canvas canvas = sourceCanvas != null ? SkillTooltipUI.GetOrCreateSharedHostCanvas(sourceCanvas) : null;
+        RectTransform canvasRect = canvas != null ? canvas.transform as RectTransform : null;
+        Camera eventCamera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay
+            ? canvas.worldCamera
+            : null;
+        if (canvasRect == null ||
+            !RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                canvasRect,
+                screenPosition + new Vector2(0f, holdInspectRingCursorOffsetY),
+                eventCamera,
+                out Vector2 localPoint))
+        {
+            return;
+        }
+
+        _holdInspectRingRect.anchoredPosition = localPoint;
+        if (!_holdInspectRingRect.gameObject.activeSelf)
+            _holdInspectRingRect.gameObject.SetActive(true);
+    }
+
+    private void HideHoldInspectRing()
+    {
+        if (_holdInspectRingRect != null && _holdInspectRingRect.gameObject.activeSelf)
+            _holdInspectRingRect.gameObject.SetActive(false);
+    }
+
+    private void EnsureHoldInspectRing()
+    {
+        if (_holdInspectRingRect != null)
+            return;
+
+        Canvas sourceCanvas = _rootCanvas != null ? _rootCanvas : GetComponentInParent<Canvas>();
+        Canvas canvas = sourceCanvas != null ? SkillTooltipUI.GetOrCreateSharedHostCanvas(sourceCanvas) : null;
+        if (canvas == null)
+            return;
+
+        RectTransform canvasRect = canvas.transform as RectTransform;
+        if (canvasRect == null)
+            return;
+
+        GameObject go = new GameObject("HoldInspectRing", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        _holdInspectRingRect = go.GetComponent<RectTransform>();
+        _holdInspectRingRect.SetParent(canvasRect, false);
+        _holdInspectRingRect.anchorMin = new Vector2(0.5f, 0.5f);
+        _holdInspectRingRect.anchorMax = new Vector2(0.5f, 0.5f);
+        _holdInspectRingRect.pivot = new Vector2(0.5f, 0.5f);
+        _holdInspectRingRect.sizeDelta = Vector2.one * Mathf.Max(24f, holdInspectRingSize);
+        _holdInspectRingRect.SetAsLastSibling();
+
+        _holdInspectRingImage = go.GetComponent<Image>();
+        _holdInspectRingImage.raycastTarget = false;
+        _holdInspectRingImage.sprite = GetHoldInspectRingSprite();
+        _holdInspectRingImage.type = Image.Type.Filled;
+        _holdInspectRingImage.fillMethod = Image.FillMethod.Radial360;
+        _holdInspectRingImage.fillOrigin = (int)Image.Origin360.Top;
+        _holdInspectRingImage.fillClockwise = false;
+        _holdInspectRingImage.fillAmount = 0f;
+        _holdInspectRingImage.color = holdInspectRingColor;
+        go.SetActive(false);
+    }
+
+    private Sprite GetHoldInspectRingSprite()
+    {
+        if (s_holdInspectRingSprite != null)
+            return s_holdInspectRingSprite;
+
+        const int textureSize = 128;
+        Texture2D texture = new Texture2D(textureSize, textureSize, TextureFormat.ARGB32, mipChain: false);
+        texture.name = "HoldInspectRingTexture";
+        texture.wrapMode = TextureWrapMode.Clamp;
+        texture.filterMode = FilterMode.Bilinear;
+
+        float outerRadius = textureSize * 0.5f - 1f;
+        float innerRadius = outerRadius * Mathf.Clamp01(1f - holdInspectRingThicknessRatio);
+        Vector2 center = new Vector2((textureSize - 1) * 0.5f, (textureSize - 1) * 0.5f);
+        Color clear = new Color(0f, 0f, 0f, 0f);
+        Color[] pixels = new Color[textureSize * textureSize];
+        for (int y = 0; y < textureSize; y++)
+        {
+            for (int x = 0; x < textureSize; x++)
+            {
+                float distance = Vector2.Distance(new Vector2(x, y), center);
+                bool insideRing = distance <= outerRadius && distance >= innerRadius;
+                pixels[(y * textureSize) + x] = insideRing ? Color.white : clear;
+            }
+        }
+
+        texture.SetPixels(pixels);
+        texture.Apply(updateMipmaps: false, makeNoLongerReadable: true);
+        s_holdInspectRingSprite = Sprite.Create(
+            texture,
+            new Rect(0f, 0f, textureSize, textureSize),
+            new Vector2(0.5f, 0.5f),
+            100f);
+        return s_holdInspectRingSprite;
     }
 
     private void RefreshCardHoverTooltipStateFromPointer()

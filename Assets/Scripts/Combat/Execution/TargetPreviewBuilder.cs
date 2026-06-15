@@ -100,6 +100,7 @@ public static partial class TargetPreviewBuilder
                 {
                     bundle.targetPreviews[clickedTarget] = simulatedData;
                     bundle.valid = simulatedData.valid;
+                    ApplyResolvedSelfResourceTotals(rt, caster, clickedTarget, ref bundle);
                     return bundle;
                 }
 
@@ -208,6 +209,49 @@ public static partial class TargetPreviewBuilder
 
         bundle.targetPreviews[caster] = data;
         bundle.valid |= data.valid;
+    }
+
+    private static void ApplyResolvedSelfResourceTotals(
+        SkillRuntime rt,
+        CombatActor caster,
+        CombatActor clickedTarget,
+        ref ActionPreviewBundle bundle)
+    {
+        SkillResolvedResult resolved = SkillGameplayResolver.Resolve(rt, caster, clickedTarget);
+        if (resolved == null || !resolved.canCast || resolved.effects == null)
+            return;
+
+        int selfFocusGain = 0;
+        int selfGuardGain = 0;
+        int selfHealGain = 0;
+        for (int i = 0; i < resolved.effects.Count; i++)
+        {
+            ResolvedEffect effect = resolved.effects[i];
+            if (effect == null || !effect.previewable || effect.sameActionFollowUp)
+                continue;
+
+            CombatActor effectTarget = effect.targetActor != null ? effect.targetActor : clickedTarget;
+            if (effectTarget != caster)
+                continue;
+
+            int value = Mathf.Max(0, effect.value);
+            switch (effect.type)
+            {
+                case SkillEffectType.GainAP:
+                    selfFocusGain += value;
+                    break;
+                case SkillEffectType.GainGuard:
+                    selfGuardGain += value;
+                    break;
+                case SkillEffectType.Heal:
+                    selfHealGain += value;
+                    break;
+            }
+        }
+
+        bundle.totalSelfFocusGain += selfFocusGain;
+        if (selfGuardGain > 0 || selfHealGain > 0)
+            AddSelfResourcePreview(caster, selfGuardGain, selfHealGain, ref bundle);
     }
 
 }

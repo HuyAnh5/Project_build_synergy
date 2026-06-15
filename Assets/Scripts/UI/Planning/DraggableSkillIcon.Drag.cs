@@ -58,7 +58,7 @@ public partial class DraggableSkillIcon
 
         if (!_dropAccepted &&
             eventData != null &&
-            IsSelfTargetSkill(GetSkillAsset()) &&
+            CanDropToSelf(GetSkillAsset()) &&
             selfCastZone != null &&
             selfCastZone.ContainsScreenPoint(eventData.position, _uiCam))
         {
@@ -160,6 +160,28 @@ public partial class DraggableSkillIcon
 
     public bool IsSelfTargetSkillAsset()
         => IsSelfTargetSkill(GetSkillAsset());
+
+    private bool CanDropToSelf(ScriptableObject asset)
+    {
+        if (asset == null || turn == null || turn.player == null)
+            return false;
+
+        if (IsSelfTargetSkill(asset))
+            return true;
+
+        SkillRuntime runtime = null;
+        turn.TryGetPrototypeSkillTooltipRuntime(asset, out runtime);
+        if (runtime == null)
+        {
+            if (asset is SkillDamageSO damageSkill)
+                runtime = SkillRuntime.FromDamage(damageSkill);
+            else if (asset is SkillBuffDebuffSO buffSkill)
+                runtime = SkillRuntime.FromBuffDebuff(buffSkill);
+        }
+
+        return runtime != null &&
+               TurnManagerTargetingUtility.IsValidTargetForPendingSkill(runtime, turn.player, turn.player, turn.party, turn.enemy);
+    }
 
     public static bool IsSelfTargetSkill(ScriptableObject asset)
     {

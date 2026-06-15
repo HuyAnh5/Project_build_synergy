@@ -102,7 +102,7 @@ internal sealed partial class SkillIconPreviewController
         ActorWorldUI hoveredUi = FindActorWorldUi(hoveredActor);
 
         bool hoveringSelfZone = hoveredActor == null &&
-                                DraggableSkillIcon.IsSelfTargetSkill(_getSkillAsset()) &&
+                                CanPreviewOnSelf(_getSkillAsset()) &&
                                 _selfCastZone != null &&
                                 _selfCastZone.ContainsScreenPoint(eventData.position, _uiCamera);
 
@@ -180,6 +180,26 @@ internal sealed partial class SkillIconPreviewController
             _cachedHud = UnityEngine.Object.FindObjectOfType<CombatHUD>(true);
 #endif
         return _cachedHud;
+    }
+
+    private bool CanPreviewOnSelf(ScriptableObject asset)
+    {
+        if (_turn == null || _turn.player == null || asset == null || asset is SkillPassiveSO)
+            return false;
+
+        if (DraggableSkillIcon.IsSelfTargetSkill(asset))
+            return true;
+
+        if (!_turn.TryGetPrototypeSkillTooltipRuntime(asset, out SkillRuntime runtime) || runtime == null)
+        {
+            if (asset is SkillDamageSO damageSkill)
+                runtime = SkillRuntime.FromDamage(damageSkill);
+            else if (asset is SkillBuffDebuffSO buffSkill)
+                runtime = SkillRuntime.FromBuffDebuff(buffSkill);
+        }
+
+        return runtime != null &&
+               TurnManagerTargetingUtility.IsValidTargetForPendingSkill(runtime, _turn.player, _turn.player, _turn.party, _turn.enemy);
     }
 
     private void BuildSpentDiceSet()

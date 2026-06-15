@@ -81,10 +81,11 @@ public class CombatLabPrototypeConfigSO : ScriptableObject
     public ConsumableDataSO[] consumables = Array.Empty<ConsumableDataSO>();
 
     [Header("Prototype Consumable Rewards")]
-    [Tooltip("Drag a project folder here. In the editor, every ConsumableDataSO inside that folder becomes the reward pool.")]
+    [Tooltip("Drag a project folder here to seed the initial reward pool snapshot once. After that, edit Reward Pool manually.")]
     public UnityEngine.Object consumableRewardFolder;
-    [Tooltip("Consumables that can appear in prototype reward choices. This is filled from Consumable Reward Folder in the editor, and is what runtime uses.")]
+    [Tooltip("Consumables that can appear in prototype reward choices. Runtime uses this list directly; it is not auto-synced after the initial folder snapshot.")]
     public ConsumableDataSO[] consumableRewardPool = Array.Empty<ConsumableDataSO>();
+    [HideInInspector] public string consumableRewardFolderSeededPath;
 
     public EncounterEntry GetRunEncounter(int index)
     {
@@ -109,7 +110,7 @@ public class CombatLabPrototypeConfigSO : ScriptableObject
         EnsureEncounterDefaults();
         MigrateLegacyDicePrototypePool();
 #if UNITY_EDITOR
-        RefreshConsumableRewardPoolFromFolder();
+        SeedConsumableRewardPoolFromFolder();
 #endif
     }
 
@@ -246,13 +247,18 @@ public class CombatLabPrototypeConfigSO : ScriptableObject
     }
 
 #if UNITY_EDITOR
-    private void RefreshConsumableRewardPoolFromFolder()
+    private void SeedConsumableRewardPoolFromFolder()
     {
         if (consumableRewardFolder == null)
+        {
+            consumableRewardFolderSeededPath = string.Empty;
             return;
+        }
 
         string folderPath = AssetDatabase.GetAssetPath(consumableRewardFolder);
         if (string.IsNullOrWhiteSpace(folderPath) || !AssetDatabase.IsValidFolder(folderPath))
+            return;
+        if (string.Equals(consumableRewardFolderSeededPath, folderPath, StringComparison.Ordinal))
             return;
 
         string[] guids = AssetDatabase.FindAssets("t:ConsumableDataSO", new[] { folderPath });
@@ -264,6 +270,7 @@ public class CombatLabPrototypeConfigSO : ScriptableObject
         }
 
         consumableRewardPool = result;
+        consumableRewardFolderSeededPath = folderPath;
     }
 #endif
 }
