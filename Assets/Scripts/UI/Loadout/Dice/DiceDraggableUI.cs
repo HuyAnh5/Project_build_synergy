@@ -23,7 +23,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     [Header("Selection")]
     public Image backgroundImage;
     public Color selectedBackgroundColor = new Color(1f, 0.84f, 0.2f, 1f);
-    public float selectedLiftY = 14f;
+    private float selectedLiftY = 13f;
 
     [Header("Hold Inspect")]
     public float holdInspectDelay = 0.75f;
@@ -35,7 +35,8 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     public Color holdInspectRingColor = new Color(0.55f, 1f, 0.22f, 0.95f);
 
     [Header("Combat State")]
-    public float spentDropY = 20f;
+    public float spentDropY = 40f;
+    public bool preferWorldMeshResultOutline = true;
     public bool enableResultOutlineOnUi = true;
     public Outline outlineEffect;
     public Color critOutlineColor = new Color(1f, 0.85f, 0.2f, 1f);
@@ -244,6 +245,20 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         _previewCrit = crit;
         _previewFail = fail;
         RefreshVisualState();
+    }
+
+    private void SyncWorldMeshResultOutline(bool showCrit, bool showFail)
+    {
+        if (dice == null)
+            return;
+
+        if (_spent)
+        {
+            dice.SetCombatRollFeedback(false, false);
+            return;
+        }
+
+        dice.SetCombatRollFeedback(showCrit, showFail);
     }
 
     public void PlayInvalidSelectionFeedback()

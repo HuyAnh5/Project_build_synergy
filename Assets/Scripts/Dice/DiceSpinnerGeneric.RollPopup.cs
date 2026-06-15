@@ -5,6 +5,20 @@ using UnityEngine;
 
 public partial class DiceSpinnerGeneric
 {
+    private Color GetCritPopupColor()
+    {
+        Color color = critOutlineColor;
+        color.a = 1f;
+        return color;
+    }
+
+    private Color GetFailPopupColor()
+    {
+        Color color = failOutlineColor;
+        color.a = 1f;
+        return color;
+    }
+
     private readonly struct RollPopupStep
     {
         public readonly string Text;
@@ -105,7 +119,7 @@ public partial class DiceSpinnerGeneric
 
         if (LastRollIsCrit)
         {
-            steps.Add(new RollPopupStep(critText, rollStatePopupColor));
+            steps.Add(new RollPopupStep(critText, GetCritPopupColor()));
             if (!suppressCritBonus)
             {
                 int critAdded = GetCritDisplayAddedValue(LastRolledValue);
@@ -116,7 +130,7 @@ public partial class DiceSpinnerGeneric
 
         if (LastRollIsFail)
         {
-            steps.Add(new RollPopupStep(failText, rollStatePopupColor));
+            steps.Add(new RollPopupStep(failText, GetFailPopupColor()));
             if (!suppressFailPenalty)
                 steps.Add(new RollPopupStep("/2", new Color(1f, 0.45f, 0.45f, 1f)));
         }

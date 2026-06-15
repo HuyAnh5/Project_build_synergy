@@ -3,6 +3,9 @@ using UnityEngine;
 internal static class DiceEquipWorldSyncUtility
 {
     private static readonly System.Collections.Generic.Dictionary<Transform, int> ReleasedRoots = new System.Collections.Generic.Dictionary<Transform, int>();
+    private static readonly System.Collections.Generic.Dictionary<Transform, float> DragDepthOverrides = new System.Collections.Generic.Dictionary<Transform, float>();
+    private static readonly System.Collections.Generic.Dictionary<Transform, float> BaseDepthByRoot = new System.Collections.Generic.Dictionary<Transform, float>();
+    private static readonly System.Collections.Generic.Dictionary<Transform, float> RestoreDepthOverrides = new System.Collections.Generic.Dictionary<Transform, float>();
 
     public static void RefreshDiceRigRollInfosAfterReorder(DiceSlotRig diceRig)
     {
@@ -119,14 +122,50 @@ internal static class DiceEquipWorldSyncUtility
             if (IsTemporarilyReleased(slotRoot))
                 continue;
 
-            if (!TryGetDiceUICenterWorldPosition(owner, uiCamera, worldCameraToUse, slotRoot.position, out Vector3 targetWorld))
+            bool hadRestoreDepth = TryGetRestoreDepthOverride(slotRoot, out float restoreDepth);
+            float? forcedDepth = TryGetDragDepthOverride(slotRoot, out float lockedDepth)
+                ? lockedDepth
+                : hadRestoreDepth
+                    ? restoreDepth
+                    : (float?)null;
+
+            if (!TryGetDiceUICenterWorldPosition(owner, uiCamera, worldCameraToUse, slotRoot.position, forcedDepth, out Vector3 targetWorld))
                 continue;
 
             if (instant)
                 slotRoot.position = targetWorld;
             else
                 slotRoot.position = Vector3.Lerp(slotRoot.position, targetWorld, 1f);
+
+            if (hadRestoreDepth)
+                RestoreDepthOverrides.Remove(slotRoot);
         }
+    }
+
+    public static void BeginDragDepthLift(Transform root, Camera worldCameraToUse, float draggedWorldDepthOffset)
+    {
+        if (root == null || worldCameraToUse == null)
+            return;
+
+        float depth = Vector3.Dot(root.position - worldCameraToUse.transform.position, worldCameraToUse.transform.forward);
+        if (depth <= 0.001f)
+            depth = Mathf.Abs(worldCameraToUse.transform.InverseTransformPoint(root.position).z);
+        if (depth <= 0.001f)
+            depth = 10f;
+
+        BaseDepthByRoot[root] = depth;
+        DragDepthOverrides[root] = Mathf.Max(0.001f, depth - draggedWorldDepthOffset);
+        RestoreDepthOverrides.Remove(root);
+    }
+
+    public static void EndDragDepthLift(Transform root)
+    {
+        if (root == null)
+            return;
+
+        DragDepthOverrides.Remove(root);
+        if (BaseDepthByRoot.TryGetValue(root, out float baseDepth))
+            RestoreDepthOverrides[root] = baseDepth;
     }
 
     public static void BeginTemporaryRelease(Transform root)
@@ -157,6 +196,24 @@ internal static class DiceEquipWorldSyncUtility
     public static bool IsTemporarilyReleased(Transform root)
         => root != null && ReleasedRoots.ContainsKey(root);
 
+    private static bool TryGetDragDepthOverride(Transform root, out float depth)
+    {
+        if (root != null && DragDepthOverrides.TryGetValue(root, out depth))
+            return true;
+
+        depth = 0f;
+        return false;
+    }
+
+    private static bool TryGetRestoreDepthOverride(Transform root, out float depth)
+    {
+        if (root != null && RestoreDepthOverrides.TryGetValue(root, out depth))
+            return true;
+
+        depth = 0f;
+        return false;
+    }
+
     public static Camera GetUICamera(Canvas rootCanvas)
     {
         if (rootCanvas != null && rootCanvas.renderMode != RenderMode.ScreenSpaceOverlay && rootCanvas.worldCamera != null)
@@ -180,6 +237,7 @@ internal static class DiceEquipWorldSyncUtility
         Camera uiCamera,
         Camera worldCameraToUse,
         Vector3 currentWorld,
+        float? forcedDepth,
         out Vector3 targetWorld)
     {
         targetWorld = currentWorld;
@@ -193,11 +251,14 @@ internal static class DiceEquipWorldSyncUtility
         Vector3 uiWorldCenter = rt.TransformPoint(rt.rect.center);
         Vector2 screenPoint = RectTransformUtility.WorldToScreenPoint(uiCamera, uiWorldCenter);
 
-        float depth = Vector3.Dot(currentWorld - worldCameraToUse.transform.position, worldCameraToUse.transform.forward);
-        if (depth <= 0.001f)
-            depth = Mathf.Abs(worldCameraToUse.transform.InverseTransformPoint(currentWorld).z);
-        if (depth <= 0.001f)
-            depth = 10f;
+        float depth = forcedDepth ?? Vector3.Dot(currentWorld - worldCameraToUse.transform.position, worldCameraToUse.transform.forward);
+        if (!forcedDepth.HasValue)
+        {
+            if (depth <= 0.001f)
+                depth = Mathf.Abs(worldCameraToUse.transform.InverseTransformPoint(currentWorld).z);
+            if (depth <= 0.001f)
+                depth = 10f;
+        }
 
         targetWorld = worldCameraToUse.ScreenToWorldPoint(new Vector3(screenPoint.x, screenPoint.y, depth));
         return true;

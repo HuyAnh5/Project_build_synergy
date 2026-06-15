@@ -24,6 +24,7 @@ public partial class DiceEquipUIManager : MonoBehaviour
     [Header("Linked World Dice Slots (optional)")]
     public bool mirrorDiceRigSlotsWithLiveUI = true;
     public Camera worldFollowCamera;
+    public float draggedWorldDepthOffset = 5f;
 
     [Header("Behavior")]
     public bool lockWhenCombatManagerExists = true;
@@ -170,6 +171,10 @@ public partial class DiceEquipUIManager : MonoBehaviour
         _draggingDice = dice;
         _dragSourceIndex = _orderedUi.IndexOf(dice);
         _previewInsertIndex = _dragSourceIndex;
+
+        Transform draggedRoot = GetWorldSlotRootForOwner(dice);
+        if (draggedRoot != null)
+            DiceEquipWorldSyncUtility.BeginDragDepthLift(draggedRoot, GetDiceWorldHoverCamera(), draggedWorldDepthOffset);
 
         if (_selectedDice.Contains(dice))
             RemoveSelectedDice(dice, true);
@@ -444,9 +449,27 @@ public partial class DiceEquipUIManager : MonoBehaviour
 
     private void ClearDragState()
     {
+        Transform draggedRoot = GetWorldSlotRootForOwner(_draggingDice);
+        if (draggedRoot != null)
+            DiceEquipWorldSyncUtility.EndDragDepthLift(draggedRoot);
+
         _draggingDice = null;
         _dragSourceIndex = -1;
         _previewInsertIndex = -1;
+    }
+
+    private Transform GetWorldSlotRootForOwner(DiceDraggableUI owner)
+    {
+        if (owner == null)
+            return null;
+
+        for (int i = 0; i < _worldSlotOwners.Length && i < _worldSlotRoots.Length; i++)
+        {
+            if (_worldSlotOwners[i] == owner)
+                return _worldSlotRoots[i];
+        }
+
+        return null;
     }
 
     private RectTransform GetLayoutContainer()

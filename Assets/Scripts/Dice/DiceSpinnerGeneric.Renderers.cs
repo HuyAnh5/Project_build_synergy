@@ -152,6 +152,8 @@ public partial class DiceSpinnerGeneric
             bool active = showOutline && sourceRenderer != null && sourceRenderer.enabled && sourceRenderer.gameObject.activeInHierarchy;
             if (outlineGo.activeSelf != active)
                 outlineGo.SetActive(active);
+            if (outlineRenderer.enabled != active)
+                outlineRenderer.enabled = active;
 
             if (!active)
                 continue;

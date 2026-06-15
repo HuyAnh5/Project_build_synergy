@@ -4,6 +4,12 @@ using UnityEngine.UI;
 
 public partial class DiceDraggableUI
 {
+    private static Color WithHiddenAlpha(Color color)
+    {
+        color.a = 0f;
+        return color;
+    }
+
     private void AnimateToAnchoredHome(Transform parent, Vector2 anchoredPos, bool instant)
     {
         EnsureInitialized();
@@ -121,11 +127,15 @@ public partial class DiceDraggableUI
 
     private void RefreshVisualState()
     {
+        bool showFail = !_spent && (_fail || _previewFail);
+        bool showCrit = !_spent && (_crit || _previewCrit) && !showFail;
+        SyncWorldMeshResultOutline(showCrit, showFail);
+
         if (backgroundImage != null && (_backgroundColorTween == null || !_backgroundColorTween.IsActive()))
         {
             if (!_hasPreviewTint)
             {
-                backgroundImage.color = GetBaseBackgroundColor();
+                backgroundImage.color = WithHiddenAlpha(GetBaseBackgroundColor());
             }
         }
 
@@ -145,14 +155,13 @@ public partial class DiceDraggableUI
 
             outlineEffect.effectDistance = outlineDistance;
             outlineEffect.useGraphicAlpha = false;
-            bool showFail = _fail || _previewFail;
-            bool showCrit = _crit || _previewCrit;
-            if (enableResultOutlineOnUi && showFail)
+            bool useUiResultOutline = enableResultOutlineOnUi && !preferWorldMeshResultOutline;
+            if (useUiResultOutline && showFail)
             {
                 outlineEffect.enabled = true;
                 outlineEffect.effectColor = failOutlineColor;
             }
-            else if (enableResultOutlineOnUi && showCrit)
+            else if (useUiResultOutline && showCrit)
             {
                 outlineEffect.enabled = true;
                 outlineEffect.effectColor = critOutlineColor;
@@ -206,10 +215,10 @@ public partial class DiceDraggableUI
 
         _backgroundColorTween?.Kill();
         Color baseColor = GetBaseBackgroundColor();
-        backgroundImage.color = baseColor;
+        backgroundImage.color = WithHiddenAlpha(baseColor);
         _backgroundColorTween = DOTween.Sequence()
-            .Append(backgroundImage.DOColor(invalidFlashColor, 0.08f).SetUpdate(true))
-            .Append(backgroundImage.DOColor(baseColor, 0.12f).SetUpdate(true))
+            .Append(backgroundImage.DOColor(WithHiddenAlpha(invalidFlashColor), 0.08f).SetUpdate(true))
+            .Append(backgroundImage.DOColor(WithHiddenAlpha(baseColor), 0.12f).SetUpdate(true))
             .OnComplete(() =>
             {
                 _backgroundColorTween = null;
@@ -225,10 +234,10 @@ public partial class DiceDraggableUI
 
         _backgroundColorTween?.Kill();
         Color baseColor = GetBaseBackgroundColor();
-        backgroundImage.color = baseColor;
+        backgroundImage.color = WithHiddenAlpha(baseColor);
         _backgroundColorTween = DOTween.Sequence()
-            .Append(backgroundImage.DOColor(transientBuffFlashColor, Mathf.Max(0.01f, transientBuffFlashInDuration)).SetUpdate(true))
-            .Append(backgroundImage.DOColor(baseColor, Mathf.Max(0.01f, transientBuffFlashOutDuration)).SetUpdate(true))
+            .Append(backgroundImage.DOColor(WithHiddenAlpha(transientBuffFlashColor), Mathf.Max(0.01f, transientBuffFlashInDuration)).SetUpdate(true))
+            .Append(backgroundImage.DOColor(WithHiddenAlpha(baseColor), Mathf.Max(0.01f, transientBuffFlashOutDuration)).SetUpdate(true))
             .OnComplete(() =>
             {
                 _backgroundColorTween = null;
@@ -280,7 +289,7 @@ public partial class DiceDraggableUI
         _hasPreviewTint = true;
         _forceHideOutline = hideOutline;
         if (backgroundImage != null)
-            backgroundImage.color = tint;
+            backgroundImage.color = WithHiddenAlpha(tint);
 
         RefreshVisualState();
     }
