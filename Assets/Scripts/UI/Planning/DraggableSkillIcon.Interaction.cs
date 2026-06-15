@@ -27,6 +27,9 @@ public partial class DraggableSkillIcon
         if (UiDragState.IsDragging)
             return;
 
+        if (IsPointerInsidePreviewHoverContainer(eventData))
+            return;
+
         SkillTooltipUI.HideCurrentUnlessPointerOverTooltip(eventData != null ? eventData.pointerCurrentRaycast.gameObject : null);
 
         DraggableSkillIcon selected = UiDragState.SelectedSkill;

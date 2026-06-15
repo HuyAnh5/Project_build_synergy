@@ -118,6 +118,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
 
     private SkillIconPreviewController _previewController;
     private bool _pointerInside;
+    private RectTransform _previewHoverContainer;
 
     // --- Click-to-Select ---
     private bool _selected;
@@ -131,6 +132,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         _canvas = GetComponentInParent<Canvas>();
         _canvasRT = _canvas.transform as RectTransform;
         _uiCam = (_canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : _canvas.worldCamera;
+        _previewHoverContainer = transform.parent as RectTransform;
 
         _img = GetComponent<Image>();
         _cg = GetComponent<CanvasGroup>() ?? gameObject.AddComponent<CanvasGroup>();
@@ -216,6 +218,15 @@ public partial class DraggableSkillIcon : MonoBehaviour,
 
         _resolvedAsset = skillAssetOverride;
         return _resolvedAsset;
+    }
+
+    private bool IsPointerInsidePreviewHoverContainer(PointerEventData eventData)
+    {
+        if (_previewHoverContainer == null)
+            return false;
+
+        Vector2 screenPoint = eventData != null ? eventData.position : (Vector2)Input.mousePosition;
+        return RectTransformUtility.RectangleContainsScreenPoint(_previewHoverContainer, screenPoint, _uiCam);
     }
 
     private Sprite GetIcon()

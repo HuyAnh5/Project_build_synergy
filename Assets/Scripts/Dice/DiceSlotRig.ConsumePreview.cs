@@ -50,6 +50,10 @@ public partial class DiceSlotRig
         _consumePreviewPlan = paymentMask >= 0
             ? DiceCombatEnchantRuntimeUtility.BuildPaymentPlanFromMask(this, paymentMask)
             : null;
+
+        // Apply the new preview immediately so switching between nearby skills
+        // does not spend a frame resetting dice upward before the next preview drops them again.
+        UpdateConsumePreviewVisuals(spentDice);
     }
 
     private int CountAvailableConsumePreviewContribution(System.Collections.Generic.HashSet<DiceSpinnerGeneric> spentDice)
@@ -132,7 +136,7 @@ public partial class DiceSlotRig
                 die.ClearAllFacePreviews();
                 bool keepSpentLike = keepPreviewSpentLikeDice != null && keepPreviewSpentLikeDice.Contains(die);
                 if (!keepSpentLike)
-                    ui.ClearPreviewSpentLike(true);
+                    ui.ClearPreviewSpentLike(false);
             }
         }
 
@@ -178,7 +182,7 @@ public partial class DiceSlotRig
                 // Thiếu dice: tất cả dice đỏ nhẹ nhấp nháy, ẩn outline để hiện khối màu đỏ đồng nhất
                 float alpha = Mathf.Lerp(invalidMinAlpha, 1f, t);
                 ui.SetPreviewTint(new Color(1f, 0.3f, 0.3f, alpha), true);
-                ui.ClearPreviewSpentLike(true);
+                ui.ClearPreviewSpentLike(false);
                 continue;
             }
 
@@ -190,7 +194,7 @@ public partial class DiceSlotRig
                     ui.ClearPreviewTint();
                     ui.ClearPreviewRollFeedback();
                     die.ClearAllFacePreviews();
-                    ui.ClearPreviewSpentLike(true);
+                    ui.ClearPreviewSpentLike(false);
                     continue;
                 }
             }
@@ -201,7 +205,7 @@ public partial class DiceSlotRig
                 {
                     ui.SetPreviewTint(new Color32(136, 219, 255, 255), false);
                     ui.ClearPreviewRollFeedback();
-                    ui.ClearPreviewSpentLike(true);
+                    ui.ClearPreviewSpentLike(false);
                 }
                 else
                 {
@@ -243,14 +247,14 @@ public partial class DiceSlotRig
                 die.ClearAllFacePreviews();
                 ui.SetPreviewTint(new Color32(137, 255, 142, 255), false);
                 ui.ClearPreviewRollFeedback();
-                ui.ClearPreviewSpentLike(true);
+                ui.ClearPreviewSpentLike(false);
             }
             else if (IsEchoPreviewSource(i, previewPaymentMask))
             {
                 die.ClearAllFacePreviews();
                 ui.SetPreviewTint(new Color32(136, 219, 255, 255), false);
                 ui.ClearPreviewRollFeedback();
-                ui.ClearPreviewSpentLike(true);
+                ui.ClearPreviewSpentLike(false);
             }
             else
             {
@@ -258,7 +262,7 @@ public partial class DiceSlotRig
                 die.ClearAllFacePreviews();
                 // Dice không bị consume: bình thường
                 ui.ClearPreviewTint();
-                ui.ClearPreviewSpentLike(true);
+                ui.ClearPreviewSpentLike(false);
             }
         }
     }
