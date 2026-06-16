@@ -435,10 +435,28 @@ public partial class ActorWorldUI : MonoBehaviour
         if (_targetPreviewActive)
             return;
 
+        if (Application.isPlaying && actor.isPlayer)
+        {
+            HidePlayerWorldVitalsRuntime();
+            return;
+        }
+
         bool staggered = actor.status != null && actor.status.staggered;
         RefreshHpAndGuard(actor.hp, actor.maxHP, actor.guardPool, staggered);
         RefreshStatusIcons(actor.status);
         RefreshIntent();
+    }
+
+    private void HidePlayerWorldVitalsRuntime()
+    {
+        if (hpBarRoot != null)
+            hpBarRoot.gameObject.SetActive(false);
+        if (guardRoot != null)
+            guardRoot.gameObject.SetActive(false);
+        if (statusRowRoot != null)
+            statusRowRoot.gameObject.SetActive(false);
+        if (intentRoot != null)
+            intentRoot.gameObject.SetActive(false);
     }
 
     private void HideUnboundRuntimeVisuals()

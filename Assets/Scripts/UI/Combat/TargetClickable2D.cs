@@ -314,6 +314,14 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
             if (kvp.Key == null || !kvp.Value.valid)
                 continue;
 
+            if (kvp.Key.isPlayer)
+            {
+                CombatHUD hud = FindObjectOfType<CombatHUD>(true);
+                if (hud != null)
+                    hud.ShowPlayerTargetPreview(kvp.Value);
+                continue;
+            }
+
             ActorWorldUI ui = FindUIForActor(kvp.Key, allUIs);
             if (ui != null)
                 ui.ShowTargetPreview(kvp.Value);
@@ -330,6 +338,10 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
             if (allUIs[i] != null)
                 allUIs[i].ClearTargetPreview();
         }
+
+        CombatHUD hud = FindObjectOfType<CombatHUD>(true);
+        if (hud != null)
+            hud.ClearPlayerTargetPreview();
     }
 
     private void ShowHudResourcePreview(ScriptableObject asset, SkillRuntime runtime, int focusGain)

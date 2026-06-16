@@ -2,7 +2,7 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class CombatHUD : MonoBehaviour
+public partial class CombatHUD : MonoBehaviour
 {
     private const int DefaultFocusSegmentCount = 9;
 
@@ -47,6 +47,7 @@ public class CombatHUD : MonoBehaviour
     {
         TryResolveRefs();
         EnsurePlayerFocusBarUi();
+        EnsurePlayerVitalsUi();
         CacheOriginalColors();
     }
 
@@ -58,15 +59,18 @@ public class CombatHUD : MonoBehaviour
             return;
 
         EnsurePlayerFocusBarUi();
+        EnsurePlayerVitalsUi();
         CacheOriginalColors();
 
         if (_previewFocusActive)
         {
             UpdateFocusPreviewBlink();
+            RefreshPlayerVitalsIfChanged();
             return;
         }
 
         RefreshFocusIfChanged();
+        RefreshPlayerVitalsIfChanged();
     }
 
     public void SetupPlayerFocusBarUi()

@@ -4,9 +4,9 @@ using UnityEngine.UI;
 
 public partial class DiceDraggableUI
 {
-    private static Color WithHiddenAlpha(Color color)
+    private static Color WithRenderableAlpha(Color color)
     {
-        color.a = 0f;
+        color.a = Mathf.Clamp01(color.a);
         return color;
     }
 
@@ -135,7 +135,7 @@ public partial class DiceDraggableUI
         {
             if (!_hasPreviewTint)
             {
-                backgroundImage.color = WithHiddenAlpha(GetBaseBackgroundColor());
+                backgroundImage.color = WithRenderableAlpha(GetBaseBackgroundColor());
             }
         }
 
@@ -155,7 +155,7 @@ public partial class DiceDraggableUI
 
             outlineEffect.effectDistance = outlineDistance;
             outlineEffect.useGraphicAlpha = false;
-            bool useUiResultOutline = enableResultOutlineOnUi && !preferWorldMeshResultOutline;
+            bool useUiResultOutline = enableResultOutlineOnUi;
             if (useUiResultOutline && showFail)
             {
                 outlineEffect.enabled = true;
@@ -215,10 +215,10 @@ public partial class DiceDraggableUI
 
         _backgroundColorTween?.Kill();
         Color baseColor = GetBaseBackgroundColor();
-        backgroundImage.color = WithHiddenAlpha(baseColor);
+        backgroundImage.color = WithRenderableAlpha(baseColor);
         _backgroundColorTween = DOTween.Sequence()
-            .Append(backgroundImage.DOColor(WithHiddenAlpha(invalidFlashColor), 0.08f).SetUpdate(true))
-            .Append(backgroundImage.DOColor(WithHiddenAlpha(baseColor), 0.12f).SetUpdate(true))
+            .Append(backgroundImage.DOColor(WithRenderableAlpha(invalidFlashColor), 0.08f).SetUpdate(true))
+            .Append(backgroundImage.DOColor(WithRenderableAlpha(baseColor), 0.12f).SetUpdate(true))
             .OnComplete(() =>
             {
                 _backgroundColorTween = null;
@@ -234,10 +234,10 @@ public partial class DiceDraggableUI
 
         _backgroundColorTween?.Kill();
         Color baseColor = GetBaseBackgroundColor();
-        backgroundImage.color = WithHiddenAlpha(baseColor);
+        backgroundImage.color = WithRenderableAlpha(baseColor);
         _backgroundColorTween = DOTween.Sequence()
-            .Append(backgroundImage.DOColor(WithHiddenAlpha(transientBuffFlashColor), Mathf.Max(0.01f, transientBuffFlashInDuration)).SetUpdate(true))
-            .Append(backgroundImage.DOColor(WithHiddenAlpha(baseColor), Mathf.Max(0.01f, transientBuffFlashOutDuration)).SetUpdate(true))
+            .Append(backgroundImage.DOColor(WithRenderableAlpha(transientBuffFlashColor), Mathf.Max(0.01f, transientBuffFlashInDuration)).SetUpdate(true))
+            .Append(backgroundImage.DOColor(WithRenderableAlpha(baseColor), Mathf.Max(0.01f, transientBuffFlashOutDuration)).SetUpdate(true))
             .OnComplete(() =>
             {
                 _backgroundColorTween = null;
@@ -289,7 +289,7 @@ public partial class DiceDraggableUI
         _hasPreviewTint = true;
         _forceHideOutline = hideOutline;
         if (backgroundImage != null)
-            backgroundImage.color = WithHiddenAlpha(tint);
+            backgroundImage.color = WithRenderableAlpha(tint);
 
         RefreshVisualState();
     }

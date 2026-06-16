@@ -41,6 +41,7 @@ public partial class DraggableSkillIcon
         // Náº¿u cÃ³ skill khÃ¡c Ä‘ang Ä‘Æ°á»£c chá»n, khÃ´i phá»¥c preview cá»§a nÃ³
         if (selected != null)
         {
+            ReleaseResourcePreviewOwnership();
             ScriptableObject selectedAsset = selected.GetSkillAsset();
             if (selectedAsset != null)
                 selected.ShowResourcePreview(selectedAsset);

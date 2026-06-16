@@ -13,10 +13,13 @@ public partial class DiceSpinnerGeneric
         clearStateWhileRolling = false;
         showAddedValueInRollState = false;
         rollStateText = null;
+        enableRollResultOutline = false;
         _feedbackCrit = false;
         _feedbackFail = false;
         _feedbackShakeTween?.Kill();
         ClearRollStatePopupVisuals(clearText: true);
+        ReleaseFeedbackOutlineRenderers();
+        DestroyClonedFeedbackOutlineObjects();
         ApplyWholeDieVisuals();
         ApplyFeedbackOutlineVisuals();
     }

@@ -308,12 +308,40 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     private void ClearResourcePreview()
         => _previewController?.ClearResourcePreview();
 
+    private bool ReleaseResourcePreviewOwnership()
+        => _previewController != null && _previewController.ReleaseResourcePreviewOwnership();
+
     private void Update()
     {
         RefreshIfVisualMetadataChanged();
         RefreshActiveRuntimeState();
         TickActiveAura();
+        ClearHoverResourcePreviewIfPointerLeftBridge();
         _previewController?.Tick();
+    }
+
+    private void ClearHoverResourcePreviewIfPointerLeftBridge()
+    {
+        if (_pointerInside || _selected || UiDragState.IsDragging)
+            return;
+
+        if (IsPointerInsidePreviewHoverContainer(null) || SkillTooltipUI.IsPointerOverCurrentTooltip())
+            return;
+
+        DraggableSkillIcon selected = UiDragState.SelectedSkill;
+        if (selected != null)
+        {
+            if (ReleaseResourcePreviewOwnership())
+            {
+                ScriptableObject selectedAsset = selected.GetSkillAsset();
+                if (selectedAsset != null)
+                    selected.ShowResourcePreview(selectedAsset);
+            }
+
+            return;
+        }
+
+        ClearResourcePreview();
     }
 
     private void UpdateTargetPreviewUnderCursor(PointerEventData eventData)

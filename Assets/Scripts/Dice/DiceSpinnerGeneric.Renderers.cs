@@ -249,6 +249,25 @@ public partial class DiceSpinnerGeneric
         _feedbackOutlineMaterials = null;
     }
 
+    private void DestroyClonedFeedbackOutlineObjects()
+    {
+        Transform[] children = GetComponentsInChildren<Transform>(true);
+        for (int i = children.Length - 1; i >= 0; i--)
+        {
+            Transform child = children[i];
+            if (child == null || child == transform)
+                continue;
+
+            if (!child.name.Contains("__FeedbackOutline"))
+                continue;
+
+            if (Application.isPlaying)
+                Destroy(child.gameObject);
+            else
+                DestroyImmediate(child.gameObject);
+        }
+    }
+
     private bool CanUseWholeDieMaterialInstances()
     {
         if (!Application.isPlaying)

@@ -84,6 +84,16 @@ internal sealed partial class SkillIconPreviewController
         ClearTargetOverlays();
     }
 
+    public bool ReleaseResourcePreviewOwnership()
+    {
+        if (!_resourcePreviewActive)
+            return false;
+
+        _resourcePreviewActive = false;
+        ClearTargetOverlays();
+        return true;
+    }
+
     public void Tick()
     {
         if (_resourcePreviewActive && _turn != null && _turn.diceRig != null)
