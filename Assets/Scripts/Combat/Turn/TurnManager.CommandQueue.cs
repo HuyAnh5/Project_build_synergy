@@ -201,6 +201,7 @@ public partial class TurnManager
         });
         _endTurnQueued = true;
         UiDragState.DeselectSkill();
+        GetDiceEquipUiManager()?.ClearSelectedDice(instant: true);
         RefreshAllViews();
         RefreshPlanningInteractivity();
 

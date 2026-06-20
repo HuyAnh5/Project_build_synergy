@@ -119,9 +119,9 @@ public partial class DiceDraggableUI
         if (_castMotionLocked && _castYOffsetOverride.HasValue)
             return anchoredPos + new Vector2(0f, _castYOffsetOverride.Value);
 
-        float yOffset = (_spent || _previewSpentLike)
+        float yOffset = _spent
             ? -spentDropY
-            : (_selected ? selectedLiftY : 0f);
+            : ((_previewSpentLike || _selected) ? selectedLiftY : 0f);
         return anchoredPos + new Vector2(0f, yOffset);
     }
 
