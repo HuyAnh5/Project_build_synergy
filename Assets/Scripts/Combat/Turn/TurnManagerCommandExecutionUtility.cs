@@ -24,6 +24,9 @@ internal static class TurnManagerCommandExecutionUtility
                 DiceCombatEnchantRuntimeUtility.BuildPaymentPlanFromMask(diceRig, command.paymentMask);
             yield return ResolveCommittedPreSkillFaceEnchants(diceRig, faceUsePlan, player);
 
+            SkillRuntime executionRuntime = SkillPlanRuntimeUtility.EvaluateRuntimeForSkillAsset(command.asset, player, diceRig, command.start0, command.span, command.start0, command.paymentMask, includeSyntheticRelayAdded: false);
+            if (executionRuntime == null)
+                executionRuntime = command.runtime;
             int resolvedSum = TurnManagerCombatUtility.ComputeResolvedDieSum(diceRig, player, command.start0, command.span, ElementType.Neutral, command.paymentMask);
             IReadOnlyList<CombatActor> aoeTargets = SkillTargetRuleUtility.IsMultiTarget(buffSkill.target)
                 ? TurnManagerCombatUtility.ResolveTargets(buffSkill.target, player, command.target, party, fallbackEnemy)
@@ -32,17 +35,24 @@ internal static class TurnManagerCommandExecutionUtility
             if (logPhase)
             {
                 Debug.Log(
-                    $"[TM] Branch=BuffDebuff -> {buffSkill.name} targetRule={buffSkill.target} delay={buffSkill.applyDelayTurns} effects={(buffSkill.effects != null ? buffSkill.effects.Count : 0)} applyAilment={buffSkill.applyAilment}",
+                    $"[TM] Branch=BuffDebuff -> {buffSkill.name} targetRule={buffSkill.target}",
                     context);
             }
 
-            yield return executor.ExecuteSkill(buffSkill, player, command.target, resolvedSum, command.maxFace, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span, castPaymentMask: command.paymentMask);
+            yield return ExecuteBuffSkillWithPostCastDiceFlow(command, executor, player, diceRig, buffSkill, executionRuntime, resolvedSum, aoeTargets, context as TurnManager, suppressDiceCastAnimation: false);
+
+            int statusRepeatCount = ConsumeRepeatFirstSkillExtraCasts(player);
+            for (int i = 0; i < statusRepeatCount; i++)
+            {
+                yield return WaitForEnchantPopupBeat();
+                yield return ExecuteBuffSkillWithPostCastDiceFlow(command, executor, player, diceRig, buffSkill, executionRuntime, resolvedSum, aoeTargets, context as TurnManager, suppressDiceCastAnimation: false);
+            }
 
             for (int i = 0; i < Mathf.Max(0, faceUsePlan.repeatCount); i++)
             {
                 if (DiceCombatEnchantRuntimeUtility.PlayRepeatAgainPopup(diceRig, faceUsePlan))
                     yield return WaitForEnchantPopupBeat();
-                yield return executor.ExecuteSkill(buffSkill, player, command.target, resolvedSum, command.maxFace, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span, castPaymentMask: command.paymentMask);
+                yield return ExecuteBuffSkillWithPostCastDiceFlow(command, executor, player, diceRig, buffSkill, executionRuntime, resolvedSum, aoeTargets, context as TurnManager, suppressDiceCastAnimation: false);
             }
 
             DiceCombatEnchantRuntimeUtility.ResolveCommittedPostSkillFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
@@ -66,6 +76,13 @@ internal static class TurnManagerCommandExecutionUtility
 
             yield return executor.ExecuteSkill(executionRuntime, player, command.target, resolvedSum, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span, castPaymentMask: command.paymentMask);
 
+            int statusRepeatCount = ConsumeRepeatFirstSkillExtraCasts(player);
+            for (int i = 0; i < statusRepeatCount; i++)
+            {
+                yield return WaitForEnchantPopupBeat();
+                yield return executor.ExecuteSkill(executionRuntime, player, command.target, resolvedSum, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span, castPaymentMask: command.paymentMask, suppressDiceCastAnimation: false);
+            }
+
             for (int i = 0; i < Mathf.Max(0, faceUsePlan.repeatCount); i++)
             {
                 if (DiceCombatEnchantRuntimeUtility.PlayRepeatAgainPopup(diceRig, faceUsePlan))
@@ -76,6 +93,7 @@ internal static class TurnManagerCommandExecutionUtility
             if (IsBasicStrikeRuntime(executionRuntime))
                 playerContext?.HandleBasicStrikeUse(diceRig, command.start0);
 
+            ConsumeNextSkillAddedValueIfUsed(player, executionRuntime);
             DiceCombatEnchantRuntimeUtility.ResolveCommittedPostSkillFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
             yield return ResolveCommittedReloadFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
         }
@@ -83,6 +101,59 @@ internal static class TurnManagerCommandExecutionUtility
 
     private static bool IsBasicStrikeRuntime(SkillRuntime rt)
         => rt != null && rt.coreAction == CoreAction.BasicStrike;
+
+    private static IEnumerator ExecuteBuffSkillWithPostCastDiceFlow(
+        TurnManagerQueuedPlayerCommand command,
+        SkillExecutor executor,
+        CombatActor player,
+        DiceSlotRig diceRig,
+        SkillBuffDebuffSO buffSkill,
+        SkillRuntime executionRuntime,
+        int resolvedSum,
+        IReadOnlyList<CombatActor> aoeTargets,
+        TurnManager turnManager,
+        bool suppressDiceCastAnimation)
+    {
+        yield return executor.ExecuteSkill(
+            buffSkill,
+            player,
+            command.target,
+            resolvedSum,
+            command.maxFace,
+            skipCost: true,
+            aoeTargets: aoeTargets,
+            castDiceRig: diceRig,
+            castStart0: command.start0,
+            castSpan: command.span,
+            castPaymentMask: command.paymentMask,
+            suppressDiceCastAnimation: suppressDiceCastAnimation);
+
+        yield return BuffDebuffFlowRuntimeUtility.ApplyPostCastDiceEffects(
+            buffSkill,
+            executionRuntime,
+            player,
+            command.target,
+            diceRig,
+            command.paymentMask,
+            turnManager);
+    }
+
+    private static int ConsumeRepeatFirstSkillExtraCasts(CombatActor player)
+    {
+        if (player == null || player.status == null)
+            return 0;
+
+        return player.status.ConsumeRepeatFirstSkillReady();
+    }
+
+    private static void ConsumeNextSkillAddedValueIfUsed(CombatActor player, SkillRuntime rt)
+    {
+        if (player == null || player.status == null || rt == null)
+            return;
+
+        if (rt.ownerActionAddedValueBonus > 0)
+            player.status.ConsumeNextSkillAddedValue();
+    }
 
     private static IEnumerator WaitForEnchantPopupBeat()
     {

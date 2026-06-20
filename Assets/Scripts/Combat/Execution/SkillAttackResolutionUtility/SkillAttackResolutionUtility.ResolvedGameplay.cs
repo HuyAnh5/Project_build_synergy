@@ -195,7 +195,7 @@ internal static partial class SkillAttackResolutionUtility
         PassiveSystem passiveSystem = caster.GetComponent<PassiveSystem>();
         emberBurn += passiveSystem != null ? passiveSystem.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
         if (emberBurn > 0)
-            target.status.ApplyBurn(emberBurn, 3);
+            target.status.ApplyBurn(emberBurn, Mathf.Max(1, caster.status.emberWeaponBurnTurns));
     }
 
     private static void ApplyResolvedGameplayEffects(IReadOnlyList<ResolvedEffect> effects, CombatActor caster, CombatActor selectedTarget, bool includeFollowUpEffects)

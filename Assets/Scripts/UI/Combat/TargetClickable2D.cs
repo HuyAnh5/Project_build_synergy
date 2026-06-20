@@ -98,13 +98,14 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         int rawDieValue = hasPreviewPlan ? previewPlan.resolvedDieValue : skillSource.GetPublicPreviewDieValue(rt);
         int guardLocalIndex = hasPreviewPlan ? Mathf.Clamp(previewPlan.anchor0 - previewPlan.start0, 0, 2) : 0;
         int dieValue = ResolveTargetPreviewDieValue(rt, rawDieValue, guardLocalIndex);
-        int resolveCount = hasPreviewPlan ? Mathf.Max(1, previewPlan.repeatCount + 1) : 1;
+        int repeatPreviewCount = (hasPreviewPlan ? Mathf.Max(0, previewPlan.repeatCount) : 0) + GetReadyStatusRepeatCount(turn.player);
+        int resolveCount = Mathf.Max(1, repeatPreviewCount + 1);
         SkillDamageSO selectedDamageSkill = selectedAsset as SkillDamageSO;
         SkillDamageSO sourceSkill = selectedDamageSkill != null ? selectedDamageSkill : SkillGameplayResolver.GetSourceSkill(rt);
         TargetPreviewBuilder.ActionPreviewBundle bundle =
             TargetPreviewBuilder.BuildActionBundle(rt, turn.player, _actor, dieValue, turn.party, turn.enemy, resolveCount, sourceSkill);
-        if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill) && hasPreviewPlan && previewPlan.repeatCount > 0)
-            TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, previewPlan.repeatCount + 1);
+        if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill) && repeatPreviewCount > 0)
+            TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, repeatPreviewCount + 1);
 
         DiceCombatEnchantRuntimeUtility.SimpleEnchantPreview simplePreview = default;
         if (selectedAsset != null && SkillUiMetadataUtility.TryGetSkillCosts(selectedAsset, out _, out int slotsRequired))
@@ -210,6 +211,9 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         int guardValue = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(runtime, Mathf.Max(0, guardLocalIndex));
         return guardValue > 0 ? guardValue : fallbackDieValue;
     }
+
+    private static int GetReadyStatusRepeatCount(CombatActor actor)
+        => actor != null && actor.status != null ? actor.status.PeekRepeatFirstSkillReady() : 0;
 
     private bool TryBuildSelfGuardFinalPreview(
         SkillRuntime runtime,

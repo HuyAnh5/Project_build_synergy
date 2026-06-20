@@ -36,6 +36,8 @@ public static class SkillOutputValueUtility
         if (rt.coreAction == CoreAction.BasicStrike)
             total += Mathf.Max(0, rt.ownerFlatDamageBonus);
 
+        total += Mathf.Max(0, rt.ownerActionAddedValueBonus);
+
         if (rt.conditionMet && rt.conditionalOutcomeEnabled && rt.conditionalOutcomeType == ConditionalOutcomeType.GainAddedValue)
         {
             int bonusAddedValue = rt.conditionalOutcomeValueMode == ConditionalOutcomeValueMode.X

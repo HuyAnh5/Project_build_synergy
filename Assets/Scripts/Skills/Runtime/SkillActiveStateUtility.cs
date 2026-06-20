@@ -2,8 +2,6 @@ using UnityEngine;
 
 /// <summary>
 /// Centralizes active runtime state for skill UI and recast gates.
-/// For now Ember Weapon still uses the existing dedicated runtime fields on StatusController.
-/// Future named buff/debuff skills can be added here without coupling UI widgets to each skill's internals.
 /// </summary>
 public static class SkillActiveStateUtility
 {
@@ -30,8 +28,38 @@ public static class SkillActiveStateUtility
 
     private static bool IsEmberWeapon(ScriptableObject skillAsset)
     {
-        return skillAsset is SkillBuffDebuffSO buff &&
-               (buff.behaviorId == BuffBehaviorId.Fire_EmberWeapon ||
-                buff.fireModules.grantEmberWeapon);
+        SkillBuffDebuffSO buff = skillAsset as SkillBuffDebuffSO;
+        if (buff == null || buff.gameplay == null)
+            return false;
+
+        if (ContainsEmberWeapon(buff.gameplay.baseEffects))
+            return true;
+
+        if (buff.gameplay.conditionalOutcomes == null)
+            return false;
+
+        for (int i = 0; i < buff.gameplay.conditionalOutcomes.Count; i++)
+        {
+            BuffDebuffFlowConditionalOutcomeData branch = buff.gameplay.conditionalOutcomes[i];
+            if (branch != null && ContainsEmberWeapon(branch.effects))
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool ContainsEmberWeapon(System.Collections.Generic.List<BuffDebuffFlowEffectData> effects)
+    {
+        if (effects == null)
+            return false;
+
+        for (int i = 0; i < effects.Count; i++)
+        {
+            BuffDebuffFlowEffectData effect = effects[i];
+            if (effect != null && effect.type == BuffDebuffFlowEffectType.EmberWeapon)
+                return true;
+        }
+
+        return false;
     }
 }

@@ -91,6 +91,8 @@ public static partial class SkillRuntimeEvaluator
 
         if (rt.coreAction == CoreAction.BasicStrike && owner.status.emberWeaponTurns > 0)
             rt.ownerFlatDamageBonus = Mathf.Max(0, owner.status.emberWeaponBonusDamage);
+
+        rt.ownerActionAddedValueBonus = owner.status.PeekNextSkillAddedValue();
     }
 
 }

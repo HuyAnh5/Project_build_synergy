@@ -1,23 +1,19 @@
+using System.Collections.Generic;
 using UnityEngine;
 
-// Builds runtime-aware tooltip text for legacy damage and buff/debuff descriptions.
+// Builds runtime-aware tooltip text for damage and buff/debuff descriptions.
 public static partial class SkillTooltipFormatter
 {
-    // Fills utility/buff tooltip text, including special-case authored copy.
+    // Fills utility/buff tooltip text from the buff/debuff gameplay schema.
     private static void FillBuffContent(ref TooltipContent content, SkillBuffDebuffSO skill, SkillRuntime runtime)
     {
-        switch (content.title)
-        {
-            case "Ember Weapon":
-                content.effectText = "For the next 3 turns, Basic Attack gains +1 Added Value.";
-                content.conditions.Add("If that Basic Attack Crits: Apply Burn equal to total damage dealt.");
-                return;
-        }
-
         string description = BuildRuntimeBuffDebuffDescription(skill, runtime);
         content.effectText = string.IsNullOrWhiteSpace(description)
             ? string.Empty
             : ColorQuotedAddedValues(description.Trim());
+
+        AppendBuffDebuffRequirements(ref content, skill);
+        AppendBuffDebuffConditionalOutcomes(ref content, skill);
     }
 
     // Builds compact AP and dice cost text for expanded tooltips.
@@ -81,10 +77,17 @@ public static partial class SkillTooltipFormatter
         if (skill == null)
             return string.Empty;
 
+        if (skill.gameplay != null && !string.IsNullOrWhiteSpace(skill.gameplay.descriptionTemplate))
+            return skill.gameplay.descriptionTemplate.Trim();
+
+        string generated = BuildBuffDebuffFlowSummary(skill);
+        if (!string.IsNullOrWhiteSpace(generated))
+            return generated;
+
         if (!string.IsNullOrWhiteSpace(skill.spec.normalizedText))
             return skill.spec.normalizedText.Trim();
 
-        return (skill.description ?? string.Empty).Trim();
+        return skill.GetAuthoringDescription();
     }
 
     // Resolves one quoted damage template segment into a runtime preview value.
@@ -109,28 +112,67 @@ public static partial class SkillTooltipFormatter
     // Resolves one quoted buff/debuff template segment into a runtime preview value.
     private static string ResolveBuffQuotedSegment(SkillBuffDebuffSO skill, SkillRuntime runtime, string quoted)
     {
-        if (skill == null || runtime == null)
-            return quoted;
+        return quoted;
+    }
 
-        string lower = (quoted ?? string.Empty).Trim().ToLowerInvariant();
-        if (skill.effects == null)
-            return quoted;
+    private static string BuildBuffDebuffFlowSummary(SkillBuffDebuffSO skill)
+    {
+        if (skill == null || skill.gameplay == null || skill.gameplay.baseEffects == null)
+            return string.Empty;
 
-        for (int i = 0; i < skill.effects.Count; i++)
+        List<string> lines = new List<string>();
+        for (int i = 0; i < skill.gameplay.baseEffects.Count; i++)
         {
-            BuffDebuffEffectEntry effect = skill.effects[i];
-            if (effect == null)
-                continue;
-
-            if ((lower.Contains("hp") || lower.Contains("heal")) && effect.id == BuffDebuffEffectId.HealFlat)
-                return effect.GetHealAmount() + " HP";
-            if ((lower.Contains("hp") || lower.Contains("heal")) && effect.id == BuffDebuffEffectId.HealByDiceSum)
-                return ResolveX(runtime) + " HP";
-            if (lower.Contains("focus") && effect.id == BuffDebuffEffectId.FocusDelayed)
-                return effect.GetFocusAmount() + " Focus";
+            BuffDebuffFlowEffectData effect = skill.gameplay.baseEffects[i];
+            if (effect != null && effect.previewable)
+                lines.Add(effect.Summary + ".");
         }
 
-        return quoted;
+        return string.Join("\n", lines);
+    }
+
+    private static void AppendBuffDebuffRequirements(ref TooltipContent content, SkillBuffDebuffSO skill)
+    {
+        if (skill == null || skill.gameplay == null || skill.gameplay.requirements == null)
+            return;
+
+        for (int i = 0; i < skill.gameplay.requirements.Count; i++)
+        {
+            SkillRequirementData requirement = skill.gameplay.requirements[i];
+            if (requirement != null)
+                content.requires.Add(FormatRequirement(requirement));
+        }
+    }
+
+    private static void AppendBuffDebuffConditionalOutcomes(ref TooltipContent content, SkillBuffDebuffSO skill)
+    {
+        if (skill == null || skill.gameplay == null || skill.gameplay.conditionalOutcomes == null)
+            return;
+
+        for (int i = 0; i < skill.gameplay.conditionalOutcomes.Count; i++)
+        {
+            BuffDebuffFlowConditionalOutcomeData branch = skill.gameplay.conditionalOutcomes[i];
+            if (branch == null || branch.effects == null || branch.effects.Count == 0)
+                continue;
+
+            if (!string.IsNullOrWhiteSpace(branch.tooltipText))
+            {
+                content.conditions.Add(FormatAuthoredTooltipText(branch.tooltipText));
+                continue;
+            }
+
+            string conditionText = FormatCondition(branch.condition);
+            List<string> effects = new List<string>();
+            for (int effectIndex = 0; effectIndex < branch.effects.Count; effectIndex++)
+            {
+                BuffDebuffFlowEffectData effect = branch.effects[effectIndex];
+                if (effect != null && effect.previewable)
+                    effects.Add(effect.Summary);
+            }
+
+            if (effects.Count > 0)
+                content.conditions.Add($"If {conditionText}: {string.Join(" ", effects)}.");
+        }
     }
 
     // Creates a minimal utility runtime so buff tooltip helpers can resolve costs/targets consistently.

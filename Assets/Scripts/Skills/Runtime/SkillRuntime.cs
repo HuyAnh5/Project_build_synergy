@@ -39,6 +39,7 @@ public class SkillRuntime
     public float dieMultiplier;
     public int flatDamage;
     public int ownerFlatDamageBonus;
+    public int ownerActionAddedValueBonus;
     public BaseEffectValueMode baseDamageValueMode;
 
     // Sunder bonus
@@ -154,6 +155,7 @@ public class SkillRuntime
             dieMultiplier = s.dieMultiplier,
             flatDamage = s.flatDamage,
             ownerFlatDamageBonus = 0,
+            ownerActionAddedValueBonus = 0,
             baseDamageValueMode = s.baseDamageValueMode,
 
             sunderBonusIfTargetHasGuard = s.sunderBonusIfTargetHasGuard,

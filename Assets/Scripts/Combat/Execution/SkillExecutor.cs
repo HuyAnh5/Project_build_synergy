@@ -55,18 +55,32 @@ public partial class SkillExecutor : MonoBehaviour
         yield return ExecuteSkill(rt, caster, target, dieValue, skipCost);
     }
 
-    public IEnumerator ExecuteSkill(SkillDamageSO skill, CombatActor caster, CombatActor target, int dieValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null, DiceSlotRig castDiceRig = null, int castStart0 = -1, int castSpan = 0, int castPaymentMask = -1)
+    public IEnumerator ExecuteSkill(SkillDamageSO skill, CombatActor caster, CombatActor target, int dieValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null, DiceSlotRig castDiceRig = null, int castStart0 = -1, int castSpan = 0, int castPaymentMask = -1, bool suppressDiceCastAnimation = false)
     {
         var rt = SkillRuntime.FromDamage(skill);
-        yield return ExecuteSkill(rt, caster, target, dieValue, skipCost, aoeTargets, castDiceRig, castStart0, castSpan, castPaymentMask);
+        yield return ExecuteSkill(rt, caster, target, dieValue, skipCost, aoeTargets, castDiceRig, castStart0, castSpan, castPaymentMask, suppressDiceCastAnimation);
     }
 
-    // NEW: SkillBuffDebuffSO execution (applies via StatusController)
-    public IEnumerator ExecuteSkill(SkillBuffDebuffSO skill, CombatActor caster, CombatActor clickedTarget, int rolledValue, int maxFaceValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null, DiceSlotRig castDiceRig = null, int castStart0 = -1, int castSpan = 0, int castPaymentMask = -1)
+    public IEnumerator ExecuteSkill(SkillBuffDebuffSO skill, CombatActor caster, CombatActor clickedTarget, int rolledValue, int maxFaceValue, bool skipCost = false, IReadOnlyList<CombatActor> aoeTargets = null, DiceSlotRig castDiceRig = null, int castStart0 = -1, int castSpan = 0, int castPaymentMask = -1, bool suppressDiceCastAnimation = false)
     {
         if (skill == null || caster == null) yield break;
 
-        Debug.Log($"[EXEC] BuffDebuff cast={skill.name} caster={caster.name} clicked={(clickedTarget ? clickedTarget.name : "NULL")} rolled={rolledValue} maxFace={maxFaceValue} skipCost={skipCost} focusCost={skill.focusCost} applyDelay={skill.applyDelayTurns} effects={(skill.effects != null ? skill.effects.Count : 0)} applyAilment={skill.applyAilment}", this);
+        SkillRuntime flowRuntime = SkillPlanRuntimeUtility.EvaluateRuntimeForSkillAsset(
+            skill,
+            caster,
+            castDiceRig,
+            castStart0,
+            castSpan > 0 ? castSpan : skill.slotsRequired,
+            castStart0 >= 0 ? castStart0 : 0,
+            castPaymentMask);
+
+        Debug.Log($"[EXEC] BuffDebuff cast={skill.name} caster={caster.name} clicked={(clickedTarget ? clickedTarget.name : "NULL")} rolled={rolledValue} maxFace={maxFaceValue} skipCost={skipCost} focusCost={skill.focusCost}", this);
+
+        if (!BuffDebuffFlowRuntimeUtility.CheckRequirements(skill, flowRuntime, caster, clickedTarget, out string failureReason))
+        {
+            Debug.LogWarning($"[EXEC] BuffDebuff requirement blocked: {failureReason}", this);
+            yield break;
+        }
 
         if (!skipCost && skill.focusCost > 0)
         {
@@ -86,28 +100,11 @@ public partial class SkillExecutor : MonoBehaviour
 
         System.Action applyBuffEffects = () =>
         {
-            for (int i = 0; i < targets.Count; i++)
-            {
-                var t = targets[i];
-                if (t == null || t.IsDead) continue;
-
-                int hpBefore = t.hp;
-                int focusBefore = t.focus;
-
-                if (t.status != null)
-                {
-                    t.status.ApplyBuffDebuffSkill(skill, caster, rolledValue, maxFaceValue);
-                    bool hasAil = t.status.HasAilment(out var at, out var left);
-                    Debug.Log($"[EXEC] Apply -> target={t.name} hp:{hpBefore}->{t.hp} focus:{focusBefore}->{t.focus} hasAilment={hasAil} {(hasAil ? ($"type={at} left={left}") : "")}", this);
-                }
-                else
-                {
-                    Debug.LogWarning($"[EXEC] target={t.name} has NO StatusController", this);
-                }
-            }
+            BuffDebuffFlowRuntimeUtility.ApplyActorEffects(skill, flowRuntime, caster, clickedTarget);
         };
 
-        if (ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
+        bool skipFlowCastAnimation = suppressDiceCastAnimation || BuffDebuffFlowRuntimeUtility.ShouldSkipCastAnimation(skill, flowRuntime, caster, clickedTarget);
+        if (!skipFlowCastAnimation && ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
         {
             PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, clickedTarget, targets);
             TurnManager turnManager = GetTurnManager();
@@ -157,7 +154,8 @@ public partial class SkillExecutor : MonoBehaviour
         DiceSlotRig castDiceRig = null,
         int castStart0 = -1,
         int castSpan = 0,
-        int castPaymentMask = -1)
+        int castPaymentMask = -1,
+        bool suppressDiceCastAnimation = false)
     {
         if (rt == null || caster == null) yield break;
 
@@ -223,7 +221,7 @@ public partial class SkillExecutor : MonoBehaviour
                     CombatHitFeedback.Play(caster, CombatHitFeedback.FeedbackKind.Focus);
             };
 
-            if (ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
+            if (!suppressDiceCastAnimation && ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan))
             {
                 PlayerDiceCastAnimator.CastMode mode = ResolveCastMode(caster, primaryTarget, null);
                 TurnManager turnManager = GetTurnManager();
@@ -251,7 +249,7 @@ public partial class SkillExecutor : MonoBehaviour
 
         if (rt.kind == SkillKind.Attack)
         {
-            bool usePlayerDiceCastAnimation = ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan);
+            bool usePlayerDiceCastAnimation = !suppressDiceCastAnimation && ShouldUsePlayerDiceCastAnimation(caster, castDiceRig, castStart0, castSpan);
             if (usePlayerDiceCastAnimation)
             {
                 AttackApplyResult singleResult = default;

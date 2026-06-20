@@ -53,7 +53,7 @@ internal static partial class SkillAttackResolutionUtility
                 int emberBurn = Mathf.Max(0, finalDamage);
                 emberBurn += ps != null ? ps.GetBonusStatusStacksApplied(StatusKind.Burn) : 0;
                 if (emberBurn > 0)
-                    target.status.ApplyBurn(emberBurn, 3);
+                    target.status.ApplyBurn(emberBurn, Mathf.Max(1, caster.status.emberWeaponBurnTurns));
             }
         }
 

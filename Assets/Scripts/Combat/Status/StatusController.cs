@@ -37,24 +37,20 @@ public class StatusController : MonoBehaviour
     public int emberWeaponBonusDamage = 1;
     public bool emberWeaponBurnEqualsDamage = true;
     [HideInInspector] public bool emberWeaponBurnOnCritOnly;
+    [HideInInspector] public int emberWeaponBurnTurns = 3;
     [HideInInspector] public int cinderbrandTurns;
     [HideInInspector] public int cinderbrandBonusPerBurn = 1;
-
-    // -------------------- NEW: Buff/Debuff/Ailment layer (non-breaking) --------------------
-
-    private readonly List<StatusPendingBuffDebuff> _pending = new List<StatusPendingBuffDebuff>(8);
-    private readonly List<StatusActiveBuffDebuff> _active = new List<StatusActiveBuffDebuff>(8);
-    private readonly List<StatusPendingAilment> _pendingAilments = new List<StatusPendingAilment>(4);
+    [HideInInspector] public int repeatFirstSkillNextTurnPending;
+    [HideInInspector] public int repeatFirstSkillReadyExtraCasts;
+    [HideInInspector] public int nextSkillAddedValue;
+    [HideInInspector] public int nextSkillAddedValueCharges;
 
     [HideInInspector, SerializeField] private bool _hasAilment;
     [HideInInspector, SerializeField] private AilmentType _ailmentType;
     [HideInInspector, SerializeField] private int _ailmentTurnsLeft;
 
     [Header("Debug")]
-    [Tooltip("When ON: any SkillBuffDebuffSO ailment will apply 100% regardless of dice/chance calculator.")]
-    [SerializeField] private bool debugForceAilmentChance100 = true;
-
-    [Tooltip("Extra logs for tracing buff/debuff/ailment pipeline.")]
+    [Tooltip("Extra logs for tracing status state.")]
     [SerializeField] private bool debugLog = true;
 
     // Convenience for UI/others
@@ -64,79 +60,7 @@ public class StatusController : MonoBehaviour
 
     // ✅ Needed by CombatActor (reset between fights / retry)
     public void ClearAll()
-        => StatusStateUtility.ClearAll(this, _pending, _active, _pendingAilments, debugLog);
-
-    /// <summary>
-    /// NEW: Apply a SkillBuffDebuffSO onto THIS actor.
-    /// - Immediate effects apply instantly (delay 0)
-    /// - Delayed effects are processed on OnTurnStarted (delay 1 => next start, delay 2 => start after 2 turns)
-    /// Duration ticking is exposed via OnOwnerTurnEnded (TurnManager should call it).
-    /// </summary>
-    public void ApplyBuffDebuffSkill(SkillBuffDebuffSO skill, CombatActor applier, int rolledValue, int maxFaceValue)
-    {
-        if (skill == null) return;
-
-        if (StatusNamedSkillUtility.TryApplyNamedSkillNow(this, skill, applier, rolledValue))
-            return;
-
-        int delay = Mathf.Max(0, skill.applyDelayTurns);
-
-        // Effects
-        if (skill.effects != null)
-        {
-            for (int i = 0; i < skill.effects.Count; i++)
-            {
-                var e = skill.effects[i];
-                if (e == null) continue;
-
-                if (delay <= 0)
-                {
-                    StatusBuffDebuffUtility.ApplyBuffDebuffEntryNow(this, _active, e, applier, rolledValue);
-                }
-                else
-                {
-                    _pending.Add(new StatusPendingBuffDebuff
-                    {
-                        entry = e,
-                        delayTurns = delay,
-                        applier = applier,
-                        rolledValue = rolledValue,
-                        maxFaceValue = Mathf.Max(1, maxFaceValue)
-                    });
-                }
-            }
-        }
-
-        // Ailment (optional) - correct schema: skill.applyAilment + skill.ailment (AilmentConfig)
-        if (skill.applyAilment && skill.ailment != null)
-        {
-            var a = skill.ailment;
-            var type = a.ailment;
-            var dur = Mathf.Max(1, a.durationTurns);
-            var mult = Mathf.Max(0f, a.chanceTuningMultiplier);
-
-            if (debugLog)
-                Debug.Log($"[STATUS] ApplyBuffDebuffSkill(ailment) target={name} skill={skill.name} type={type} dur={dur} delay={delay} force100={debugForceAilmentChance100} rolled={rolledValue} maxFace={maxFaceValue} mult={mult}", this);
-
-            if (delay <= 0)
-            {
-                StatusAilmentUtility.TryApplyAilment(this, type, dur, applier, rolledValue, maxFaceValue, mult, debugForceAilmentChance100, debugLog);
-            }
-            else
-            {
-                _pendingAilments.Add(new StatusPendingAilment
-                {
-                    type = type,
-                    delayTurns = delay,
-                    durationTurns = dur,
-                    chanceMultiplier = mult,
-                    applier = applier,
-                    rolledValue = rolledValue,
-                    maxFaceValue = Mathf.Max(1, maxFaceValue)
-                });
-            }
-        }
-    }
+        => StatusStateUtility.ClearAll(this, debugLog);
 
     public bool HasAilment(out AilmentType type, out int turnsLeft)
     {
@@ -160,32 +84,75 @@ public class StatusController : MonoBehaviour
             Debug.Log($"[STATUS] ClearAilment -> {name}", this);
     }
 
-    /// <summary>
-    /// NEW: dice-layer delta (sum of all active DiceAllDelta entries).
-    /// TurnManager / DiceSlotRig will use this when resolving final die values.
-    /// </summary>
     public int GetAllDiceDelta()
-        => StatusBuffDebuffUtility.GetAllDiceDelta(_active);
+        => 0;
 
     public int GetParityFocusDelta(int diceTotal)
-        => StatusBuffDebuffUtility.GetParityFocusDelta(_active, diceTotal);
+        => 0;
 
     public bool HasSlotCollapse()
-        => StatusBuffDebuffUtility.HasSlotCollapse(_active);
+        => false;
 
-    /// <summary>
-    /// Outgoing damage multiplier from buffs/debuffs.
-    /// Uses the strongest multiplier currently active (stable default).
-    /// </summary>
     public float GetOutgoingDamageMultiplier()
-        => StatusBuffDebuffUtility.GetOutgoingDamageMultiplier(_active);
+        => 1f;
+
+    public void GrantRepeatFirstSkillNextTurn(int extraCasts)
+    {
+        repeatFirstSkillNextTurnPending += Mathf.Max(0, extraCasts);
+    }
+
+    public int ConsumeRepeatFirstSkillReady()
+    {
+        int casts = Mathf.Max(0, repeatFirstSkillReadyExtraCasts);
+        repeatFirstSkillReadyExtraCasts = 0;
+        return casts;
+    }
+
+    public int PeekRepeatFirstSkillReady()
+        => Mathf.Max(0, repeatFirstSkillReadyExtraCasts);
+
+    public void GrantNextSkillAddedValue(int amount, int charges = 1)
+    {
+        int safeAmount = Mathf.Max(0, amount);
+        int safeCharges = Mathf.Max(1, charges);
+        if (safeAmount <= 0)
+            return;
+
+        nextSkillAddedValue += safeAmount;
+        nextSkillAddedValueCharges += safeCharges;
+    }
+
+    public int PeekNextSkillAddedValue()
+        => nextSkillAddedValueCharges > 0 ? Mathf.Max(0, nextSkillAddedValue) : 0;
+
+    public void ConsumeNextSkillAddedValue()
+    {
+        if (nextSkillAddedValueCharges <= 0)
+            return;
+
+        nextSkillAddedValueCharges--;
+        if (nextSkillAddedValueCharges <= 0)
+        {
+            nextSkillAddedValueCharges = 0;
+            nextSkillAddedValue = 0;
+        }
+    }
+
+    public void GrantEmberWeapon(int turns, int bonusDamage, bool burnEqualsDamage, bool burnOnCritOnly, int burnTurns)
+    {
+        emberWeaponTurns = Mathf.Max(emberWeaponTurns, Mathf.Max(1, turns));
+        emberWeaponBonusDamage = Mathf.Max(0, bonusDamage);
+        emberWeaponBurnEqualsDamage = burnEqualsDamage;
+        emberWeaponBurnOnCritOnly = burnOnCritOnly;
+        emberWeaponBurnTurns = Mathf.Max(1, burnTurns);
+    }
 
     /// <summary>
     /// TurnManager should call this at the end of THIS actor's turn.
     /// It decrements durations for buff/debuff + ailment.
     /// </summary>
     public void OnOwnerTurnEnded()
-        => StatusStateUtility.OnOwnerTurnEnded(this, _active);
+        => StatusStateUtility.OnOwnerTurnEnded(this);
 
     public void ApplyBurn(int addStacks, int refreshTurns)
         => StatusStateUtility.ApplyBurn(this, addStacks, refreshTurns);
@@ -218,8 +185,13 @@ public class StatusController : MonoBehaviour
     // ✅ Needed by TurnManager (skip 1 lượt rồi tự gỡ Freeze)
     public int OnTurnStarted(bool consumeFreezeToSkipTurn, out bool skipTurn)
     {
+        if (repeatFirstSkillNextTurnPending > 0)
+        {
+            repeatFirstSkillReadyExtraCasts += repeatFirstSkillNextTurnPending;
+            repeatFirstSkillNextTurnPending = 0;
+        }
+
         int dot = StatusStateUtility.OnTurnStarted(this, consumeFreezeToSkipTurn, out skipTurn);
-        ProcessPendingAtTurnStart();
         return dot;
     }
 
@@ -240,9 +212,6 @@ public class StatusController : MonoBehaviour
     // Chance dạng % 0..100
     public bool TryApplyFreeze(int chancePercent)
         => StatusStateUtility.TryApplyFreeze(this, chancePercent);
-
-    private void ProcessPendingAtTurnStart()
-        => StatusStateUtility.ProcessPendingAtTurnStart(this, _pending, _active, _pendingAilments, debugForceAilmentChance100, debugLog);
 
     internal void SetAilmentCleared()
     {

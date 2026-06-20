@@ -155,13 +155,14 @@ internal sealed partial class SkillIconPreviewController
         int rawDieValue = _previewPlan.valid ? _previewPlan.resolvedDieValue : _getPreviewDieValue(_cachedDragRuntime);
         int guardLocalIndex = _previewPlan.valid ? Mathf.Clamp(_previewPlan.anchor0 - _previewPlan.start0, 0, 2) : 0;
         int dieValue = ResolveTargetPreviewDieValue(_cachedDragRuntime, rawDieValue, guardLocalIndex);
-        int resolveCount = _previewPlan.valid ? Mathf.Max(1, _previewPlan.repeatCount + 1) : 1;
+        int repeatPreviewCount = (_previewPlan.valid ? Mathf.Max(0, _previewPlan.repeatCount) : 0) + GetReadyStatusRepeatCount(_turn.player);
+        int resolveCount = Mathf.Max(1, repeatPreviewCount + 1);
         SkillDamageSO selectedDamageSkill = _getSkillAsset() as SkillDamageSO;
         SkillDamageSO sourceSkill = selectedDamageSkill != null ? selectedDamageSkill : SkillGameplayResolver.GetSourceSkill(_cachedDragRuntime);
         TargetPreviewBuilder.ActionPreviewBundle bundle =
             TargetPreviewBuilder.BuildActionBundle(_cachedDragRuntime, _turn.player, hoveredActor, dieValue, _turn.party, _turn.enemy, resolveCount, sourceSkill);
-        if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill) && _previewPlan.valid && _previewPlan.repeatCount > 0)
-            TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, _previewPlan.repeatCount + 1);
+        if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill) && repeatPreviewCount > 0)
+            TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, repeatPreviewCount + 1);
 
         if (TryBuildSelfGuardFinalPreview(_cachedDragRuntime, sourceSkill, hoveredActor, dieValue, guardLocalIndex, resolveCount, _simpleEnchantPreview.guardGain, out TargetPreviewData selfGuardPreview))
         {
@@ -309,6 +310,9 @@ internal sealed partial class SkillIconPreviewController
             actor = clickable.GetComponentInParent<CombatActor>();
         return actor;
     }
+
+    private static int GetReadyStatusRepeatCount(CombatActor actor)
+        => actor != null && actor.status != null ? actor.status.PeekRepeatFirstSkillReady() : 0;
 
     private void ShowTargetOverlays(ScriptableObject asset)
     {

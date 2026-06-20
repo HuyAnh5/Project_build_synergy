@@ -196,16 +196,10 @@ public static class SkillUiMetadataUtility
         if (skill == null)
             return false;
 
-        switch (skill.behaviorId)
+        if (HasFlowEffect(skill, BuffDebuffFlowEffectType.EmberWeapon))
         {
-            case BuffBehaviorId.Fire_EmberWeapon:
-            case BuffBehaviorId.Fire_Cinderbrand:
-                element = ElementType.Fire;
-                return true;
-
-            case BuffBehaviorId.Bleed_Siphon:
-                element = ElementType.Physical;
-                return true;
+            element = ElementType.Fire;
+            return true;
         }
 
         string key = ((skill.displayName ?? string.Empty) + " " + (skill.name ?? string.Empty)).ToLowerInvariant();
@@ -237,6 +231,41 @@ public static class SkillUiMetadataUtility
         {
             element = ElementType.Physical;
             return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasFlowEffect(SkillBuffDebuffSO skill, BuffDebuffFlowEffectType type)
+    {
+        if (skill == null || skill.gameplay == null)
+            return false;
+
+        if (skill.gameplay.baseEffects != null)
+        {
+            for (int i = 0; i < skill.gameplay.baseEffects.Count; i++)
+            {
+                BuffDebuffFlowEffectData effect = skill.gameplay.baseEffects[i];
+                if (effect != null && effect.type == type)
+                    return true;
+            }
+        }
+
+        if (skill.gameplay.conditionalOutcomes == null)
+            return false;
+
+        for (int branchIndex = 0; branchIndex < skill.gameplay.conditionalOutcomes.Count; branchIndex++)
+        {
+            BuffDebuffFlowConditionalOutcomeData branch = skill.gameplay.conditionalOutcomes[branchIndex];
+            if (branch == null || branch.effects == null)
+                continue;
+
+            for (int effectIndex = 0; effectIndex < branch.effects.Count; effectIndex++)
+            {
+                BuffDebuffFlowEffectData effect = branch.effects[effectIndex];
+                if (effect != null && effect.type == type)
+                    return true;
+            }
         }
 
         return false;

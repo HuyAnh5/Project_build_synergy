@@ -104,7 +104,9 @@ public static partial class TargetPreviewBuilder
                     return bundle;
                 }
 
-                return BuildResolvedGameplayBundle(rt, caster, clickedTarget, bundle);
+                ActionPreviewBundle resolvedBundle = BuildResolvedGameplayBundle(rt, caster, clickedTarget, bundle);
+                ApplyRepeatPreviewMultiplier(ref resolvedBundle, resolveCount);
+                return resolvedBundle;
             }
 
             List<CombatActor> actionTargets = ResolveActionTargets(rt, caster, clickedTarget, party, fallbackEnemy);

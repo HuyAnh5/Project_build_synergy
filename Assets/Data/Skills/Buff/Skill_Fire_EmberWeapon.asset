@@ -24,41 +24,21 @@ MonoBehaviour:
     normalizedText: For the next 3 turns, Basic Attack gains +1 Added Value. If that
       Basic Attack Crits, apply Burn equal to total damage dealt.
     designIntent: Turns Basic Attack into a Burn engine and opens the Fire loop.
-  behaviorId: 1
   identity: 0
   target: 0
-  applyDelayTurns: 0
   slotsRequired: 1
   focusCost: 2
   focusGainOnCast: 0
-  _focusDelayedDelayWarning: 0
-  effects: []
-  fireModules:
-    grantEmberWeapon: 1
-    emberWeaponTurns: 3
-    basicAttackBonusDamage: 1
-    basicAttackAppliesBurnEqualDamage: 1
-    basicAttackBurnOnCritOnly: 1
-    applyConsumeBonusDebuff: 0
-    consumeBonusPerBurn: 1
-    consumeBonusDebuffTurns: 2
-  applyAilment: 0
-  ailment:
-    ailment: 0
-    durationTurns: 1
-    chanceTuningMultiplier: 1
-    breakOnDamage: 1
-    sleep_damageBonusOnWake: 0.5
-    sleep_healPercentOnTurnStart: 0.2
-    dizzy_damageReductionPercent: 0.25
-    dizzy_useAccuracyPenalty: 0
-    dizzy_accuracyReductionPercent: 0.3
-    confuse_selfHitChance: 0.5
-    fear_skipChance: 0.5
-    fear_fleeChance: 0.05
-    fear_damageReductionPercent: 0.25
-    forget_disableAdvancedSkills: 1
-    rage_damageBonusPercent: 0.3
-    despair_hpLossPercent: 0.1
-    despair_focusLoss: 1
-    brainwash_forcedBasicOnly: 1
+  gameplay:
+    descriptionTemplate: 
+    requirements: []
+    baseEffects:
+    - type: 3
+      target: 0
+      amount: 1
+      durationTurns: 1
+      emberBurnEqualsFinalDamage: 1
+      emberBurnOnCritOnly: 1
+      emberBurnTurns: 3
+      previewable: 1
+    conditionalOutcomes: []

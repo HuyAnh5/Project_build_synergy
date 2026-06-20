@@ -41,28 +41,8 @@ public static partial class TargetPreviewBuilder
     // Builds preview deltas for utility skills such as heals.
     private static void BuildUtilityPreview(SkillRuntime rt, int dieValue, ref TargetPreviewData data)
     {
-        int healAmount = 0;
-        if (rt.sourceAsset is SkillBuffDebuffSO buffDebuffAsset && buffDebuffAsset.effects != null)
-        {
-            for (int i = 0; i < buffDebuffAsset.effects.Count; i++)
-            {
-                BuffDebuffEffectEntry effect = buffDebuffAsset.effects[i];
-                if (effect == null)
-                    continue;
-
-                if (effect.id == BuffDebuffEffectId.HealFlat)
-                    healAmount += Mathf.Max(0, effect.GetHealAmount());
-                else if (effect.id == BuffDebuffEffectId.HealByDiceSum)
-                    healAmount += Mathf.Max(0, dieValue);
-            }
-        }
-
-        if (healAmount > 0)
-        {
-            int hpAfter = Mathf.Min(data.currentMaxHp, data.currentHp + healAmount);
-            data.previewHpAfter = hpAfter;
-            data.hpLost = data.currentHp - hpAfter;
-        }
+        // Buff/debuff flow effects currently affect cast flow, dice, or owner state.
+        // They do not mutate target HP in the shared target preview.
     }
 
     // Resolves all targets affected by the action, including AoE fallback behavior.

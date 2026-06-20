@@ -141,7 +141,7 @@ public static partial class RewardGachaGenerator
         if (asset is SkillDamageSO damage)
             return damage.GetAuthoringDescription();
         if (asset is SkillBuffDebuffSO buff)
-            return buff.description;
+            return buff.GetAuthoringDescription();
         return string.Empty;
     }
 }

@@ -5,9 +5,6 @@ internal static class StatusStateUtility
 {
     public static void ClearAll(
         StatusController owner,
-        List<StatusPendingBuffDebuff> pending,
-        List<StatusActiveBuffDebuff> active,
-        List<StatusPendingAilment> pendingAilments,
         bool debugLog)
     {
         owner.SyncBurnDisplay(0, 0);
@@ -21,12 +18,14 @@ internal static class StatusStateUtility
         owner.emberWeaponBonusDamage = 1;
         owner.emberWeaponBurnEqualsDamage = true;
         owner.emberWeaponBurnOnCritOnly = false;
+        owner.emberWeaponBurnTurns = 3;
         owner.cinderbrandTurns = 0;
         owner.cinderbrandBonusPerBurn = 1;
+        owner.repeatFirstSkillNextTurnPending = 0;
+        owner.repeatFirstSkillReadyExtraCasts = 0;
+        owner.nextSkillAddedValue = 0;
+        owner.nextSkillAddedValueCharges = 0;
 
-        pending.Clear();
-        active.Clear();
-        pendingAilments.Clear();
         owner.SetAilmentCleared();
         owner.SetChilledJustApplied(false);
 
@@ -34,24 +33,8 @@ internal static class StatusStateUtility
             Debug.Log($"[STATUS] ClearAll -> {owner.name}", owner);
     }
 
-    public static void OnOwnerTurnEnded(
-        StatusController owner,
-        List<StatusActiveBuffDebuff> active)
+    public static void OnOwnerTurnEnded(StatusController owner)
     {
-        for (int i = active.Count - 1; i >= 0; i--)
-        {
-            StatusActiveBuffDebuff a = active[i];
-            if (a == null || a.entry == null)
-            {
-                active.RemoveAt(i);
-                continue;
-            }
-
-            a.remainingTurns--;
-            if (a.remainingTurns <= 0)
-                active.RemoveAt(i);
-        }
-
         owner.TickAilmentDuration();
 
         if (owner.emberWeaponTurns > 0)
@@ -216,49 +199,6 @@ internal static class StatusStateUtility
         }
 
         return false;
-    }
-
-    public static void ProcessPendingAtTurnStart(
-        StatusController owner,
-        List<StatusPendingBuffDebuff> pending,
-        List<StatusActiveBuffDebuff> active,
-        List<StatusPendingAilment> pendingAilments,
-        bool debugForceAilmentChance100,
-        bool debugLog)
-    {
-        for (int i = pending.Count - 1; i >= 0; i--)
-        {
-            StatusPendingBuffDebuff p = pending[i];
-            if (p == null || p.entry == null)
-            {
-                pending.RemoveAt(i);
-                continue;
-            }
-
-            p.delayTurns--;
-            if (p.delayTurns <= 0)
-            {
-                StatusBuffDebuffUtility.ApplyBuffDebuffEntryNow(owner, active, p.entry, p.applier, p.rolledValue);
-                pending.RemoveAt(i);
-            }
-        }
-
-        for (int i = pendingAilments.Count - 1; i >= 0; i--)
-        {
-            StatusPendingAilment p = pendingAilments[i];
-            if (p == null)
-            {
-                pendingAilments.RemoveAt(i);
-                continue;
-            }
-
-            p.delayTurns--;
-            if (p.delayTurns <= 0)
-            {
-                StatusAilmentUtility.TryApplyAilment(owner, p.type, p.durationTurns, p.applier, p.rolledValue, p.maxFaceValue, p.chanceMultiplier, debugForceAilmentChance100, debugLog);
-                pendingAilments.RemoveAt(i);
-            }
-        }
     }
 
     private static void SyncBurnAggregates(StatusController owner)

@@ -99,6 +99,17 @@ public partial class TurnManager
             return;
         }
 
+        if (asset is SkillBuffDebuffSO buffDebuffAsset &&
+            !BuffDebuffFlowRuntimeUtility.CheckRequirements(buffDebuffAsset, rt, player, clicked, out string buffFailureReason))
+        {
+            if (logPhase)
+                Debug.LogWarning($"[TM] BuffDebuff requirement blocked before enqueue: {buffFailureReason}", this);
+            SetPhase(Phase.Planning);
+            RefreshAllViews();
+            RefreshPlanningInteractivity();
+            return;
+        }
+
         ElementType dieElement = GetResolvedDiceElement(rt, asset);
         int resolvedSum = TurnManagerCombatUtility.ComputeResolvedDieSum(diceRig, player, start0, span, dieElement, paymentPlan.selectedMask);
         int maxFace = ComputeMaxFace(start0, span);
