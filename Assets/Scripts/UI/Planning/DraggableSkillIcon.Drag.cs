@@ -188,7 +188,7 @@ public partial class DraggableSkillIcon
         switch (asset)
         {
             case SkillDamageSO damage:
-                if (damage.coreAction == CoreAction.BasicGuard || damage.kind == SkillKind.Guard)
+                if (damage.kind == SkillKind.Guard)
                     return true;
                 return damage.target == SkillTargetRule.Self;
             case SkillBuffDebuffSO buffDebuff:

@@ -66,11 +66,13 @@ public partial class CombatHUD : MonoBehaviour
         {
             UpdateFocusPreviewBlink();
             RefreshPlayerVitalsIfChanged();
+            RefreshPlayerVitalsTooltips();
             return;
         }
 
         RefreshFocusIfChanged();
         RefreshPlayerVitalsIfChanged();
+        RefreshPlayerVitalsTooltips();
     }
 
     public void SetupPlayerFocusBarUi()

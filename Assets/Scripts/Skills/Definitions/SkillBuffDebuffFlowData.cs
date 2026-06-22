@@ -96,7 +96,7 @@ public class BuffDebuffFlowEffectData
             case BuffDebuffFlowEffectType.NextSkillAddValue:
                 return $"Next skill gains +{Mathf.Max(0, amount)} added value";
             case BuffDebuffFlowEffectType.EmberWeapon:
-                return $"Basic Attack +{Mathf.Max(0, amount)} value for {Mathf.Max(1, durationTurns)} turn(s)";
+                return $"Melee skills +{Mathf.Max(0, amount)} value for {Mathf.Max(1, durationTurns)} turn(s)";
             default:
                 return type.ToString();
         }

@@ -133,7 +133,7 @@ public partial class DraggableSkillIcon
         if (runtime == null)
             return false;
 
-        if (runtime.coreAction == CoreAction.BasicGuard || runtime.guardValueMode == BaseEffectValueMode.X)
+        if (runtime.kind == SkillKind.Guard || runtime.guardValueMode == BaseEffectValueMode.X)
             return true;
 
         if (SkillOutputValueUtility.GetTotalActionAddedValue(runtime) > 0)

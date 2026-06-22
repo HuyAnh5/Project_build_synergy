@@ -368,7 +368,7 @@ public partial class PassiveSystem : MonoBehaviour
     public bool ShouldRetainGuardAtEndOfTurn()
         => HasBehavior(PassiveBehaviorId.IronStance);
 
-    public void TryHandleBasicStrikeUse(DiceSlotRig diceRig, int start0)
+    public void TryHandleMeleeSkillUse(DiceSlotRig diceRig, int start0)
     {
         if (!HasBehavior(PassiveBehaviorId.DiceForging) || _diceForgingTriggeredThisCombat || diceRig == null || start0 < 0)
             return;

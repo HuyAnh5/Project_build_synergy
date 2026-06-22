@@ -42,7 +42,7 @@ internal static partial class SkillAttackResolutionUtility
                 target.status.ApplyBurn(burnStacks, rt.burnRefreshTurns);
         }
 
-        if (IsBasicStrike(rt) && caster != null && caster.status != null && caster.status.emberWeaponTurns > 0)
+        if (SkillOutputValueUtility.IsMeleeAttack(rt) && caster != null && caster.status != null && caster.status.emberWeaponTurns > 0)
         {
             bool canApplyEmberBurn = caster.status.emberWeaponBurnEqualsDamage;
             if (canApplyEmberBurn && caster.status.emberWeaponBurnOnCritOnly)
@@ -252,13 +252,6 @@ internal static partial class SkillAttackResolutionUtility
         CombatActor.DamageResult bounce = bounceTarget.TakeDamageDetailed(finalDamage, bypassGuard: false);
         if (popups != null)
             popups.SpawnDamageSplit(caster, bounceTarget, bounce.blocked, bounce.hpLost);
-    }
-
-    private static bool IsBasicStrike(SkillRuntime rt)
-    {
-        if (rt == null)
-            return false;
-        return rt.coreAction == CoreAction.BasicStrike;
     }
 
     private static int GetConditionalBurnStacks(SkillRuntime rt, int dieValue)

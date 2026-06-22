@@ -175,16 +175,6 @@ public partial class RunInventoryManager : MonoBehaviour
     {
         if (asset is SkillDamageSO damage)
         {
-            if (damage.coreAction == CoreAction.BasicStrike)
-            {
-                return "Basic Attack";
-            }
-
-            if (damage.coreAction == CoreAction.BasicGuard)
-            {
-                return "Basic Guard";
-            }
-
             if (!string.IsNullOrWhiteSpace(damage.displayName))
             {
                 return damage.displayName;

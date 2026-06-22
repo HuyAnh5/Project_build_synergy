@@ -14,16 +14,16 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SkillBuffDebuffSO
   icon: {fileID: 7361296877518392268, guid: 7bff13b25b0665549bd44f60c2a25cc3, type: 3}
   displayName: Ember Weapon
-  description: For the next 3 turns, Basic Attack gains +1 Added Value. If that Basic
-    Attack Crits, apply Burn equal to damage.
+  description: For the next 3 turns, Melee skills gain +1 Added Value. If that Melee
+    skill Crits, apply Burn equal to damage.
   spec:
     rarity: 2
     specState: 2
     buildRole: 2
     implementationCoverage: 2
-    normalizedText: For the next 3 turns, Basic Attack gains +1 Added Value. If that
-      Basic Attack Crits, apply Burn equal to total damage dealt.
-    designIntent: Turns Basic Attack into a Burn engine and opens the Fire loop.
+    normalizedText: For the next 3 turns, Melee skills gain +1 Added Value. If that
+      Melee skill Crits, apply Burn equal to total damage dealt.
+    designIntent: Turns Melee skills into a Burn engine and opens the Fire loop.
   identity: 0
   target: 0
   slotsRequired: 1
@@ -33,7 +33,7 @@ MonoBehaviour:
     descriptionTemplate: 
     requirements: []
     baseEffects:
-    - type: 3
+    - type: 5
       target: 0
       amount: 1
       durationTurns: 1

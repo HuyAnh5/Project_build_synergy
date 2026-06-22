@@ -7,10 +7,6 @@ public static class SkillUiMetadataUtility
         switch (asset)
         {
             case SkillDamageSO damage:
-                if (damage.coreAction == CoreAction.BasicStrike)
-                    return "Basic Attack";
-                if (damage.coreAction == CoreAction.BasicGuard)
-                    return "Basic Guard";
                 return string.IsNullOrWhiteSpace(damage.displayName) ? damage.name : damage.displayName;
 
             case SkillBuffDebuffSO buffDebuff:

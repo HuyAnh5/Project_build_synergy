@@ -495,11 +495,4 @@ public partial class TurnManager : MonoBehaviour
     private void EnsureAllEnemyIntentsNow()
         => TurnManagerViewUtility.EnsureEnemyIntentsNow(TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, enemy), player);
 
-    private static bool IsBasicStrikeRuntime(SkillRuntime rt)
-    {
-        if (rt == null)
-            return false;
-        return rt.coreAction == CoreAction.BasicStrike;
-    }
-
 }

@@ -69,7 +69,7 @@ public static partial class SkillRuntimeEvaluator
         }
 
         // Safety: Guard always Self and not AoE
-        if (rt.kind == SkillKind.Guard || rt.coreAction == CoreAction.BasicGuard)
+        if (rt.kind == SkillKind.Guard)
         {
             rt.kind = SkillKind.Guard;
             rt.targetRuleV2 = SkillTargetRule.Self;
@@ -89,7 +89,7 @@ public static partial class SkillRuntimeEvaluator
         if (rt == null || owner == null || owner.status == null)
             return;
 
-        if (rt.coreAction == CoreAction.BasicStrike && owner.status.emberWeaponTurns > 0)
+        if (SkillOutputValueUtility.IsMeleeAttack(rt) && owner.status.emberWeaponTurns > 0)
             rt.ownerFlatDamageBonus = Mathf.Max(0, owner.status.emberWeaponBonusDamage);
 
         rt.ownerActionAddedValueBonus = owner.status.PeekNextSkillAddedValue();

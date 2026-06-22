@@ -3,6 +3,11 @@ using UnityEngine;
 
 public static class SkillOutputValueUtility
 {
+    public static bool IsMeleeAttack(SkillRuntime rt)
+    {
+        return rt != null && rt.kind == SkillKind.Attack && rt.range == RangeType.Melee;
+    }
+
     public static int ResolvePerDieOutput(int baseValue, int resolvedValue, bool appliesFailPenalty)
     {
         int safeBase = Mathf.Max(0, baseValue);
@@ -33,7 +38,7 @@ public static class SkillOutputValueUtility
             total += Mathf.Max(0, rt.localResolvedValues[i] - outputBaseValues[i]);
         }
 
-        if (rt.coreAction == CoreAction.BasicStrike)
+        if (IsMeleeAttack(rt))
             total += Mathf.Max(0, rt.ownerFlatDamageBonus);
 
         total += Mathf.Max(0, rt.ownerActionAddedValueBonus);

@@ -36,24 +36,6 @@ public partial class SkillDamageSO
             exactValuePattern = "1-2-3";
         }
 
-        if (coreAction == CoreAction.BasicGuard)
-        {
-            kind = SkillKind.Guard;
-            target = SkillTargetRule.Self;
-        }
-        else if (coreAction == CoreAction.BasicStrike)
-        {
-            if (kind != SkillKind.Attack)
-            {
-                kind = SkillKind.Attack;
-            }
-
-            if (group != DamageGroup.Strike)
-            {
-                group = DamageGroup.Strike;
-            }
-        }
-
         if (kind == SkillKind.Guard)
         {
             target = SkillTargetRule.Self;

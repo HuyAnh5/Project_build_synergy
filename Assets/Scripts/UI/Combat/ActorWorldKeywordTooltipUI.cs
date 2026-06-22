@@ -48,7 +48,7 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
     private readonly List<TooltipView> _views = new List<TooltipView>();
     private RectTransform _canvasRect;
     private Camera _uiCamera;
-    private ActorWorldUI _currentOwner;
+    private Component _currentOwner;
 
     public static void Show(
         Canvas sourceCanvas,
@@ -57,7 +57,7 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
         RectTransform hoverTarget,
         Camera targetCamera,
         IReadOnlyList<TooltipContent> contents,
-        ActorWorldUI owner,
+        Component owner,
         bool preferRight)
     {
         if (sourceCanvas == null || hoverTarget == null || contents == null || contents.Count <= 0 || owner == null)
@@ -87,7 +87,7 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
         _instance._currentOwner = null;
     }
 
-    public static bool IsShowingFor(ActorWorldUI owner)
+    public static bool IsShowingFor(Component owner)
     {
         return owner != null &&
                _instance != null &&
@@ -133,7 +133,7 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
         RectTransform hoverTarget,
         Camera targetCamera,
         IReadOnlyList<TooltipContent> contents,
-        ActorWorldUI owner,
+        Component owner,
         bool preferRight)
     {
         _currentOwner = owner;

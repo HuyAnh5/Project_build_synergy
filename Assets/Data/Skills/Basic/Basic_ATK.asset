@@ -129,7 +129,6 @@ MonoBehaviour:
   bleedBehaviorId: 0
   physicalBehaviorId: 0
   kind: 0
-  coreAction: 1
   target: 1
   group: 0
   element: 0

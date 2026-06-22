@@ -1,21 +1,7 @@
 public partial class SkillDamageSO
 {
-    private void PresetBasicStrike()
-    {
-        PresetMeleeStrike();
-        coreAction = CoreAction.BasicStrike;
-    }
-
-    private void PresetBasicGuard()
-    {
-        PresetGuard();
-        coreAction = CoreAction.BasicGuard;
-    }
-
     private void PresetMeleeStrike()
     {
-        coreAction = CoreAction.None;
-
         kind = SkillKind.Attack;
         target = SkillTargetRule.SingleEnemy;
         group = DamageGroup.Strike;
@@ -31,8 +17,6 @@ public partial class SkillDamageSO
 
     private void PresetRangedStrike()
     {
-        coreAction = CoreAction.None;
-
         kind = SkillKind.Attack;
         target = SkillTargetRule.SingleEnemy;
         group = DamageGroup.Strike;
@@ -48,8 +32,6 @@ public partial class SkillDamageSO
 
     private void PresetSunder()
     {
-        coreAction = CoreAction.None;
-
         kind = SkillKind.Attack;
         target = SkillTargetRule.SingleEnemy;
         group = DamageGroup.Sunder;
@@ -66,8 +48,6 @@ public partial class SkillDamageSO
 
     private void PresetEffectApplier()
     {
-        coreAction = CoreAction.None;
-
         kind = SkillKind.Attack;
         target = SkillTargetRule.SingleEnemy;
         group = DamageGroup.Effect;
@@ -81,8 +61,6 @@ public partial class SkillDamageSO
 
     private void PresetGuard()
     {
-        coreAction = CoreAction.None;
-
         kind = SkillKind.Guard;
         target = SkillTargetRule.Self;
         element = ElementTag.Neutral;

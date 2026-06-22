@@ -39,6 +39,11 @@ public partial class CombatHUD
     public Vector2 playerStatusIconSize = new Vector2(36f, 36f);
     public SkillUiIconLibrarySO playerIconLibrary;
 
+    [Header("Player Tooltip")]
+    public RectTransform playerTooltipAnchorRoot;
+    public RectTransform playerTooltipBottomLimitRoot;
+    public ActorWorldUI.WorldUiTooltipSpawnDirection playerTooltipSpawnDirection = ActorWorldUI.WorldUiTooltipSpawnDirection.Right;
+
     private int _lastHp = int.MinValue;
     private int _lastMaxHp = int.MinValue;
     private int _lastGuard = int.MinValue;
@@ -47,6 +52,28 @@ public partial class CombatHUD
     private bool _playerTargetPreviewActive;
     private TargetPreviewData _playerPreviewData;
     private Image _playerHpPreviewFill;
+    private readonly List<ActorWorldKeywordTooltipUI.TooltipContent> _playerTooltipContents = new List<ActorWorldKeywordTooltipUI.TooltipContent>(DefaultPlayerStatusSlotCount);
+
+    private enum PlayerTooltipHotspotKind
+    {
+        None,
+        Guard,
+        Status
+    }
+
+    private readonly struct PlayerTooltipHotspot
+    {
+        public readonly PlayerTooltipHotspotKind kind;
+        public readonly RectTransform target;
+        public readonly int statusIndex;
+
+        public PlayerTooltipHotspot(PlayerTooltipHotspotKind kind, RectTransform target, int statusIndex = -1)
+        {
+            this.kind = kind;
+            this.target = target;
+            this.statusIndex = statusIndex;
+        }
+    }
 
     private readonly struct PlayerStatusVisualData
     {
@@ -150,6 +177,15 @@ public partial class CombatHUD
         RectTransform parentRect = ResolvePlayerVitalsParent();
         if (parentRect == null)
             return;
+
+        if (playerTooltipAnchorRoot == null)
+            playerTooltipAnchorRoot = parentRect.Find("SpawnTooltip") as RectTransform;
+        if (playerTooltipAnchorRoot == null)
+            playerTooltipAnchorRoot = parentRect.Find("TooltipAnchor") as RectTransform;
+        if (playerTooltipBottomLimitRoot == null)
+            playerTooltipBottomLimitRoot = parentRect.Find("SpawnTooltipLimit") as RectTransform;
+        if (playerTooltipBottomLimitRoot == null)
+            playerTooltipBottomLimitRoot = parentRect.Find("TooltipBottomLimit") as RectTransform;
 
         if (playerHpBarRoot == null)
             playerHpBarRoot = parentRect.Find("PlayerHpBarRoot") as RectTransform;
@@ -338,6 +374,207 @@ public partial class CombatHUD
             return;
 
         ForceRefreshPlayerVitals();
+    }
+
+    private void RefreshPlayerVitalsTooltips()
+    {
+        if (!Application.isPlaying || player == null)
+        {
+            if (ActorWorldKeywordTooltipUI.IsShowingFor(this))
+                ActorWorldKeywordTooltipUI.Hide();
+            return;
+        }
+
+        EnsurePlayerVitalsUi();
+
+        if (!TryGetHoveredPlayerTooltipHotspot(out PlayerTooltipHotspot hotspot))
+        {
+            if (ActorWorldKeywordTooltipUI.IsShowingFor(this))
+                ActorWorldKeywordTooltipUI.Hide();
+            return;
+        }
+
+        _playerTooltipContents.Clear();
+        bool showAll = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        if (showAll)
+            BuildAllPlayerTooltipContents(_playerTooltipContents);
+        else
+            BuildPlayerHotspotTooltipContents(hotspot, _playerTooltipContents);
+
+        if (_playerTooltipContents.Count <= 0)
+        {
+            if (ActorWorldKeywordTooltipUI.IsShowingFor(this))
+                ActorWorldKeywordTooltipUI.Hide();
+            return;
+        }
+
+        Canvas sourceCanvas = GetComponentInParent<Canvas>();
+        if (sourceCanvas == null)
+            return;
+
+        Camera targetCamera = GetHudEventCamera(sourceCanvas);
+        RectTransform tooltipAnchor = playerTooltipAnchorRoot != null ? playerTooltipAnchorRoot : hotspot.target;
+        RectTransform hoverTarget = hotspot.target != null ? hotspot.target : playerHpBarRoot;
+        ActorWorldKeywordTooltipUI.Show(
+            sourceCanvas,
+            tooltipAnchor,
+            playerTooltipBottomLimitRoot,
+            hoverTarget,
+            targetCamera,
+            _playerTooltipContents,
+            this,
+            playerTooltipSpawnDirection == ActorWorldUI.WorldUiTooltipSpawnDirection.Right);
+    }
+
+    private bool TryGetHoveredPlayerTooltipHotspot(out PlayerTooltipHotspot hotspot)
+    {
+        hotspot = default;
+        Canvas sourceCanvas = GetComponentInParent<Canvas>();
+        Camera eventCamera = GetHudEventCamera(sourceCanvas);
+        Vector2 screenPoint = Input.mousePosition;
+
+        if (playerGuardRoot != null &&
+            playerGuardRoot.gameObject.activeInHierarchy &&
+            RectTransformUtility.RectangleContainsScreenPoint(playerGuardRoot, screenPoint, eventCamera))
+        {
+            hotspot = new PlayerTooltipHotspot(PlayerTooltipHotspotKind.Guard, playerGuardRoot);
+            return true;
+        }
+
+        if (playerStatusSlots != null)
+        {
+            for (int i = 0; i < _playerStatusBuffer.Count && i < playerStatusSlots.Length; i++)
+            {
+                ActorWorldUI.StatusIconSlot slot = playerStatusSlots[i];
+                if (slot?.root == null || !slot.root.gameObject.activeInHierarchy)
+                    continue;
+
+                if (!RectTransformUtility.RectangleContainsScreenPoint(slot.root, screenPoint, eventCamera))
+                    continue;
+
+                hotspot = new PlayerTooltipHotspot(PlayerTooltipHotspotKind.Status, slot.root, i);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void BuildPlayerHotspotTooltipContents(PlayerTooltipHotspot hotspot, List<ActorWorldKeywordTooltipUI.TooltipContent> contents)
+    {
+        switch (hotspot.kind)
+        {
+            case PlayerTooltipHotspotKind.Guard:
+                if (TryBuildPlayerGuardTooltip(out ActorWorldKeywordTooltipUI.TooltipContent guard))
+                    contents.Add(guard);
+                break;
+            case PlayerTooltipHotspotKind.Status:
+                if (TryBuildPlayerStatusTooltip(hotspot.statusIndex, out ActorWorldKeywordTooltipUI.TooltipContent status))
+                    contents.Add(status);
+                break;
+        }
+    }
+
+    private void BuildAllPlayerTooltipContents(List<ActorWorldKeywordTooltipUI.TooltipContent> contents)
+    {
+        if (TryBuildPlayerGuardTooltip(out ActorWorldKeywordTooltipUI.TooltipContent guard))
+            contents.Add(guard);
+
+        if (TryBuildPlayerStaggerTooltip(out ActorWorldKeywordTooltipUI.TooltipContent stagger))
+            contents.Add(stagger);
+
+        for (int i = 0; i < _playerStatusBuffer.Count; i++)
+        {
+            if (TryBuildPlayerStatusTooltip(i, out ActorWorldKeywordTooltipUI.TooltipContent status))
+                contents.Add(status);
+        }
+    }
+
+    private bool TryBuildPlayerGuardTooltip(out ActorWorldKeywordTooltipUI.TooltipContent content)
+    {
+        content = default;
+        int guard = player != null ? Mathf.Max(0, player.guardPool) : 0;
+        if (guard <= 0)
+            return false;
+
+        string body = $"Current Guard: {guard}\n\nBlocks incoming damage before HP. If Guard is broken, the target becomes Staggered.";
+        content = new ActorWorldKeywordTooltipUI.TooltipContent("Guard", body, playerGuardIcon != null ? playerGuardIcon.sprite : null);
+        return true;
+    }
+
+    private bool TryBuildPlayerStaggerTooltip(out ActorWorldKeywordTooltipUI.TooltipContent content)
+    {
+        content = default;
+        if (player == null || player.status == null || !player.status.staggered)
+            return false;
+
+        content = new ActorWorldKeywordTooltipUI.TooltipContent(
+            "Staggered",
+            "This target's Guard is broken and it is currently exposed.",
+            null);
+        return true;
+    }
+
+    private bool TryBuildPlayerStatusTooltip(int statusIndex, out ActorWorldKeywordTooltipUI.TooltipContent content)
+    {
+        content = default;
+        if (statusIndex < 0 || statusIndex >= _playerStatusBuffer.Count)
+            return false;
+
+        PlayerStatusVisualData data = _playerStatusBuffer[statusIndex];
+        string title = data.shortLabel;
+        string body = string.Empty;
+        Sprite icon = data.sprite;
+
+        switch (data.shortLabel)
+        {
+            case "FR":
+                title = "Freeze";
+                body = "Frozen targets cannot act until the freeze is removed.";
+                break;
+            case "CH":
+                title = "Chilled";
+                body = $"Chilled for {GetPlayerTooltipValueText(data.valueText)} turn(s).";
+                break;
+            case "MK":
+                title = "Mark";
+                body = "Marked targets are primed for mark payoff effects.";
+                break;
+            case "BU":
+                title = "Burn";
+                body = $"Burn stacks: {GetPlayerTooltipValueText(data.valueText)}.";
+                break;
+            case "BL":
+                title = "Bleed";
+                body = $"Bleed stacks: {GetPlayerTooltipValueText(data.valueText)}.";
+                break;
+            default:
+                if (player != null && player.status != null && player.status.HasAilment(out AilmentType ailment, out int turnsLeft))
+                {
+                    title = ailment.ToString();
+                    body = $"{ailment} for {Mathf.Max(1, turnsLeft)} turn(s).";
+                }
+                break;
+        }
+
+        if (string.IsNullOrWhiteSpace(body))
+            return false;
+
+        content = new ActorWorldKeywordTooltipUI.TooltipContent(title, body, icon);
+        return true;
+    }
+
+    private static Camera GetHudEventCamera(Canvas canvas)
+    {
+        if (canvas == null || canvas.renderMode == RenderMode.ScreenSpaceOverlay)
+            return null;
+
+        return canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
+    }
+
+    private static string GetPlayerTooltipValueText(string valueText)
+    {
+        return string.IsNullOrWhiteSpace(valueText) ? "0" : valueText.Trim();
     }
 
     private void ForceRefreshPlayerVitals()

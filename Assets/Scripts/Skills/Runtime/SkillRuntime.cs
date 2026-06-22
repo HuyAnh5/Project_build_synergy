@@ -15,9 +15,6 @@ public class SkillRuntime
     public bool useV2Targeting;
     public SkillTargetRule targetRuleV2;
 
-    // Optional tag for built-in actions (BasicStrike/BasicGuard) when coming from SkillDamageSO
-    public CoreAction coreAction;
-
     // Identity
     public SkillKind kind;
     public TargetRule target;
@@ -132,8 +129,6 @@ public class SkillRuntime
 
             useV2Targeting = true,
             targetRuleV2 = s.target,
-            coreAction = s.coreAction,
-
             kind = s.kind,
             // Legacy target is kept for old code paths. Executor will prefer targetRuleV2 when useV2Targeting=true.
             target = SkillTargetRuleUtility.IsEnemySideTarget(s.target)
@@ -227,7 +222,7 @@ public class SkillRuntime
         };
 
         // safety
-        if (rt.kind == SkillKind.Guard || rt.coreAction == CoreAction.BasicGuard)
+        if (rt.kind == SkillKind.Guard)
         {
             rt.kind = SkillKind.Guard;
             rt.targetRuleV2 = SkillTargetRule.Self;

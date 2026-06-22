@@ -117,10 +117,10 @@ public static partial class TargetPreviewBuilder
         data.selfFocusGain += Mathf.Max(0, focusReward);
     }
 
-    // Adds Ember Weapon's Basic Attack Burn preview when the caster buff is active.
+    // Adds Ember Weapon's melee Burn preview when the caster buff is active.
     private static void ApplyEmberWeaponBurnPreview(SkillRuntime rt, CombatActor caster, int finalDamage, ref TargetPreviewData data)
     {
-        if (rt == null || rt.coreAction != CoreAction.BasicStrike || caster == null || caster.status == null)
+        if (!SkillOutputValueUtility.IsMeleeAttack(rt) || caster == null || caster.status == null)
             return;
         if (caster.status.emberWeaponTurns <= 0 || !caster.status.emberWeaponBurnEqualsDamage)
             return;

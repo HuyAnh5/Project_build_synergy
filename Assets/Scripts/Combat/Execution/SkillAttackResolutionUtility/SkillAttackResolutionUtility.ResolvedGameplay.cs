@@ -184,7 +184,7 @@ internal static partial class SkillAttackResolutionUtility
 
     private static void ApplyNewPipelineEmberWeaponBurn(SkillRuntime rt, CombatActor caster, CombatActor target, int finalDamage)
     {
-        if (!IsBasicStrike(rt) || caster == null || caster.status == null || target == null || target.status == null)
+        if (!SkillOutputValueUtility.IsMeleeAttack(rt) || caster == null || caster.status == null || target == null || target.status == null)
             return;
         if (caster.status.emberWeaponTurns <= 0 || !caster.status.emberWeaponBurnEqualsDamage)
             return;

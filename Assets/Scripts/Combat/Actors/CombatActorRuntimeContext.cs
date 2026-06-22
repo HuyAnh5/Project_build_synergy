@@ -21,10 +21,10 @@ public sealed class CombatActorRuntimeContext
         _skillCombatState = actor != null ? actor.GetComponent<SkillCombatState>() : null;
     }
 
-    public void HandleBasicStrikeUse(DiceSlotRig diceRig, int startIndex)
+    public void HandleMeleeSkillUse(DiceSlotRig diceRig, int startIndex)
     {
         if (_passiveSystem != null)
-            _passiveSystem.TryHandleBasicStrikeUse(diceRig, startIndex);
+            _passiveSystem.TryHandleMeleeSkillUse(diceRig, startIndex);
     }
 
     public bool ShouldRetainGuardAtEndOfTurn()

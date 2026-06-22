@@ -13,13 +13,6 @@ public enum ElementTag
     Physical
 }
 
-public enum CoreAction
-{
-    None,
-    BasicStrike,
-    BasicGuard
-}
-
 public enum DamageBehaviorFamily
 {
     None,
@@ -113,12 +106,6 @@ public partial class SkillDamageSO : ScriptableObject
     [BoxGroup("Tabs/Core/Identity")]
     [EnumToggleButtons]
     public SkillKind kind = SkillKind.Attack;
-
-    [TabGroup("Tabs", "Core")]
-    [BoxGroup("Tabs/Core/Identity")]
-    [LabelText("Core Action")]
-    [EnumToggleButtons]
-    public CoreAction coreAction = CoreAction.None;
 
     [TabGroup("Tabs", "Core")]
     [BoxGroup("Tabs/Core/Identity")]

@@ -90,17 +90,14 @@ internal static class TurnManagerCommandExecutionUtility
                 yield return executor.ExecuteSkill(executionRuntime, player, command.target, resolvedSum, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span, castPaymentMask: command.paymentMask);
             }
 
-            if (IsBasicStrikeRuntime(executionRuntime))
-                playerContext?.HandleBasicStrikeUse(diceRig, command.start0);
+            if (SkillOutputValueUtility.IsMeleeAttack(executionRuntime))
+                playerContext?.HandleMeleeSkillUse(diceRig, command.start0);
 
             ConsumeNextSkillAddedValueIfUsed(player, executionRuntime);
             DiceCombatEnchantRuntimeUtility.ResolveCommittedPostSkillFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
             yield return ResolveCommittedReloadFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
         }
     }
-
-    private static bool IsBasicStrikeRuntime(SkillRuntime rt)
-        => rt != null && rt.coreAction == CoreAction.BasicStrike;
 
     private static IEnumerator ExecuteBuffSkillWithPostCastDiceFlow(
         TurnManagerQueuedPlayerCommand command,

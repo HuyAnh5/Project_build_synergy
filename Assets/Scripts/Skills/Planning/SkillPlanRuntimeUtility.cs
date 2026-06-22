@@ -72,7 +72,6 @@ internal static class SkillPlanRuntimeUtility
             sourceAsset = s,
             useV2Targeting = true,
             targetRuleV2 = s.target,
-            coreAction = s.coreAction,
             kind = s.kind,
             group = s.group,
             element = MapElementTag(s.element),

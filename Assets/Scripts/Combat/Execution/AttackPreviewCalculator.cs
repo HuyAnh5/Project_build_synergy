@@ -94,21 +94,6 @@ public static class AttackPreviewCalculator
         bool targetHasGuard = target != null && target.guardPool > 0;
         int dmg = preview.baseDamage;
 
-        if (IsBasicStrike(rt))
-        {
-            int emberBonus = 0;
-            if (caster != null && caster.status != null)
-                emberBonus = caster.status.emberWeaponTurns > 0 ? Mathf.Max(0, caster.status.emberWeaponBonusDamage) : 0;
-            else
-                emberBonus = Mathf.Max(0, rt.ownerFlatDamageBonus);
-
-            if (emberBonus > 0)
-            {
-                preview.bonusDamage += emberBonus;
-                dmg += emberBonus;
-            }
-        }
-
         ApplyBehaviorPreviewBonuses(rt, caster, target, ref preview, ref dmg);
 
         if (rt.conditionMet && rt.conditionalOutcomeEnabled)
@@ -297,13 +282,6 @@ public static class AttackPreviewCalculator
         return perStack;
     }
 
-    private static bool IsBasicStrike(SkillRuntime rt)
-    {
-        if (rt == null)
-            return false;
-        return rt.coreAction == CoreAction.BasicStrike;
-    }
-
     private static bool ShouldApplyStandardAddedValue(SkillRuntime rt)
     {
         if (rt == null || rt.kind != SkillKind.Attack)
@@ -312,7 +290,7 @@ public static class AttackPreviewCalculator
         if (SkillBehaviorRuntimeUtility.IsBehavior(rt, PhysicalDamageBehaviorId.NoName) && !rt.conditionMet)
             return false;
 
-        if (IsBasicStrike(rt))
+        if (SkillOutputValueUtility.IsMeleeAttack(rt))
             return true;
 
         if (IsXDamageFormula(rt))
