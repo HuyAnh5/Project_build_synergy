@@ -56,7 +56,8 @@ public static partial class SkillTooltipFormatter
         for (int i = 0; i < skill.gameplay.conditionalOutcomes.Count; i++)
         {
             SkillConditionalOutcomeDataV2 branch = skill.gameplay.conditionalOutcomes[i];
-            if (branch == null || branch.condition == null || branch.effects == null || branch.effects.Count == 0)
+            bool hasEffects = branch != null && branch.effects != null && branch.effects.Count > 0;
+            if (branch == null || branch.condition == null || (!branch.repeatWholeSkill && !hasEffects))
                 continue;
 
             content.conditions.Add(FormatConditionalOutcome(branch, runtime));
@@ -87,6 +88,8 @@ public static partial class SkillTooltipFormatter
 
         string conditionText = FormatCondition(branch.condition);
         var branchLines = new List<string>();
+        if (branch.repeatWholeSkill)
+            branchLines.Add($"Repeat the whole skill {Mathf.Max(2, branch.totalExecutions)} times.");
         if (branch.effects != null)
         {
             for (int effectIndex = 0; effectIndex < branch.effects.Count; effectIndex++)
@@ -154,6 +157,11 @@ public static partial class SkillTooltipFormatter
             totalAddedValue = SkillOutputValueUtility.GetTotalActionAddedValue(runtime)
         });
         string valueText = FormatTooltipValueText(value, effect.value);
+        if ((effect.type == SkillEffectType.DealDamage || effect.type == SkillEffectType.DealSecondaryDamage) &&
+            effect.hitCount > 1)
+        {
+            valueText = $"{valueText} x {effect.hitCount}";
+        }
         return text.Replace("{" + token + "}", valueText);
     }
 
@@ -184,9 +192,9 @@ public static partial class SkillTooltipFormatter
         switch (effect.type)
         {
             case SkillEffectType.DealDamage:
-                return $"Deal {valueText} damage.";
+                return FormatDamageEffect("Deal", valueText, effect.hitCount);
             case SkillEffectType.DealSecondaryDamage:
-                return $"Deal secondary {valueText} damage.";
+                return FormatDamageEffect("Deal secondary", valueText, effect.hitCount);
             case SkillEffectType.ApplyStatus:
                 return $"Apply {valueText} {FormatKeyword(effect.status.ToString())}.";
             case SkillEffectType.ConsumeStatus:
@@ -198,5 +206,12 @@ public static partial class SkillTooltipFormatter
             default:
                 return effect.type.ToString();
         }
+    }
+
+    private static string FormatDamageEffect(string prefix, string valueText, int hitCount)
+    {
+        int resolvedHitCount = Mathf.Max(1, hitCount);
+        string repeatText = resolvedHitCount > 1 ? $" {resolvedHitCount} times" : string.Empty;
+        return $"{prefix} {valueText} damage{repeatText}.";
     }
 }

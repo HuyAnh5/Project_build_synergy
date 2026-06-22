@@ -50,6 +50,7 @@ public sealed class SkillResolvedResult
     public string failureReason = string.Empty;
     public int resolvedAPCost;
     public int resolvedDiceCost;
+    public int executionCount = 1;
     public readonly List<ResolvedEffect> effects = new List<ResolvedEffect>();
     public int damageDelta;
     public int guardDelta;

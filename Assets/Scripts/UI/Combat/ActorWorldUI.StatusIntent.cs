@@ -114,7 +114,10 @@ public partial class ActorWorldUI
         int damage = Mathf.Max(0, result.damageDelta);
         if (damage > 0)
         {
-            valueText = damage.ToString();
+            int executionCount = Mathf.Max(1, result.executionCount);
+            valueText = executionCount > 1
+                ? $"{damage} x {executionCount}"
+                : damage.ToString();
             return true;
         }
 

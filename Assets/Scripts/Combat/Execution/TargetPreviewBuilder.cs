@@ -96,16 +96,19 @@ public static partial class TargetPreviewBuilder
             sourceSkill = sourceSkill != null ? sourceSkill : SkillGameplayResolver.GetSourceSkill(rt);
             if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
             {
-                if (CombatActionPreviewSimulator.TrySimulateTargetFinalState(rt, caster, clickedTarget, dieValue, resolveCount, out TargetPreviewData simulatedData))
+                SkillResolvedResult resolved = SkillGameplayResolver.Resolve(rt, caster, clickedTarget);
+                int actionExecutionCount = resolved != null ? Mathf.Max(1, resolved.executionCount) : 1;
+                int totalResolveCount = Mathf.Max(1, resolveCount) * actionExecutionCount;
+                if (CombatActionPreviewSimulator.TrySimulateTargetFinalState(rt, caster, clickedTarget, dieValue, totalResolveCount, out TargetPreviewData simulatedData))
                 {
                     bundle.targetPreviews[clickedTarget] = simulatedData;
                     bundle.valid = simulatedData.valid;
-                    ApplyResolvedSelfResourceTotals(rt, caster, clickedTarget, ref bundle);
+                    ApplyResolvedSelfResourceTotals(rt, caster, clickedTarget, totalResolveCount, ref bundle);
                     return bundle;
                 }
 
                 ActionPreviewBundle resolvedBundle = BuildResolvedGameplayBundle(rt, caster, clickedTarget, bundle);
-                ApplyRepeatPreviewMultiplier(ref resolvedBundle, resolveCount);
+                ApplyRepeatPreviewMultiplier(ref resolvedBundle, totalResolveCount);
                 return resolvedBundle;
             }
 
@@ -217,6 +220,7 @@ public static partial class TargetPreviewBuilder
         SkillRuntime rt,
         CombatActor caster,
         CombatActor clickedTarget,
+        int resolveCount,
         ref ActionPreviewBundle bundle)
     {
         SkillResolvedResult resolved = SkillGameplayResolver.Resolve(rt, caster, clickedTarget);
@@ -251,7 +255,11 @@ public static partial class TargetPreviewBuilder
             }
         }
 
-        bundle.totalSelfFocusGain += selfFocusGain;
+        int multiplier = Mathf.Max(1, resolveCount);
+        selfFocusGain *= multiplier;
+        selfGuardGain *= multiplier;
+        selfHealGain *= multiplier;
+        bundle.totalSelfFocusGain += selfFocusGain + Mathf.Max(0, rt.focusGainOnCast) * (multiplier - 1);
         if (selfGuardGain > 0 || selfHealGain > 0)
             AddSelfResourcePreview(caster, selfGuardGain, selfHealGain, ref bundle);
     }

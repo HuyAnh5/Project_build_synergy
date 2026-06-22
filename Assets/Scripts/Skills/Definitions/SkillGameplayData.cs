@@ -147,6 +147,12 @@ public class SkillEffectData
     [HideLabel]
     public SkillValueData value = new SkillValueData();
 
+    [ShowIf(nameof(UsesHitCount))]
+    [MinValue(1)]
+    [LabelText("Hit Count")]
+    [InfoBox("Repeats the whole skill action and its dice/attack animation. Damage is applied separately on every execution.", InfoMessageType.Info)]
+    public int hitCount = 1;
+
     [ToggleLeft]
     [LabelText("Show In Preview")]
     public bool previewable = true;
@@ -157,15 +163,18 @@ public class SkillEffectData
     private bool UsesValue()
         => type != SkillEffectType.ConsumeStatus && type != SkillEffectType.ClearGuard;
 
+    private bool UsesHitCount()
+        => type == SkillEffectType.DealDamage || type == SkillEffectType.DealSecondaryDamage;
+
     private string BuildSummary()
     {
         string valueText = UsesValue() && value != null ? value.Summary : string.Empty;
         switch (type)
         {
             case SkillEffectType.DealDamage:
-                return $"Deal {valueText} damage to {target}";
+                return BuildDamageSummary("Deal", valueText);
             case SkillEffectType.DealSecondaryDamage:
-                return $"Deal secondary {valueText} damage to {target}";
+                return BuildDamageSummary("Deal secondary", valueText);
             case SkillEffectType.ApplyStatus:
                 return $"Apply {valueText} {status} to {target}";
             case SkillEffectType.ConsumeStatus:
@@ -185,6 +194,13 @@ public class SkillEffectData
             default:
                 return type.ToString();
         }
+    }
+
+    private string BuildDamageSummary(string prefix, string valueText)
+    {
+        int resolvedHitCount = Mathf.Max(1, hitCount);
+        string repeatText = resolvedHitCount > 1 ? $" {resolvedHitCount} times" : string.Empty;
+        return $"{prefix} {valueText} damage{repeatText} to {target}";
     }
 }
 
@@ -224,7 +240,9 @@ public class SkillConditionalOutcomeDataV2
     [ShowInInspector, ReadOnly, HideLabel]
     [PropertyOrder(-20)]
     public string Summary => condition != null && condition.HasAnyClause
-        ? $"When {condition.logic} condition is met"
+        ? repeatWholeSkill
+            ? $"When {condition.logic} condition is met, repeat the whole skill {Mathf.Max(2, totalExecutions)} times"
+            : $"When {condition.logic} condition is met"
         : "When condition is missing";
 
     [InfoBox("Conditional Outcomes do not block skill use. They only add the effects below when their condition is true. Use Requirements to stop a skill from being cast.", InfoMessageType.Info)]
@@ -236,6 +254,18 @@ public class SkillConditionalOutcomeDataV2
     [FoldoutGroup("When", expanded: true)]
     [HideLabel]
     public SkillConditionData condition = new SkillConditionData();
+
+    [FoldoutGroup("Then", expanded: true)]
+    [ToggleLeft]
+    [LabelText("Repeat Whole Skill")]
+    [InfoBox("When this condition is true, Total Executions multiplies the base damage Hit Count for this cast.", InfoMessageType.Info)]
+    public bool repeatWholeSkill;
+
+    [FoldoutGroup("Then", expanded: true)]
+    [ShowIf(nameof(repeatWholeSkill))]
+    [MinValue(2)]
+    [LabelText("Total Executions")]
+    public int totalExecutions = 2;
 
     [FoldoutGroup("Then", expanded: true)]
     [HideLabel]

@@ -157,6 +157,60 @@ public partial class SkillExecutor : MonoBehaviour
         int castPaymentMask = -1,
         bool suppressDiceCastAnimation = false)
     {
+        if (rt == null || caster == null)
+            yield break;
+
+        int executionCount = 1;
+        SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
+        if (rt.kind == SkillKind.Attack && SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+        {
+            bool wantsAoe = (rt.useV2Targeting && SkillTargetRuleUtility.IsMultiTarget(rt.targetRuleV2)) ||
+                            (!rt.useV2Targeting && (rt.hitAllEnemies || rt.hitAllAllies));
+            bool useAoe = wantsAoe && aoeTargets != null && aoeTargets.Count > 0;
+            CombatActor repeatTarget = SkillTargetResolver.ResolveTarget(rt, caster, clickedTarget, useAoe ? aoeTargets : null);
+            SkillResolvedResult resolved = SkillGameplayResolver.Resolve(rt, caster, repeatTarget);
+            if (resolved == null || !resolved.canCast)
+                yield break;
+
+            executionCount = Mathf.Max(1, resolved.executionCount);
+        }
+
+        for (int executionIndex = 0; executionIndex < executionCount; executionIndex++)
+        {
+            if (executionIndex > 0 && clickedTarget != null && clickedTarget.IsDead &&
+                (aoeTargets == null || aoeTargets.Count <= 1))
+            {
+                yield break;
+            }
+
+            yield return ExecuteSkillOnce(
+                rt,
+                caster,
+                clickedTarget,
+                dieValue,
+                skipCost: executionIndex == 0 ? skipCost : true,
+                aoeTargets: aoeTargets,
+                castDiceRig: castDiceRig,
+                castStart0: castStart0,
+                castSpan: castSpan,
+                castPaymentMask: castPaymentMask,
+                suppressDiceCastAnimation: suppressDiceCastAnimation);
+        }
+    }
+
+    private IEnumerator ExecuteSkillOnce(
+        SkillRuntime rt,
+        CombatActor caster,
+        CombatActor clickedTarget,
+        int dieValue,
+        bool skipCost = false,
+        IReadOnlyList<CombatActor> aoeTargets = null,
+        DiceSlotRig castDiceRig = null,
+        int castStart0 = -1,
+        int castSpan = 0,
+        int castPaymentMask = -1,
+        bool suppressDiceCastAnimation = false)
+    {
         if (rt == null || caster == null) yield break;
 
         bool wantsAoe =

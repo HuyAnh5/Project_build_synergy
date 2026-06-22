@@ -59,6 +59,7 @@ public static partial class SkillGameplayResolver
         }
 
         SkillGameplayData gameplay = context.skill.gameplay;
+        result.executionCount = ResolveBaseExecutionCount(gameplay.baseEffects);
         result.resolvedAPCost = context.runtime != null
             ? Mathf.Max(0, context.runtime.focusCost)
             : Mathf.Max(0, context.skill.focusCost);
@@ -79,6 +80,7 @@ public static partial class SkillGameplayResolver
             return result;
         }
 
+        int conditionalExecutionCount = 0;
         for (int i = 0; i < gameplay.conditionalOutcomes.Count; i++)
         {
             SkillConditionalOutcomeDataV2 branch = gameplay.conditionalOutcomes[i];
@@ -87,8 +89,14 @@ public static partial class SkillGameplayResolver
                 continue;
             }
 
+            if (branch.repeatWholeSkill)
+                conditionalExecutionCount = Mathf.Max(conditionalExecutionCount, Mathf.Max(2, branch.totalExecutions));
+
             ResolveEffects(branch.effects, context, result, sameActionFollowUp: true);
         }
+
+        if (conditionalExecutionCount > 0)
+            result.executionCount = Mathf.Max(1, result.executionCount) * conditionalExecutionCount;
 
         return result;
     }
@@ -226,6 +234,21 @@ public static partial class SkillGameplayResolver
                 AccumulateResult(resolved, result);
             }
         }
+    }
+
+    private static int ResolveBaseExecutionCount(List<SkillEffectData> effects)
+    {
+        if (effects == null)
+            return 1;
+
+        for (int i = 0; i < effects.Count; i++)
+        {
+            SkillEffectData effect = effects[i];
+            if (effect != null && effect.type == SkillEffectType.DealDamage)
+                return Mathf.Max(1, effect.hitCount);
+        }
+
+        return 1;
     }
 
     private static SkillResolveContext WithTarget(SkillResolveContext context, CombatActor target)
