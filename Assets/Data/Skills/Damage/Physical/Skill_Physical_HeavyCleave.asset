@@ -105,13 +105,25 @@ MonoBehaviour:
       target: 0
       status: 1
       value:
-        baseAmount: 0
-        mode: 6
+        baseAmount: 2
+        mode: 0
         status: 1
         divisor: 1
         matchBaseValue: 7
+      hitCount: 2
       previewable: 1
-    conditionalOutcomes: []
+    conditionalOutcomes:
+    - tooltipText: 
+      condition:
+        scope: 0
+        logic: 0
+        clauses:
+        - reference: 11
+          comparison: 6
+          value: 0
+      repeatWholeSkill: 1
+      totalExecutions: 2
+      effects: []
     customHook:
       kind: 0
       reason: 
@@ -129,7 +141,6 @@ MonoBehaviour:
   bleedBehaviorId: 0
   physicalBehaviorId: 3
   kind: 0
-  coreAction: 0
   target: 1
   group: 0
   element: 4
