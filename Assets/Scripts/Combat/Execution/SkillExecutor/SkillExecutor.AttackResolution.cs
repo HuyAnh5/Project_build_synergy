@@ -14,9 +14,13 @@ public partial class SkillExecutor
         public bool hadPrimaryDamageStep;
         public int delayedBurnConsumeDamage;
         public List<ResolvedEffect> delayedFollowUpEffects;
+        public List<ResolvedEffect> delayedPassiveMeleeFollowUpEffects;
 
         public bool HasDelayedFollowUpEffects =>
             delayedFollowUpEffects != null && delayedFollowUpEffects.Count > 0;
+
+        public bool HasDelayedPassiveMeleeFollowUpEffects =>
+            delayedPassiveMeleeFollowUpEffects != null && delayedPassiveMeleeFollowUpEffects.Count > 0;
     }
 
     [Serializable]
@@ -83,6 +87,16 @@ public partial class SkillExecutor
         if (result.HasDelayedFollowUpEffects)
         {
             SkillAttackResolutionUtility.ApplyResolvedGameplayFollowUpEffects(rt, caster, primaryTarget, result.delayedFollowUpEffects, GetPopups());
+        }
+
+        if (result.hadPrimaryDamageStep && result.HasDelayedPassiveMeleeFollowUpEffects && GlobalDelayedSecondaryStep > 0f)
+        {
+            yield return new WaitForSeconds(GlobalDelayedSecondaryStep);
+        }
+
+        if (result.HasDelayedPassiveMeleeFollowUpEffects)
+        {
+            SkillAttackResolutionUtility.ApplyPassiveMeleeFollowUpEffects(rt, caster, primaryTarget, result.delayedPassiveMeleeFollowUpEffects, GetPopups());
         }
 
         if (result.hadPrimaryDamageStep && result.delayedBurnConsumeDamage > 0 && GlobalDelayedSecondaryStep > 0f)
@@ -154,7 +168,7 @@ public partial class SkillExecutor
                 continue;
             }
 
-            CombatActor.DamageResult result = target.TakeDamageDetailed(damage, bypassGuard: false);
+            CombatActor.DamageResult result = target.TakeDamageDetailed(damage, bypassGuard: false, attacker: caster);
             CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Hit);
             if (popups != null)
             {
@@ -171,7 +185,7 @@ public partial class SkillExecutor
         }
 
         DamagePopupSystem popups = GetPopups();
-        CombatActor.DamageResult result = target.TakeDamageDetailed(damage, bypassGuard: false);
+        CombatActor.DamageResult result = target.TakeDamageDetailed(damage, bypassGuard: false, attacker: caster);
         CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.BurnConsume);
         if (popups != null)
         {

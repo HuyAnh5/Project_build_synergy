@@ -8,5 +8,15 @@ public partial class RunInventoryManager
             return;
 
         buffer.Clear();
+        if (ownedSlots == null)
+            return;
+
+        for (int i = 0; i < ownedSlots.Length; i++)
+        {
+            SlotBinding slot = ownedSlots[i];
+            SkillPassiveSO passive = slot != null ? slot.skillAsset as SkillPassiveSO : null;
+            if (passive != null && !buffer.Contains(passive))
+                buffer.Add(passive);
+        }
     }
 }

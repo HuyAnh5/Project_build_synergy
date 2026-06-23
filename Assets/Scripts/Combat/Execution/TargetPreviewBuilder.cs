@@ -87,6 +87,10 @@ public static partial class TargetPreviewBuilder
         if (rt == null || caster == null)
             return bundle;
 
+        PassiveSystem passiveSystem = caster.GetComponent<PassiveSystem>();
+        if (passiveSystem != null)
+            bundle.totalSelfFocusGain += passiveSystem.PreviewRuntimeCritFocus(rt);
+
         ScriptableObject previousSourceAsset = rt.sourceAsset;
         if (sourceSkill != null)
             rt.sourceAsset = sourceSkill;
@@ -305,6 +309,8 @@ internal static class CombatActionPreviewSimulator
 
                     if (result.HasDelayedFollowUpEffects)
                         SkillAttackResolutionUtility.ApplyResolvedGameplayFollowUpEffects(runtime, caster, targetClone, result.delayedFollowUpEffects, popups: null);
+                    if (result.HasDelayedPassiveMeleeFollowUpEffects)
+                        SkillAttackResolutionUtility.ApplyPassiveMeleeFollowUpEffects(runtime, caster, targetClone, result.delayedPassiveMeleeFollowUpEffects, popups: null);
                 }
 
                 preview = CreateFinalDiff(caster, target, targetClone);

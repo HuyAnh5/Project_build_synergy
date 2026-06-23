@@ -58,6 +58,18 @@ public static class AttackPreviewCalculator
             if (CanUseMarkPayoff(rt, target) && rt.element != ElementType.Lightning)
                 immediatePrimaryDamage += MarkDirectBonusDamage;
 
+            PassiveSystem resolvedPassiveSystem = caster != null ? caster.GetComponent<PassiveSystem>() : null;
+            if (resolvedPassiveSystem != null)
+            {
+                if (immediatePrimaryDamage > 0)
+                    immediatePrimaryDamage = resolvedPassiveSystem.PreviewOutgoingHitDamage(rt, immediatePrimaryDamage);
+                if (immediateSecondaryDamage > 0)
+                    immediateSecondaryDamage = resolvedPassiveSystem.PreviewOutgoingHitDamage(rt, immediateSecondaryDamage);
+                if (followUpDamage > 0)
+                    followUpDamage = resolvedPassiveSystem.PreviewOutgoingHitDamage(rt, followUpDamage);
+
+            }
+
             preview.baseDamage = Mathf.Max(0, immediatePrimaryDamage + immediateSecondaryDamage + followUpDamage);
             bool resolvedAttemptedPrimaryDamage = immediatePrimaryDamage > 0;
             if (resolvedAttemptedPrimaryDamage && CanConsumeStagger(rt, target))
@@ -169,6 +181,10 @@ public static class AttackPreviewCalculator
         }
 
         preview.finalDamage = Mathf.Max(0, dmg);
+        if (ps != null)
+        {
+            preview.finalDamage = ps.PreviewOutgoingHitDamage(rt, preview.finalDamage);
+        }
         preview.burnConsumeDamage = Mathf.Max(0, burnConsumeDamage);
         preview.primaryDamage = Mathf.Max(0, preview.finalDamage - preview.burnConsumeDamage);
         if (preview.primaryDamage <= 0 && preview.finalDamage > 0 && preview.burnConsumeDamage > 0)

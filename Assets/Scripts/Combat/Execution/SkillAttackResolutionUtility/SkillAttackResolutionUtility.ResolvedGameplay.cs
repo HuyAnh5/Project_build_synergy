@@ -39,6 +39,7 @@ internal static partial class SkillAttackResolutionUtility
         var iceRewardAppliedTargets = new HashSet<CombatActor>();
         var primaryDamageAppliedTargets = new HashSet<CombatActor>();
         List<ResolvedEffect> delayedFollowUpEffects = null;
+        List<ResolvedEffect> delayedPassiveMeleeFollowUpEffects = null;
 
         for (int i = 0; i < resolved.effects.Count; i++)
         {
@@ -83,10 +84,16 @@ internal static partial class SkillAttackResolutionUtility
                     damage = 1;
             }
 
+            damage = AdjustPassiveOutgoingDamage(passiveSystem, rt, damage);
+            if (damage <= 0)
+                continue;
+
             info.isDamage = true;
             totalDamage += damage;
-            CombatActor.DamageResult damageResult = effectTarget.TakeDamageDetailed(damage, bypassGuard: info.bypassGuard);
+            CombatActor.DamageResult damageResult = effectTarget.TakeDamageDetailed(damage, bypassGuard: info.bypassGuard, attacker: caster);
+            CombatActor.DamageResult primaryDamageResult = damageResult;
             PlayFeedback(effectTarget, CombatHitFeedback.FeedbackKind.Hit);
+            QueuePassiveMeleeFollowUp(rt, passiveSystem, effectTarget, damage, ref delayedPassiveMeleeFollowUpEffects);
             aggregateDamageResult.blocked += damageResult.blocked;
             aggregateDamageResult.hpLost += damageResult.hpLost;
             aggregateDamageResult.guardBroken |= damageResult.guardBroken;
@@ -155,7 +162,7 @@ internal static partial class SkillAttackResolutionUtility
             }
 
             if (popups != null)
-                popups.SpawnDamageSplit(caster, effectTarget, damageResult.blocked, damageResult.hpLost);
+                popups.SpawnDamageSplit(caster, effectTarget, primaryDamageResult.blocked, primaryDamageResult.hpLost);
         }
 
         ApplyResolvedGameplayEffects(resolved.effects, caster, target, includeFollowUpEffects: false);
@@ -168,7 +175,8 @@ internal static partial class SkillAttackResolutionUtility
             consumedStagger = consumedAnyStagger,
             hadPrimaryDamageStep = totalDamage > 0,
             delayedBurnConsumeDamage = 0,
-            delayedFollowUpEffects = delayedFollowUpEffects
+            delayedFollowUpEffects = delayedFollowUpEffects,
+            delayedPassiveMeleeFollowUpEffects = delayedPassiveMeleeFollowUpEffects
         };
     }
 
@@ -285,14 +293,20 @@ internal static partial class SkillAttackResolutionUtility
                         damage = 1;
                 }
 
-                CombatActor.DamageResult damageResult = effectTarget.TakeDamageDetailed(damage, bypassGuard: rt.bypassGuard);
+                PassiveSystem passiveSystem = caster != null ? caster.GetComponent<PassiveSystem>() : null;
+                damage = AdjustPassiveOutgoingDamage(passiveSystem, rt, damage);
+                if (damage <= 0)
+                    continue;
+
+                CombatActor.DamageResult damageResult = effectTarget.TakeDamageDetailed(damage, bypassGuard: rt.bypassGuard, attacker: caster);
+                CombatActor.DamageResult primaryDamageResult = damageResult;
                 PlayFeedback(effectTarget, CombatHitFeedback.FeedbackKind.Hit);
                 if (damageResult.guardBroken && effectTarget.status != null)
                     effectTarget.status.ApplyStagger();
                 else if (consumesStagger && effectTarget.status != null)
                     effectTarget.status.ClearStagger();
                 if (popups != null)
-                    popups.SpawnDamageSplit(caster, effectTarget, damageResult.blocked, damageResult.hpLost);
+                    popups.SpawnDamageSplit(caster, effectTarget, primaryDamageResult.blocked, primaryDamageResult.hpLost);
             }
         }
 

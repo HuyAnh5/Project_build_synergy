@@ -52,18 +52,3 @@ public enum BuffBehaviorId
     Fire_Cinderbrand = 2,
     Bleed_Siphon = 20
 }
-
-public enum PassiveBehaviorId
-{
-    None,
-    EvenResonance,
-    ElementalCatalyst,
-    FailForward,
-    IronStance,
-    CritEscalation,
-    DiceForging,
-    Alchemist,
-    Mitigation,
-    SpikedArmor,
-    LingeringMark
-}

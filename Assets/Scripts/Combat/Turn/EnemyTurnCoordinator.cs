@@ -144,7 +144,7 @@ internal sealed class EnemyTurnCoordinator
             yield break;
         }
 
-        player.TakeDamage(4, bypassGuard: false);
+        player.TakeDamageDetailed(4, bypassGuard: false, attacker: enemy);
         if (delayBetweenEnemyAttacks > 0f)
             yield return new WaitForSeconds(delayBetweenEnemyAttacks);
     }

@@ -8,6 +8,7 @@ public static partial class TargetPreviewBuilder
     {
         SkillExecutor.AttackPreview ap = AttackPreviewCalculator.BuildAttackPreview(rt, caster, target, dieValue);
         ApplyDamageToData(target, ref data, ap.finalDamage, rt.bypassGuard, rt.clearsGuard, canBreakGuard: true, canConsumeStagger: ap.consumesStagger);
+        ApplyPassiveMeleeFollowUpPreview(rt, caster, target, ref data);
 
         SkillDamageSO sourceSkill = SkillGameplayResolver.GetSourceSkill(rt);
         if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))

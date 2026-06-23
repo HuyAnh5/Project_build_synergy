@@ -179,7 +179,7 @@ public class CombatActor : MonoBehaviour
         public bool guardBroken;
     }
 
-    public DamageResult TakeDamageDetailed(int dmg, bool bypassGuard)
+    public DamageResult TakeDamageDetailed(int dmg, bool bypassGuard, CombatActor attacker = null)
     {
         DamageResult r = new DamageResult { requested = Mathf.Max(0, dmg), blocked = 0, hpLost = 0, guardBroken = false };
 
@@ -203,6 +203,10 @@ public class CombatActor : MonoBehaviour
         }
 
         HandleLifeStateChanged();
+
+        PassiveSystem passiveSystem = GetComponent<PassiveSystem>();
+        if (passiveSystem != null && (r.blocked > 0 || r.hpLost > 0))
+            passiveSystem.HandleIncomingDamage(attacker, r);
 
         return r;
     }

@@ -122,6 +122,16 @@ public class StatusController : MonoBehaviour
         nextSkillAddedValueCharges += safeCharges;
     }
 
+    public void GrantNextSkillAddedValueOnceNonStacking(int amount)
+    {
+        int safeAmount = Mathf.Max(0, amount);
+        if (safeAmount <= 0)
+            return;
+
+        nextSkillAddedValue = Mathf.Max(nextSkillAddedValueCharges > 0 ? nextSkillAddedValue : 0, safeAmount);
+        nextSkillAddedValueCharges = 1;
+    }
+
     public int PeekNextSkillAddedValue()
         => nextSkillAddedValueCharges > 0 ? Mathf.Max(0, nextSkillAddedValue) : 0;
 
@@ -136,6 +146,12 @@ public class StatusController : MonoBehaviour
             nextSkillAddedValueCharges = 0;
             nextSkillAddedValue = 0;
         }
+    }
+
+    public void ClearNextSkillAddedValue()
+    {
+        nextSkillAddedValue = 0;
+        nextSkillAddedValueCharges = 0;
     }
 
     public void GrantEmberWeapon(int turns, int bonusDamage, bool burnEqualsDamage, bool burnOnCritOnly, int burnTurns)

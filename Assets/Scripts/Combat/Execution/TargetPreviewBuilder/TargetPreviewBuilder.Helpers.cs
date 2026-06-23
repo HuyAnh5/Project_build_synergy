@@ -194,6 +194,30 @@ public static partial class TargetPreviewBuilder
             data.willConsumeStagger = true;
     }
 
+    private static void ApplyPassiveMeleeFollowUpPreview(
+        SkillRuntime rt,
+        CombatActor caster,
+        CombatActor target,
+        ref TargetPreviewData data)
+    {
+        if (rt == null || caster == null || target == null)
+            return;
+
+        PassiveSystem passiveSystem = caster.GetComponent<PassiveSystem>();
+        int followUpDamage = passiveSystem != null ? passiveSystem.GetMeleeFollowUpDamage(rt) : 0;
+        if (followUpDamage <= 0)
+            return;
+
+        ApplyDamageToData(
+            target,
+            ref data,
+            followUpDamage,
+            bypassGuard: false,
+            clearsGuard: false,
+            canBreakGuard: true,
+            canConsumeStagger: false);
+    }
+
     // Clears Guard in preview and marks the target as guard-broken.
     private static void ApplyClearGuardToData(ref TargetPreviewData data)
     {

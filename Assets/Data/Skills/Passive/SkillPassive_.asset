@@ -10,17 +10,18 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6e4b4cbdc1fc78d4fb4b5a9145440d66, type: 3}
-  m_Name: Passive_IronStance
+  m_Name: SkillPassive_
   m_EditorClassIdentifier: Assembly-CSharp::SkillPassiveSO
   icon: {fileID: 0}
-  displayName: 'Iron Stance'
-  description: 'Guard does not disappear at the end of the player turn.'
+  displayName: SkillPassive_
+  description: 
   spec:
-    rarity: 3
+    rarity: 0
     specState: 0
-    buildRole: 7
+    buildRole: 1
     implementationCoverage: 0
-    normalizedText: 'Guard does not disappear at the end of the player turn.'
-    designIntent: 'Guard-retention engine for defensive builds.'
-  behaviorId: 4
-  effects: []
+    normalizedText: 
+    designIntent: 
+  effects:
+  - id: 5
+    valueI: 3

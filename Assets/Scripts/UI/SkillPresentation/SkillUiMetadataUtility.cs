@@ -162,7 +162,7 @@ public static class SkillUiMetadataUtility
             case SkillBuffDebuffSO buffDebuff:
                 return buffDebuff.description ?? string.Empty;
             case SkillPassiveSO passive:
-                return passive.description ?? string.Empty;
+                return passive.GetAuthoringDescription();
             default:
                 return string.Empty;
         }

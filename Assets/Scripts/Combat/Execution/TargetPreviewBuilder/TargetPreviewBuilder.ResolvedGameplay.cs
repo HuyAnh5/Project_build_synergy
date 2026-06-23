@@ -170,6 +170,7 @@ public static partial class TargetPreviewBuilder
         }
 
         ApplyDamageToData(effectTarget, ref data, value, rt.bypassGuard, rt.clearsGuard, canBreakGuard: true, canConsumeStagger: canConsumeStagger);
+        ApplyPassiveMeleeFollowUpPreview(rt, caster, effectTarget, ref data);
         if (isFirstPrimaryDamageForTarget)
             ApplyEmberWeaponBurnPreview(rt, caster, value, ref data);
 

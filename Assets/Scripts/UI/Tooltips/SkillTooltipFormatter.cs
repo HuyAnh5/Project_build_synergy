@@ -45,9 +45,10 @@ public static partial class SkillTooltipFormatter
                 FillBuffContent(ref content, buffDebuff, runtime ?? BuildBuffRuntime(buffDebuff));
                 break;
             case SkillPassiveSO passive:
-                content.effectText = string.IsNullOrWhiteSpace(passive.description)
+                string passiveDescription = passive.GetAuthoringDescription();
+                content.effectText = string.IsNullOrWhiteSpace(passiveDescription)
                     ? string.Empty
-                    : ColorQuotedAddedValues(passive.description.Trim());
+                    : ColorQuotedAddedValues(passiveDescription.Trim());
                 break;
             case ConsumableDataSO consumable:
                 FillConsumableContent(ref content, consumable);

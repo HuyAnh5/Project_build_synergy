@@ -60,6 +60,12 @@ internal static partial class SkillAttackResolutionUtility
                     aggregate.delayedFollowUpEffects = new List<ResolvedEffect>();
                 aggregate.delayedFollowUpEffects.AddRange(result.delayedFollowUpEffects);
             }
+            if (result.delayedPassiveMeleeFollowUpEffects != null && result.delayedPassiveMeleeFollowUpEffects.Count > 0)
+            {
+                if (aggregate.delayedPassiveMeleeFollowUpEffects == null)
+                    aggregate.delayedPassiveMeleeFollowUpEffects = new List<ResolvedEffect>();
+                aggregate.delayedPassiveMeleeFollowUpEffects.AddRange(result.delayedPassiveMeleeFollowUpEffects);
+            }
         }
 
         return aggregate;
@@ -132,9 +138,13 @@ internal static partial class SkillAttackResolutionUtility
         }
 
         int immediateDamage = splitBurnConsumeStep ? preview.primaryDamage : preview.finalDamage;
-        CombatActor.DamageResult dmgResult = target.TakeDamageDetailed(immediateDamage, bypassGuard: info.bypassGuard);
+        immediateDamage = AdjustPassiveOutgoingDamage(ps, rt, immediateDamage);
+        CombatActor.DamageResult dmgResult = target.TakeDamageDetailed(immediateDamage, bypassGuard: info.bypassGuard, attacker: caster);
+        CombatActor.DamageResult primaryDamageResult = dmgResult;
         if (immediateDamage > 0)
             CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Hit);
+        List<ResolvedEffect> delayedPassiveMeleeFollowUps = null;
+        QueuePassiveMeleeFollowUp(rt, ps, target, immediateDamage, ref delayedPassiveMeleeFollowUps);
         if (delayedBurnConsumeDamage > 0)
             CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.BurnConsume);
 
@@ -201,7 +211,7 @@ internal static partial class SkillAttackResolutionUtility
         ConsumeExecutionCarryIfNeeded(rt, caster);
 
         if (popups != null)
-            popups.SpawnDamageSplit(caster, target, dmgResult.blocked, dmgResult.hpLost);
+            popups.SpawnDamageSplit(caster, target, primaryDamageResult.blocked, primaryDamageResult.hpLost);
 
         return new SkillExecutor.AttackApplyResult
         {
@@ -210,7 +220,74 @@ internal static partial class SkillAttackResolutionUtility
             lightningShockDamage = lightningShockDamage,
             consumedStagger = preview.consumesStagger,
             hadPrimaryDamageStep = preview.primaryDamage > 0,
-            delayedBurnConsumeDamage = delayedBurnConsumeDamage
+            delayedBurnConsumeDamage = delayedBurnConsumeDamage,
+            delayedPassiveMeleeFollowUpEffects = delayedPassiveMeleeFollowUps
         };
+    }
+
+    private static int AdjustPassiveOutgoingDamage(PassiveSystem passiveSystem, SkillRuntime rt, int damage)
+        => passiveSystem != null ? passiveSystem.AdjustOutgoingHitDamage(rt, damage) : Mathf.Max(0, damage);
+
+    private static void QueuePassiveMeleeFollowUp(
+        SkillRuntime rt,
+        PassiveSystem passiveSystem,
+        CombatActor target,
+        int triggeringDamage,
+        ref List<ResolvedEffect> effects)
+    {
+        if (rt == null || target == null || target.IsDead || passiveSystem == null || triggeringDamage <= 0)
+            return;
+
+        int followUpDamage = passiveSystem.GetMeleeFollowUpDamage(rt);
+        if (followUpDamage <= 0)
+            return;
+
+        if (effects == null)
+            effects = new List<ResolvedEffect>();
+
+        effects.Add(new ResolvedEffect
+        {
+            type = SkillEffectType.DealSecondaryDamage,
+            target = SkillEffectTarget.SelectedEnemy,
+            targetActor = target,
+            value = followUpDamage,
+            previewable = true,
+            sameActionFollowUp = true
+        });
+    }
+
+    public static void ApplyPassiveMeleeFollowUpEffects(
+        SkillRuntime rt,
+        CombatActor caster,
+        CombatActor selectedTarget,
+        IReadOnlyList<ResolvedEffect> effects,
+        DamagePopupSystem popups)
+    {
+        if (effects == null || rt == null)
+            return;
+
+        PassiveSystem passiveSystem = caster != null ? caster.GetComponent<PassiveSystem>() : null;
+        for (int i = 0; i < effects.Count; i++)
+        {
+            ResolvedEffect effect = effects[i];
+            if (effect == null)
+                continue;
+
+            CombatActor target = effect.targetActor != null ? effect.targetActor : selectedTarget;
+            if (target == null || target.IsDead)
+                continue;
+
+            int damage = Mathf.Max(0, effect.value);
+            if (damage <= 0)
+                continue;
+
+            CombatActor.DamageResult result = target.TakeDamageDetailed(damage, bypassGuard: false, attacker: caster);
+            CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Hit);
+            passiveSystem?.PulsePassiveEffect(PassiveEffectId.MeleeFollowUpDamage);
+            if (result.guardBroken && target.status != null)
+                target.status.ApplyStagger();
+            if (popups != null)
+                popups.SpawnDamageSplit(caster, target, result.blocked, result.hpLost);
+        }
     }
 }

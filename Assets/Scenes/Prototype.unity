@@ -6229,9 +6229,9 @@ MonoBehaviour:
   - {fileID: 0}
   ownedSlots:
   - uiIcon: {fileID: 0}
-    skillAsset: {fileID: 11400000, guid: 5ccc410763d74ec393e79c5d6d59f429, type: 2}
+    skillAsset: {fileID: 11400000, guid: 3fdea6926fff5a7458c6207b363a3a7d, type: 2}
   - uiIcon: {fileID: 0}
-    skillAsset: {fileID: 11400000, guid: ae03d7f30437ba9468c724b3c4ad15f0, type: 2}
+    skillAsset: {fileID: 11400000, guid: ab7245a08603728499aea812ac7d28a5, type: 2}
   - uiIcon: {fileID: 0}
     skillAsset: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
   - uiIcon: {fileID: 0}

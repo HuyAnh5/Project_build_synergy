@@ -21,35 +21,15 @@ MonoBehaviour:
     specState: 0
     buildRole: 6
     implementationCoverage: 2
-    normalizedText: Consume all Bleed on one target. Every 5 Bleed consumed creates
-      1 random Consumable, up to 3.
-    designIntent: Bleed-to-resource conversion engine.
-  behaviorId: 20
+    normalizedText: 
+    designIntent: 
   identity: 0
   target: 1
-  applyDelayTurns: 0
   slotsRequired: 2
   focusCost: 3
   focusGainOnCast: 0
-  _focusDelayedDelayWarning: 0
-  effects: []
-  applyAilment: 0
-  ailment:
-    ailment: 0
-    durationTurns: 1
-    chanceTuningMultiplier: 1
-    breakOnDamage: 1
-    sleep_damageBonusOnWake: 0.5
-    sleep_healPercentOnTurnStart: 0.2
-    dizzy_damageReductionPercent: 0.25
-    dizzy_useAccuracyPenalty: 0
-    dizzy_accuracyReductionPercent: 0.3
-    confuse_selfHitChance: 0.5
-    fear_skipChance: 0.5
-    fear_fleeChance: 0.05
-    fear_damageReductionPercent: 0.25
-    forget_disableAdvancedSkills: 1
-    rage_damageBonusPercent: 0.3
-    despair_hpLossPercent: 0.1
-    despair_focusLoss: 1
-    brainwash_forcedBasicOnly: 1
+  gameplay:
+    descriptionTemplate: 
+    requirements: []
+    baseEffects: []
+    conditionalOutcomes: []

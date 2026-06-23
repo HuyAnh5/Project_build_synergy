@@ -187,6 +187,13 @@ public partial class RunInventoryManager : MonoBehaviour
                 return buffDebuff.displayName;
             }
         }
+        else if (asset is SkillPassiveSO passive)
+        {
+            if (!string.IsNullOrWhiteSpace(passive.displayName))
+            {
+                return passive.displayName;
+            }
+        }
         return string.Empty;
     }
 }

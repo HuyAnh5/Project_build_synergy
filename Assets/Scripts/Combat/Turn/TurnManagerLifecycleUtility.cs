@@ -30,6 +30,9 @@ internal static class TurnManagerLifecycleUtility
         if (player.status != null)
             player.status.OnOwnerTurnEnded();
 
+        if (ps != null)
+            ps.ClearBloodCounterAddedValueIfUnused();
+
         TurnManagerCombatUtility.ClearAllStagger();
     }
 

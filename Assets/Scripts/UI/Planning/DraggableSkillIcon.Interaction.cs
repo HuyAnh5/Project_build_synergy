@@ -128,6 +128,23 @@ public partial class DraggableSkillIcon
             _lastAffectedPulseFrame = frame;
     }
 
+    public static void PulseSkillAssetIcons(ScriptableObject asset)
+    {
+        if (asset == null)
+            return;
+
+        DraggableSkillIcon[] icons = FindObjectsOfType<DraggableSkillIcon>(true);
+        for (int i = 0; i < icons.Length; i++)
+        {
+            DraggableSkillIcon icon = icons[i];
+            if (icon == null || !icon.gameObject.activeInHierarchy)
+                continue;
+
+            if (icon.GetSkillAsset() == asset)
+                icon.PlayTransientAffectedAuraPulse();
+        }
+    }
+
     private static bool IsSkillAffectedByDice(SkillRuntime runtime)
     {
         if (runtime == null)

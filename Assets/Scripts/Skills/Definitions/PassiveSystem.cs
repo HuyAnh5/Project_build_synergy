@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections;
 using UnityEngine;
 
 [DisallowMultipleComponent]
@@ -22,7 +23,7 @@ public partial class PassiveSystem : MonoBehaviour
     private DiceSlotRig _cachedDiceRig;
 
     private int _focusBonusTurnStart;
-    private bool _diceForgingTriggeredThisCombat;
+    private bool _bloodCounterAddedValueActive;
 
     private void Awake()
     {
@@ -94,9 +95,6 @@ public partial class PassiveSystem : MonoBehaviour
             {
                 PassiveEffectEntry effect = passive.effects[k];
                 if (effect == null)
-                    continue;
-
-                if (effect.hasCondition)
                     continue;
 
                 Accumulate(effect);
@@ -224,10 +222,7 @@ public partial class PassiveSystem : MonoBehaviour
             for (int k = 0; k < passive.effects.Count; k++)
             {
                 PassiveEffectEntry effect = passive.effects[k];
-                if (effect == null || !effect.hasCondition || effect.id != PassiveEffectId.FocusBonusOnTurnStart)
-                    continue;
-
-                if (effect.condition != null && effect.condition.Evaluate(conditionContext))
+                if (effect != null && effect.id == PassiveEffectId.FocusBonusOnTurnStart)
                     total += effect.valueI;
             }
         }
@@ -308,7 +303,6 @@ public partial class PassiveSystem : MonoBehaviour
 
     public void OnCombatStarted()
     {
-        _diceForgingTriggeredThisCombat = false;
         _combatAllFaceBonuses.Clear();
         CaptureKnownDiceFaces(refreshTrackedBaseValues: true);
         ReapplyAllTrackedFaceBonuses();
@@ -316,88 +310,225 @@ public partial class PassiveSystem : MonoBehaviour
 
     public void OnDiceRolled(CombatActor owner, DiceSlotRig diceRig)
     {
-        if (owner == null || diceRig == null)
-            return;
-
-        bool hasFailForward = HasBehavior(PassiveBehaviorId.FailForward);
-        bool hasCritEscalation = HasBehavior(PassiveBehaviorId.CritEscalation);
-
-        for (int i = 0; i < 3; i++)
-        {
-            if (!diceRig.IsSlotActive(i))
-                continue;
-
-            DiceSpinnerGeneric die = diceRig.slots != null && i < diceRig.slots.Length && diceRig.slots[i] != null
-                ? diceRig.slots[i].dice
-                : null;
-            if (die == null)
-                continue;
-
-            if (hasFailForward && diceRig.IsFail(i))
-                owner.AddGuard(3);
-
-            if (hasCritEscalation && diceRig.IsCrit(i))
-                AddCombatAllFacesBonus(die, 1);
-        }
+        // Passive behavior-id hooks were removed; passive runtime now comes from effect entries.
     }
 
     public int GetAddedValueForDie(DiceSlotRig diceRig, int slot0)
     {
-        if (diceRig == null || !diceRig.IsSlotActive(slot0))
-            return 0;
-
-        int add = 0;
-        if (HasBehavior(PassiveBehaviorId.EvenResonance))
-        {
-            int baseValue = diceRig.GetBaseValue(slot0);
-            if (diceRig.IsNumericFaceForConditions(slot0) && baseValue > 0 && (baseValue % 2) == 0)
-                add += 3;
-        }
-
-        return add;
+        return 0;
     }
 
     public int GetBonusStatusStacksApplied(StatusKind statusKind)
     {
-        if (!HasBehavior(PassiveBehaviorId.ElementalCatalyst))
-            return 0;
-
-        return statusKind == StatusKind.Burn || statusKind == StatusKind.Bleed ? 1 : 0;
+        return 0;
     }
 
     public bool ShouldRetainGuardAtEndOfTurn()
-        => HasBehavior(PassiveBehaviorId.IronStance);
+        => false;
 
     public void TryHandleMeleeSkillUse(DiceSlotRig diceRig, int start0)
     {
-        if (!HasBehavior(PassiveBehaviorId.DiceForging) || _diceForgingTriggeredThisCombat || diceRig == null || start0 < 0)
-            return;
-
-        DiceSpinnerGeneric die = diceRig.slots != null && start0 < diceRig.slots.Length && diceRig.slots[start0] != null
-            ? diceRig.slots[start0].dice
-            : null;
-        if (die == null || die.faces == null || die.LastFaceIndex < 0)
-            return;
-
-        AddPermanentFaceBonus(die, die.LastFaceIndex, 1);
-        _diceForgingTriggeredThisCombat = true;
+        // Passive behavior-id hooks were removed; passive runtime now comes from effect entries.
     }
 
-    private bool HasBehavior(PassiveBehaviorId behaviorId)
+    public int GetEffectValue(PassiveEffectId effectId)
     {
-        if (equipped == null || behaviorId == PassiveBehaviorId.None)
-            return false;
+        int total = 0;
+        if (equipped == null)
+            return total;
 
         for (int i = 0; i < equipped.Count; i++)
         {
             SkillPassiveSO passive = equipped[i];
-            if (passive == null)
+            if (passive == null || passive.effects == null)
                 continue;
-            if (passive.behaviorId == behaviorId)
-                return true;
+
+            for (int k = 0; k < passive.effects.Count; k++)
+            {
+                PassiveEffectEntry effect = passive.effects[k];
+                if (effect != null && effect.id == effectId)
+                    total += Mathf.Max(0, effect.valueI);
+            }
         }
 
-        return false;
+        return total;
+    }
+
+    public void HandleUsedDiceCritFocus(CombatActor owner, DiceSlotRig diceRig, int paymentMask)
+    {
+        int focusPerCrit = GetEffectValue(PassiveEffectId.CritFocusOnUsedDie);
+        if (owner == null || diceRig == null || focusPerCrit <= 0 || paymentMask <= 0)
+            return;
+
+        int critCount = 0;
+        for (int slot0 = 0; slot0 < 3; slot0++)
+        {
+            if ((paymentMask & (1 << slot0)) != 0 && diceRig.IsCrit(slot0))
+                critCount++;
+        }
+
+        if (critCount > 0)
+        {
+            owner.GainFocus(focusPerCrit * critCount);
+            PulsePassiveEffect(PassiveEffectId.CritFocusOnUsedDie);
+        }
+    }
+
+    public int PreviewUsedDiceCritFocus(DiceSlotRig diceRig, int paymentMask)
+    {
+        int focusPerCrit = GetEffectValue(PassiveEffectId.CritFocusOnUsedDie);
+        if (diceRig == null || focusPerCrit <= 0 || paymentMask <= 0)
+            return 0;
+
+        int critCount = 0;
+        for (int slot0 = 0; slot0 < 3; slot0++)
+        {
+            if ((paymentMask & (1 << slot0)) != 0 && diceRig.IsCrit(slot0))
+                critCount++;
+        }
+
+        return focusPerCrit * critCount;
+    }
+
+    public int PreviewRuntimeCritFocus(SkillRuntime runtime)
+    {
+        int focusPerCrit = GetEffectValue(PassiveEffectId.CritFocusOnUsedDie);
+        if (runtime == null || runtime.localCritFlags == null || focusPerCrit <= 0)
+            return 0;
+
+        int critCount = 0;
+        for (int i = 0; i < runtime.localCritFlags.Count; i++)
+        {
+            if (runtime.localCritFlags[i])
+                critCount++;
+        }
+
+        return critCount * focusPerCrit;
+    }
+
+    public void HandleIncomingDamage(CombatActor attacker, CombatActor.DamageResult result)
+    {
+        if (attacker == null || attacker.IsDead)
+            return;
+
+        if (result.blocked > 0)
+        {
+            int counterDamage = GetEffectValue(PassiveEffectId.GuardCounterDamage);
+            if (counterDamage > 0)
+            {
+                StartCoroutine(ApplyGuardCounterDamageAfterDelay(attacker, counterDamage));
+                PulsePassiveEffect(PassiveEffectId.GuardCounterDamage);
+            }
+        }
+
+        if (result.hpLost > 0)
+        {
+            int addedValue = GetEffectValue(PassiveEffectId.BloodCounterNextAttackDamage);
+            CombatActor owner = GetComponent<CombatActor>();
+            if (addedValue > 0 && owner != null && owner.status != null)
+            {
+                owner.status.GrantNextSkillAddedValueOnceNonStacking(addedValue);
+                _bloodCounterAddedValueActive = true;
+                PulsePassiveEffect(PassiveEffectId.BloodCounterNextAttackDamage);
+            }
+        }
+
+        if (result.guardBroken && GetEffectValue(PassiveEffectId.GuardBreakMark) > 0 && attacker.status != null)
+        {
+            attacker.status.ApplyMark();
+            PulsePassiveEffect(PassiveEffectId.GuardBreakMark);
+        }
+    }
+
+    private IEnumerator ApplyGuardCounterDamageAfterDelay(CombatActor attacker, int damage)
+    {
+        if (damage <= 0 || attacker == null || attacker.IsDead)
+            yield break;
+
+        yield return new WaitForSeconds(0.1f);
+
+        if (attacker == null || attacker.IsDead)
+            yield break;
+
+        CombatActor.DamageResult counterResult = attacker.TakeDamageDetailed(damage, bypassGuard: false);
+        CombatHitFeedback.Play(attacker, CombatHitFeedback.FeedbackKind.Hit);
+
+        DamagePopupSystem popups = FindObjectOfType<DamagePopupSystem>(true);
+        if (popups != null)
+            popups.SpawnDamageSplit(null, attacker, counterResult.blocked, counterResult.hpLost);
+    }
+
+    public int AdjustOutgoingHitDamage(SkillRuntime runtime, int damage)
+    {
+        int adjusted = Mathf.Max(0, damage);
+        if (runtime == null || runtime.kind != SkillKind.Attack || adjusted <= 0)
+            return adjusted;
+
+        int minimum = GetEffectValue(PassiveEffectId.MinimumImpactDamage);
+        if (minimum > 0 && adjusted < minimum)
+        {
+            adjusted = minimum;
+            PulsePassiveEffect(PassiveEffectId.MinimumImpactDamage);
+        }
+        return adjusted;
+    }
+
+    public int PreviewOutgoingHitDamage(SkillRuntime runtime, int damage)
+    {
+        int adjusted = Mathf.Max(0, damage);
+        if (runtime == null || runtime.kind != SkillKind.Attack || adjusted <= 0)
+            return adjusted;
+
+        int minimum = GetEffectValue(PassiveEffectId.MinimumImpactDamage);
+        if (minimum > 0 && adjusted < minimum)
+            adjusted = minimum;
+        return adjusted;
+    }
+
+    public int GetMeleeFollowUpDamage(SkillRuntime runtime)
+    {
+        if (runtime == null || runtime.kind != SkillKind.Attack || runtime.range != RangeType.Melee)
+            return 0;
+        return GetEffectValue(PassiveEffectId.MeleeFollowUpDamage);
+    }
+
+    public void ClearBloodCounterAddedValueIfUnused()
+    {
+        if (!_bloodCounterAddedValueActive)
+            return;
+
+        CombatActor owner = GetComponent<CombatActor>();
+        if (owner != null && owner.status != null && owner.status.PeekNextSkillAddedValue() > 0)
+            owner.status.ClearNextSkillAddedValue();
+
+        _bloodCounterAddedValueActive = false;
+    }
+
+    public void PulsePassiveEffect(PassiveEffectId effectId)
+    {
+        if (equipped == null)
+            return;
+
+        for (int i = 0; i < equipped.Count; i++)
+        {
+            SkillPassiveSO passive = equipped[i];
+            if (passive == null || passive.effects == null)
+                continue;
+
+            bool hasEffect = false;
+            for (int k = 0; k < passive.effects.Count; k++)
+            {
+                PassiveEffectEntry effect = passive.effects[k];
+                if (effect != null && effect.id == effectId)
+                {
+                    hasEffect = true;
+                    break;
+                }
+            }
+
+            if (hasEffect)
+                DraggableSkillIcon.PulseSkillAssetIcons(passive);
+        }
     }
 
     public float GetBurnConsumeMultiplier() => 1f;
