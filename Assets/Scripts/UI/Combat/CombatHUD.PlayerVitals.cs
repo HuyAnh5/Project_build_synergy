@@ -782,45 +782,15 @@ public partial class CombatHUD
     private void ApplyPlayerStatusBuffer()
     {
         ResolvePlayerStatusSlots();
-        if (playerStatusSlots == null)
-            return;
-
-        if (playerStatusSlotTemplateRoot != null)
-            playerStatusSlotTemplateRoot.gameObject.SetActive(false);
-
-        for (int i = 0; i < playerStatusSlots.Length; i++)
-        {
-            ActorWorldUI.StatusIconSlot slot = playerStatusSlots[i];
-            if (slot == null || slot.root == null)
-                continue;
-
-            bool show = i < _playerStatusBuffer.Count;
-            slot.root.gameObject.SetActive(show);
-            if (!show)
-                continue;
-
-            PlayerStatusVisualData data = _playerStatusBuffer[i];
-            if (slot.background != null)
-                slot.background.color = data.backgroundColor;
-            if (slot.iconImage != null)
-            {
-                slot.iconImage.sprite = data.sprite;
-                slot.iconImage.enabled = data.sprite != null;
-                slot.iconImage.color = Color.white;
-            }
-            if (slot.shortLabelText != null)
-            {
-                string label = data.sprite == null ? data.shortLabel : string.Empty;
-                slot.shortLabelText.text = label;
-                slot.shortLabelText.gameObject.SetActive(!string.IsNullOrEmpty(label));
-            }
-            if (slot.valueText != null)
-            {
-                slot.valueText.text = data.valueText;
-                slot.valueText.color = Color.white;
-                slot.valueText.gameObject.SetActive(!string.IsNullOrEmpty(data.valueText));
-            }
-        }
+        CombatStatusRowRenderer.Apply(
+            playerStatusSlots,
+            playerStatusSlotTemplateRoot,
+            _playerStatusBuffer.Count,
+            index => _playerStatusBuffer[index],
+            data => data.sprite,
+            data => data.shortLabel,
+            data => data.valueText,
+            data => data.backgroundColor);
     }
 
     private void ResolvePlayerStatusSlots()

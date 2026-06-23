@@ -241,49 +241,15 @@ public partial class ActorWorldUI
     private void ApplyStatusBuffer()
     {
         IList<StatusIconSlot> slots = GetResolvedStatusSlots(_statusBuffer.Count);
-        if (slots == null)
-            return;
-
-        if (statusSlotTemplateRoot != null)
-            statusSlotTemplateRoot.gameObject.SetActive(false);
-
-        for (int i = 0; i < slots.Count; i++)
-        {
-            StatusIconSlot slot = slots[i];
-            if (slot == null || slot.root == null)
-                continue;
-
-            bool show = i < _statusBuffer.Count;
-            slot.root.gameObject.SetActive(show);
-            if (!show)
-                continue;
-
-            StatusVisualData data = _statusBuffer[i];
-
-            if (slot.background != null)
-                slot.background.color = data.backgroundColor;
-
-            if (slot.iconImage != null)
-            {
-                slot.iconImage.sprite = data.sprite;
-                slot.iconImage.enabled = data.sprite != null;
-                slot.iconImage.color = Color.white;
-            }
-
-            if (slot.shortLabelText != null)
-            {
-                string label = data.sprite == null ? data.shortLabel : string.Empty;
-                slot.shortLabelText.text = label;
-                slot.shortLabelText.gameObject.SetActive(!string.IsNullOrEmpty(label));
-            }
-
-            if (slot.valueText != null)
-            {
-                slot.valueText.text = data.valueText;
-                slot.valueText.color = Color.white;
-                slot.valueText.gameObject.SetActive(!string.IsNullOrEmpty(data.valueText));
-            }
-        }
+        CombatStatusRowRenderer.Apply(
+            slots,
+            statusSlotTemplateRoot,
+            _statusBuffer.Count,
+            index => _statusBuffer[index],
+            data => data.sprite,
+            data => data.shortLabel,
+            data => data.valueText,
+            data => data.backgroundColor);
     }
 
     private void RefreshWorldUiTooltips()
@@ -541,5 +507,65 @@ public partial class ActorWorldUI
     private static string GetTooltipValueText(string valueText)
     {
         return string.IsNullOrWhiteSpace(valueText) ? "0" : valueText.Trim();
+    }
+}
+
+internal static class CombatStatusRowRenderer
+{
+    public static void Apply<TVisual>(
+        IList<ActorWorldUI.StatusIconSlot> slots,
+        RectTransform templateRoot,
+        int visualCount,
+        System.Func<int, TVisual> getVisual,
+        System.Func<TVisual, Sprite> getSprite,
+        System.Func<TVisual, string> getShortLabel,
+        System.Func<TVisual, string> getValueText,
+        System.Func<TVisual, Color> getBackgroundColor)
+    {
+        if (slots == null)
+            return;
+
+        if (templateRoot != null)
+            templateRoot.gameObject.SetActive(false);
+
+        for (int i = 0; i < slots.Count; i++)
+        {
+            ActorWorldUI.StatusIconSlot slot = slots[i];
+            if (slot == null || slot.root == null)
+                continue;
+
+            bool show = i < visualCount;
+            slot.root.gameObject.SetActive(show);
+            if (!show)
+                continue;
+
+            TVisual data = getVisual(i);
+            Sprite sprite = getSprite(data);
+
+            if (slot.background != null)
+                slot.background.color = getBackgroundColor(data);
+
+            if (slot.iconImage != null)
+            {
+                slot.iconImage.sprite = sprite;
+                slot.iconImage.enabled = sprite != null;
+                slot.iconImage.color = Color.white;
+            }
+
+            if (slot.shortLabelText != null)
+            {
+                string label = sprite == null ? getShortLabel(data) : string.Empty;
+                slot.shortLabelText.text = label;
+                slot.shortLabelText.gameObject.SetActive(!string.IsNullOrEmpty(label));
+            }
+
+            if (slot.valueText != null)
+            {
+                string valueText = getValueText(data);
+                slot.valueText.text = valueText;
+                slot.valueText.color = Color.white;
+                slot.valueText.gameObject.SetActive(!string.IsNullOrEmpty(valueText));
+            }
+        }
     }
 }
