@@ -147,7 +147,7 @@ internal static class SkillBehaviorRuntimeUtility
     public static int CountMarkedEnemies(CombatActor caster)
     {
         int count = 0;
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>(true);
+        CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: true);
         for (int i = 0; i < actors.Length; i++)
         {
             CombatActor actor = actors[i];
@@ -165,7 +165,7 @@ internal static class SkillBehaviorRuntimeUtility
     public static int CountBleedOnEnemyTeam(CombatActor caster)
     {
         int count = 0;
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>(true);
+        CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: true);
         for (int i = 0; i < actors.Length; i++)
         {
             CombatActor actor = actors[i];
@@ -182,7 +182,7 @@ internal static class SkillBehaviorRuntimeUtility
     public static List<CombatActor> GetOtherEnemies(CombatActor caster, CombatActor except)
     {
         List<CombatActor> list = new List<CombatActor>();
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>(true);
+        CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: true);
         for (int i = 0; i < actors.Length; i++)
         {
             CombatActor actor = actors[i];
@@ -204,7 +204,7 @@ internal static class SkillBehaviorRuntimeUtility
         if (except == null)
             return list;
 
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>(true);
+        CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: true);
         for (int i = 0; i < actors.Length; i++)
         {
             CombatActor actor = actors[i];

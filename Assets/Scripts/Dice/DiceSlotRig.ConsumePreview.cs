@@ -20,7 +20,7 @@ public partial class DiceSlotRig
     {
         if (die == null) return null;
         if (_cachedDiceUIs == null)
-            _cachedDiceUIs = UnityEngine.Object.FindObjectsOfType<DiceDraggableUI>(true);
+            _cachedDiceUIs = DiceDraggableUiRegistry.GetAllSnapshot();
         for (int i = 0; i < _cachedDiceUIs.Length; i++)
         {
             if (_cachedDiceUIs[i] != null && _cachedDiceUIs[i].dice == die)
@@ -41,7 +41,7 @@ public partial class DiceSlotRig
     {
         EnsureSlots();
         _consumePreviewCount = Mathf.Max(0, diceCount);
-        _cachedDiceUIs = UnityEngine.Object.FindObjectsOfType<DiceDraggableUI>(true);
+        _cachedDiceUIs = DiceDraggableUiRegistry.GetAllSnapshot();
 
         int available = CountAvailableConsumePreviewContribution(spentDice);
         _consumePreviewInvalid = paymentMask < 0 && _consumePreviewCount > available;

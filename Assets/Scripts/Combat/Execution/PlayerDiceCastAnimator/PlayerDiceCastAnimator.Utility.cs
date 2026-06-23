@@ -218,7 +218,7 @@ public partial class PlayerDiceCastAnimator
             return cached;
         }
 
-        DiceDraggableUI[] allDiceUi = FindObjectsOfType<DiceDraggableUI>(true);
+        DiceDraggableUI[] allDiceUi = DiceDraggableUiRegistry.GetAllSnapshot();
         for (int i = 0; i < allDiceUi.Length; i++)
         {
             DiceDraggableUI candidate = allDiceUi[i];

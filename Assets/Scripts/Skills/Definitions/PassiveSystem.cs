@@ -422,7 +422,7 @@ public partial class PassiveSystem : MonoBehaviour
         CombatActor.DamageResult counterResult = attacker.TakeDamageDetailed(damage, bypassGuard: false);
         CombatHitFeedback.Play(attacker, CombatHitFeedback.FeedbackKind.Hit);
 
-        DamagePopupSystem popups = FindObjectOfType<DamagePopupSystem>(true);
+        DamagePopupSystem popups = DamagePopupSystemRegistry.Get();
         if (popups != null)
             popups.SpawnDamageSplit(null, attacker, counterResult.blocked, counterResult.hpLost);
     }

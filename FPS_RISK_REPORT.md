@@ -26,6 +26,28 @@ Examples found in `Assets/Scripts`:
 
 P0-1 is primarily maintainability work, not a major FPS fix. It reduces duplicate status slot rendering code and centralizes the apply path, which prepares future state-driven UI work.
 
+## Completed Hot Lookup Work
+
+The autonomous continuation added small registries/caches for hot UI/runtime lookup targets:
+
+* `ActorWorldUI` registry for target/preview UI lookup.
+* `DraggableSkillIcon` registry for icon dimming and pulse feedback.
+* `DiceDraggableUI` registry for dice dimming, consume preview, dice roll popup anchoring, and cast animation UI lookup.
+* `CombatActor` registry for skill targeting/counting utilities and turn fallback utilities.
+* `DamagePopupSystem` registry for damage/heal/focus popup callers.
+
+Latest compile check:
+
+* `dotnet build Project_build_synergy.sln`
+* 0 errors.
+* Existing warnings reduced to 69.
+
+Remaining notable lookup risks:
+
+* Several singleton-like manager lookups remain (`TurnManager`, `BattlePartyManager2D`, `DiceEquipUIManager`, `RunInventoryManager`).
+* Canvas discovery remains in tooltip/popup placement paths.
+* Some prototype/sandbox systems still use scene-wide lookup and should be classified before cleanup.
+
 ## Recommended Next FPS Batch
 
 Create a small `ActorWorldUI` registry/cache.

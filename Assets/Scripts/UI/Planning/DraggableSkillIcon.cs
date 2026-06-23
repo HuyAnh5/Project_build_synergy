@@ -129,6 +129,8 @@ public partial class DraggableSkillIcon : MonoBehaviour,
 
     private void Awake()
     {
+        DraggableSkillIconRegistry.Register(this);
+
         _canvas = GetComponentInParent<Canvas>();
         _canvasRT = _canvas.transform as RectTransform;
         _uiCam = (_canvas.renderMode == RenderMode.ScreenSpaceOverlay) ? null : _canvas.worldCamera;
@@ -159,6 +161,8 @@ public partial class DraggableSkillIcon : MonoBehaviour,
 
     private void OnEnable()
     {
+        DraggableSkillIconRegistry.Register(this);
+
         if (bindToInventorySlot && inventory != null)
             inventory.InventoryChanged += OnInventoryChanged;
         UiDragState.DragStateChanged += HandleUiDragStateChanged;
@@ -192,6 +196,11 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         _transientAffectedAuraRunning = false;
         StopActiveAuraTweens();
         SkillTooltipUI.HideCurrent();
+    }
+
+    private void OnDestroy()
+    {
+        DraggableSkillIconRegistry.Unregister(this);
     }
 
     private void OnInventoryChanged()
@@ -385,7 +394,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         if (_sharedIconLibrary != null)
             return _sharedIconLibrary;
 
-        ActorWorldUI[] worldUis = FindObjectsOfType<ActorWorldUI>(true);
+        ActorWorldUI[] worldUis = ActorWorldUiRegistry.GetAllSnapshot();
         for (int i = 0; i < worldUis.Length; i++)
         {
             if (worldUis[i] != null && worldUis[i].iconLibrary != null)
@@ -529,6 +538,67 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         }
 
         return value;
+    }
+}
+
+internal static class DraggableSkillIconRegistry
+{
+    private static readonly List<DraggableSkillIcon> Registered = new List<DraggableSkillIcon>(32);
+    private static readonly List<DraggableSkillIcon> Snapshot = new List<DraggableSkillIcon>(32);
+    private static bool _initializedFromScene;
+
+    public static void Register(DraggableSkillIcon icon)
+    {
+        if (icon == null || Registered.Contains(icon))
+            return;
+
+        Registered.Add(icon);
+    }
+
+    public static void Unregister(DraggableSkillIcon icon)
+    {
+        if (icon == null)
+            return;
+
+        Registered.Remove(icon);
+    }
+
+    public static DraggableSkillIcon[] GetAllSnapshot()
+    {
+        EnsureInitializedFromScene();
+        Snapshot.Clear();
+
+        for (int i = Registered.Count - 1; i >= 0; i--)
+        {
+            DraggableSkillIcon icon = Registered[i];
+            if (icon == null)
+            {
+                Registered.RemoveAt(i);
+                continue;
+            }
+
+            Snapshot.Add(icon);
+        }
+
+        return Snapshot.ToArray();
+    }
+
+    private static void EnsureInitializedFromScene()
+    {
+        if (_initializedFromScene)
+            return;
+
+        _initializedFromScene = true;
+#if UNITY_2023_1_OR_NEWER
+        DraggableSkillIcon[] sceneIcons = UnityEngine.Object.FindObjectsByType<DraggableSkillIcon>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        DraggableSkillIcon[] sceneIcons = UnityEngine.Object.FindObjectsOfType<DraggableSkillIcon>(true);
+#endif
+        if (sceneIcons == null)
+            return;
+
+        for (int i = 0; i < sceneIcons.Length; i++)
+            Register(sceneIcons[i]);
     }
 }
 

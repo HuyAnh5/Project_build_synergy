@@ -100,12 +100,14 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
 
     private void Awake()
     {
+        DiceDraggableUiRegistry.Register(this);
         EnsureInitialized();
         RegisterDiceBinding();
     }
 
     private void OnEnable()
     {
+        DiceDraggableUiRegistry.Register(this);
         EnsureInitialized();
         RegisterDiceBinding();
     }
@@ -418,6 +420,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
 
     private void OnDestroy()
     {
+        DiceDraggableUiRegistry.Unregister(this);
         HideHoldInspectRing();
         if (_enchantHoverZone != null)
             Destroy(_enchantHoverZone.gameObject);
@@ -571,8 +574,8 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
                 float distance = Vector2.Distance(new Vector2(x, y), center);
                 bool insideRing = distance <= outerRadius && distance >= innerRadius;
                 pixels[(y * textureSize) + x] = insideRing ? Color.white : clear;
-            }
-        }
+    }
+}
 
         texture.SetPixels(pixels);
         texture.Apply(updateMipmaps: false, makeNoLongerReadable: true);
@@ -679,4 +682,65 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         _registeredDice = null;
     }
 
+}
+
+internal static class DiceDraggableUiRegistry
+{
+    private static readonly List<DiceDraggableUI> Registered = new List<DiceDraggableUI>(16);
+    private static readonly List<DiceDraggableUI> Snapshot = new List<DiceDraggableUI>(16);
+    private static bool _initializedFromScene;
+
+    public static void Register(DiceDraggableUI ui)
+    {
+        if (ui == null || Registered.Contains(ui))
+            return;
+
+        Registered.Add(ui);
+    }
+
+    public static void Unregister(DiceDraggableUI ui)
+    {
+        if (ui == null)
+            return;
+
+        Registered.Remove(ui);
+    }
+
+    public static DiceDraggableUI[] GetAllSnapshot()
+    {
+        EnsureInitializedFromScene();
+        Snapshot.Clear();
+
+        for (int i = Registered.Count - 1; i >= 0; i--)
+        {
+            DiceDraggableUI ui = Registered[i];
+            if (ui == null)
+            {
+                Registered.RemoveAt(i);
+                continue;
+            }
+
+            Snapshot.Add(ui);
+        }
+
+        return Snapshot.ToArray();
+    }
+
+    private static void EnsureInitializedFromScene()
+    {
+        if (_initializedFromScene)
+            return;
+
+        _initializedFromScene = true;
+#if UNITY_2023_1_OR_NEWER
+        DiceDraggableUI[] sceneUis = UnityEngine.Object.FindObjectsByType<DiceDraggableUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        DiceDraggableUI[] sceneUis = UnityEngine.Object.FindObjectsOfType<DiceDraggableUI>(true);
+#endif
+        if (sceneUis == null)
+            return;
+
+        for (int i = 0; i < sceneUis.Length; i++)
+            Register(sceneUis[i]);
+    }
 }

@@ -82,3 +82,67 @@ Small FPS-oriented batch:
 * Add an `ActorWorldUI` registry/cache.
 * Replace repeated `FindObjectsOfType<ActorWorldUI>` in target/preview paths.
 * Candidate files: `ActorWorldUI.cs`, `TargetClickable2D.cs`, `SkillIconPreviewController.cs`.
+
+## Autonomous Continuation: Hot Lookup Registry Batches
+
+Status: compile check passed.
+
+Command run after the latest batch:
+
+* `dotnet build Project_build_synergy.sln`
+
+Result:
+
+* 0 errors.
+* Existing warnings reduced to 69 after replacing several obsolete scene-wide lookup paths.
+
+Changed in this continuation:
+
+* Added internal registries/caches for:
+  * `ActorWorldUI`
+  * `DraggableSkillIcon`
+  * `DiceDraggableUI`
+  * `CombatActor`
+  * `DamagePopupSystem`
+* Replaced repeated target/preview/visual scene scans with registry snapshots where semantics were clear.
+* Kept inactive-object semantics where old code used `FindObjectsOfType<T>(true)`.
+* Kept active-only semantics where old code used `FindObjectsOfType<T>()`.
+* Did not change gameplay math, balance, serialized fields, scenes, or prefabs.
+
+Files changed by continuation:
+
+* `Assets/Scripts/Combat/Actors/CombatActor.cs`
+* `Assets/Scripts/Combat/Execution/PlayerDiceCastAnimator/PlayerDiceCastAnimator.Utility.cs`
+* `Assets/Scripts/Combat/Execution/SkillExecutor.cs`
+* `Assets/Scripts/Combat/Turn/EnemyTurnCoordinator.cs`
+* `Assets/Scripts/Combat/Turn/TurnManagerCombatUtility.cs`
+* `Assets/Scripts/Combat/Turn/TurnManagerViewUtility.cs`
+* `Assets/Scripts/Dice/DiceSlotRig.ConsumePreview.cs`
+* `Assets/Scripts/Dice/DiceSpinnerGeneric.Visuals.cs`
+* `Assets/Scripts/Skills/Definitions/PassiveSystem.cs`
+* `Assets/Scripts/Skills/Runtime/SkillBehaviorRuntimeUtility.cs`
+* `Assets/Scripts/Skills/Runtime/SkillGameplayResolver.Targeting.cs`
+* `Assets/Scripts/Run/RunManager.cs`
+* `Assets/Scripts/UI/Combat/ActorWorldUI.StatusIntent.cs`
+* `Assets/Scripts/UI/Combat/ActorWorldUI.cs`
+* `Assets/Scripts/UI/Combat/CombatHUD.cs`
+* `Assets/Scripts/UI/Combat/DamagePopupSystem.cs`
+* `Assets/Scripts/UI/Combat/TargetClickable2D.cs`
+* `Assets/Scripts/UI/Loadout/Dice/DiceDraggableUI.cs`
+* `Assets/Scripts/UI/Planning/DraggableSkillIcon.Interaction.cs`
+* `Assets/Scripts/UI/Planning/DraggableSkillIcon.cs`
+* `Assets/Scripts/UI/Planning/SkillIconPreviewController.cs`
+
+Not part of this continuation:
+
+* `AGENTS.md` was already modified before this continuation and was not intentionally edited in these batches.
+* Untracked tool/generated folders were not touched.
+
+Unity manual tests added for this continuation:
+
+1. Enter combat, hover/select/drag skills over enemies and self.
+2. Confirm target overlays, target preview HP/Guard/status, and HUD focus preview still appear and clear correctly.
+3. Roll dice, hover skills, consume dice, and confirm dice consume preview/tints/crit-fail preview still work.
+4. Cast damage/heal/focus gain actions and confirm popups still spawn.
+5. End/start turns and confirm skill icon dimming, dice dimming, enemy guard clear, and enemy intents still update.
+6. Kill an enemy and confirm inactive/dead actors do not remain targetable.

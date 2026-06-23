@@ -7,6 +7,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
     public TurnManager turn;
     private CombatActor _actor;
     private ActorWorldUI _worldUI;
+    private CombatHUD _hud;
 
     void Awake()
     {
@@ -124,7 +125,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         if (!bundle.valid)
             return;
 
-        ActorWorldUI[] allUIs = FindObjectsOfType<ActorWorldUI>(true);
+        ActorWorldUI[] allUIs = ActorWorldUiRegistry.GetAllSnapshot();
         ClearAllPreviews(allUIs);
         ShowBundlePreviews(bundle, allUIs);
         ShowHudResourcePreview(skillSource.GetSkillAsset(), rt, bundle.totalSelfFocusGain);
@@ -134,7 +135,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
     {
         TargetingArrowUI.ClearWorldTarget();
 
-        ActorWorldUI[] allUIs = FindObjectsOfType<ActorWorldUI>(true);
+        ActorWorldUI[] allUIs = ActorWorldUiRegistry.GetAllSnapshot();
         ClearAllPreviews(allUIs);
 
         ScriptableObject asset = null;
@@ -166,8 +167,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         if (_worldUI != null)
             return _worldUI;
 
-        ActorWorldUI[] allUIs = FindObjectsOfType<ActorWorldUI>(true);
-        return FindUIForActor(_actor, allUIs);
+        return ActorWorldUiRegistry.FindForActor(_actor);
     }
 
     private SkillRuntime GetSelectedRuntime(DraggableSkillIcon selected)
@@ -320,7 +320,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
 
             if (kvp.Key.isPlayer)
             {
-                CombatHUD hud = FindObjectOfType<CombatHUD>(true);
+                CombatHUD hud = GetHud();
                 if (hud != null)
                     hud.ShowPlayerTargetPreview(kvp.Value);
                 continue;
@@ -332,7 +332,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         }
     }
 
-    private static void ClearAllPreviews(ActorWorldUI[] allUIs)
+    private void ClearAllPreviews(ActorWorldUI[] allUIs)
     {
         if (allUIs == null)
             return;
@@ -343,7 +343,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
                 allUIs[i].ClearTargetPreview();
         }
 
-        CombatHUD hud = FindObjectOfType<CombatHUD>(true);
+        CombatHUD hud = GetHud();
         if (hud != null)
             hud.ClearPlayerTargetPreview();
     }
@@ -355,7 +355,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         if (!SkillUiMetadataUtility.TryGetSkillCosts(asset, out int focusCost, out int slotsRequired))
             return;
 
-        CombatHUD hud = FindObjectOfType<CombatHUD>(true);
+        CombatHUD hud = GetHud();
         if (hud == null)
             return;
 
@@ -366,7 +366,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
 
     private void RestoreHudResourceBaseline(ScriptableObject asset)
     {
-        CombatHUD hud = FindObjectOfType<CombatHUD>(true);
+        CombatHUD hud = GetHud();
         if (hud == null)
             return;
 
@@ -398,6 +398,18 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         }
 
         return runtime;
+    }
+
+    private CombatHUD GetHud()
+    {
+#if UNITY_2023_1_OR_NEWER
+        if (_hud == null)
+            _hud = FindFirstObjectByType<CombatHUD>(FindObjectsInactive.Include);
+#else
+        if (_hud == null)
+            _hud = FindObjectOfType<CombatHUD>(true);
+#endif
+        return _hud;
     }
 
     private DiceCombatEnchantRuntimeUtility.SimpleEnchantPreview GetSimpleEnchantPreview(

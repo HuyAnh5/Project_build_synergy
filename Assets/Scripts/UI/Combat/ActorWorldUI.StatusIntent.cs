@@ -127,7 +127,7 @@ public partial class ActorWorldUI
 
     private static CombatActor FindPlayerIntentTarget()
     {
-        CombatActor[] actors = FindObjectsOfType<CombatActor>(true);
+        CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: true);
         for (int i = 0; i < actors.Length; i++)
         {
             CombatActor candidate = actors[i];

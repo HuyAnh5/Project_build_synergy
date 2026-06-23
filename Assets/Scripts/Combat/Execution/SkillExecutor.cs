@@ -27,7 +27,7 @@ public partial class SkillExecutor : MonoBehaviour
     private DamagePopupSystem GetPopups()
     {
         if (damagePopups != null) return damagePopups;
-        damagePopups = FindObjectOfType<DamagePopupSystem>();
+        damagePopups = DamagePopupSystemRegistry.Get();
         return damagePopups;
     }
 

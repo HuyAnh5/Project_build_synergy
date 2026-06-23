@@ -32,7 +32,7 @@ public static class TurnManagerViewUtility
 
     public static void UpdateAllIconsDim(SkillPlanBoard board, TurnManager turn)
     {
-        var all = Object.FindObjectsOfType<DraggableSkillIcon>(true);
+        var all = DraggableSkillIconRegistry.GetAllSnapshot();
         foreach (var ic in all)
         {
             if (ic == null) continue;
@@ -47,7 +47,7 @@ public static class TurnManagerViewUtility
 
     public static void UpdateAllDiceDim(TurnManager turn)
     {
-        var all = Object.FindObjectsOfType<DiceDraggableUI>(true);
+        var all = DiceDraggableUiRegistry.GetAllSnapshot();
         foreach (var ui in all)
         {
             if (ui == null) continue;

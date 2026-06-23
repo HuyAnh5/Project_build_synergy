@@ -238,16 +238,19 @@ internal sealed partial class SkillIconPreviewController
 
     private ActorWorldUI FindActorWorldUi(CombatActor actor)
     {
-        if (actor == null || _cachedActorWorldUis == null)
+        if (actor == null)
             return null;
 
-        foreach (ActorWorldUI ui in _cachedActorWorldUis)
+        if (_cachedActorWorldUis != null)
         {
-            if (ui != null && ui.actor == actor)
-                return ui;
+            foreach (ActorWorldUI ui in _cachedActorWorldUis)
+            {
+                if (ui != null && ui.actor == actor)
+                    return ui;
+            }
         }
 
-        return null;
+        return ActorWorldUiRegistry.FindForActor(actor);
     }
 
     private void ClearTargetPreviewIfActive()
@@ -323,11 +326,7 @@ internal sealed partial class SkillIconPreviewController
         if (!(asset is SkillPassiveSO))
             _turn.TryGetPrototypeSkillTooltipRuntime(asset, out runtime);
 
-#if UNITY_2023_1_OR_NEWER
-        _cachedActorWorldUis = UnityEngine.Object.FindObjectsByType<ActorWorldUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-#else
-        _cachedActorWorldUis = UnityEngine.Object.FindObjectsOfType<ActorWorldUI>(true);
-#endif
+        _cachedActorWorldUis = ActorWorldUiRegistry.GetAllSnapshot();
 
         foreach (ActorWorldUI ui in _cachedActorWorldUis)
         {

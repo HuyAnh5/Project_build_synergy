@@ -98,8 +98,14 @@ public partial class DamagePopupSystem : MonoBehaviour
 
     private void Awake()
     {
+        DamagePopupSystemRegistry.Register(this);
         EnsureSpawnParent();
         Prewarm();
+    }
+
+    private void OnDestroy()
+    {
+        DamagePopupSystemRegistry.Unregister(this);
     }
 
     /// <summary>
@@ -373,5 +379,50 @@ public partial class DamagePopupSystem : MonoBehaviour
         {
             Debug.LogWarning("[DamagePopupSystem] popupPrefab is NULL.", this);
         }
+    }
+}
+
+internal static class DamagePopupSystemRegistry
+{
+    private static DamagePopupSystem _instance;
+    private static bool _initializedFromScene;
+
+    public static void Register(DamagePopupSystem system)
+    {
+        if (system == null)
+            return;
+
+        _instance = system;
+    }
+
+    public static void Unregister(DamagePopupSystem system)
+    {
+        if (system == null || _instance != system)
+            return;
+
+        _instance = null;
+        _initializedFromScene = false;
+    }
+
+    public static DamagePopupSystem Get()
+    {
+        if (_instance != null)
+            return _instance;
+
+        EnsureInitializedFromScene();
+        return _instance;
+    }
+
+    private static void EnsureInitializedFromScene()
+    {
+        if (_initializedFromScene)
+            return;
+
+        _initializedFromScene = true;
+#if UNITY_2023_1_OR_NEWER
+        _instance = UnityEngine.Object.FindFirstObjectByType<DamagePopupSystem>(FindObjectsInactive.Include);
+#else
+        _instance = UnityEngine.Object.FindObjectOfType<DamagePopupSystem>(true);
+#endif
     }
 }

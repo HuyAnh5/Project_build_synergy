@@ -51,8 +51,14 @@ public class CombatActor : MonoBehaviour
 
     private void Awake()
     {
+        CombatActorRegistry.Register(this);
         if (!status) status = GetComponent<StatusController>();
         EnsureUiAnchor(alignExistingAnchorToVisualCenter: true);
+    }
+
+    private void OnDestroy()
+    {
+        CombatActorRegistry.Unregister(this);
     }
 
     private void OnValidate()
@@ -237,7 +243,7 @@ public class CombatActor : MonoBehaviour
         int healed = hp - before;
         if (healed <= 0) return 0;
 
-        var pop = Object.FindObjectOfType<DamagePopupSystem>();
+        var pop = DamagePopupSystemRegistry.Get();
         if (pop != null)
             pop.SpawnHeal(this, this, healed);
 
@@ -293,6 +299,70 @@ public class CombatActor : MonoBehaviour
             party.LayoutAll();
 
         gameObject.SetActive(false);
+    }
+}
+
+internal static class CombatActorRegistry
+{
+    private static readonly System.Collections.Generic.List<CombatActor> Registered = new System.Collections.Generic.List<CombatActor>(16);
+    private static readonly System.Collections.Generic.List<CombatActor> Snapshot = new System.Collections.Generic.List<CombatActor>(16);
+    private static bool _initializedFromScene;
+
+    public static void Register(CombatActor actor)
+    {
+        if (actor == null || Registered.Contains(actor))
+            return;
+
+        Registered.Add(actor);
+    }
+
+    public static void Unregister(CombatActor actor)
+    {
+        if (actor == null)
+            return;
+
+        Registered.Remove(actor);
+    }
+
+    public static CombatActor[] GetAllSnapshot(bool includeInactive = true)
+    {
+        EnsureInitializedFromScene();
+        Snapshot.Clear();
+
+        for (int i = Registered.Count - 1; i >= 0; i--)
+        {
+            CombatActor actor = Registered[i];
+            if (actor == null)
+            {
+                Registered.RemoveAt(i);
+                continue;
+            }
+
+            if (!includeInactive && !actor.gameObject.activeInHierarchy)
+                continue;
+
+            Snapshot.Add(actor);
+        }
+
+        return Snapshot.ToArray();
+    }
+
+    private static void EnsureInitializedFromScene()
+    {
+        if (_initializedFromScene)
+            return;
+
+        _initializedFromScene = true;
+#if UNITY_2023_1_OR_NEWER
+        CombatActor[] sceneActors = UnityEngine.Object.FindObjectsByType<CombatActor>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        CombatActor[] sceneActors = UnityEngine.Object.FindObjectsOfType<CombatActor>(true);
+#endif
+        if (sceneActors == null)
+            return;
+
+        for (int i = 0; i < sceneActors.Length; i++)
+            Register(sceneActors[i]);
     }
 }
 

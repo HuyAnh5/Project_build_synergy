@@ -214,7 +214,7 @@ internal sealed class EnemyTurnCoordinator
         if (party != null)
             return;
 
-        var actors = Object.FindObjectsOfType<CombatActor>(true);
+        var actors = CombatActorRegistry.GetAllSnapshot(includeInactive: true);
         for (int i = 0; i < actors.Length; i++)
         {
             CombatActor actor = actors[i];

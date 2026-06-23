@@ -102,7 +102,7 @@ public partial class DraggableSkillIcon
         if (_lastAffectedPulseFrame == frame)
             return;
 
-        DraggableSkillIcon[] icons = FindObjectsOfType<DraggableSkillIcon>(true);
+        DraggableSkillIcon[] icons = DraggableSkillIconRegistry.GetAllSnapshot();
         bool pulsedAny = false;
         for (int i = 0; i < icons.Length; i++)
         {
@@ -133,7 +133,7 @@ public partial class DraggableSkillIcon
         if (asset == null)
             return;
 
-        DraggableSkillIcon[] icons = FindObjectsOfType<DraggableSkillIcon>(true);
+        DraggableSkillIcon[] icons = DraggableSkillIconRegistry.GetAllSnapshot();
         for (int i = 0; i < icons.Length; i++)
         {
             DraggableSkillIcon icon = icons[i];

@@ -166,6 +166,11 @@ public partial class ActorWorldUI : MonoBehaviour
     private Image _hpPreviewFill;   // phần cam đè lên HP bar
     private Tween _hpHealBlinkTween;
 
+    private void Awake()
+    {
+        ActorWorldUiRegistry.Register(this);
+    }
+
     [ContextMenu("Setup World UI Layout")]
     public void SetupWorldUiLayout()
     {
@@ -184,6 +189,8 @@ public partial class ActorWorldUI : MonoBehaviour
 
     public void Bind(CombatActor a)
     {
+        ActorWorldUiRegistry.Register(this);
+
         actor = a;
         InvalidateRuntimeCache();
         if (actor == null)
@@ -210,6 +217,7 @@ public partial class ActorWorldUI : MonoBehaviour
 
     private void OnEnable()
     {
+        ActorWorldUiRegistry.Register(this);
         InvalidateRuntimeCache();
 
         if (!CanRefreshInEditor())
@@ -226,6 +234,11 @@ public partial class ActorWorldUI : MonoBehaviour
         }
         else
             RefreshEditorPreview();
+    }
+
+    private void OnDestroy()
+    {
+        ActorWorldUiRegistry.Unregister(this);
     }
 
     private void InvalidateRuntimeCache()
@@ -552,4 +565,87 @@ public partial class ActorWorldUI : MonoBehaviour
 
 
 
+}
+
+internal static class ActorWorldUiRegistry
+{
+    private static readonly List<ActorWorldUI> Registered = new List<ActorWorldUI>(16);
+    private static readonly List<ActorWorldUI> Snapshot = new List<ActorWorldUI>(16);
+    private static bool _initializedFromScene;
+
+    public static void Register(ActorWorldUI ui)
+    {
+        if (ui == null || Registered.Contains(ui))
+            return;
+
+        Registered.Add(ui);
+    }
+
+    public static void Unregister(ActorWorldUI ui)
+    {
+        if (ui == null)
+            return;
+
+        Registered.Remove(ui);
+    }
+
+    public static ActorWorldUI[] GetAllSnapshot()
+    {
+        EnsureInitializedFromScene();
+        Snapshot.Clear();
+
+        for (int i = Registered.Count - 1; i >= 0; i--)
+        {
+            ActorWorldUI ui = Registered[i];
+            if (ui == null)
+            {
+                Registered.RemoveAt(i);
+                continue;
+            }
+
+            Snapshot.Add(ui);
+        }
+
+        return Snapshot.ToArray();
+    }
+
+    public static ActorWorldUI FindForActor(CombatActor actor)
+    {
+        if (actor == null)
+            return null;
+
+        EnsureInitializedFromScene();
+        for (int i = Registered.Count - 1; i >= 0; i--)
+        {
+            ActorWorldUI ui = Registered[i];
+            if (ui == null)
+            {
+                Registered.RemoveAt(i);
+                continue;
+            }
+
+            if (ui.actor == actor)
+                return ui;
+        }
+
+        return null;
+    }
+
+    private static void EnsureInitializedFromScene()
+    {
+        if (_initializedFromScene)
+            return;
+
+        _initializedFromScene = true;
+#if UNITY_2023_1_OR_NEWER
+        ActorWorldUI[] sceneUis = UnityEngine.Object.FindObjectsByType<ActorWorldUI>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        ActorWorldUI[] sceneUis = UnityEngine.Object.FindObjectsOfType<ActorWorldUI>(true);
+#endif
+        if (sceneUis == null)
+            return;
+
+        for (int i = 0; i < sceneUis.Length; i++)
+            Register(sceneUis[i]);
+    }
 }

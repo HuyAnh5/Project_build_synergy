@@ -365,7 +365,7 @@ public partial class CombatHUD : MonoBehaviour
 
     private Color ResolveFocusGainColor()
     {
-        DamagePopupSystem popups = FindObjectOfType<DamagePopupSystem>();
+        DamagePopupSystem popups = DamagePopupSystemRegistry.Get();
         return popups != null ? popups.FocusGainColor : new Color(0.22f, 0.74f, 1f, 1f);
     }
 

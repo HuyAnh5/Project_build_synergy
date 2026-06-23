@@ -198,7 +198,7 @@ public sealed class RunManager : MonoBehaviour
             playerActor = GetComponentInChildren<CombatActor>(true);
         if (playerActor == null)
         {
-            CombatActor[] actors = FindObjectsByType<CombatActor>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: true);
             for (int i = 0; i < actors.Length; i++)
             {
                 if (actors[i] != null && actors[i].isPlayer)

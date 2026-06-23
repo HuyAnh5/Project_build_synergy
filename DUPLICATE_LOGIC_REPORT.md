@@ -34,13 +34,44 @@ Why this is intentionally small:
 * Build buffer logic contains player/enemy-specific labels and preview data.
 * Tooltip logic should be extracted separately to reduce risk.
 
+### Hot lookup registry consolidation
+
+Changed files include:
+
+* `ActorWorldUI.cs`
+* `TargetClickable2D.cs`
+* `SkillIconPreviewController.cs`
+* `DraggableSkillIcon.cs`
+* `DraggableSkillIcon.Interaction.cs`
+* `DiceDraggableUI.cs`
+* `TurnManagerViewUtility.cs`
+* `DiceSlotRig.ConsumePreview.cs`
+* `DiceSpinnerGeneric.Visuals.cs`
+* `PlayerDiceCastAnimator.Utility.cs`
+* `CombatActor.cs`
+* `SkillGameplayResolver.Targeting.cs`
+* `SkillBehaviorRuntimeUtility.cs`
+* `EnemyTurnCoordinator.cs`
+* `TurnManagerCombatUtility.cs`
+* `ActorWorldUI.StatusIntent.cs`
+* `DamagePopupSystem.cs`
+* `CombatHUD.cs`
+* `PassiveSystem.cs`
+* `SkillExecutor.cs`
+
+What changed:
+
+* Repeated local scene scans for the same runtime objects were consolidated behind small internal registries.
+* Callers now use shared lookup paths for actor world UI, skill icons, dice UI cards, combat actors, and popup systems.
+* No gameplay calculations were changed.
+
 ## Next Duplicate Target
 
 Recommended next safe target:
 
-* Add a registry/cache for `ActorWorldUI` and possibly `CombatHUD` lookup in preview/targeting paths.
+* Extract shared tooltip/keyword tooltip/positioning helpers, starting with content-signature/position-only update helpers.
 
 Reason:
 
-* Many hot/preview paths still use scene-wide lookup.
-* A registry can reduce FPS risk without changing gameplay rules.
+* Tooltip layout and keyword tooltip logic still overlaps across skill, actor/world, consumable, and dice UI.
+* This is the next high-value duplicate area after status rows and hot lookup consolidation.

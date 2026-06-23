@@ -146,7 +146,7 @@ public static partial class SkillGameplayResolver
 
     private static void AddAllEnemyTargets(List<CombatActor> targets, CombatActor caster, CombatActor fallbackTarget)
     {
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>(true);
+        CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: true);
         for (int i = 0; i < actors.Length; i++)
         {
             CombatActor actor = actors[i];
@@ -183,7 +183,7 @@ public static partial class SkillGameplayResolver
         }
 
         CombatActor.RowTag row = rowAnchor.row;
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>(true);
+        CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: true);
         for (int i = 0; i < actors.Length; i++)
         {
             CombatActor actor = actors[i];
@@ -223,7 +223,7 @@ public static partial class SkillGameplayResolver
 
     private static int CountAliveEnemies(CombatActor caster)
     {
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>();
+        CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: false);
         int count = 0;
         for (int i = 0; i < actors.Length; i++)
         {
@@ -239,7 +239,7 @@ public static partial class SkillGameplayResolver
 
     private static int CountEnemiesWithStatus(CombatActor caster, StatusKind status)
     {
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>();
+        CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: false);
         int count = 0;
         for (int i = 0; i < actors.Length; i++)
         {
@@ -276,7 +276,7 @@ public static partial class SkillGameplayResolver
 
     private static int CountTotalBleed(CombatActor caster)
     {
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>();
+        CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: false);
         int total = 0;
         for (int i = 0; i < actors.Length; i++)
         {
@@ -292,7 +292,7 @@ public static partial class SkillGameplayResolver
 
     private static int CountEnemiesWithAnyStatus(CombatActor caster)
     {
-        CombatActor[] actors = Object.FindObjectsOfType<CombatActor>();
+        CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: false);
         int count = 0;
         for (int i = 0; i < actors.Length; i++)
         {

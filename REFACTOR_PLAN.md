@@ -218,6 +218,23 @@ Files expected to change:
 * Assets/Scripts/UI/Planning/SkillIconPreviewController.cs
 * New file, likely Assets/Scripts/UI/Combat/ActorWorldUiRegistry.cs
 
+Status:
+
+* Completed as part of autonomous continuation.
+* Registry helper was kept internal in an existing included `.cs` file to avoid Unity `.csproj` regeneration issues.
+* Follow-up registry batches also covered `DraggableSkillIcon`, `DiceDraggableUI`, `CombatActor`, and `DamagePopupSystem`.
+
+Latest verification:
+
+* `dotnet build Project_build_synergy.sln`
+* 0 errors, 69 existing warnings.
+
+Next safest refactor direction:
+
+* Tooltip/keyword tooltip/layout consolidation.
+* Start with small helpers for position-only updates or content signatures.
+* Avoid rewriting `SkillTooltipUI` wholesale.
+
 This has clearer FPS upside but touches more runtime preview behavior, so P0-1 is safer as the first refactor slice.
 
 ---
