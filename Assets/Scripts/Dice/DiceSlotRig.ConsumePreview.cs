@@ -153,7 +153,7 @@ public partial class DiceSlotRig
             return;
 
         if (_cachedHud == null)
-            _cachedHud = FindObjectOfType<CombatHUD>(true);
+            _cachedHud = CombatHudRegistry.Get();
 
         float blinkSpeed = (_cachedHud != null) ? _cachedHud.consumePreviewBlinkSpeed : 3f;
         float minAlpha = (_cachedHud != null) ? _cachedHud.consumePreviewMinAlpha : 0.5f;

@@ -97,6 +97,9 @@ public sealed partial class MapPrototypeController
 
     private void LogMap(string message)
     {
+        if (!verboseLogging)
+            return;
+
         Debug.Log($"[MapPrototype] {message}", this);
     }
 

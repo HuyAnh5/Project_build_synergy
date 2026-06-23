@@ -2,16 +2,19 @@
 
 This report tracks code that may be removable later. Nothing in this file is permission to delete immediately.
 
-Rules before deleting anything:
+## Rules Before Deleting Anything
 
-* Check static references with search and Serena.
+* Check static references with search and Serena where useful.
 * Check Unity risks: public methods, serialized fields, UnityEvents, animation events, reflection, scene/prefab references.
 * Prefer marking as candidate over deleting if unsure.
 * Do not delete public APIs unless there is strong evidence they are not used by Unity serialization or external callers.
+* Do not delete prototype/demo code until it is classified as unused in the current workflow.
 
-## Current Safe Deletions
+## Confirmed Safe Deletions Already Done
 
-None confirmed yet.
+| Removed item | Why safe | Verification |
+|---|---|---|
+| Private no-op `PassiveSystem.Accumulate(PassiveEffectEntry effect)` path | The method had no side effects and `Rebuild()` still clears/rebuilds state through active effect queries. Runtime effect value reads remain through `GetEffectValue`. | `dotnet build Project_build_synergy.sln` passes |
 
 ## Candidates Requiring More Evidence
 
@@ -22,6 +25,7 @@ None confirmed yet.
 | `Assets/Scripts/DiceEditSandbox/*` older sandbox pieces | Sandbox naming and overlap with GameplayDiceEdit systems | Some systems are used by consumables/dice edit UI | Classify each file as production, sandbox, or legacy |
 | Editor setup tools in `Assets/Scripts/Editor/*` | Many one-shot setup tools | User did not ask to remove editor tooling | Only delete if superseded and no menu/tool workflow depends on it |
 | Debug hotkey code in `DiceSlotRig.Update` and `TurnManager.Update` | Debug-only behavior | May be useful during development | Gate/keep unless user asks to strip debug behavior |
+| Runtime particle creation inside feedback systems | Possible spike source | Could be intentional/rare visual feedback | Profile hit/feedback bursts and confirm replacement/pooling path |
 
 ## Private Unused Cleanup Strategy
 
@@ -34,6 +38,8 @@ When doing a focused batch:
 
 Do not run a broad private-method deletion sweep yet.
 
-## Notes From Current Batch
+## Notes From Current Continuation
 
-P0-1 did not delete any function/class/file. It only extracted duplicated status-row rendering into a shared internal helper.
+No files were deleted.
+
+Large candidate groups remain intentionally untouched because Unity scene/prefab/event references cannot be proven safe from C# search alone.

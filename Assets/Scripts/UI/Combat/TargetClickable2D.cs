@@ -14,7 +14,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         _actor = GetComponent<CombatActor>();
         if (_actor == null) _actor = GetComponentInParent<CombatActor>();
         if (turn == null)
-            turn = FindObjectOfType<TurnManager>(true);
+            turn = TurnManagerRegistry.Get();
         _worldUI = GetComponentInParent<ActorWorldUI>();
     }
 
@@ -39,7 +39,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
 
         if (_actor)
         {
-            ConsumableBarUIManager consumableUi = FindObjectOfType<ConsumableBarUIManager>(true);
+            ConsumableBarUIManager consumableUi = ConsumableBarUiManagerRegistry.Get();
             if (consumableUi != null && consumableUi.TryHandleTargetClick(_actor))
                 return;
         }
@@ -402,13 +402,8 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
 
     private CombatHUD GetHud()
     {
-#if UNITY_2023_1_OR_NEWER
         if (_hud == null)
-            _hud = FindFirstObjectByType<CombatHUD>(FindObjectsInactive.Include);
-#else
-        if (_hud == null)
-            _hud = FindObjectOfType<CombatHUD>(true);
-#endif
+            _hud = CombatHudRegistry.Get();
         return _hud;
     }
 

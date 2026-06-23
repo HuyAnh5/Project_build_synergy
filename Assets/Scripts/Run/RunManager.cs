@@ -187,7 +187,7 @@ public sealed class RunManager : MonoBehaviour
         if (runInventory == null)
             runInventory = GetComponentInChildren<RunInventoryManager>(true);
         if (runInventory == null)
-            runInventory = FindFirstObjectByType<RunInventoryManager>(FindObjectsInactive.Include);
+            runInventory = RunInventoryManagerRegistry.Get();
 
         if (mapController == null)
             mapController = GetComponentInChildren<MapPrototypeController>(true);

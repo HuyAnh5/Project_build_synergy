@@ -129,7 +129,6 @@ public partial class ConsumableBarUIManager
             return;
 
         text.richText = true;
-        text.enableWordWrapping = true;
         text.textWrappingMode = TextWrappingModes.Normal;
         text.overflowMode = TextOverflowModes.Overflow;
 

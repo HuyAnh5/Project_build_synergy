@@ -74,11 +74,18 @@ public class BattlePartyManager2D : MonoBehaviour
 
     void Awake()
     {
+        BattlePartyManagerRegistry.Register(this);
+
         if (turnManager == null)
-            turnManager = GetComponent<TurnManager>() ?? FindObjectOfType<TurnManager>(true);
+            turnManager = GetComponent<TurnManager>() ?? TurnManagerRegistry.Get();
 
         if (spawnOnStart)
             EnsureSpawned();
+    }
+
+    private void OnDestroy()
+    {
+        BattlePartyManagerRegistry.Unregister(this);
     }
 
     [ContextMenu("Ensure Spawned")]
@@ -221,7 +228,7 @@ public class BattlePartyManager2D : MonoBehaviour
 
         // Auto-assign TurnManager to all TargetClickable2D under this actor
         if (turnManager == null)
-            turnManager = GetComponent<TurnManager>() ?? FindObjectOfType<TurnManager>(true);
+            turnManager = GetComponent<TurnManager>() ?? TurnManagerRegistry.Get();
 
         var clickables = actor.GetComponentsInChildren<TargetClickable2D>(true);
         foreach (var c in clickables)
@@ -479,5 +486,50 @@ public class BattlePartyManager2D : MonoBehaviour
 
         _spawnOrder.Clear();
         _spawnSerial = 0;
+    }
+}
+
+internal static class BattlePartyManagerRegistry
+{
+    private static BattlePartyManager2D _instance;
+    private static bool _initializedFromScene;
+
+    public static void Register(BattlePartyManager2D party)
+    {
+        if (party == null)
+            return;
+
+        _instance = party;
+    }
+
+    public static void Unregister(BattlePartyManager2D party)
+    {
+        if (party == null || _instance != party)
+            return;
+
+        _instance = null;
+        _initializedFromScene = false;
+    }
+
+    public static BattlePartyManager2D Get()
+    {
+        if (_instance != null)
+            return _instance;
+
+        EnsureInitializedFromScene();
+        return _instance;
+    }
+
+    private static void EnsureInitializedFromScene()
+    {
+        if (_initializedFromScene)
+            return;
+
+        _initializedFromScene = true;
+#if UNITY_2023_1_OR_NEWER
+        _instance = UnityEngine.Object.FindFirstObjectByType<BattlePartyManager2D>(FindObjectsInactive.Include);
+#else
+        _instance = UnityEngine.Object.FindObjectOfType<BattlePartyManager2D>(true);
+#endif
     }
 }

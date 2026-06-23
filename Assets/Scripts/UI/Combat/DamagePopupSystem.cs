@@ -319,15 +319,7 @@ public partial class DamagePopupSystem : MonoBehaviour
 
     private static Canvas FindPopupCanvas()
     {
-        Canvas[] canvases = FindObjectsOfType<Canvas>(true);
-        for (int i = 0; i < canvases.Length; i++)
-        {
-            Canvas canvas = canvases[i];
-            if (canvas != null && canvas.name == PopupCanvasName)
-                return canvas;
-        }
-
-        return null;
+        return SceneCanvasLookup.FindByName(PopupCanvasName);
     }
 
     private void RegisterTotalDamageHit(CombatActor attacker, CombatActor target, int amount)

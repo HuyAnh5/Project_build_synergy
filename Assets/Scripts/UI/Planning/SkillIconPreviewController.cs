@@ -183,13 +183,8 @@ internal sealed partial class SkillIconPreviewController
 
     private CombatHUD GetCachedHud()
     {
-#if UNITY_2023_1_OR_NEWER
         if (_cachedHud == null)
-            _cachedHud = UnityEngine.Object.FindFirstObjectByType<CombatHUD>(FindObjectsInactive.Include);
-#else
-        if (_cachedHud == null)
-            _cachedHud = UnityEngine.Object.FindObjectOfType<CombatHUD>(true);
-#endif
+            _cachedHud = CombatHudRegistry.Get();
         return _cachedHud;
     }
 

@@ -84,6 +84,29 @@ public partial class ActorWorldUI
         }
     }
 
+    private bool AreRuntimeReferencesMissing()
+    {
+        if (worldCanvasRoot == null || worldCanvas == null || worldCanvasGroup == null)
+            return true;
+        if (intentRoot == null || intentIcon == null || intentValueText == null)
+            return true;
+        if (hpBarRoot == null || hpBarBackground == null || hpBarFill == null || hpText == null)
+            return true;
+        if (guardRoot == null || guardIcon == null || guardText == null)
+            return true;
+        if (statusRowRoot == null || statusSlots == null || statusSlots.Length == 0)
+            return true;
+
+        for (int i = 0; i < statusSlots.Length; i++)
+        {
+            StatusIconSlot slot = statusSlots[i];
+            if (slot == null || slot.root == null)
+                return true;
+        }
+
+        return false;
+    }
+
     private void AttachToActorAnchor()
     {
         if (actor == null)

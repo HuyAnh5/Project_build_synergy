@@ -286,7 +286,7 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
     private static SkillTooltipPrefabProvider GetPrefabProvider()
     {
         if (_prefabProvider == null)
-            _prefabProvider = FindFirstObjectByType<SkillTooltipPrefabProvider>(FindObjectsInactive.Include);
+            _prefabProvider = SkillTooltipPrefabProviderRegistry.Get();
 
         return _prefabProvider;
     }
@@ -305,13 +305,9 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
         if (sharedHost != null)
             return sharedHost;
 
-        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < canvases.Length; i++)
-        {
-            Canvas canvas = canvases[i];
-            if (canvas != null && canvas.name == OverlayCanvasName)
-                return canvas;
-        }
+        Canvas existing = SceneCanvasLookup.FindByName(OverlayCanvasName);
+        if (existing != null)
+            return existing;
 
         GameObject canvasGo = new GameObject(
             OverlayCanvasName,
@@ -340,15 +336,7 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
 
     private static Canvas FindSharedTooltipHostCanvas()
     {
-        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < canvases.Length; i++)
-        {
-            Canvas canvas = canvases[i];
-            if (canvas != null && canvas.name == SharedTooltipHostCanvasName)
-                return canvas;
-        }
-
-        return null;
+        return SceneCanvasLookup.FindByName(SharedTooltipHostCanvasName);
     }
 
     private static void ApplyContent(TooltipView view, TooltipContent content)

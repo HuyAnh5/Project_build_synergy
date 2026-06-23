@@ -37,7 +37,7 @@ public partial class SkillExecutor : MonoBehaviour
         if (fromComponent != null)
             return fromComponent;
 
-        return FindObjectOfType<TurnManager>(true);
+        return TurnManagerRegistry.Get();
     }
 
     private BattlePartyManager2D GetParty()
@@ -45,7 +45,7 @@ public partial class SkillExecutor : MonoBehaviour
         if (_cachedParty != null)
             return _cachedParty;
 
-        _cachedParty = FindObjectOfType<BattlePartyManager2D>(true);
+        _cachedParty = BattlePartyManagerRegistry.Get();
         return _cachedParty;
     }
 

@@ -113,6 +113,7 @@ public partial class ConsumableBarUIManager : MonoBehaviour
 
     private void Awake()
     {
+        ConsumableBarUiManagerRegistry.Register(this);
         AutoResolveReferences();
         WireButtons();
         RefreshAll();
@@ -169,68 +170,68 @@ public partial class ConsumableBarUIManager : MonoBehaviour
         ClearDragGhost(instant: true);
     }
 
+    private void OnDestroy()
+    {
+        ConsumableBarUiManagerRegistry.Unregister(this);
+    }
+
     public void HandleSlotHoverEnter(int index)
     {
         if (UiDragState.IsDragging)
         {
-            _hoveredSlot = -1;
-            RefreshFloatingPresentation();
+            SetHoveredSlot(-1);
             return;
         }
 
         if (index == _ignoreHoverSlotUntilExit)
         {
-            _hoveredSlot = -1;
-            RefreshFloatingPresentation();
+            SetHoveredSlot(-1);
             return;
         }
 
-        _hoveredSlot = index;
-        RefreshFloatingPresentation();
+        SetHoveredSlot(index);
     }
 
     public void HandleSlotHoverExit(int index)
     {
         if (_hoveredSlot == index && !IsPointerOverTooltipPresentation(index))
-            _hoveredSlot = -1;
+            SetHoveredSlot(-1);
 
         if (_ignoreHoverSlotUntilExit == index)
             _ignoreHoverSlotUntilExit = -1;
 
         if (_suppressClickSlot == index && !_suppressSlotClicksUntilPointerRelease)
             _suppressClickSlot = -1;
-
-        RefreshFloatingPresentation();
     }
 
     private void UpdateHoveredSlotFromPointer()
     {
         if (UiDragState.IsDragging)
         {
-            if (_hoveredSlot >= 0)
-            {
-                _hoveredSlot = -1;
-                RefreshFloatingPresentation();
-            }
+            SetHoveredSlot(-1);
             return;
         }
 
         if (_hoveredSlot >= 0)
         {
             if (!IsPointerOverTooltipPresentation(_hoveredSlot))
-            {
-                _hoveredSlot = -1;
-                RefreshFloatingPresentation();
-            }
+                SetHoveredSlot(-1);
 
             return;
         }
 
         if (TryGetHoveredSlotUnderPointer(out int hoveredSlot))
-        {
-            _hoveredSlot = hoveredSlot;
-            RefreshFloatingPresentation();
-        }
+            SetHoveredSlot(hoveredSlot);
+    }
+
+    private bool SetHoveredSlot(int slot)
+    {
+        if (_hoveredSlot == slot)
+            return false;
+
+        _hoveredSlot = slot;
+        RefreshFloatingPresentation();
+        return true;
     }
 
     public void HandleSlotClicked(int index)
@@ -379,5 +380,37 @@ public partial class ConsumableBarUIManager : MonoBehaviour
             return _rewardChoiceData != null && index < _rewardChoiceData.Length ? _rewardChoiceData[index] : null;
 
         return runInventory != null ? runInventory.GetConsumable(index) : null;
+    }
+}
+
+internal static class ConsumableBarUiManagerRegistry
+{
+    private static ConsumableBarUIManager _instance;
+
+    public static void Register(ConsumableBarUIManager manager)
+    {
+        if (manager == null)
+            return;
+
+        _instance = manager;
+    }
+
+    public static void Unregister(ConsumableBarUIManager manager)
+    {
+        if (_instance == manager)
+            _instance = null;
+    }
+
+    public static ConsumableBarUIManager Get()
+    {
+        if (_instance != null)
+            return _instance;
+
+#if UNITY_2023_1_OR_NEWER
+        _instance = UnityEngine.Object.FindFirstObjectByType<ConsumableBarUIManager>(FindObjectsInactive.Include);
+#else
+        _instance = UnityEngine.Object.FindObjectOfType<ConsumableBarUIManager>(true);
+#endif
+        return _instance;
     }
 }

@@ -77,6 +77,7 @@ public partial class DiceEquipUIManager : MonoBehaviour
 
     private void Awake()
     {
+        DiceEquipUiManagerRegistry.Register(this);
         _rootCanvas = GetComponentInParent<Canvas>();
         _container = layoutContainer != null ? layoutContainer : transform as RectTransform;
 
@@ -106,6 +107,11 @@ public partial class DiceEquipUIManager : MonoBehaviour
     {
         if (runInventory != null)
             runInventory.InventoryChanged -= HandleInventoryChanged;
+    }
+
+    private void OnDestroy()
+    {
+        DiceEquipUiManagerRegistry.Unregister(this);
     }
 
     private void LateUpdate()
@@ -245,7 +251,7 @@ public partial class DiceEquipUIManager : MonoBehaviour
             return false;
 
         if (_diceEditController == null)
-            _diceEditController = FindObjectOfType<GameplayDiceEditController>(true);
+            _diceEditController = GameplayDiceEditControllerRegistry.Get();
 
         return _diceEditController != null && _diceEditController.TryOpenInspectPanelForDie(dice.dice);
     }
@@ -425,7 +431,7 @@ public partial class DiceEquipUIManager : MonoBehaviour
     private void RefreshTurnManagerRef()
     {
         if (turnManager == null)
-            turnManager = FindObjectOfType<TurnManager>(true);
+            turnManager = TurnManagerRegistry.Get();
     }
 
     private void HandleInventoryChanged()
@@ -522,6 +528,38 @@ public partial class DiceEquipUIManager : MonoBehaviour
 
         index = Mathf.Abs(index);
         return DefaultDiceUiColors[index % DefaultDiceUiColors.Length];
+    }
+}
+
+internal static class DiceEquipUiManagerRegistry
+{
+    private static DiceEquipUIManager _instance;
+
+    public static void Register(DiceEquipUIManager manager)
+    {
+        if (manager == null)
+            return;
+
+        _instance = manager;
+    }
+
+    public static void Unregister(DiceEquipUIManager manager)
+    {
+        if (_instance == manager)
+            _instance = null;
+    }
+
+    public static DiceEquipUIManager Get()
+    {
+        if (_instance != null)
+            return _instance;
+
+#if UNITY_2023_1_OR_NEWER
+        _instance = UnityEngine.Object.FindFirstObjectByType<DiceEquipUIManager>(FindObjectsInactive.Include);
+#else
+        _instance = UnityEngine.Object.FindObjectOfType<DiceEquipUIManager>(true);
+#endif
+        return _instance;
     }
 }
 

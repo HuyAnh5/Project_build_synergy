@@ -43,7 +43,7 @@ public static class MapPrototypeUIFactory
         textComponent.fontStyle = styles;
         textComponent.color = color;
         textComponent.alignment = alignment;
-        textComponent.enableWordWrapping = true;
+        textComponent.textWrappingMode = TextWrappingModes.Normal;
         textComponent.raycastTarget = false;
         if (TMP_Settings.defaultFontAsset != null)
             textComponent.font = TMP_Settings.defaultFontAsset;

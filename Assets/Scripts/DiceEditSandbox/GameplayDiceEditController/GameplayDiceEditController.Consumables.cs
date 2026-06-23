@@ -84,7 +84,7 @@ public partial class GameplayDiceEditController
             ConsumableRuntimeUtility.NotifyDiceStateChanged(sourceDie, turnManager);
 
         if (consumableBarUi == null)
-            consumableBarUi = FindObjectOfType<ConsumableBarUIManager>(true);
+            consumableBarUi = ConsumableBarUiManagerRegistry.Get();
 
         consumableBarUi?.ClearSelectionForExternalConsumableResolution(_pendingConsumableSlot);
         runInventory.TryConsumeConsumableCharge(_pendingConsumableSlot, 1);

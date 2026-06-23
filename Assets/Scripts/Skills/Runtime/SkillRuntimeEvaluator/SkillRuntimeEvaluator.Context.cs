@@ -39,7 +39,7 @@ public static partial class SkillRuntimeEvaluator
         int gatherStart = scope == SkillConditionScope.Global ? 0 : start0;
         int gatherSpan = scope == SkillConditionScope.Global ? 3 : span;
         int gatherMask = scope == SkillConditionScope.Global ? -1 : paymentMask;
-        BattlePartyManager2D party = Object.FindObjectOfType<BattlePartyManager2D>(true);
+        BattlePartyManager2D party = BattlePartyManagerRegistry.Get();
         int enemiesWithBurnCount = 0;
         int markedEnemiesCount = 0;
         int totalBleedOnBoard = 0;

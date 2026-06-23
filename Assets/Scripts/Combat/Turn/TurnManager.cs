@@ -71,8 +71,14 @@ public partial class TurnManager : MonoBehaviour
     private bool _diceReorderLocked;
     private bool _isProcessingQueuedPlayerCommands;
     private bool _endTurnQueued;
+    private bool _continueButtonLookupAttempted;
     private Coroutine _autoRollCoroutine;
     private DiceEquipUIManager _diceEquipUiManager;
+
+    void Awake()
+    {
+        TurnManagerRegistry.Register(this);
+    }
 
     void Start()
     {
@@ -132,6 +138,8 @@ public partial class TurnManager : MonoBehaviour
 
     void OnDestroy()
     {
+        TurnManagerRegistry.Unregister(this);
+
         if (diceRig != null)
         {
             diceRig.onAllDiceRolled -= OnDiceRolled;
@@ -445,9 +453,17 @@ public partial class TurnManager : MonoBehaviour
 
     private void ResolveContinueButtonUi()
     {
+        if (_continueButtonLookupAttempted && continueButton == null)
+            return;
+
         if (continueButton == null)
         {
+            _continueButtonLookupAttempted = true;
+#if UNITY_2023_1_OR_NEWER
+            Button[] buttons = FindObjectsByType<Button>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
             Button[] buttons = FindObjectsOfType<Button>(true);
+#endif
             for (int i = 0; i < buttons.Length; i++)
             {
                 Button button = buttons[i];
@@ -495,4 +511,49 @@ public partial class TurnManager : MonoBehaviour
     private void EnsureAllEnemyIntentsNow()
         => TurnManagerViewUtility.EnsureEnemyIntentsNow(TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, enemy), player);
 
+}
+
+internal static class TurnManagerRegistry
+{
+    private static TurnManager _instance;
+    private static bool _initializedFromScene;
+
+    public static void Register(TurnManager turnManager)
+    {
+        if (turnManager == null)
+            return;
+
+        _instance = turnManager;
+    }
+
+    public static void Unregister(TurnManager turnManager)
+    {
+        if (turnManager == null || _instance != turnManager)
+            return;
+
+        _instance = null;
+        _initializedFromScene = false;
+    }
+
+    public static TurnManager Get()
+    {
+        if (_instance != null)
+            return _instance;
+
+        EnsureInitializedFromScene();
+        return _instance;
+    }
+
+    private static void EnsureInitializedFromScene()
+    {
+        if (_initializedFromScene)
+            return;
+
+        _initializedFromScene = true;
+#if UNITY_2023_1_OR_NEWER
+        _instance = UnityEngine.Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+#else
+        _instance = UnityEngine.Object.FindObjectOfType<TurnManager>(true);
+#endif
+    }
 }

@@ -385,7 +385,8 @@ public partial class CombatHUD
             return;
         }
 
-        EnsurePlayerVitalsUi();
+        if (IsPlayerVitalsUiMissing())
+            EnsurePlayerVitalsUi();
 
         if (!TryGetHoveredPlayerTooltipHotspot(out PlayerTooltipHotspot hotspot))
         {

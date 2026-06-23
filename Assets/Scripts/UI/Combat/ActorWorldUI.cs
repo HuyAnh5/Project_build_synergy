@@ -285,7 +285,8 @@ public partial class ActorWorldUI : MonoBehaviour
             _brain = actor.GetComponent<EnemyBrainController>();
 
         AttachToActorAnchor();
-        ResolveReferences();
+        if (AreRuntimeReferencesMissing())
+            ResolveReferences();
         RefreshRuntime();
         RefreshWorldUiTooltips();
 

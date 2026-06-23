@@ -198,7 +198,7 @@ public class SlotIconDragToClear : MonoBehaviour, IBeginDragHandler, IDragHandle
     private DiceEquipUIManager GetDiceUiManager()
     {
         if (_diceUiManager == null)
-            _diceUiManager = FindObjectOfType<DiceEquipUIManager>();
+            _diceUiManager = DiceEquipUiManagerRegistry.Get();
         return _diceUiManager;
     }
 

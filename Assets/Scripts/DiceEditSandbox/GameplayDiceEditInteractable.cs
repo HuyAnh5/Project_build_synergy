@@ -388,7 +388,7 @@ public class GameplayDiceEditInteractable : MonoBehaviour
     private void EnsureBound()
     {
         if (_controller == null)
-            _controller = FindFirstObjectByType<GameplayDiceEditController>(FindObjectsInactive.Include);
+            _controller = GameplayDiceEditControllerRegistry.Get();
         if (_spinner == null)
             _spinner = GetComponent<DiceSpinnerGeneric>();
         if (_spinner != null && _spinner.pivot == null)

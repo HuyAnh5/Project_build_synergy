@@ -301,7 +301,7 @@ public static class ConsumableRuntimeUtility
         if (targetDie == null)
             return false;
 
-        turnManager ??= Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+        turnManager ??= TurnManagerRegistry.Get();
         if (!HasCompletedInitialRoll(turnManager))
             return false;
 
@@ -314,7 +314,7 @@ public static class ConsumableRuntimeUtility
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Select a die first.");
         if (!CanRerollAvailableDie(targetDie, turnManager))
         {
-            turnManager ??= Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+            turnManager ??= TurnManagerRegistry.Get();
             if (turnManager == null || turnManager.diceRig == null)
                 return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Dice Reroll is missing the active turn manager.");
             if (!turnManager.diceRig.HasRolledThisTurn || turnManager.diceRig.IsRolling)
@@ -343,7 +343,7 @@ public static class ConsumableRuntimeUtility
         if (targetDie == null)
             return false;
 
-        turnManager ??= Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+        turnManager ??= TurnManagerRegistry.Get();
         if (!HasCompletedInitialRoll(turnManager))
             return false;
 
@@ -355,7 +355,7 @@ public static class ConsumableRuntimeUtility
         if (targetDie == null)
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Select a die first.");
 
-        turnManager ??= Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+        turnManager ??= TurnManagerRegistry.Get();
         if (turnManager == null || turnManager.diceRig == null)
             return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Reload Dice is missing the active turn manager.");
         if (!turnManager.diceRig.HasRolledThisTurn || turnManager.diceRig.IsRolling)
@@ -395,7 +395,7 @@ public static class ConsumableRuntimeUtility
 
         TurnManager turnManager = explicitTurnManager;
         if (turnManager == null)
-            turnManager = Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+            turnManager = TurnManagerRegistry.Get();
         if (turnManager == null || turnManager.diceRig == null)
             return;
 

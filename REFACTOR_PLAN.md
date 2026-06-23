@@ -222,12 +222,14 @@ Status:
 
 * Completed as part of autonomous continuation.
 * Registry helper was kept internal in an existing included `.cs` file to avoid Unity `.csproj` regeneration issues.
-* Follow-up registry batches also covered `DraggableSkillIcon`, `DiceDraggableUI`, `CombatActor`, and `DamagePopupSystem`.
+* Follow-up registry batches also covered `DraggableSkillIcon`, `DiceDraggableUI`, `CombatActor`, `DamagePopupSystem`, `TurnManager`, `BattlePartyManager2D`, `CombatHUD`, `DiceEquipUIManager`, `ConsumableBarUIManager`, `DiceSlotRig`, `GameplayDiceEditController`, `RunInventoryManager`, and `SelfCastDropZone`.
+* `SceneCanvasLookup` now centralizes per-frame canvas discovery for tooltip/popup/visual placement paths.
+* `CombatHUD`, `ActorWorldUI`, and `ConsumableBarUIManager` have small polling/churn gates in place.
 
 Latest verification:
 
 * `dotnet build Project_build_synergy.sln`
-* 0 errors, 69 existing warnings.
+* 0 errors, 35 existing warnings.
 
 Next safest refactor direction:
 
@@ -235,7 +237,7 @@ Next safest refactor direction:
 * Start with small helpers for position-only updates or content signatures.
 * Avoid rewriting `SkillTooltipUI` wholesale.
 
-This has clearer FPS upside but touches more runtime preview behavior, so P0-1 is safer as the first refactor slice.
+This has clearer FPS upside but touches more runtime preview behavior, so it should remain staged after the already-completed P0-1/P0-2 lookup slices.
 
 ---
 

@@ -56,7 +56,7 @@ public static partial class DiceCombatEnchantRuntimeUtility
         if (amount <= 0)
             return false;
 
-        RunInventoryManager inventory = Object.FindFirstObjectByType<RunInventoryManager>(FindObjectsInactive.Include);
+        RunInventoryManager inventory = RunInventoryManagerRegistry.Get();
         if (inventory == null)
             return false;
 

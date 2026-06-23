@@ -23,7 +23,7 @@ public partial class DiceEditSandboxController : MonoBehaviour
         MarkD
     }
 
-    private const bool DebugLogs = false;
+    private static readonly bool DebugLogs = false;
     private const int ConsumableSlotCount = RunInventoryManager.DEFAULT_CONSUMABLE_CAPACITY;
     private readonly List<DiceEditInteractable> _interactables = new List<DiceEditInteractable>();
 

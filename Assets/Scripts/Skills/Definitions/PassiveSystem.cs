@@ -81,22 +81,6 @@ public partial class PassiveSystem : MonoBehaviour
     {
         if (equipped == null)
             equipped = new List<SkillPassiveSO>();
-
-        for (int i = 0; i < equipped.Count; i++)
-        {
-            SkillPassiveSO passive = equipped[i];
-            if (passive == null || passive.effects == null)
-                continue;
-
-            for (int k = 0; k < passive.effects.Count; k++)
-            {
-                PassiveEffectEntry effect = passive.effects[k];
-                if (effect == null)
-                    continue;
-
-                Accumulate(effect);
-            }
-        }
     }
 
     private void TryBindInventory()
@@ -108,13 +92,7 @@ public partial class PassiveSystem : MonoBehaviour
         {
             runInventory = GetComponentInParent<RunInventoryManager>(true);
             if (runInventory == null)
-            {
-#if UNITY_2023_1_OR_NEWER
-                runInventory = Object.FindFirstObjectByType<RunInventoryManager>(FindObjectsInactive.Include);
-#else
-                runInventory = Object.FindObjectOfType<RunInventoryManager>(true);
-#endif
-            }
+                runInventory = RunInventoryManagerRegistry.Get();
         }
 
         if (runInventory != null)
@@ -127,7 +105,7 @@ public partial class PassiveSystem : MonoBehaviour
     private BattlePartyManager2D GetParty()
     {
         if (_cachedParty == null)
-            _cachedParty = Object.FindObjectOfType<BattlePartyManager2D>(true);
+            _cachedParty = BattlePartyManagerRegistry.Get();
         return _cachedParty;
     }
 
@@ -137,7 +115,7 @@ public partial class PassiveSystem : MonoBehaviour
             return runInventory.DiceRig;
 
         if (_cachedDiceRig == null)
-            _cachedDiceRig = FindObjectOfType<DiceSlotRig>(true);
+            _cachedDiceRig = DiceSlotRigRegistry.Get();
 
         return _cachedDiceRig;
     }
@@ -190,13 +168,6 @@ public partial class PassiveSystem : MonoBehaviour
 
         Rebuild();
         return true;
-    }
-
-    private void Accumulate(PassiveEffectEntry effect)
-    {
-        switch (effect.id)
-        {
-        }
     }
 
     private SkillConditionContext BuildPassiveConditionContext(CombatActor owner, DiceSlotRig diceRig, CombatActor target)

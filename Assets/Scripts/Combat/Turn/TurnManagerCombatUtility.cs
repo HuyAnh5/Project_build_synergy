@@ -153,7 +153,7 @@ public static class TurnManagerCombatUtility
     public static void ClearAllStagger(BattlePartyManager2D party = null)
     {
         if (party == null)
-            party = Object.FindFirstObjectByType<BattlePartyManager2D>(FindObjectsInactive.Include);
+            party = BattlePartyManagerRegistry.Get();
 
         if (party != null)
         {

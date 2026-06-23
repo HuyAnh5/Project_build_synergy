@@ -74,7 +74,7 @@ public partial class DiceSpinnerGeneric
         _rollStatePopupInstance.text = string.Empty;
         _rollStatePopupInstance.enableAutoSizing = false;
         _rollStatePopupInstance.fontSize = Mathf.Max(18f, rollStatePopupFontSize);
-        _rollStatePopupInstance.enableWordWrapping = false;
+        _rollStatePopupInstance.textWrappingMode = TextWrappingModes.NoWrap;
         _rollStatePopupInstance.overflowMode = TextOverflowModes.Overflow;
         _rollStatePopupInstance.alignment = TextAlignmentOptions.Center;
         _rollStatePopupInstance.color = rollStatePopupColor;
@@ -106,7 +106,7 @@ public partial class DiceSpinnerGeneric
         if (s_cachedRollStatePopupCanvas != null && !s_cachedRollStatePopupCanvas.transform.IsChildOf(pivot))
             return s_cachedRollStatePopupCanvas;
 
-        Canvas[] canvases = FindObjectsOfType<Canvas>(true);
+        Canvas[] canvases = SceneCanvasLookup.GetAll();
         Canvas fallback = sourceCanvas != null ? sourceCanvas.rootCanvas : null;
         for (int i = 0; i < canvases.Length; i++)
         {

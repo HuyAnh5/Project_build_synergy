@@ -48,10 +48,18 @@ public partial class CombatHUD : MonoBehaviour
 
     private void Awake()
     {
+        CombatHudRegistry.Register(this);
         TryResolveRefs();
-        EnsurePlayerFocusBarUi();
-        EnsurePlayerVitalsUi();
+        if (IsPlayerFocusBarUiMissing())
+            EnsurePlayerFocusBarUi();
+        if (IsPlayerVitalsUiMissing())
+            EnsurePlayerVitalsUi();
         CacheOriginalColors();
+    }
+
+    private void OnDestroy()
+    {
+        CombatHudRegistry.Unregister(this);
     }
 
     private void Update()
@@ -121,9 +129,9 @@ public partial class CombatHUD : MonoBehaviour
     private void TryResolveRefs()
     {
         if (party == null)
-            party = FindObjectOfType<BattlePartyManager2D>(true);
+            party = BattlePartyManagerRegistry.Get();
         if (turnManager == null)
-            turnManager = FindObjectOfType<TurnManager>(true);
+            turnManager = TurnManagerRegistry.Get();
         if (player == null && party != null)
             player = party.Player;
         if (player == null && turnManager != null)
@@ -134,6 +142,41 @@ public partial class CombatHUD : MonoBehaviour
     {
         if (playerFocusText != null && !_previewFocusActive)
             _playerFocusTextOriginalColor = playerFocusText.color;
+    }
+
+    private bool IsPlayerFocusBarUiMissing()
+    {
+        if (playerFocusBarRoot == null || playerFocusSegmentsRoot == null)
+            return true;
+
+        if (playerFocusSegments == null || playerFocusSegments.Length != DefaultFocusSegmentCount)
+            return true;
+
+        for (int i = 0; i < playerFocusSegments.Length; i++)
+        {
+            if (playerFocusSegments[i] == null)
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool IsPlayerVitalsUiMissing()
+    {
+        if (playerHpBarRoot == null || playerHpBarFill == null || playerHpText == null)
+            return true;
+        if (playerGuardRoot == null || playerGuardIcon == null || playerGuardText == null)
+            return true;
+        if (playerStatusRowRoot == null || playerStatusSlots == null || playerStatusSlots.Length == 0)
+            return true;
+
+        for (int i = 0; i < playerStatusSlots.Length; i++)
+        {
+            if (playerStatusSlots[i] == null || playerStatusSlots[i].root == null)
+                return true;
+        }
+
+        return false;
     }
 
     private void RefreshFocusIfChanged()
@@ -373,6 +416,38 @@ public partial class CombatHUD : MonoBehaviour
     {
         color.a = alpha;
         return color;
+    }
+}
+
+internal static class CombatHudRegistry
+{
+    private static CombatHUD _instance;
+
+    public static void Register(CombatHUD hud)
+    {
+        if (hud == null)
+            return;
+
+        _instance = hud;
+    }
+
+    public static void Unregister(CombatHUD hud)
+    {
+        if (_instance == hud)
+            _instance = null;
+    }
+
+    public static CombatHUD Get()
+    {
+        if (_instance != null)
+            return _instance;
+
+#if UNITY_2023_1_OR_NEWER
+        _instance = UnityEngine.Object.FindFirstObjectByType<CombatHUD>(FindObjectsInactive.Include);
+#else
+        _instance = UnityEngine.Object.FindObjectOfType<CombatHUD>(true);
+#endif
+        return _instance;
     }
 }
 

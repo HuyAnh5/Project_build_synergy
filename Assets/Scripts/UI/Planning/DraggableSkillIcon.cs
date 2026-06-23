@@ -146,7 +146,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         if (skillBackgroundImage == null)
             skillBackgroundImage = GetComponent<Image>();
         if (selfCastZone == null)
-            selfCastZone = FindObjectOfType<SelfCastDropZone>(true);
+            selfCastZone = SelfCastDropZoneRegistry.Get();
         ResolveTurnManager();
         if (iconLibrary != null)
             _sharedIconLibrary = iconLibrary;
@@ -475,7 +475,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     private void ResolveTurnManager()
     {
         if (turn == null)
-            turn = FindObjectOfType<TurnManager>(true);
+            turn = TurnManagerRegistry.Get();
     }
 
     private void HandleUiDragStateChanged()

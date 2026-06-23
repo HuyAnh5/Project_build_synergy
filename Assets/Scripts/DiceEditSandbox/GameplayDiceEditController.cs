@@ -59,6 +59,7 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
     // Initializes runtime links and binds scene dice so combat UI can open the edit panel safely.
     private void Awake()
     {
+        GameplayDiceEditControllerRegistry.Register(this);
         AutoResolveReferences();
         AttachToDiceRig();
         Log($"Awake. diceRig={(diceRig != null ? diceRig.name : "NULL")} runInventory={(runInventory != null ? runInventory.name : "NULL")} interactables={_interactables.Count}");
@@ -71,6 +72,8 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
 
     private void OnDestroy()
     {
+        GameplayDiceEditControllerRegistry.Unregister(this);
+
         if (_hoverTooltipAsset != null)
             Destroy(_hoverTooltipAsset);
 
@@ -465,6 +468,38 @@ public partial class GameplayDiceEditController : MonoBehaviour, ISkillTooltipSo
     {
         if (DebugLogs)
             Debug.Log($"[GameplayDiceEdit] {message}", this);
+    }
+}
+
+internal static class GameplayDiceEditControllerRegistry
+{
+    private static GameplayDiceEditController _instance;
+
+    public static void Register(GameplayDiceEditController controller)
+    {
+        if (controller == null)
+            return;
+
+        _instance = controller;
+    }
+
+    public static void Unregister(GameplayDiceEditController controller)
+    {
+        if (_instance == controller)
+            _instance = null;
+    }
+
+    public static GameplayDiceEditController Get()
+    {
+        if (_instance != null)
+            return _instance;
+
+#if UNITY_2023_1_OR_NEWER
+        _instance = UnityEngine.Object.FindFirstObjectByType<GameplayDiceEditController>(FindObjectsInactive.Include);
+#else
+        _instance = UnityEngine.Object.FindObjectOfType<GameplayDiceEditController>(true);
+#endif
+        return _instance;
     }
 }
 

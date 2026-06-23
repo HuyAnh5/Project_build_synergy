@@ -4,7 +4,7 @@ using UnityEngine;
 [RequireComponent(typeof(DiceSpinnerGeneric))]
 public class DiceEditInteractable : MonoBehaviour
 {
-    private const bool DebugLogs = false;
+    private static readonly bool DebugLogs = false;
 
     [SerializeField] private float rotationSpeed = 0.2f;
     [SerializeField] private float verticalFlipSpeed = 1.2f;

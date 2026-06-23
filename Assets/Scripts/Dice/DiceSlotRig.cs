@@ -125,10 +125,16 @@ public partial class DiceSlotRig : MonoBehaviour
 
     private void Awake()
     {
+        DiceSlotRigRegistry.Register(this);
         EnsureSlots();
         ClearRollInfos();
         ApplyActiveStates();
         BindDieRollCallbacks();
+    }
+
+    private void OnDestroy()
+    {
+        DiceSlotRigRegistry.Unregister(this);
     }
 
     private void OnValidate()
@@ -363,6 +369,38 @@ public partial class DiceSlotRig : MonoBehaviour
         return d != null ? d.GetDisplayedRolledValue() : 0;
     }
 
+}
+
+internal static class DiceSlotRigRegistry
+{
+    private static DiceSlotRig _instance;
+
+    public static void Register(DiceSlotRig rig)
+    {
+        if (rig == null)
+            return;
+
+        _instance = rig;
+    }
+
+    public static void Unregister(DiceSlotRig rig)
+    {
+        if (_instance == rig)
+            _instance = null;
+    }
+
+    public static DiceSlotRig Get()
+    {
+        if (_instance != null)
+            return _instance;
+
+#if UNITY_2023_1_OR_NEWER
+        _instance = UnityEngine.Object.FindFirstObjectByType<DiceSlotRig>(FindObjectsInactive.Include);
+#else
+        _instance = UnityEngine.Object.FindObjectOfType<DiceSlotRig>(true);
+#endif
+        return _instance;
+    }
 }
 
 

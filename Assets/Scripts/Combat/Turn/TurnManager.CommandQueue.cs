@@ -263,11 +263,7 @@ public partial class TurnManager
         if (_diceEquipUiManager != null)
             return _diceEquipUiManager;
 
-#if UNITY_2023_1_OR_NEWER
-        _diceEquipUiManager = FindFirstObjectByType<DiceEquipUIManager>(FindObjectsInactive.Include);
-#else
-        _diceEquipUiManager = FindObjectOfType<DiceEquipUIManager>(true);
-#endif
+        _diceEquipUiManager = DiceEquipUiManagerRegistry.Get();
         return _diceEquipUiManager;
     }
 }

@@ -144,6 +144,7 @@ public partial class RunInventoryManager : MonoBehaviour
 
     private void Awake()
     {
+        RunInventoryManagerRegistry.Register(this);
         EnsureSizes();
         RunInventorySetupUtility.BootstrapEquippedDiceFromRigIfNeeded(diceRig, equippedDicePrefabs, equippedDice);
         if (HasAnyAssignedDicePrefabs())
@@ -152,6 +153,11 @@ public partial class RunInventoryManager : MonoBehaviour
         }
 
         SyncDiceRigFromInventory();
+    }
+
+    private void OnDestroy()
+    {
+        RunInventoryManagerRegistry.Unregister(this);
     }
 
     private void Reset()
@@ -195,5 +201,37 @@ public partial class RunInventoryManager : MonoBehaviour
             }
         }
         return string.Empty;
+    }
+}
+
+internal static class RunInventoryManagerRegistry
+{
+    private static RunInventoryManager _instance;
+
+    public static void Register(RunInventoryManager manager)
+    {
+        if (manager == null)
+            return;
+
+        _instance = manager;
+    }
+
+    public static void Unregister(RunInventoryManager manager)
+    {
+        if (_instance == manager)
+            _instance = null;
+    }
+
+    public static RunInventoryManager Get()
+    {
+        if (_instance != null)
+            return _instance;
+
+#if UNITY_2023_1_OR_NEWER
+        _instance = UnityEngine.Object.FindFirstObjectByType<RunInventoryManager>(FindObjectsInactive.Include);
+#else
+        _instance = UnityEngine.Object.FindObjectOfType<RunInventoryManager>(true);
+#endif
+        return _instance;
     }
 }

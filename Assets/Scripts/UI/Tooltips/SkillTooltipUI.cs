@@ -298,28 +298,12 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
 
     private static Canvas FindTooltipOverlayCanvas()
     {
-        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < canvases.Length; i++)
-        {
-            Canvas canvas = canvases[i];
-            if (canvas != null && canvas.name == TooltipOverlayCanvasName)
-                return canvas;
-        }
-
-        return null;
+        return SceneCanvasLookup.FindByName(TooltipOverlayCanvasName);
     }
 
     private static Canvas FindSharedTooltipHostCanvas()
     {
-        Canvas[] canvases = FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-        for (int i = 0; i < canvases.Length; i++)
-        {
-            Canvas canvas = canvases[i];
-            if (canvas != null && canvas.name == SharedTooltipHostCanvasName)
-                return canvas;
-        }
-
-        return null;
+        return SceneCanvasLookup.FindByName(SharedTooltipHostCanvasName);
     }
 
     public static Canvas GetOrCreateSharedOverlayCanvas(Canvas sourceCanvas)
@@ -345,7 +329,7 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
     private static SkillTooltipPrefabProvider GetPrefabProvider()
     {
         if (_prefabProvider == null)
-            _prefabProvider = FindFirstObjectByType<SkillTooltipPrefabProvider>(FindObjectsInactive.Include);
+            _prefabProvider = SkillTooltipPrefabProviderRegistry.Get();
 
         return _prefabProvider;
     }
@@ -399,5 +383,52 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
     private static bool IsExpandedInputActive()
     {
         return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+    }
+}
+
+internal static class SceneCanvasLookup
+{
+    private static Canvas[] _cachedCanvases;
+    private static int _cachedFrame = -1;
+
+    public static Canvas[] GetAll()
+    {
+        if (_cachedCanvases != null && _cachedFrame == Time.frameCount)
+            return _cachedCanvases;
+
+        _cachedFrame = Time.frameCount;
+#if UNITY_2023_1_OR_NEWER
+        _cachedCanvases = Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+#else
+        _cachedCanvases = Object.FindObjectsOfType<Canvas>(true);
+#endif
+        return _cachedCanvases ?? System.Array.Empty<Canvas>();
+    }
+
+    public static Canvas FindByName(string canvasName)
+    {
+        if (string.IsNullOrEmpty(canvasName))
+            return null;
+
+        Canvas canvas = FindByNameInSnapshot(GetAll(), canvasName);
+        if (canvas != null)
+            return canvas;
+
+        // A tooltip/popup may have created a canvas earlier in this same frame.
+        // Refresh once so callers do not miss the newly-created object.
+        _cachedFrame = -1;
+        return FindByNameInSnapshot(GetAll(), canvasName);
+    }
+
+    private static Canvas FindByNameInSnapshot(Canvas[] canvases, string canvasName)
+    {
+        for (int i = 0; canvases != null && i < canvases.Length; i++)
+        {
+            Canvas canvas = canvases[i];
+            if (canvas != null && canvas.name == canvasName)
+                return canvas;
+        }
+
+        return null;
     }
 }

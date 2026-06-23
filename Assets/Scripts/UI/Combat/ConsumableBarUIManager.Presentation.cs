@@ -11,17 +11,17 @@ public partial class ConsumableBarUIManager
             runInventory = GetComponentInParent<RunInventoryManager>(true);
 
         if (turnManager == null)
-            turnManager = FindObjectOfType<TurnManager>(true);
+            turnManager = TurnManagerRegistry.Get();
 
         if (combatHud == null)
-            combatHud = FindObjectOfType<CombatHUD>(true);
+            combatHud = CombatHudRegistry.Get();
 
         if (party == null)
         {
             if (combatHud != null && combatHud.party != null)
                 party = combatHud.party;
             else
-                party = FindObjectOfType<BattlePartyManager2D>(true);
+                party = BattlePartyManagerRegistry.Get();
         }
 
         if (player == null)
@@ -33,10 +33,10 @@ public partial class ConsumableBarUIManager
         }
 
         if (diceEquipUiManager == null)
-            diceEquipUiManager = FindObjectOfType<DiceEquipUIManager>(true);
+            diceEquipUiManager = DiceEquipUiManagerRegistry.Get();
 
         if (diceEditController == null)
-            diceEditController = FindObjectOfType<GameplayDiceEditController>(true);
+            diceEditController = GameplayDiceEditControllerRegistry.Get();
 
         SubscribeDiceEditController();
         SubscribeDiceEquipUiManager();

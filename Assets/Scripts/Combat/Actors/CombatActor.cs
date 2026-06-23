@@ -294,7 +294,7 @@ public class CombatActor : MonoBehaviour
         if (CombatSimulationContext.SuppressPresentation)
             return;
 
-        BattlePartyManager2D party = Object.FindFirstObjectByType<BattlePartyManager2D>(FindObjectsInactive.Include);
+        BattlePartyManager2D party = BattlePartyManagerRegistry.Get();
         if (party != null)
             party.LayoutAll();
 

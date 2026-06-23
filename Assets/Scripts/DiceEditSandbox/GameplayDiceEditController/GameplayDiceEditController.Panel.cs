@@ -162,15 +162,15 @@ public partial class GameplayDiceEditController
     private void AutoResolveReferences()
     {
         if (runInventory == null)
-            runInventory = FindFirstObjectByType<RunInventoryManager>(FindObjectsInactive.Include);
+            runInventory = RunInventoryManagerRegistry.Get();
         if (diceRig == null && runInventory != null)
             diceRig = runInventory.DiceRig;
         if (diceRig == null)
-            diceRig = FindFirstObjectByType<DiceSlotRig>(FindObjectsInactive.Include);
+            diceRig = DiceSlotRigRegistry.Get();
         if (turnManager == null)
-            turnManager = FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+            turnManager = TurnManagerRegistry.Get();
         if (diceEquipUiManager == null)
-            diceEquipUiManager = FindFirstObjectByType<DiceEquipUIManager>(FindObjectsInactive.Include);
+            diceEquipUiManager = DiceEquipUiManagerRegistry.Get();
         if (panelUi == null)
             panelUi = FindFirstObjectByType<GameplayDiceEditPanelUI>(FindObjectsInactive.Include);
     }
