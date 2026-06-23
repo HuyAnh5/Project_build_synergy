@@ -4174,6 +4174,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::DamagePopupSystem
   popupPrefab: {fileID: 2776793178576249459, guid: ce32b552d543b8543a0ae70641f6dc92, type: 3}
   spawnParent: {fileID: 676867878}
+  isolateUiPopupCanvas: 1
+  isolatedCanvasSortingOffset: 10
   prewarmCount: 15
   allowExpand: 1
   popUpScale: 5
@@ -6231,7 +6233,7 @@ MonoBehaviour:
   - uiIcon: {fileID: 0}
     skillAsset: {fileID: 11400000, guid: 3fdea6926fff5a7458c6207b363a3a7d, type: 2}
   - uiIcon: {fileID: 0}
-    skillAsset: {fileID: 11400000, guid: ab7245a08603728499aea812ac7d28a5, type: 2}
+    skillAsset: {fileID: 11400000, guid: f2f10c4a550d178439b91fe3979e3e0a, type: 2}
   - uiIcon: {fileID: 0}
     skillAsset: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
   - uiIcon: {fileID: 0}

@@ -138,10 +138,7 @@ public partial class ConsumableBarUIManager : MonoBehaviour
 
         bool locked = IsInteractionLocked();
         if (locked == _lastInteractionLocked)
-        {
-            RefreshFloatingPresentation();
             return;
-        }
 
         _lastInteractionLocked = locked;
         if (locked)

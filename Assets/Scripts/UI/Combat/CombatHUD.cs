@@ -42,6 +42,9 @@ public partial class CombatHUD : MonoBehaviour
     private Color _focusBarBackgroundOriginalColor;
     private Color _playerFocusTextOriginalColor = Color.white;
     private string _lastFocusTextValue = string.Empty;
+    private int _lastLaidOutFocusSegmentCount = -1;
+    private Vector2 _lastLaidOutFocusSegmentSize = new Vector2(float.NaN, float.NaN);
+    private float _lastLaidOutFocusSegmentSpacing = float.NaN;
 
     private void Awake()
     {
@@ -182,7 +185,7 @@ public partial class CombatHUD : MonoBehaviour
             playerFocusSegmentsRoot = CreateSegmentsRoot(playerFocusBarRoot);
 
         EnsureFocusSegments();
-        LayoutFocusSegments();
+        LayoutFocusSegmentsIfNeeded();
     }
 
     private RectTransform CreateFocusBarRoot(RectTransform parent)
@@ -213,6 +216,7 @@ public partial class CombatHUD : MonoBehaviour
         if (playerFocusSegments == null || playerFocusSegments.Length != DefaultFocusSegmentCount)
             playerFocusSegments = new Image[DefaultFocusSegmentCount];
 
+        bool segmentReferencesChanged = false;
         for (int i = 0; i < playerFocusSegments.Length; i++)
         {
             if (playerFocusSegments[i] != null)
@@ -222,6 +226,7 @@ public partial class CombatHUD : MonoBehaviour
             if (existing != null)
             {
                 playerFocusSegments[i] = existing.GetComponent<Image>();
+                segmentReferencesChanged = true;
                 continue;
             }
 
@@ -230,9 +235,29 @@ public partial class CombatHUD : MonoBehaviour
             rect.SetParent(playerFocusSegmentsRoot, false);
             rect.sizeDelta = focusSegmentSize;
             playerFocusSegments[i] = segment.GetComponent<Image>();
+            segmentReferencesChanged = true;
+        }
+
+        if (segmentReferencesChanged)
+            _lastLaidOutFocusSegmentCount = -1;
+
+        LayoutFocusSegmentsIfNeeded();
+    }
+
+    private void LayoutFocusSegmentsIfNeeded()
+    {
+        int segmentCount = playerFocusSegments != null ? playerFocusSegments.Length : 0;
+        if (_lastLaidOutFocusSegmentCount == segmentCount &&
+            _lastLaidOutFocusSegmentSize == focusSegmentSize &&
+            Mathf.Approximately(_lastLaidOutFocusSegmentSpacing, focusSegmentSpacing))
+        {
+            return;
         }
 
         LayoutFocusSegments();
+        _lastLaidOutFocusSegmentCount = segmentCount;
+        _lastLaidOutFocusSegmentSize = focusSegmentSize;
+        _lastLaidOutFocusSegmentSpacing = focusSegmentSpacing;
     }
 
     private void RefreshPlayerFocusSegments()

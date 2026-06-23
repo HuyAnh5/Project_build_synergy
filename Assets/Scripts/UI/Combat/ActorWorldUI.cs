@@ -148,6 +148,11 @@ public partial class ActorWorldUI : MonoBehaviour
     private EnemyBrainController _brain;
     private readonly List<StatusVisualData> _statusBuffer = new List<StatusVisualData>(DefaultStatusSlotCount);
     private readonly List<StatusIconSlot> _spawnedStatusSlots = new List<StatusIconSlot>(DefaultStatusSlotCount);
+    private int _lastRuntimeHp = int.MinValue;
+    private int _lastRuntimeMaxHp = int.MinValue;
+    private int _lastRuntimeGuard = int.MinValue;
+    private int _lastRuntimeStatusSignature = int.MinValue;
+    private bool _lastRuntimeStaggered;
 
     // --- Targetability overlay runtime ---
     private RectTransform _targetOverlayRoot;
@@ -180,6 +185,7 @@ public partial class ActorWorldUI : MonoBehaviour
     public void Bind(CombatActor a)
     {
         actor = a;
+        InvalidateRuntimeCache();
         if (actor == null)
         {
             HideUnboundRuntimeVisuals();
@@ -204,6 +210,8 @@ public partial class ActorWorldUI : MonoBehaviour
 
     private void OnEnable()
     {
+        InvalidateRuntimeCache();
+
         if (!CanRefreshInEditor())
             return;
 
@@ -218,6 +226,14 @@ public partial class ActorWorldUI : MonoBehaviour
         }
         else
             RefreshEditorPreview();
+    }
+
+    private void InvalidateRuntimeCache()
+    {
+        _lastRuntimeHp = int.MinValue;
+        _lastRuntimeMaxHp = int.MinValue;
+        _lastRuntimeGuard = int.MinValue;
+        _lastRuntimeStatusSignature = int.MinValue;
     }
 
     private void OnValidate()
@@ -441,9 +457,26 @@ public partial class ActorWorldUI : MonoBehaviour
             return;
         }
 
+        int statusSignature = BuildRuntimeStatusSignature(actor.status);
         bool staggered = actor.status != null && actor.status.staggered;
-        RefreshHpAndGuard(actor.hp, actor.maxHP, actor.guardPool, staggered);
-        RefreshStatusIcons(actor.status);
+        if (_lastRuntimeHp != actor.hp ||
+            _lastRuntimeMaxHp != actor.maxHP ||
+            _lastRuntimeGuard != actor.guardPool ||
+            _lastRuntimeStaggered != staggered)
+        {
+            _lastRuntimeHp = actor.hp;
+            _lastRuntimeMaxHp = actor.maxHP;
+            _lastRuntimeGuard = actor.guardPool;
+            _lastRuntimeStaggered = staggered;
+            RefreshHpAndGuard(actor.hp, actor.maxHP, actor.guardPool, staggered);
+        }
+
+        if (_lastRuntimeStatusSignature != statusSignature)
+        {
+            _lastRuntimeStatusSignature = statusSignature;
+            RefreshStatusIcons(actor.status);
+        }
+
         RefreshIntent();
     }
 

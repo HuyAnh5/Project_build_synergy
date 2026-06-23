@@ -23,5 +23,5 @@ MonoBehaviour:
     normalizedText: 
     designIntent: 
   effects:
-  - id: 5
-    valueI: 3
+  - id: 6
+    valueI: 5

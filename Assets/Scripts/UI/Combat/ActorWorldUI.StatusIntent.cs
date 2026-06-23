@@ -144,6 +144,31 @@ public partial class ActorWorldUI
         ApplyStatusBuffer();
     }
 
+    private static int BuildRuntimeStatusSignature(StatusController status)
+    {
+        if (status == null)
+            return 0;
+
+        unchecked
+        {
+            int hash = 17;
+            hash = hash * 31 + (status.frozen ? 1 : 0);
+            hash = hash * 31 + status.chilledTurns;
+            hash = hash * 31 + (status.marked ? 1 : 0);
+            hash = hash * 31 + status.burnStacks;
+            hash = hash * 31 + status.bleedStacks;
+            hash = hash * 31 + (status.staggered ? 1 : 0);
+            if (status.HasAilment(out AilmentType ailment, out int turnsLeft))
+            {
+                hash = hash * 31 + 1;
+                hash = hash * 31 + (int)ailment;
+                hash = hash * 31 + turnsLeft;
+            }
+
+            return hash;
+        }
+    }
+
     private void BuildStatusBuffer(StatusController status)
     {
         _statusBuffer.Clear();

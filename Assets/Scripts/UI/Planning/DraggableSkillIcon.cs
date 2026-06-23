@@ -314,7 +314,6 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     private void Update()
     {
         RefreshIfVisualMetadataChanged();
-        RefreshActiveRuntimeState();
         TickActiveAura();
         ClearHoverResourcePreviewIfPointerLeftBridge();
         _previewController?.Tick();
