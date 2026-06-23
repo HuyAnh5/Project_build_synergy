@@ -25,7 +25,8 @@ public partial class PlayerDiceCastAnimator
 
         if (uiCardControlsLiftDrop)
         {
-            diceUi.AnimateCastDisplayToReady(launchPrepDuration, Ease.OutBack);
+            // First cast holds y+; repeat casts launch the background from y- to y.
+            diceUi.BeginCastLaunch(launchPrepDuration, Ease.OutBack);
         }
 
         bool plateCarriesDie = plate != null && plate != die && die != null && die.IsChildOf(plate);

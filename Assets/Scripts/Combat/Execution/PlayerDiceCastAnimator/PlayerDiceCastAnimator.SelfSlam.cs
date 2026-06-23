@@ -23,7 +23,8 @@ public partial class PlayerDiceCastAnimator
 
         if (uiCardControlsLiftDrop)
         {
-            uiLiftTween = diceUi.AnimateCastDisplayToReady(launchPrepDuration, Ease.OutBack);
+            // First cast holds y+; repeat casts launch the background from y- to y.
+            uiLiftTween = diceUi.BeginCastLaunch(launchPrepDuration, Ease.OutBack);
         }
 
         if (!uiCardControlsLiftDrop && plateCarriesDie)

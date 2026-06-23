@@ -10,7 +10,8 @@ public enum BuffDebuffFlowEffectType
     TransformUsedDiceLow,
     RepeatFirstSkillNextTurn,
     NextSkillAddValue,
-    EmberWeapon
+    EmberWeapon,
+    RerollUsedDice
 }
 
 public enum BuffDebuffFlowTarget
@@ -67,6 +68,7 @@ public class BuffDebuffFlowEffectData
 
     private bool ShowsTarget()
         => type == BuffDebuffFlowEffectType.ReloadUsedDice ||
+           type == BuffDebuffFlowEffectType.RerollUsedDice ||
            type == BuffDebuffFlowEffectType.TransformUsedDiceHigh ||
            type == BuffDebuffFlowEffectType.TransformUsedDiceLow;
 
@@ -87,6 +89,8 @@ public class BuffDebuffFlowEffectData
         {
             case BuffDebuffFlowEffectType.ReloadUsedDice:
                 return "Reload used dice after cast";
+            case BuffDebuffFlowEffectType.RerollUsedDice:
+                return "Reroll used dice after cast (no result condition)";
             case BuffDebuffFlowEffectType.TransformUsedDiceHigh:
                 return "Reroll used dice to value >= current";
             case BuffDebuffFlowEffectType.TransformUsedDiceLow:

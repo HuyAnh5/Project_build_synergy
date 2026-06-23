@@ -85,6 +85,21 @@ public partial class DiceDraggableUI
     public Tween AnimateCastDisplayToReady(float duration, Ease ease)
         => AnimateCastDisplayToYOffset(0f, duration, ease);
 
+    public Tween BeginCastLaunch(float duration, Ease ease)
+    {
+        EnsureInitialized();
+        float currentYOffset = _rt.anchoredPosition.y - _homeAnchoredPos.y;
+        float spentThreshold = -Mathf.Max(1f, spentDropY * 0.5f);
+
+        if (currentYOffset <= spentThreshold)
+            return AnimateCastDisplayToReady(duration, ease);
+
+        // The first cast already starts at preview/selected y+.
+        // Hold it there so its eventual spent transition is y+ -> y-.
+        BeginCastMotionLock();
+        return null;
+    }
+
     public Tween AnimateCastDisplayToSpent(float duration, Ease ease)
         => AnimateCastDisplayToYOffset(-spentDropY, duration, ease);
 

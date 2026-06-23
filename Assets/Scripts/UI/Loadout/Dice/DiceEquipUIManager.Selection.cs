@@ -35,7 +35,10 @@ public partial class DiceEquipUIManager
         ClearDiceSelection(instant);
     }
 
-    public void ClearSelectedDice(IEnumerable<DiceSpinnerGeneric> diceBuffer, bool instant = false)
+    public void ClearSelectedDice(
+        IEnumerable<DiceSpinnerGeneric> diceBuffer,
+        bool instant = false,
+        bool suppressMove = false)
     {
         if (diceBuffer == null)
         {
@@ -57,7 +60,7 @@ public partial class DiceEquipUIManager
             if (!_selectedDice.Remove(diceUi))
                 continue;
 
-            diceUi.SetSelected(false, instant);
+            diceUi.SetSelected(false, instant, suppressMove);
             changed = true;
         }
 

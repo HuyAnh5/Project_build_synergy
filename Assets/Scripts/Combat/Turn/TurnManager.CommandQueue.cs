@@ -249,7 +249,13 @@ public partial class TurnManager
         }
 
         if (_usedSelectedDiceBuffer.Count > 0)
-            diceEquipUiManager.ClearSelectedDice(_usedSelectedDiceBuffer, instant: true);
+            // The cast animation has already placed consumed dice at y-.
+            // Only clear selection state here; moving before the spent-state
+            // refresh would briefly snap the card back to y.
+            diceEquipUiManager.ClearSelectedDice(
+                _usedSelectedDiceBuffer,
+                instant: true,
+                suppressMove: true);
     }
 
     private DiceEquipUIManager GetDiceEquipUiManager()

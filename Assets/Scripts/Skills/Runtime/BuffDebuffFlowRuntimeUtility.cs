@@ -160,6 +160,7 @@ public static class BuffDebuffFlowRuntimeUtility
             return false;
 
         return effect.type == BuffDebuffFlowEffectType.ReloadUsedDice ||
+               effect.type == BuffDebuffFlowEffectType.RerollUsedDice ||
                effect.type == BuffDebuffFlowEffectType.TransformUsedDiceHigh ||
                effect.type == BuffDebuffFlowEffectType.TransformUsedDiceLow;
     }
@@ -183,6 +184,7 @@ public static class BuffDebuffFlowRuntimeUtility
             switch (effect.type)
             {
                 case BuffDebuffFlowEffectType.ReloadUsedDice:
+                case BuffDebuffFlowEffectType.RerollUsedDice:
                     StartReload(die, turnManager, rolling);
                     break;
 

@@ -195,7 +195,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         AnimateToAnchoredHome(parent, anchoredPos, instant);
     }
 
-    public void SetSelected(bool selected, bool instant = false)
+    public void SetSelected(bool selected, bool instant = false, bool suppressMove = false)
     {
         EnsureInitialized();
         _selected = selected;
@@ -204,7 +204,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         if (_dragging)
             return;
 
-        if (_castMotionLocked)
+        if (_castMotionLocked || suppressMove)
             return;
 
         MoveToDisplayPosition(instant);
