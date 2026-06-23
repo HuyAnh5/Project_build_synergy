@@ -26,6 +26,12 @@ public partial class DamagePopupSystem : MonoBehaviour
     [Tooltip("Nếu popup là UI TextMeshProUGUI: đặt spawnParent là RectTransform dưới Canvas (PopUpDMG). Nếu để null: sẽ spawn theo transform của DamagePopupSystem.")]
     [SerializeField] private Transform spawnParent;
 
+    [Tooltip("For UI popups, move popup text to a dedicated canvas so animation does not rebuild the whole combat/overlay UI canvas.")]
+    [SerializeField] private bool isolateUiPopupCanvas = true;
+
+    [Tooltip("Sorting offset applied when creating the dedicated popup canvas from an existing source canvas.")]
+    [SerializeField] private int isolatedCanvasSortingOffset = 10;
+
     [Header("Pool")]
     [SerializeField] private int prewarmCount = 30;
     [SerializeField] private bool allowExpand = true;
@@ -224,36 +230,85 @@ public partial class DamagePopupSystem : MonoBehaviour
 
     private void EnsureSpawnParent()
     {
-        if (spawnParent != null || popupPrefab == null)
+        if (popupPrefab == null)
             return;
 
         if (!(popupPrefab is TextMeshProUGUI))
             return;
 
+        if (!isolateUiPopupCanvas && spawnParent != null)
+            return;
+
+        Canvas sourceCanvas = spawnParent != null
+            ? spawnParent.GetComponentInParent<Canvas>(true)
+            : GetComponentInParent<Canvas>(true);
+
         Canvas existing = FindPopupCanvas();
         if (existing == null)
         {
-            GameObject canvasGo = new GameObject(
-                PopupCanvasName,
-                typeof(RectTransform),
-                typeof(Canvas),
-                typeof(CanvasScaler),
-                typeof(UnityEngine.UI.GraphicRaycaster));
+            GameObject canvasGo = new GameObject(PopupCanvasName, typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
 
             existing = canvasGo.GetComponent<Canvas>();
-            existing.renderMode = RenderMode.ScreenSpaceOverlay;
-            existing.overrideSorting = true;
-            existing.sortingOrder = 31000;
-            existing.pixelPerfect = false;
+            ConfigurePopupCanvas(existing, sourceCanvas);
 
             CanvasScaler scaler = canvasGo.GetComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1920f, 1080f);
-            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-            scaler.matchWidthOrHeight = 0.5f;
+            ConfigurePopupCanvasScaler(scaler, sourceCanvas);
         }
 
         spawnParent = existing.transform;
+    }
+
+    private void ConfigurePopupCanvas(Canvas targetCanvas, Canvas sourceCanvas)
+    {
+        if (targetCanvas == null)
+            return;
+
+        if (sourceCanvas != null)
+        {
+            targetCanvas.renderMode = sourceCanvas.renderMode;
+            targetCanvas.worldCamera = sourceCanvas.worldCamera;
+            targetCanvas.planeDistance = sourceCanvas.planeDistance;
+            targetCanvas.overrideSorting = true;
+            targetCanvas.sortingLayerID = sourceCanvas.sortingLayerID;
+            targetCanvas.sortingOrder = sourceCanvas.sortingOrder + Mathf.Max(1, isolatedCanvasSortingOffset);
+            targetCanvas.pixelPerfect = sourceCanvas.pixelPerfect;
+            targetCanvas.additionalShaderChannels = sourceCanvas.additionalShaderChannels;
+        }
+        else
+        {
+            targetCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            targetCanvas.overrideSorting = true;
+            targetCanvas.sortingOrder = 31000;
+            targetCanvas.pixelPerfect = false;
+        }
+    }
+
+    private static void ConfigurePopupCanvasScaler(CanvasScaler targetScaler, Canvas sourceCanvas)
+    {
+        if (targetScaler == null)
+            return;
+
+        CanvasScaler sourceScaler = sourceCanvas != null ? sourceCanvas.GetComponent<CanvasScaler>() : null;
+        if (sourceScaler != null)
+        {
+            targetScaler.uiScaleMode = sourceScaler.uiScaleMode;
+            targetScaler.referencePixelsPerUnit = sourceScaler.referencePixelsPerUnit;
+            targetScaler.scaleFactor = sourceScaler.scaleFactor;
+            targetScaler.referenceResolution = sourceScaler.referenceResolution;
+            targetScaler.screenMatchMode = sourceScaler.screenMatchMode;
+            targetScaler.matchWidthOrHeight = sourceScaler.matchWidthOrHeight;
+            targetScaler.physicalUnit = sourceScaler.physicalUnit;
+            targetScaler.fallbackScreenDPI = sourceScaler.fallbackScreenDPI;
+            targetScaler.defaultSpriteDPI = sourceScaler.defaultSpriteDPI;
+            targetScaler.dynamicPixelsPerUnit = sourceScaler.dynamicPixelsPerUnit;
+        }
+        else
+        {
+            targetScaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            targetScaler.referenceResolution = new Vector2(1920f, 1080f);
+            targetScaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            targetScaler.matchWidthOrHeight = 0.5f;
+        }
     }
 
     private static Canvas FindPopupCanvas()

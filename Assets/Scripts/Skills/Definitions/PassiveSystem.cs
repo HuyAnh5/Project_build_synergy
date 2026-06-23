@@ -22,7 +22,6 @@ public partial class PassiveSystem : MonoBehaviour
     private BattlePartyManager2D _cachedParty;
     private DiceSlotRig _cachedDiceRig;
 
-    private int _focusBonusTurnStart;
     private bool _bloodCounterAddedValueActive;
 
     private void Awake()
@@ -80,8 +79,6 @@ public partial class PassiveSystem : MonoBehaviour
 
     public void Rebuild()
     {
-        _focusBonusTurnStart = 0;
-
         if (equipped == null)
             equipped = new List<SkillPassiveSO>();
 
@@ -199,35 +196,7 @@ public partial class PassiveSystem : MonoBehaviour
     {
         switch (effect.id)
         {
-            case PassiveEffectId.FocusBonusOnTurnStart:
-                _focusBonusTurnStart += effect.valueI;
-                break;
         }
-    }
-
-    public int GetFocusBonusOnTurnStart(CombatActor owner = null, DiceSlotRig diceRig = null, CombatActor target = null)
-    {
-        int total = _focusBonusTurnStart;
-
-        if (equipped == null || equipped.Count == 0)
-            return total;
-
-        SkillConditionContext conditionContext = BuildPassiveConditionContext(owner, diceRig, target);
-        for (int i = 0; i < equipped.Count; i++)
-        {
-            SkillPassiveSO passive = equipped[i];
-            if (passive == null || passive.effects == null)
-                continue;
-
-            for (int k = 0; k < passive.effects.Count; k++)
-            {
-                PassiveEffectEntry effect = passive.effects[k];
-                if (effect != null && effect.id == PassiveEffectId.FocusBonusOnTurnStart)
-                    total += effect.valueI;
-            }
-        }
-
-        return total;
     }
 
     private SkillConditionContext BuildPassiveConditionContext(CombatActor owner, DiceSlotRig diceRig, CombatActor target)

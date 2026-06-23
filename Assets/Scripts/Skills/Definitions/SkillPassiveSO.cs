@@ -10,13 +10,12 @@ using Sirenix.OdinInspector;
 /// </summary>
 public enum PassiveEffectId
 {
-    FocusBonusOnTurnStart,
-    CritFocusOnUsedDie,
-    GuardCounterDamage,
-    BloodCounterNextAttackDamage,
-    GuardBreakMark,
-    MeleeFollowUpDamage,
-    MinimumImpactDamage
+    CritFocusOnUsedDie = 1,
+    GuardCounterDamage = 2,
+    BloodCounterNextAttackDamage = 3,
+    GuardBreakMark = 4,
+    MeleeFollowUpDamage = 5,
+    MinimumImpactDamage = 6
 }
 
 [Serializable, InlineProperty]
@@ -27,7 +26,7 @@ public class PassiveEffectEntry
     public string Summary => BuildSummary();
 
     [LabelText("Type")]
-    public PassiveEffectId id = PassiveEffectId.FocusBonusOnTurnStart;
+    public PassiveEffectId id = PassiveEffectId.CritFocusOnUsedDie;
 
     [LabelText("Value")]
     public int valueI = 1;
@@ -43,8 +42,6 @@ public class PassiveEffectEntry
         int value = Mathf.Max(0, valueI);
         switch (id)
         {
-            case PassiveEffectId.FocusBonusOnTurnStart:
-                return $"At turn start, gain {value} AP.";
             case PassiveEffectId.CritFocusOnUsedDie:
                 return $"When using a Crit die, gain {value} AP.";
             case PassiveEffectId.GuardCounterDamage:
@@ -114,10 +111,6 @@ public class SkillPassiveSO : ScriptableObject
 
     [TabGroup("Tabs", "Gameplay")]
     [TitleGroup("Tabs/Gameplay/Quick Add", "Quick Add")]
-    [ButtonGroup("Tabs/Gameplay/Quick Add/Row0")]
-    [Button("Turn Start +1 AP")]
-    private void AddTurnStartFocus() => AddEffect(e => { e.id = PassiveEffectId.FocusBonusOnTurnStart; e.valueI = 1; });
-
     [ButtonGroup("Tabs/Gameplay/Quick Add/Row1")]
     [Button("Crit +1 AP")]
     private void AddCritFocus() => AddEffect(e => { e.id = PassiveEffectId.CritFocusOnUsedDie; e.valueI = 1; });

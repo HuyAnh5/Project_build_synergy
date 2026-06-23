@@ -52,22 +52,6 @@ internal static class TurnManagerLifecycleUtility
         if (player == null || player.IsDead)
             return;
 
-        var ps = player.GetComponent<PassiveSystem>();
-        if (ps != null)
-        {
-            int bonus = ps.GetFocusBonusOnTurnStart(player);
-            if (bonus != 0)
-            {
-                player.GainFocus(bonus);
-                if (logPhase)
-                    Debug.Log($"[TM] Passive FocusBonusOnTurnStart +{bonus} -> focus={player.focus}/{player.maxFocus}", context);
-            }
-        }
-        else if (logPhase)
-        {
-            Debug.Log("[TM] PassiveSystem not found on player (passives won't apply).", context);
-        }
-
         player.GainFocus(1);
     }
 
