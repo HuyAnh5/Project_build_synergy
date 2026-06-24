@@ -122,7 +122,7 @@ public static class DiceEditSandboxZodiacSetupTool
         tmp.fontStyle = style;
         tmp.alignment = alignment;
         tmp.color = Color.black;
-        tmp.enableWordWrapping = true;
+        tmp.textWrappingMode = TextWrappingModes.Normal;
         tmp.raycastTarget = false;
         return tmp;
     }
@@ -137,7 +137,7 @@ public static class DiceEditSandboxZodiacSetupTool
 
     private static Canvas FindOrCreateCanvas()
     {
-        Canvas canvas = Object.FindObjectOfType<Canvas>(true);
+        Canvas canvas = Object.FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
         if (canvas != null)
             return canvas;
 
@@ -156,7 +156,7 @@ public static class DiceEditSandboxZodiacSetupTool
 
     private static void EnsureEventSystem()
     {
-        if (Object.FindObjectOfType<EventSystem>(true) != null)
+        if (Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include) != null)
             return;
 
         GameObject eventSystem = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));

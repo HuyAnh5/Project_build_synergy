@@ -12,6 +12,7 @@ using UnityEditor;
 public partial class ActorWorldUI : MonoBehaviour
 {
     private const int DefaultStatusSlotCount = 8;
+    private const int IdleWorldTooltipRefreshIntervalFrames = 3;
 
     public enum WorldUiTooltipSpawnDirection
     {
@@ -152,6 +153,8 @@ public partial class ActorWorldUI : MonoBehaviour
     private int _lastRuntimeMaxHp = int.MinValue;
     private int _lastRuntimeGuard = int.MinValue;
     private int _lastRuntimeStatusSignature = int.MinValue;
+    private int _lastRuntimeIntentSignature = int.MinValue;
+    private int _nextIdleWorldTooltipRefreshFrame;
     private bool _lastRuntimeStaggered;
 
     // --- Targetability overlay runtime ---
@@ -247,6 +250,7 @@ public partial class ActorWorldUI : MonoBehaviour
         _lastRuntimeMaxHp = int.MinValue;
         _lastRuntimeGuard = int.MinValue;
         _lastRuntimeStatusSignature = int.MinValue;
+        _lastRuntimeIntentSignature = int.MinValue;
     }
 
     private void OnValidate()
@@ -288,7 +292,8 @@ public partial class ActorWorldUI : MonoBehaviour
         if (AreRuntimeReferencesMissing())
             ResolveReferences();
         RefreshRuntime();
-        RefreshWorldUiTooltips();
+        if (ShouldRefreshWorldUiTooltipsThisFrame())
+            RefreshWorldUiTooltips();
 
         // Update overlay blink
         if (_targetOverlayActive && _targetOverlayImage != null)
@@ -314,6 +319,18 @@ public partial class ActorWorldUI : MonoBehaviour
         // Update target preview blink
         if (_targetPreviewActive)
             UpdateTargetPreviewBlink();
+    }
+
+    private bool ShouldRefreshWorldUiTooltipsThisFrame()
+    {
+        if (ActorWorldKeywordTooltipUI.IsShowingFor(this))
+            return true;
+
+        if (Time.frameCount < _nextIdleWorldTooltipRefreshFrame)
+            return false;
+
+        _nextIdleWorldTooltipRefreshFrame = Time.frameCount + IdleWorldTooltipRefreshIntervalFrames;
+        return true;
     }
 
     public void ShowIntentImmediate()
@@ -570,6 +587,8 @@ internal static class ActorWorldUiRegistry
 {
     private static readonly List<ActorWorldUI> Registered = new List<ActorWorldUI>(16);
     private static readonly List<ActorWorldUI> Snapshot = new List<ActorWorldUI>(16);
+    private static ActorWorldUI[] _cachedSnapshot = System.Array.Empty<ActorWorldUI>();
+    private static bool _snapshotDirty = true;
     private static bool _initializedFromScene;
 
     public static void Register(ActorWorldUI ui)
@@ -578,6 +597,7 @@ internal static class ActorWorldUiRegistry
             return;
 
         Registered.Add(ui);
+        _snapshotDirty = true;
     }
 
     public static void Unregister(ActorWorldUI ui)
@@ -585,12 +605,17 @@ internal static class ActorWorldUiRegistry
         if (ui == null)
             return;
 
-        Registered.Remove(ui);
+        if (Registered.Remove(ui))
+            _snapshotDirty = true;
     }
 
     public static ActorWorldUI[] GetAllSnapshot()
     {
         EnsureInitializedFromScene();
+
+        if (!_snapshotDirty)
+            return _cachedSnapshot;
+
         Snapshot.Clear();
 
         for (int i = Registered.Count - 1; i >= 0; i--)
@@ -599,13 +624,16 @@ internal static class ActorWorldUiRegistry
             if (ui == null)
             {
                 Registered.RemoveAt(i);
+                _snapshotDirty = true;
                 continue;
             }
 
             Snapshot.Add(ui);
         }
 
-        return Snapshot.ToArray();
+        _cachedSnapshot = Snapshot.Count > 0 ? Snapshot.ToArray() : System.Array.Empty<ActorWorldUI>();
+        _snapshotDirty = false;
+        return _cachedSnapshot;
     }
 
     public static ActorWorldUI FindForActor(CombatActor actor)
@@ -620,6 +648,7 @@ internal static class ActorWorldUiRegistry
             if (ui == null)
             {
                 Registered.RemoveAt(i);
+                _snapshotDirty = true;
                 continue;
             }
 
@@ -646,6 +675,205 @@ internal static class ActorWorldUiRegistry
 
         for (int i = 0; i < sceneUis.Length; i++)
             Register(sceneUis[i]);
+    }
+}
+
+internal static class CombatTargetPreviewPresenter
+{
+    public static void ShowBundle(TargetPreviewBuilder.ActionPreviewBundle bundle, ActorWorldUI[] worldUis, CombatHUD hud)
+    {
+        if (bundle.targetPreviews == null)
+            return;
+
+        foreach (KeyValuePair<CombatActor, TargetPreviewData> kvp in bundle.targetPreviews)
+        {
+            if (kvp.Key == null || !kvp.Value.valid)
+                continue;
+
+            if (kvp.Key.isPlayer)
+            {
+                if (hud != null)
+                    hud.ShowPlayerTargetPreview(kvp.Value);
+                continue;
+            }
+
+            ActorWorldUI ui = FindWorldUi(kvp.Key, worldUis);
+            if (ui != null)
+                ui.ShowTargetPreview(kvp.Value);
+        }
+    }
+
+    public static void ClearAll(ActorWorldUI[] worldUis, CombatHUD hud)
+    {
+        if (worldUis != null)
+        {
+            for (int i = 0; i < worldUis.Length; i++)
+            {
+                if (worldUis[i] != null)
+                    worldUis[i].ClearTargetPreview();
+            }
+        }
+
+        if (hud != null)
+            hud.ClearPlayerTargetPreview();
+    }
+
+    public static ActorWorldUI FindWorldUi(CombatActor actor, ActorWorldUI[] worldUis)
+    {
+        if (actor == null)
+            return null;
+
+        if (worldUis != null)
+        {
+            for (int i = 0; i < worldUis.Length; i++)
+            {
+                if (worldUis[i] != null && worldUis[i].actor == actor)
+                    return worldUis[i];
+            }
+        }
+
+        return ActorWorldUiRegistry.FindForActor(actor);
+    }
+}
+
+internal static class CombatPreviewBundleUtility
+{
+    public static TargetPreviewBuilder.ActionPreviewBundle BuildActionBundleWithSelfGuard(
+        SkillRuntime runtime,
+        SkillDamageSO sourceSkill,
+        CombatActor caster,
+        CombatActor target,
+        CombatActor player,
+        BattlePartyManager2D party,
+        CombatActor enemy,
+        int dieValue,
+        int guardLocalIndex,
+        int repeatPreviewCount,
+        int diceEnchantGuardGain)
+    {
+        int resolveCount = Mathf.Max(1, Mathf.Max(0, repeatPreviewCount) + 1);
+        TargetPreviewBuilder.ActionPreviewBundle bundle =
+            TargetPreviewBuilder.BuildActionBundle(runtime, caster, target, dieValue, party, enemy, resolveCount, sourceSkill);
+
+        if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill) && repeatPreviewCount > 0)
+            TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, repeatPreviewCount + 1);
+
+        if (player != null &&
+            CombatGuardPreviewUtility.TryBuildSelfGuardFinalPreview(runtime, sourceSkill, target, player, dieValue, guardLocalIndex, resolveCount, diceEnchantGuardGain, out TargetPreviewData selfGuardPreview))
+        {
+            bundle.targetPreviews[player] = selfGuardPreview;
+            bundle.valid = true;
+        }
+        else if (player != null)
+        {
+            TargetPreviewBuilder.AddSelfResourcePreview(player, diceEnchantGuardGain, 0, ref bundle);
+        }
+
+        return bundle;
+    }
+}
+
+internal static class CombatGuardPreviewUtility
+{
+    public static int ResolveGuardPreviewDieValue(SkillRuntime runtime, int fallbackDieValue, int guardLocalIndex)
+    {
+        if (runtime == null || runtime.kind != SkillKind.Guard || runtime.guardValueMode != BaseEffectValueMode.X)
+            return fallbackDieValue;
+
+        int guardValue = SkillBehaviorRuntimeUtility.GetPerDieResolvedOutput(runtime, Mathf.Max(0, guardLocalIndex));
+        return guardValue > 0 ? guardValue : fallbackDieValue;
+    }
+
+    public static bool TryBuildSelfGuardFinalPreview(
+        SkillRuntime runtime,
+        SkillDamageSO sourceSkill,
+        CombatActor hoveredActor,
+        CombatActor player,
+        int dieValue,
+        int guardLocalIndex,
+        int resolveCount,
+        int diceEnchantGuardGain,
+        out TargetPreviewData data)
+    {
+        data = default;
+        if (runtime == null || player == null || hoveredActor != player || runtime.kind != SkillKind.Guard)
+            return false;
+
+        int skillGuardGain = ResolveSelfGuardGain(runtime, sourceSkill, player, dieValue, guardLocalIndex);
+        if (resolveCount > 1)
+            skillGuardGain *= resolveCount;
+
+        int totalGuardGain = Mathf.Max(0, skillGuardGain) + Mathf.Max(0, diceEnchantGuardGain);
+        if (totalGuardGain <= 0)
+            return false;
+
+        data = new TargetPreviewData
+        {
+            valid = true,
+            currentHp = player.hp,
+            currentMaxHp = player.maxHP,
+            currentGuard = player.guardPool,
+            previewHpAfter = player.hp,
+            previewGuardAfter = player.guardPool + totalGuardGain,
+            currentlyStaggered = player.status != null && player.status.staggered,
+            currentBurn = player.status != null ? player.status.burnStacks : 0,
+            currentBleed = player.status != null ? player.status.bleedStacks : 0,
+            currentMarked = player.status != null && player.status.marked,
+            currentFrozen = player.status != null && player.status.frozen,
+            previewBurnAfter = player.status != null ? player.status.burnStacks : 0,
+            previewBleedAfter = player.status != null ? player.status.bleedStacks : 0,
+            previewMarkedAfter = player.status != null && player.status.marked,
+            previewFrozenAfter = player.status != null && player.status.frozen,
+            isSelfTarget = true,
+            selfGuardGain = totalGuardGain
+        };
+        return true;
+    }
+
+    private static int ResolveSelfGuardGain(SkillRuntime runtime, SkillDamageSO sourceSkill, CombatActor caster, int dieValue, int guardLocalIndex)
+    {
+        if (runtime == null || runtime.kind != SkillKind.Guard)
+            return 0;
+
+        if (sourceSkill == null)
+            sourceSkill = SkillGameplayResolver.GetSourceSkill(runtime);
+        if (SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill))
+        {
+            SkillResolvedResult resolved = SkillGameplayResolver.Resolve(
+                sourceSkill,
+                runtime,
+                caster,
+                caster,
+                SkillGameplayResolver.BuildConditionContext(runtime, caster, caster));
+            if (resolved == null || !resolved.canCast || resolved.effects == null)
+                return 0;
+
+            int resolvedGuard = 0;
+            for (int i = 0; i < resolved.effects.Count; i++)
+            {
+                ResolvedEffect effect = resolved.effects[i];
+                if (effect == null || effect.sameActionFollowUp || effect.type != SkillEffectType.GainGuard)
+                    continue;
+                CombatActor target = effect.targetActor != null ? effect.targetActor : caster;
+                if (target == caster)
+                    resolvedGuard += Mathf.Max(0, effect.value);
+            }
+
+            return Mathf.Max(0, resolvedGuard);
+        }
+
+        int baseGuard;
+        if (runtime.guardValueMode == BaseEffectValueMode.Flat && runtime.guardFlat > 0)
+            baseGuard = SkillOutputValueUtility.AddActionAddedValue(runtime.guardFlat, runtime);
+        else if (runtime.guardValueMode == BaseEffectValueMode.X)
+            baseGuard = ResolveGuardPreviewDieValue(runtime, dieValue, guardLocalIndex);
+        else
+            baseGuard = runtime.CalculateGuard(dieValue);
+
+        PassiveSystem passiveSystem = caster != null ? caster.GetComponent<PassiveSystem>() : null;
+        float pct = passiveSystem != null ? passiveSystem.GetGuardGainPercent() : 0f;
+        float multiplier = 1f + Mathf.Max(-0.99f, pct);
+        return Mathf.Max(0, Mathf.FloorToInt(baseGuard * multiplier));
     }
 }
 
@@ -690,5 +918,29 @@ internal static class CombatUiDirtySetUtility
     {
         if (image != null && !Mathf.Approximately(image.fillAmount, value))
             image.fillAmount = value;
+    }
+
+    public static void SetPreferredWidthIfChanged(LayoutElement layout, float value)
+    {
+        if (layout != null && !Mathf.Approximately(layout.preferredWidth, value))
+            layout.preferredWidth = value;
+    }
+
+    public static void SetPreferredHeightIfChanged(LayoutElement layout, float value)
+    {
+        if (layout != null && !Mathf.Approximately(layout.preferredHeight, value))
+            layout.preferredHeight = value;
+    }
+
+    public static void SetRectWidthIfChanged(RectTransform rect, float value)
+    {
+        if (rect != null && !Mathf.Approximately(rect.rect.width, value))
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, value);
+    }
+
+    public static void SetRectHeightIfChanged(RectTransform rect, float value)
+    {
+        if (rect != null && !Mathf.Approximately(rect.rect.height, value))
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, value);
     }
 }

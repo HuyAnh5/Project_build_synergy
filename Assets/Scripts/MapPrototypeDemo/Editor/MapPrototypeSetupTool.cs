@@ -14,13 +14,13 @@ public static class MapPrototypeSetupTool
     [MenuItem("Tools/Build Synergy/Legacy/Setup Map Prototype Demo")]
     public static void SetupMapPrototypeDemo()
     {
-        Canvas canvas = Object.FindObjectOfType<Canvas>();
+        Canvas canvas = Object.FindFirstObjectByType<Canvas>();
         if (canvas == null)
             canvas = CreateCanvas();
 
         EnsureEventSystem();
 
-        MapPrototypeController controller = Object.FindObjectOfType<MapPrototypeController>();
+        MapPrototypeController controller = Object.FindFirstObjectByType<MapPrototypeController>();
         if (controller == null)
         {
             GameObject root = new GameObject("MapPrototypeDemo", typeof(RectTransform), typeof(Image), typeof(MapPrototypeController));
@@ -57,7 +57,7 @@ public static class MapPrototypeSetupTool
 
     private static void EnsureEventSystem()
     {
-        EventSystem eventSystem = Object.FindObjectOfType<EventSystem>();
+        EventSystem eventSystem = Object.FindFirstObjectByType<EventSystem>();
         if (eventSystem == null)
         {
             GameObject go = new GameObject("EventSystem", typeof(EventSystem));

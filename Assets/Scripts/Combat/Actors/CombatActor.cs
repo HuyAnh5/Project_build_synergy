@@ -306,6 +306,8 @@ internal static class CombatActorRegistry
 {
     private static readonly System.Collections.Generic.List<CombatActor> Registered = new System.Collections.Generic.List<CombatActor>(16);
     private static readonly System.Collections.Generic.List<CombatActor> Snapshot = new System.Collections.Generic.List<CombatActor>(16);
+    private static CombatActor[] _cachedAllSnapshot = System.Array.Empty<CombatActor>();
+    private static bool _allSnapshotDirty = true;
     private static bool _initializedFromScene;
 
     public static void Register(CombatActor actor)
@@ -314,6 +316,7 @@ internal static class CombatActorRegistry
             return;
 
         Registered.Add(actor);
+        _allSnapshotDirty = true;
     }
 
     public static void Unregister(CombatActor actor)
@@ -321,12 +324,17 @@ internal static class CombatActorRegistry
         if (actor == null)
             return;
 
-        Registered.Remove(actor);
+        if (Registered.Remove(actor))
+            _allSnapshotDirty = true;
     }
 
     public static CombatActor[] GetAllSnapshot(bool includeInactive = true)
     {
         EnsureInitializedFromScene();
+
+        if (includeInactive && !_allSnapshotDirty)
+            return _cachedAllSnapshot;
+
         Snapshot.Clear();
 
         for (int i = Registered.Count - 1; i >= 0; i--)
@@ -335,6 +343,7 @@ internal static class CombatActorRegistry
             if (actor == null)
             {
                 Registered.RemoveAt(i);
+                _allSnapshotDirty = true;
                 continue;
             }
 
@@ -344,7 +353,14 @@ internal static class CombatActorRegistry
             Snapshot.Add(actor);
         }
 
-        return Snapshot.ToArray();
+        CombatActor[] result = Snapshot.Count > 0 ? Snapshot.ToArray() : System.Array.Empty<CombatActor>();
+        if (includeInactive)
+        {
+            _cachedAllSnapshot = result;
+            _allSnapshotDirty = false;
+        }
+
+        return result;
     }
 
     private static void EnsureInitializedFromScene()

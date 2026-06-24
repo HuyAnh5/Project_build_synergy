@@ -19,6 +19,7 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
     private const float TooltipHorizontalCanvasPadding = 8f;
     private const float TooltipVerticalCanvasPadding = 8f;
     private const float TooltipVerticalOffset = 10f;
+    private const int TooltipUpkeepIntervalFrames = 3;
 
     private static SkillTooltipUI _instance;
 
@@ -54,6 +55,7 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
     private string _activeKeywordId;
     private bool _lastExpandedState;
     private string _lastContentSignature;
+    private int _nextTooltipUpkeepFrame;
     private readonly Dictionary<TMP_Text, string> _keywordMeshTextCache = new Dictionary<TMP_Text, string>();
 
     private static SkillTooltipPrefabSettingsSO _prefabSettings;
@@ -362,10 +364,15 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
         if (expanded != _lastExpandedState)
         {
             _lastExpandedState = expanded;
+            _nextTooltipUpkeepFrame = Time.frameCount + TooltipUpkeepIntervalFrames;
             RefreshCurrent();
             return;
         }
 
+        if (Time.frameCount < _nextTooltipUpkeepFrame)
+            return;
+
+        _nextTooltipUpkeepFrame = Time.frameCount + TooltipUpkeepIntervalFrames;
         UpdateKeywordTooltips();
 
         if (!IsPointerOverCurrentTooltip())

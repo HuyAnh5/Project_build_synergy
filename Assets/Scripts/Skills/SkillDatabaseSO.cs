@@ -10,17 +10,17 @@ public class SkillDatabaseSO : ScriptableObject
     [PropertySpace(6)]
 
     [TabGroup("Skills", "Damage")]
-    [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = true)]
+    [ListDrawerSettings(DefaultExpandedState = true, DraggableItems = true, ShowIndexLabels = true)]
     [InlineEditor(InlineEditorObjectFieldModes.Boxed)]
     public List<SkillDamageSO> damageSkills = new();
 
     [TabGroup("Skills", "BuffDebuff")]
-    [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = true)]
+    [ListDrawerSettings(DefaultExpandedState = true, DraggableItems = true, ShowIndexLabels = true)]
     [InlineEditor(InlineEditorObjectFieldModes.Boxed)]
     public List<SkillBuffDebuffSO> buffDebuffSkills = new();
 
     [TabGroup("Skills", "Passive")]
-    [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = true)]
+    [ListDrawerSettings(DefaultExpandedState = true, DraggableItems = true, ShowIndexLabels = true)]
     [InlineEditor(InlineEditorObjectFieldModes.Boxed)]
     public List<SkillPassiveSO> passiveSkills = new();
 

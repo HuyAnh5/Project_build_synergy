@@ -568,7 +568,8 @@ public partial class ConsumableBarUIManager
             ConsumableKeywordTooltipView view = _consumableKeywordTooltipViews[i];
             float width = Mathf.Clamp(view.root.rect.width, ConsumableKeywordTooltipMinWidth, ConsumableKeywordTooltipMaxWidth);
             float height = Mathf.Max(10f, view.root.rect.height);
-            view.root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+            if (!Mathf.Approximately(view.root.rect.width, width))
+                view.root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
 
             float clampedLeft = Mathf.Clamp(rightX, 8f, Screen.width - width - 8f);
             float clampedTop = Mathf.Clamp(currentTop, height + 8f, Screen.height - 8f);
@@ -678,7 +679,7 @@ public partial class ConsumableBarUIManager
         body.overflowMode = TextOverflowModes.Overflow;
         body.raycastTarget = false;
         LayoutElement bodyLayout = bodyGo.GetComponent<LayoutElement>();
-        bodyLayout.preferredWidth = ConsumableKeywordTooltipMaxWidth - 24f;
+        CombatUiDirtySetUtility.SetPreferredWidthIfChanged(bodyLayout, ConsumableKeywordTooltipMaxWidth - 24f);
         bodyLayout.flexibleWidth = 0f;
 
         GameObject iconGo = new GameObject("Icon", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
@@ -687,8 +688,8 @@ public partial class ConsumableBarUIManager
         icon.raycastTarget = false;
         icon.preserveAspect = true;
         LayoutElement iconLayout = iconGo.GetComponent<LayoutElement>();
-        iconLayout.preferredWidth = 0f;
-        iconLayout.preferredHeight = 0f;
+        CombatUiDirtySetUtility.SetPreferredWidthIfChanged(iconLayout, 0f);
+        CombatUiDirtySetUtility.SetPreferredHeightIfChanged(iconLayout, 0f);
 
         return new ConsumableKeywordTooltipView
         {
@@ -722,8 +723,8 @@ public partial class ConsumableBarUIManager
                 view.icon.enabled = showIcon;
             if (view.iconLayout != null)
             {
-                view.iconLayout.preferredWidth = showIcon ? 20f : 0f;
-                view.iconLayout.preferredHeight = showIcon ? 20f : 0f;
+                CombatUiDirtySetUtility.SetPreferredWidthIfChanged(view.iconLayout, showIcon ? 20f : 0f);
+                CombatUiDirtySetUtility.SetPreferredHeightIfChanged(view.iconLayout, showIcon ? 20f : 0f);
             }
         }
     }

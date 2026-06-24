@@ -76,7 +76,7 @@ public partial class DiceSlotRig : MonoBehaviour
         public bool failAny;
     }
 
-    [ListDrawerSettings(Expanded = true, DraggableItems = false, ShowIndexLabels = false)]
+    [ListDrawerSettings(DefaultExpandedState = true, DraggableItems = false, ShowIndexLabels = false)]
     [LabelText("Slots (1..3)")]
     public Entry[] slots = new Entry[3];
 

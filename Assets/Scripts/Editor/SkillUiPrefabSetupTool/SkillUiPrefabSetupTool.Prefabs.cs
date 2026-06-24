@@ -60,7 +60,7 @@ public static partial class SkillUiPrefabSetupTool
         title.text = "Skill";
         title.fontSize = 16f;
         title.alignment = TextAlignmentOptions.Center;
-        title.enableWordWrapping = false;
+        title.textWrappingMode = TextWrappingModes.NoWrap;
         title.raycastTarget = false;
         return title;
     }
@@ -247,7 +247,7 @@ public static partial class SkillUiPrefabSetupTool
         text.fontSizeMax = size + 2f;
         text.fontStyle = style;
         text.color = Color.white;
-        text.enableWordWrapping = true;
+        text.textWrappingMode = TextWrappingModes.Normal;
         text.richText = true;
         text.raycastTarget = false;
 

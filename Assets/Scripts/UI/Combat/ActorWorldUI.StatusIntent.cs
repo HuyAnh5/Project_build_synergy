@@ -34,10 +34,16 @@ public partial class ActorWorldUI
         if (intentRoot == null)
             return;
 
+        int intentSignature = BuildRuntimeIntentSignature();
+        if (_lastRuntimeIntentSignature == intentSignature)
+            return;
+
+        _lastRuntimeIntentSignature = intentSignature;
+
         Sprite iconSprite = null;
         string valueText = string.Empty;
         bool showIntent = actor != null && !actor.isPlayer && TryGetIntentPresentation(out iconSprite, out valueText);
-        intentRoot.gameObject.SetActive(showIntent);
+        CombatUiDirtySetUtility.SetActiveIfChanged(intentRoot.gameObject, showIntent);
         if (!showIntent)
             return;
 
@@ -46,13 +52,53 @@ public partial class ActorWorldUI
 
         if (intentIcon != null)
         {
-            intentIcon.sprite = iconSprite != null ? iconSprite : intentFallbackSprite;
-            intentIcon.enabled = intentIcon.sprite != null;
-            intentIcon.color = intentIcon.enabled ? Color.white : new Color(1f, 1f, 1f, 0f);
+            Sprite nextSprite = iconSprite != null ? iconSprite : intentFallbackSprite;
+            if (intentIcon.sprite != nextSprite)
+                intentIcon.sprite = nextSprite;
+
+            bool iconEnabled = nextSprite != null;
+            if (intentIcon.enabled != iconEnabled)
+                intentIcon.enabled = iconEnabled;
+
+            CombatUiDirtySetUtility.SetColorIfChanged(intentIcon, iconEnabled ? Color.white : new Color(1f, 1f, 1f, 0f));
         }
 
-        if (intentValueText != null)
-            intentValueText.text = valueText;
+        CombatUiDirtySetUtility.SetTextIfChanged(intentValueText, valueText);
+    }
+
+    private int BuildRuntimeIntentSignature()
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = hash * 31 + (actor != null ? actor.GetInstanceID() : 0);
+            hash = hash * 31 + (actor != null && actor.isPlayer ? 1 : 0);
+            hash = hash * 31 + BuildRuntimeStatusSignature(actor != null ? actor.status : null);
+
+            if (_brain == null || _brain.definition == null || !_brain.CurrentIntent.hasIntent)
+                return hash;
+
+            int moveIndex = _brain.CurrentIntent.moveIndex;
+            hash = hash * 31 + moveIndex;
+            if (moveIndex >= 0 && moveIndex < _brain.definition.moves.Count)
+            {
+                EnemyDefinitionSO.EnemyMoveSlot move = _brain.definition.moves[moveIndex];
+                hash = hash * 31 + (move?.damageSkill != null ? move.damageSkill.GetInstanceID() : 0);
+                hash = hash * 31 + (move?.buffDebuffSkill != null ? move.buffDebuffSkill.GetInstanceID() : 0);
+            }
+
+            CombatActor playerTarget = FindPlayerIntentTarget();
+            if (playerTarget != null)
+            {
+                hash = hash * 31 + playerTarget.GetInstanceID();
+                hash = hash * 31 + playerTarget.hp;
+                hash = hash * 31 + playerTarget.maxHP;
+                hash = hash * 31 + playerTarget.guardPool;
+                hash = hash * 31 + BuildRuntimeStatusSignature(playerTarget.status);
+            }
+
+            return hash;
+        }
     }
 
     private bool TryGetIntentPresentation(out Sprite iconSprite, out string valueText)

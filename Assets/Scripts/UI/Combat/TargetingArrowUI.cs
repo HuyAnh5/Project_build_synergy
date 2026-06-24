@@ -30,6 +30,10 @@ public sealed class TargetingArrowUI : MonoBehaviour
     private Image _arrowHead;
     private DraggableSkillIcon _selectedSkill;
     private Transform _worldTarget;
+    private Vector2 _lastStartScreen;
+    private Vector2 _lastEndScreen;
+    private int _lastDrawStyleSignature;
+    private bool _hasLastDraw;
     private bool _visible;
 
     public static void EnsureFor(DraggableSkillIcon skill)
@@ -65,6 +69,9 @@ public sealed class TargetingArrowUI : MonoBehaviour
     {
         if (_instance == null || !_instance._visible)
             return;
+
+        if (_instance._worldTarget != target)
+            _instance._hasLastDraw = false;
 
         _instance._worldTarget = target;
     }
@@ -145,7 +152,34 @@ public sealed class TargetingArrowUI : MonoBehaviour
             return;
         }
 
+        int styleSignature = BuildDrawStyleSignature();
+        if (_hasLastDraw &&
+            styleSignature == _lastDrawStyleSignature &&
+            (startScreen - _lastStartScreen).sqrMagnitude < 0.01f &&
+            (endScreen - _lastEndScreen).sqrMagnitude < 0.01f)
+        {
+            return;
+        }
+
+        _hasLastDraw = true;
+        _lastStartScreen = startScreen;
+        _lastEndScreen = endScreen;
+        _lastDrawStyleSignature = styleSignature;
         DrawArrow(startScreen, endScreen);
+    }
+
+    private int BuildDrawStyleSignature()
+    {
+        unchecked
+        {
+            int hash = 17;
+            hash = hash * 31 + segmentColor.GetHashCode();
+            hash = hash * 31 + segmentSpacing.GetHashCode();
+            hash = hash * 31 + arcHeight.GetHashCode();
+            hash = hash * 31 + segmentSize.GetHashCode();
+            hash = hash * 31 + arrowHeadSize.GetHashCode();
+            return hash;
+        }
     }
 
     private void HandleSelectedSkillChanged()
@@ -162,6 +196,9 @@ public sealed class TargetingArrowUI : MonoBehaviour
 
     private void RefreshSelectedSkill(DraggableSkillIcon skill, ScriptableObject asset, SkillRuntime runtime)
     {
+        if (_selectedSkill != skill)
+            _hasLastDraw = false;
+
         _selectedSkill = skill;
         _worldTarget = null;
 
@@ -186,6 +223,7 @@ public sealed class TargetingArrowUI : MonoBehaviour
         _visible = false;
         _worldTarget = null;
         _selectedSkill = null;
+        _hasLastDraw = false;
         ReleaseSegments();
         if (_arrowHead != null)
             _arrowHead.gameObject.SetActive(false);

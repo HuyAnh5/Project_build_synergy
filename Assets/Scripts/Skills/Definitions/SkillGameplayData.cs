@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Sirenix.OdinInspector;
 using UnityEngine;
@@ -269,7 +269,7 @@ public class SkillConditionalOutcomeDataV2
 
     [FoldoutGroup("Then", expanded: true)]
     [HideLabel]
-    [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
+    [ListDrawerSettings(DefaultExpandedState = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<SkillEffectData> effects = new List<SkillEffectData>();
 }
 
@@ -305,20 +305,20 @@ public class SkillGameplayData
     [InfoBox("Requirements block skill use. Add dice/resource/target gates here when the skill must not cast unless the condition is true.", InfoMessageType.Info)]
     [InfoBox("None", InfoMessageType.None, nameof(HasNoRequirements))]
     [HideLabel]
-    [ListDrawerSettings(Expanded = false, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
+    [ListDrawerSettings(DefaultExpandedState = false, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<SkillRequirementData> requirements = new List<SkillRequirementData>();
 
     [BoxGroup("Base Effects")]
     [InfoBox("Add the effects that always run when the skill casts.", InfoMessageType.Info, nameof(HasNoBaseEffects))]
     [HideLabel]
-    [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
+    [ListDrawerSettings(DefaultExpandedState = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<SkillEffectData> baseEffects = new List<SkillEffectData>();
 
     [BoxGroup("Conditional Outcomes")]
     [InfoBox("Conditional Outcomes are bonus/follow-up effects. They do not stop Base Effects from casting; put cast gates in Requirements.", InfoMessageType.Info)]
     [InfoBox("None", InfoMessageType.None, nameof(HasNoConditionalOutcomes))]
     [HideLabel]
-    [ListDrawerSettings(Expanded = false, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
+    [ListDrawerSettings(DefaultExpandedState = false, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<SkillConditionalOutcomeDataV2> conditionalOutcomes = new List<SkillConditionalOutcomeDataV2>();
 
     [FoldoutGroup("Advanced", expanded: false)]

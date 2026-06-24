@@ -154,25 +154,23 @@ internal sealed partial class SkillIconPreviewController
 
         int rawDieValue = _previewPlan.valid ? _previewPlan.resolvedDieValue : _getPreviewDieValue(_cachedDragRuntime);
         int guardLocalIndex = _previewPlan.valid ? Mathf.Clamp(_previewPlan.anchor0 - _previewPlan.start0, 0, 2) : 0;
-        int dieValue = ResolveTargetPreviewDieValue(_cachedDragRuntime, rawDieValue, guardLocalIndex);
+        int dieValue = CombatGuardPreviewUtility.ResolveGuardPreviewDieValue(_cachedDragRuntime, rawDieValue, guardLocalIndex);
         int repeatPreviewCount = (_previewPlan.valid ? Mathf.Max(0, _previewPlan.repeatCount) : 0) + GetReadyStatusRepeatCount(_turn.player);
-        int resolveCount = Mathf.Max(1, repeatPreviewCount + 1);
         SkillDamageSO selectedDamageSkill = _getSkillAsset() as SkillDamageSO;
         SkillDamageSO sourceSkill = selectedDamageSkill != null ? selectedDamageSkill : SkillGameplayResolver.GetSourceSkill(_cachedDragRuntime);
         TargetPreviewBuilder.ActionPreviewBundle bundle =
-            TargetPreviewBuilder.BuildActionBundle(_cachedDragRuntime, _turn.player, hoveredActor, dieValue, _turn.party, _turn.enemy, resolveCount, sourceSkill);
-        if (!SkillGameplayResolver.CanResolveWithNewPipeline(sourceSkill) && repeatPreviewCount > 0)
-            TargetPreviewBuilder.ApplyRepeatPreviewMultiplier(ref bundle, repeatPreviewCount + 1);
-
-        if (TryBuildSelfGuardFinalPreview(_cachedDragRuntime, sourceSkill, hoveredActor, dieValue, guardLocalIndex, resolveCount, _simpleEnchantPreview.guardGain, out TargetPreviewData selfGuardPreview))
-        {
-            bundle.targetPreviews[_turn.player] = selfGuardPreview;
-            bundle.valid = true;
-        }
-        else
-        {
-            TargetPreviewBuilder.AddSelfResourcePreview(_turn.player, _simpleEnchantPreview.guardGain, 0, ref bundle);
-        }
+            CombatPreviewBundleUtility.BuildActionBundleWithSelfGuard(
+                _cachedDragRuntime,
+                sourceSkill,
+                _turn.player,
+                hoveredActor,
+                _turn.player,
+                _turn.party,
+                _turn.enemy,
+                dieValue,
+                guardLocalIndex,
+                repeatPreviewCount,
+                _simpleEnchantPreview.guardGain);
 
         if (!bundle.valid)
             return;
@@ -233,31 +231,12 @@ internal sealed partial class SkillIconPreviewController
 
     private ActorWorldUI FindActorWorldUi(CombatActor actor)
     {
-        if (actor == null)
-            return null;
-
-        if (_cachedActorWorldUis != null)
-        {
-            foreach (ActorWorldUI ui in _cachedActorWorldUis)
-            {
-                if (ui != null && ui.actor == actor)
-                    return ui;
-            }
-        }
-
-        return ActorWorldUiRegistry.FindForActor(actor);
+        return CombatTargetPreviewPresenter.FindWorldUi(actor, _cachedActorWorldUis);
     }
 
     private void ClearTargetPreviewIfActive()
     {
-        if (_cachedActorWorldUis != null)
-        {
-            foreach (ActorWorldUI ui in _cachedActorWorldUis)
-            {
-                if (ui != null)
-                    ui.ClearTargetPreview();
-            }
-        }
+        CombatTargetPreviewPresenter.ClearAll(_cachedActorWorldUis, GetCachedHud());
 
         _currentPreviewTarget = null;
 

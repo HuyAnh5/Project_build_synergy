@@ -160,7 +160,7 @@ public partial class SkillConditionData
     public SkillConditionLogic logic = SkillConditionLogic.All;
 
     [HideLabel]
-    [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
+    [ListDrawerSettings(DefaultExpandedState = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<SkillConditionClause> clauses = new List<SkillConditionClause>();
 
     public bool HasAnyClause => clauses != null && clauses.Count > 0;

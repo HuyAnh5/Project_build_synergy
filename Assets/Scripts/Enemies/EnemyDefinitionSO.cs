@@ -190,7 +190,7 @@ public partial class EnemyDefinitionSO : ScriptableObject
 
     [BoxGroup("Moves")]
     [InfoBox("Template mặc định là 6 move. Bạn có thể xóa bớt để còn 3-4 move nếu encounter chỉ cần ít hành vi hơn.", InfoMessageType.Info)]
-    [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = true, NumberOfItemsPerPage = 10)]
+    [ListDrawerSettings(DefaultExpandedState = true, DraggableItems = true, ShowIndexLabels = true, NumberOfItemsPerPage = 10)]
     public List<EnemyMoveSlot> moves = new List<EnemyMoveSlot>();
 
     private bool IsScriptedLoopMode

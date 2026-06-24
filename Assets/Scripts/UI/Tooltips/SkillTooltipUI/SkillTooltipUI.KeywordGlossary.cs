@@ -297,7 +297,7 @@ public sealed partial class SkillTooltipUI
                 ? Mathf.Max(sizeRect.width, 10f)
                 : Mathf.Clamp(sizeRect.width, KeywordTooltipMinWidth, KeywordTooltipMaxWidth);
             float height = Mathf.Max(sizeRect.height, 10f);
-            if (!view.usesTemplate)
+            if (!view.usesTemplate && !Mathf.Approximately(sizeRect.width, width))
                 view.root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
 
             float leftX = placeLeft
@@ -401,8 +401,8 @@ public sealed partial class SkillTooltipUI
             if (!view.usesTemplate && view.iconLayout != null)
             {
                 Vector2 size = showIcon ? GetKeywordIconSize(content.icon) : Vector2.zero;
-                view.iconLayout.preferredWidth = size.x;
-                view.iconLayout.preferredHeight = size.y;
+                CombatUiDirtySetUtility.SetPreferredWidthIfChanged(view.iconLayout, size.x);
+                CombatUiDirtySetUtility.SetPreferredHeightIfChanged(view.iconLayout, size.y);
                 view.iconLayout.minWidth = size.x;
                 view.iconLayout.minHeight = size.y;
             }

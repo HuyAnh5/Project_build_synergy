@@ -127,7 +127,7 @@ public class BuffDebuffFlowConditionalOutcomeData
 
     [FoldoutGroup("Then", expanded: true)]
     [HideLabel]
-    [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
+    [ListDrawerSettings(DefaultExpandedState = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<BuffDebuffFlowEffectData> effects = new List<BuffDebuffFlowEffectData>();
 }
 
@@ -143,20 +143,20 @@ public class BuffDebuffFlowData
     [InfoBox("Requirements block skill use. Use the same dice/resource condition data as Skill Damage.", InfoMessageType.Info)]
     [InfoBox("None", InfoMessageType.None, nameof(HasNoRequirements))]
     [HideLabel]
-    [ListDrawerSettings(Expanded = false, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
+    [ListDrawerSettings(DefaultExpandedState = false, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<SkillRequirementData> requirements = new List<SkillRequirementData>();
 
     [BoxGroup("Base Effects")]
     [InfoBox("Effects that always run when the buff/debuff skill casts.", InfoMessageType.Info, nameof(HasNoBaseEffects))]
     [HideLabel]
-    [ListDrawerSettings(Expanded = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
+    [ListDrawerSettings(DefaultExpandedState = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<BuffDebuffFlowEffectData> baseEffects = new List<BuffDebuffFlowEffectData>();
 
     [BoxGroup("Conditional Outcomes")]
     [InfoBox("Bonus/follow-up effects. They do not block the skill cast.", InfoMessageType.Info)]
     [InfoBox("None", InfoMessageType.None, nameof(HasNoConditionalOutcomes))]
     [HideLabel]
-    [ListDrawerSettings(Expanded = false, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
+    [ListDrawerSettings(DefaultExpandedState = false, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<BuffDebuffFlowConditionalOutcomeData> conditionalOutcomes = new List<BuffDebuffFlowConditionalOutcomeData>();
 
     private bool HasNoRequirements() => requirements == null || requirements.Count == 0;

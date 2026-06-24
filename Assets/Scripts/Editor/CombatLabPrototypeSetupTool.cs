@@ -269,7 +269,7 @@ public static class CombatLabPrototypeSetupTool
             tmp.fontStyle = style;
             tmp.alignment = alignment;
             tmp.color = color;
-            tmp.enableWordWrapping = true;
+            tmp.textWrappingMode = TextWrappingModes.Normal;
             tmp.raycastTarget = false;
         }
         return tmp;

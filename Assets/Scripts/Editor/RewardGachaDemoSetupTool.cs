@@ -38,7 +38,7 @@ public static class RewardGachaDemoSetupTool
         Canvas canvas = FindOrCreateCanvas();
         EnsureEventSystem();
 
-        RewardGachaDemoController controller = Object.FindObjectOfType<RewardGachaDemoController>(true);
+        RewardGachaDemoController controller = Object.FindFirstObjectByType<RewardGachaDemoController>(FindObjectsInactive.Include);
         if (controller == null)
         {
             GameObject root = new GameObject("RewardGachaDemo", typeof(RectTransform), typeof(Image), typeof(RewardGachaDemoController));
@@ -56,7 +56,7 @@ public static class RewardGachaDemoSetupTool
             rootRt.offsetMax = Vector2.zero;
         }
 
-        RunInventoryManager inventory = Object.FindObjectOfType<RunInventoryManager>(true);
+        RunInventoryManager inventory = Object.FindFirstObjectByType<RunInventoryManager>(FindObjectsInactive.Include);
         if (inventory == null)
         {
             GameObject inventoryGo = new GameObject("DemoRunInventory", typeof(RunInventoryManager));
@@ -81,7 +81,7 @@ public static class RewardGachaDemoSetupTool
 
     private static Canvas FindOrCreateCanvas()
     {
-        Canvas canvas = Object.FindObjectOfType<Canvas>(true);
+        Canvas canvas = Object.FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
         if (canvas != null)
             return canvas;
 
@@ -102,7 +102,7 @@ public static class RewardGachaDemoSetupTool
 
     private static void EnsureEventSystem()
     {
-        EventSystem eventSystem = Object.FindObjectOfType<EventSystem>(true);
+        EventSystem eventSystem = Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include);
         if (eventSystem == null)
         {
             GameObject go = new GameObject("EventSystem", typeof(EventSystem));

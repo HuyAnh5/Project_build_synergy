@@ -7,7 +7,7 @@ public static class CombatHudSetupTool
     [MenuItem("Tools/Build Synergy/Legacy/Setup Player AP Bar")]
     public static void SetupPlayerApBar()
     {
-        CombatHUD hud = Object.FindObjectOfType<CombatHUD>(true);
+        CombatHUD hud = Object.FindFirstObjectByType<CombatHUD>(FindObjectsInactive.Include);
         if (hud == null)
         {
             Debug.LogWarning("[CombatHudSetupTool] No CombatHUD found in the active scene.");

@@ -699,6 +699,8 @@ internal static class DiceDraggableUiRegistry
 {
     private static readonly List<DiceDraggableUI> Registered = new List<DiceDraggableUI>(16);
     private static readonly List<DiceDraggableUI> Snapshot = new List<DiceDraggableUI>(16);
+    private static DiceDraggableUI[] _cachedSnapshot = System.Array.Empty<DiceDraggableUI>();
+    private static bool _snapshotDirty = true;
     private static bool _initializedFromScene;
 
     public static void Register(DiceDraggableUI ui)
@@ -707,6 +709,7 @@ internal static class DiceDraggableUiRegistry
             return;
 
         Registered.Add(ui);
+        _snapshotDirty = true;
     }
 
     public static void Unregister(DiceDraggableUI ui)
@@ -714,12 +717,17 @@ internal static class DiceDraggableUiRegistry
         if (ui == null)
             return;
 
-        Registered.Remove(ui);
+        if (Registered.Remove(ui))
+            _snapshotDirty = true;
     }
 
     public static DiceDraggableUI[] GetAllSnapshot()
     {
         EnsureInitializedFromScene();
+
+        if (!_snapshotDirty)
+            return _cachedSnapshot;
+
         Snapshot.Clear();
 
         for (int i = Registered.Count - 1; i >= 0; i--)
@@ -728,13 +736,16 @@ internal static class DiceDraggableUiRegistry
             if (ui == null)
             {
                 Registered.RemoveAt(i);
+                _snapshotDirty = true;
                 continue;
             }
 
             Snapshot.Add(ui);
         }
 
-        return Snapshot.ToArray();
+        _cachedSnapshot = Snapshot.Count > 0 ? Snapshot.ToArray() : System.Array.Empty<DiceDraggableUI>();
+        _snapshotDirty = false;
+        return _cachedSnapshot;
     }
 
     private static void EnsureInitializedFromScene()

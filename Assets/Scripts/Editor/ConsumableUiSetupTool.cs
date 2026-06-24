@@ -77,9 +77,9 @@ public static class ConsumableUiSetupTool
         manager.minStackedSpacing = 42f;
         manager.fallbackRowWidth = 520f;
         manager.autoCreateMissingCards = true;
-        manager.runInventory = Object.FindObjectOfType<RunInventoryManager>(true);
-        manager.turnManager = Object.FindObjectOfType<TurnManager>(true);
-        manager.combatHud = Object.FindObjectOfType<CombatHUD>(true);
+        manager.runInventory = Object.FindFirstObjectByType<RunInventoryManager>(FindObjectsInactive.Include);
+        manager.turnManager = Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+        manager.combatHud = Object.FindFirstObjectByType<CombatHUD>(FindObjectsInactive.Include);
         if (manager.turnManager != null)
             manager.player = manager.turnManager.player;
         else if (manager.combatHud != null)
@@ -387,7 +387,7 @@ public static class ConsumableUiSetupTool
         text.fontStyle = style;
         text.alignment = alignment;
         text.color = Color.white;
-        text.enableWordWrapping = true;
+        text.textWrappingMode = TextWrappingModes.Normal;
 
         LayoutElement layout = textGo.GetComponent<LayoutElement>();
         layout.flexibleWidth = 1f;
@@ -397,7 +397,7 @@ public static class ConsumableUiSetupTool
 
     private static Canvas FindOrCreateCanvas()
     {
-        Canvas canvas = Object.FindObjectOfType<Canvas>(true);
+        Canvas canvas = Object.FindFirstObjectByType<Canvas>(FindObjectsInactive.Include);
         if (canvas != null)
             return canvas;
 
@@ -416,7 +416,7 @@ public static class ConsumableUiSetupTool
 
     private static void EnsureEventSystem()
     {
-        if (Object.FindObjectOfType<EventSystem>(true) != null)
+        if (Object.FindFirstObjectByType<EventSystem>(FindObjectsInactive.Include) != null)
             return;
 
         GameObject eventSystem = new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));

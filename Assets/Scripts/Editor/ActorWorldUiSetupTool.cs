@@ -267,7 +267,7 @@ public static class ActorWorldUiSetupTool
         text.fontSize = fontSize;
         text.alignment = alignment;
         text.color = Color.white;
-        text.enableWordWrapping = false;
+        text.textWrappingMode = TextWrappingModes.NoWrap;
         text.raycastTarget = false;
     }
 }

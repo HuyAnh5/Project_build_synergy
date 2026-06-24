@@ -175,8 +175,11 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
 
             float width = Mathf.Clamp(view.root.rect.width, TooltipMinWidth, TooltipMaxWidth);
             float height = Mathf.Max(10f, view.root.rect.height);
-            view.root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
-            if (contentChanged || !wasActive)
+            bool widthChanged = !Mathf.Approximately(view.root.rect.width, width);
+            if (widthChanged)
+                view.root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
+
+            if (widthChanged && (contentChanged || !wasActive))
             {
                 LayoutRebuilder.ForceRebuildLayoutImmediate(view.root);
                 height = Mathf.Max(10f, view.root.rect.height);

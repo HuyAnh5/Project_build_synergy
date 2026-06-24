@@ -561,6 +561,8 @@ internal static class DraggableSkillIconRegistry
 {
     private static readonly List<DraggableSkillIcon> Registered = new List<DraggableSkillIcon>(32);
     private static readonly List<DraggableSkillIcon> Snapshot = new List<DraggableSkillIcon>(32);
+    private static DraggableSkillIcon[] _cachedSnapshot = System.Array.Empty<DraggableSkillIcon>();
+    private static bool _snapshotDirty = true;
     private static bool _initializedFromScene;
 
     public static void Register(DraggableSkillIcon icon)
@@ -569,6 +571,7 @@ internal static class DraggableSkillIconRegistry
             return;
 
         Registered.Add(icon);
+        _snapshotDirty = true;
     }
 
     public static void Unregister(DraggableSkillIcon icon)
@@ -576,12 +579,17 @@ internal static class DraggableSkillIconRegistry
         if (icon == null)
             return;
 
-        Registered.Remove(icon);
+        if (Registered.Remove(icon))
+            _snapshotDirty = true;
     }
 
     public static DraggableSkillIcon[] GetAllSnapshot()
     {
         EnsureInitializedFromScene();
+
+        if (!_snapshotDirty)
+            return _cachedSnapshot;
+
         Snapshot.Clear();
 
         for (int i = Registered.Count - 1; i >= 0; i--)
@@ -590,13 +598,16 @@ internal static class DraggableSkillIconRegistry
             if (icon == null)
             {
                 Registered.RemoveAt(i);
+                _snapshotDirty = true;
                 continue;
             }
 
             Snapshot.Add(icon);
         }
 
-        return Snapshot.ToArray();
+        _cachedSnapshot = Snapshot.Count > 0 ? Snapshot.ToArray() : System.Array.Empty<DraggableSkillIcon>();
+        _snapshotDirty = false;
+        return _cachedSnapshot;
     }
 
     private static void EnsureInitializedFromScene()
