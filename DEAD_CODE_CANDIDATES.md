@@ -15,6 +15,14 @@ This report tracks code that may be removable later. Nothing in this file is per
 | Removed item | Why safe | Verification |
 |---|---|---|
 | Private no-op `PassiveSystem.Accumulate(PassiveEffectEntry effect)` path | The method had no side effects and `Rebuild()` still clears/rebuilds state through active effect queries. Runtime effect value reads remain through `GetEffectValue`. | `dotnet build Project_build_synergy.sln` passes |
+| Tooltip-local `SkillTooltipPrefabProvider` caches and private `GetPrefabProvider()` helpers in skill/actor keyword tooltip classes | A shared `SkillTooltipPrefabProviderRegistry` now owns provider lookup/cache; the duplicated private caches had no unique behavior. | `dotnet build Project_build_synergy.sln` passes |
+| Local `unusedSkip` variable in `TurnManagerLifecycleUtility.BeginPlayerTurnStatusesAndFocus` | The out value was intentionally ignored; replaced with discard `_` without changing the `OnTurnStarted` call. | `dotnet build Project_build_synergy.sln` passes |
+| `TargetClickable2D.GetWorldUI` and private `_worldUI` cache | Actor world UI lookup now goes through `ActorWorldUiRegistry`; the private wrapper/cache had no callers. | `dotnet build Project_build_synergy.sln` passes |
+| Unused skill keyword tooltip fallback builder helpers | Keyword tooltip creation now requires prefab/settings and logs a clear error when missing; the private fallback builder path had no callers. | `dotnet build Project_build_synergy.sln` passes |
+| Unused dice world-tooltip face-icon rect union helper path | Face-enchant tooltip rect path no longer used the combined face icon/value helper; the private combined rect helper and union helper had no callers. | `dotnet build Project_build_synergy.sln` passes |
+| Unused dice enchant hover-zone auto-position builder helpers and fields | `EnsureManagedEnchantHoverZone()` no longer creates the managed hover zone; private creation/position helpers and their private fields had no callers/assignments. Existing proxy enter/exit handlers were kept. | `dotnet build Project_build_synergy.sln` passes |
+| `PassiveSystem.BuildPassiveConditionContext`, `GetParty`, and `_cachedParty` | The passive condition context builder was left behind after the no-op accumulate path was removed; no callers remained. | `dotnet build Project_build_synergy.sln` passes |
+| `DiceSpinnerGeneric.CacheFaceIconBaseColor` | Face icon base colors are maintained directly by active face/enchant rendering paths; this private cache helper had no callers. | `dotnet build Project_build_synergy.sln` passes |
 
 ## Candidates Requiring More Evidence
 
@@ -40,6 +48,6 @@ Do not run a broad private-method deletion sweep yet.
 
 ## Notes From Current Continuation
 
-No files were deleted.
+No files were deleted in the latest cleanup. The newest batches focused on FPS-safe dirty setters, idle polling throttles, tooltip mesh caching, and report updates.
 
 Large candidate groups remain intentionally untouched because Unity scene/prefab/event references cannot be proven safe from C# search alone.

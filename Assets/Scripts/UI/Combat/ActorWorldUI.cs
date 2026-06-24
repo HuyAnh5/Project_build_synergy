@@ -542,62 +542,26 @@ public partial class ActorWorldUI : MonoBehaviour
 
         if (hpText != null)
         {
-            SetTextIfChanged(hpText, $"{safeHp}/{safeMaxHp}");
-            SetColorIfChanged(hpText, staggered ? hpTextStaggerColor : hpTextNormalColor);
+            CombatUiDirtySetUtility.SetTextIfChanged(hpText, $"{safeHp}/{safeMaxHp}");
+            CombatUiDirtySetUtility.SetColorIfChanged(hpText, staggered ? hpTextStaggerColor : hpTextNormalColor);
         }
 
         if (hpBarBackground != null)
-            SetColorIfChanged(hpBarBackground, hpBarBackgroundColor);
+            CombatUiDirtySetUtility.SetColorIfChanged(hpBarBackground, hpBarBackgroundColor);
 
         if (hpBarOutline != null)
-            SetOutlineColorIfChanged(hpBarOutline, (staggered || guard > 0) ? hpProtectedOutlineColor : hpOutlineColor);
+            CombatUiDirtySetUtility.SetOutlineColorIfChanged(hpBarOutline, (staggered || guard > 0) ? hpProtectedOutlineColor : hpOutlineColor);
 
         if (hpBarFill != null)
         {
-            SetFillAmountIfChanged(hpBarFill, Mathf.Clamp01((float)safeHp / safeMaxHp));
-            SetColorIfChanged(hpBarFill, staggered ? hpStaggerFillColor : (guard > 0 ? hpGuardFillColor : hpFillColor));
+            CombatUiDirtySetUtility.SetFillAmountIfChanged(hpBarFill, Mathf.Clamp01((float)safeHp / safeMaxHp));
+            CombatUiDirtySetUtility.SetColorIfChanged(hpBarFill, staggered ? hpStaggerFillColor : (guard > 0 ? hpGuardFillColor : hpFillColor));
         }
 
         if (guardRoot != null && Application.isPlaying && autoToggleGuardRootInPlayMode)
-            SetActiveIfChanged(guardRoot.gameObject, guard > 0);
+            CombatUiDirtySetUtility.SetActiveIfChanged(guardRoot.gameObject, guard > 0);
         if (guardText != null)
-            SetTextIfChanged(guardText, Mathf.Max(0, guard).ToString());
-    }
-
-    private static void SetActiveIfChanged(GameObject target, bool active)
-    {
-        if (target != null && target.activeSelf != active)
-            target.SetActive(active);
-    }
-
-    private static void SetTextIfChanged(TMP_Text text, string value)
-    {
-        if (text != null && text.text != value)
-            text.text = value;
-    }
-
-    private static void SetColorIfChanged(Graphic graphic, Color value)
-    {
-        if (graphic != null && graphic.color != value)
-            graphic.color = value;
-    }
-
-    private static void SetColorIfChanged(TMP_Text text, Color value)
-    {
-        if (text != null && text.color != value)
-            text.color = value;
-    }
-
-    private static void SetOutlineColorIfChanged(Outline outline, Color value)
-    {
-        if (outline != null && outline.effectColor != value)
-            outline.effectColor = value;
-    }
-
-    private static void SetFillAmountIfChanged(Image image, float value)
-    {
-        if (image != null && !Mathf.Approximately(image.fillAmount, value))
-            image.fillAmount = value;
+            CombatUiDirtySetUtility.SetTextIfChanged(guardText, Mathf.Max(0, guard).ToString());
     }
 
 }
@@ -682,5 +646,49 @@ internal static class ActorWorldUiRegistry
 
         for (int i = 0; i < sceneUis.Length; i++)
             Register(sceneUis[i]);
+    }
+}
+
+/// <summary>
+/// Small helpers for combat UI hot paths.
+/// Unity UI/TMP marks graphics dirty even for many same-value assignments, so
+/// these setters avoid redundant canvas/text rebuild work during combat ticks.
+/// </summary>
+internal static class CombatUiDirtySetUtility
+{
+    public static void SetActiveIfChanged(GameObject target, bool active)
+    {
+        if (target != null && target.activeSelf != active)
+            target.SetActive(active);
+    }
+
+    public static void SetTextIfChanged(TMP_Text text, string value)
+    {
+        if (text != null && text.text != value)
+            text.text = value;
+    }
+
+    public static void SetColorIfChanged(Graphic graphic, Color value)
+    {
+        if (graphic != null && graphic.color != value)
+            graphic.color = value;
+    }
+
+    public static void SetColorIfChanged(TMP_Text text, Color value)
+    {
+        if (text != null && text.color != value)
+            text.color = value;
+    }
+
+    public static void SetOutlineColorIfChanged(Outline outline, Color value)
+    {
+        if (outline != null && outline.effectColor != value)
+            outline.effectColor = value;
+    }
+
+    public static void SetFillAmountIfChanged(Image image, float value)
+    {
+        if (image != null && !Mathf.Approximately(image.fillAmount, value))
+            image.fillAmount = value;
     }
 }

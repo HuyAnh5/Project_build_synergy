@@ -109,13 +109,17 @@ public sealed partial class SkillTooltipUI
         SkillTooltipFormatter.TooltipContent content = SkillTooltipFormatter.BuildContent(asset, runtime, expanded);
         string contentSignature = BuildContentSignature(content, expanded);
         bool contentChanged = !string.Equals(_lastContentSignature, contentSignature, StringComparison.Ordinal);
-        ApplyContent(content);
-        _root.gameObject.SetActive(true);
+        bool wasActive = _root.gameObject.activeSelf;
+        if (contentChanged || !wasActive)
+            ApplyContent(content);
+
+        CombatUiDirtySetUtility.SetActiveIfChanged(_root.gameObject, true);
         _root.SetAsLastSibling();
         if (_hoverBridge != null)
-            _hoverBridge.gameObject.SetActive(true);
+            CombatUiDirtySetUtility.SetActiveIfChanged(_hoverBridge.gameObject, true);
 
-        ApplyDynamicSizing();
+        if (contentChanged || !wasActive)
+            ApplyDynamicSizing();
         if (contentChanged)
             _lastContentSignature = contentSignature;
 
@@ -277,15 +281,15 @@ public sealed partial class SkillTooltipUI
 
     private void ApplyContent(SkillTooltipFormatter.TooltipContent content)
     {
-        _title.text = content.title ?? string.Empty;
-        _cost.text = content.costText ?? string.Empty;
-        _targeting.text = ApplyKeywordMarkup(content.targeting ?? string.Empty);
-        _effect.text = ApplyKeywordMarkup(content.effectText ?? string.Empty);
+        CombatUiDirtySetUtility.SetTextIfChanged(_title, content.title ?? string.Empty);
+        CombatUiDirtySetUtility.SetTextIfChanged(_cost, content.costText ?? string.Empty);
+        CombatUiDirtySetUtility.SetTextIfChanged(_targeting, ApplyKeywordMarkup(content.targeting ?? string.Empty));
+        CombatUiDirtySetUtility.SetTextIfChanged(_effect, ApplyKeywordMarkup(content.effectText ?? string.Empty));
 
         bool hasRequires = content.requires != null && content.requires.Count > 0;
         bool hasConditions = content.conditions != null && content.conditions.Count > 0;
-        _requires.text = ApplyKeywordMarkup(BuildSectionText(content.requires));
-        _condition.text = ApplyKeywordMarkup(BuildSectionText(content.conditions));
+        CombatUiDirtySetUtility.SetTextIfChanged(_requires, ApplyKeywordMarkup(BuildSectionText(content.requires)));
+        CombatUiDirtySetUtility.SetTextIfChanged(_condition, ApplyKeywordMarkup(BuildSectionText(content.conditions)));
         SetVisible(_cost, !string.IsNullOrWhiteSpace(_cost.text));
         SetVisible(_targeting, !string.IsNullOrWhiteSpace(_targeting.text));
         SetVisible(_effect, !string.IsNullOrWhiteSpace(_effect.text));
@@ -420,7 +424,7 @@ public sealed partial class SkillTooltipUI
     private static void SetVisible(Component component, bool visible)
     {
         if (component != null)
-            component.gameObject.SetActive(visible);
+            CombatUiDirtySetUtility.SetActiveIfChanged(component.gameObject, visible);
     }
 
     private void ForceTooltipLayoutRefresh()

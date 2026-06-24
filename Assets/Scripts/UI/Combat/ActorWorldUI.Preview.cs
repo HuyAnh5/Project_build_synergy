@@ -64,7 +64,7 @@ public partial class ActorWorldUI
 
         // --- Guard preview ---
         if (guardRoot != null && Application.isPlaying && autoToggleGuardRootInPlayMode)
-            SetActiveIfChanged(guardRoot.gameObject, guardAfter > 0);
+            CombatUiDirtySetUtility.SetActiveIfChanged(guardRoot.gameObject, guardAfter > 0);
         if (guardText != null)
             guardText.text = Mathf.Max(0, guardAfter).ToString();
 

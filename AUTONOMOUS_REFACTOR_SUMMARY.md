@@ -105,12 +105,39 @@ Changed:
 * `CombatHUD.PlayerVitals` ensures vitals UI only when references are missing.
 * `ActorWorldUI.LateUpdate()` no longer resolves runtime references every frame when they are already valid.
 * `ConsumableBarUIManager` hover handling now avoids refreshing tooltip/action/presentation layers when hovered slot state does not actually change.
+* `ConsumableBarUIManager` slot/action/tooltip presentation now skips unchanged `SetActive`, TMP text, image color, icon sprite/enabled, and action-button label/color writes.
+* Consumable tooltip auto-sizing now runs only when the tooltip was newly shown or tooltip title/body content changed.
+* `DraggableSkillIcon.Update()` now throttles idle metadata refresh while keeping hover/selected/drag states immediate.
+* `DiceDraggableUI.Update()` now throttles idle pointer safety polling while keeping hover, drag, and hold-inspect states immediate.
 * `SkillTooltipUI` and `ActorWorldKeywordTooltipUI` now resolve `SkillTooltipPrefabProvider` through a shared registry/cache instead of direct scene scans.
+* Skill and consumable keyword tooltip link detection now caches TMP mesh generation by text content so pointer movement over unchanged text does not force a mesh rebuild each frame.
 
 Left intentionally unchanged:
 
 * `ActorWorldUI.RefreshIntent()` still runs through the normal runtime refresh path because intent can depend on dynamic combat/player state.
-* `DraggableSkillIcon.Update()` still polls several runtime/hover/preview paths; this is higher-risk and should be handled with a dedicated dirty-state batch later.
+* `DiceEquipUIManager.LateUpdate()` still mirrors world dice roots to the live UI every frame when that mirror feature is enabled; changing that requires a deeper visual-contract decision.
+
+### Guard-hit FPS mitigation
+
+Changed:
+
+* `DamagePopupSystem.SpawnGuardSCurve()` was changed from a trigonometric S-curve tween to a lightweight cubic S-curve plus fade/scale sequence.
+* `CombatHitFeedback` no longer spawns procedural runtime particle bursts for `FeedbackKind.Guard`.
+* Player HUD and actor world UI Guard roots now skip redundant `SetActive` calls when Guard remains visible/hidden.
+* Player HUD and actor world UI HP/Guard refresh now avoid reassigning unchanged TMP text, colors, outlines, and fill amounts.
+
+Why:
+
+* HP damage did not show the same drop because it used the HP popup path only.
+* Damage blocked by Guard additionally showed a Guard popup and could run Guard feedback.
+* The old Guard popup tween did extra per-update math and the Guard feedback path could create a `GameObject` + `ParticleSystem` at runtime.
+
+Gameplay/visual intent:
+
+* Guard still blocks damage.
+* Guard blocked amount popup still appears with a curved path.
+* Guard feedback still flashes blue.
+* The expensive Guard-only burst, DOTween path allocation, redundant UI dirtying, and per-frame trigonometry were reduced to avoid hit-time spikes.
 
 ### Warning/dead no-op cleanup
 
@@ -121,6 +148,15 @@ Changed:
 * `PassiveSystem.Rebuild()` no longer calls a private no-op `Accumulate()` path.
 * Dice edit debug gates were changed from `const bool false` to `static readonly bool false` to avoid unreachable-code warnings while preserving the disabled debug path.
 * `MapPrototypeController.UiBuild.LogMap()` now respects existing serialized `verboseLogging`.
+* Removed redundant per-tooltip `SkillTooltipPrefabProvider` private caches/helpers after introducing the shared provider registry.
+* Replaced a local ignored `unusedSkip` variable with an out discard in player turn-start status ticking.
+* Removed additional private unused helpers/fields from target clickable, skill keyword tooltip fallback, dice world tooltip, dice enchant hover-zone setup, passive context building, and dice face icon cache paths.
+
+Latest cleanup verification:
+
+* `dotnet build Project_build_synergy.sln`
+* 0 errors
+* 35 warnings
 
 ## Files Modified
 

@@ -27,6 +27,7 @@ public sealed partial class SkillTooltipUI
         public ContentSizeFitter fitter;
         public VerticalLayoutGroup layout;
         public string keywordId;
+        public string contentSignature;
         public bool usesTemplate;
     }
 
@@ -156,7 +157,7 @@ public sealed partial class SkillTooltipUI
             if (block == null || !block.gameObject.activeInHierarchy)
                 continue;
 
-            block.ForceMeshUpdate();
+            EnsureKeywordTextMeshCurrent(block);
             TMP_LinkInfo[] links = block.textInfo.linkInfo;
             for (int linkIndex = 0; linkIndex < block.textInfo.linkCount; linkIndex++)
             {
@@ -182,7 +183,7 @@ public sealed partial class SkillTooltipUI
             if (block == null || !block.gameObject.activeInHierarchy)
                 continue;
 
-            block.ForceMeshUpdate();
+            EnsureKeywordTextMeshCurrent(block);
             int linkIndex = TMP_TextUtilities.FindIntersectingLink(block, Input.mousePosition, _uiCamera);
             if (linkIndex < 0)
                 continue;
@@ -194,6 +195,23 @@ public sealed partial class SkillTooltipUI
 
         content = default;
         return false;
+    }
+
+    private void EnsureKeywordTextMeshCurrent(TMP_Text block)
+    {
+        if (block == null)
+            return;
+
+        string currentText = block.text ?? string.Empty;
+        if (_keywordMeshTextCache.TryGetValue(block, out string cachedText) &&
+            cachedText == currentText &&
+            !block.havePropertiesChanged)
+        {
+            return;
+        }
+
+        block.ForceMeshUpdate();
+        _keywordMeshTextCache[block] = currentText;
     }
 
     private bool TryBuildKeywordTooltipContent(string keywordId, string currentValueText, out KeywordTooltipContent content)
@@ -261,9 +279,18 @@ public sealed partial class SkillTooltipUI
                 return;
             }
 
-            ApplyKeywordTooltipContent(view, contents[i]);
-            view.root.gameObject.SetActive(true);
-            LayoutRebuilder.ForceRebuildLayoutImmediate(view.root);
+            string contentSignature = BuildKeywordTooltipSignature(contents[i]);
+            bool wasActive = view.root.gameObject.activeSelf;
+            bool contentChanged = view.contentSignature != contentSignature;
+            if (contentChanged)
+            {
+                ApplyKeywordTooltipContent(view, contents[i]);
+                view.contentSignature = contentSignature;
+            }
+
+            CombatUiDirtySetUtility.SetActiveIfChanged(view.root.gameObject, true);
+            if (contentChanged || !wasActive)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(view.root);
 
             Rect sizeRect = view.root.rect;
             float width = view.usesTemplate
@@ -295,7 +322,7 @@ public sealed partial class SkillTooltipUI
         for (int i = contents.Count; i < _keywordTooltipViews.Count; i++)
         {
             if (_keywordTooltipViews[i]?.root != null)
-                _keywordTooltipViews[i].root.gameObject.SetActive(false);
+                CombatUiDirtySetUtility.SetActiveIfChanged(_keywordTooltipViews[i].root.gameObject, false);
         }
     }
 
@@ -361,14 +388,16 @@ public sealed partial class SkillTooltipUI
     private void ApplyKeywordTooltipContent(KeywordTooltipView view, KeywordTooltipContent content)
     {
         view.keywordId = content.keywordId;
-        view.title.text = content.title ?? string.Empty;
-        view.body.text = content.description ?? string.Empty;
+        CombatUiDirtySetUtility.SetTextIfChanged(view.title, content.title ?? string.Empty);
+        CombatUiDirtySetUtility.SetTextIfChanged(view.body, content.description ?? string.Empty);
         bool showIcon = content.icon != null;
         if (view.icon != null)
         {
-            view.icon.sprite = content.icon;
-            view.icon.enabled = showIcon;
-            view.icon.gameObject.SetActive(showIcon);
+            if (view.icon.sprite != content.icon)
+                view.icon.sprite = content.icon;
+            if (view.icon.enabled != showIcon)
+                view.icon.enabled = showIcon;
+            CombatUiDirtySetUtility.SetActiveIfChanged(view.icon.gameObject, showIcon);
             if (!view.usesTemplate && view.iconLayout != null)
             {
                 Vector2 size = showIcon ? GetKeywordIconSize(content.icon) : Vector2.zero;
@@ -378,6 +407,12 @@ public sealed partial class SkillTooltipUI
                 view.iconLayout.minHeight = size.y;
             }
         }
+    }
+
+    private static string BuildKeywordTooltipSignature(KeywordTooltipContent content)
+    {
+        int iconId = content.icon != null ? content.icon.GetInstanceID() : 0;
+        return $"{content.keywordId}\u001f{content.title}\u001f{content.description}\u001f{iconId}";
     }
 
     private static Vector2 GetKeywordIconSize(Sprite icon)

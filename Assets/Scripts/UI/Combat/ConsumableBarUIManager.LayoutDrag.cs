@@ -9,7 +9,7 @@ public partial class ConsumableBarUIManager
     private void HideLegacyTooltips()
     {
         if (tooltipRoot != null)
-            tooltipRoot.gameObject.SetActive(false);
+            CombatUiDirtySetUtility.SetActiveIfChanged(tooltipRoot.gameObject, false);
 
         if (slots == null)
             return;
@@ -17,14 +17,14 @@ public partial class ConsumableBarUIManager
         for (int i = 0; i < slots.Length; i++)
         {
             if (slots[i]?.localTooltipRoot != null)
-                slots[i].localTooltipRoot.gameObject.SetActive(false);
+                CombatUiDirtySetUtility.SetActiveIfChanged(slots[i].localTooltipRoot.gameObject, false);
         }
     }
 
     private void HideAllActionPanels()
     {
         if (actionPanelRoot != null)
-            actionPanelRoot.gameObject.SetActive(false);
+            CombatUiDirtySetUtility.SetActiveIfChanged(actionPanelRoot.gameObject, false);
 
         if (slots == null)
             return;
@@ -32,7 +32,7 @@ public partial class ConsumableBarUIManager
         for (int i = 0; i < slots.Length; i++)
         {
             if (slots[i]?.localActionPanelRoot != null)
-                slots[i].localActionPanelRoot.gameObject.SetActive(false);
+                CombatUiDirtySetUtility.SetActiveIfChanged(slots[i].localActionPanelRoot.gameObject, false);
         }
     }
 

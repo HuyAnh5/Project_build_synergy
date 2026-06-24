@@ -98,24 +98,29 @@ public partial class ConsumableBarUIManager
             bool selected = !_rewardChoiceMode && i == _selectedSlot && data != null;
             bool targeting = !_rewardChoiceMode && i == _pendingTargetSlot && data != null;
 
-            if (slot.root != null && slot.root.gameObject.activeSelf != showSlot)
-                slot.root.gameObject.SetActive(showSlot);
+            if (slot.root != null)
+                CombatUiDirtySetUtility.SetActiveIfChanged(slot.root.gameObject, showSlot);
 
             if (slot.icon != null)
             {
-                slot.icon.sprite = data != null ? data.icon : null;
-                slot.icon.enabled = data != null && data.icon != null;
-                slot.icon.color = data != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+                Sprite nextSprite = data != null ? data.icon : null;
+                if (slot.icon.sprite != nextSprite)
+                    slot.icon.sprite = nextSprite;
+
+                bool iconEnabled = data != null && data.icon != null;
+                if (slot.icon.enabled != iconEnabled)
+                    slot.icon.enabled = iconEnabled;
+
+                CombatUiDirtySetUtility.SetColorIfChanged(slot.icon, data != null ? Color.white : new Color(1f, 1f, 1f, 0f));
             }
 
-            if (slot.titleText != null)
-                slot.titleText.text = data != null ? data.displayName : string.Empty;
+            CombatUiDirtySetUtility.SetTextIfChanged(slot.titleText, data != null ? data.displayName : string.Empty);
 
-            if (slot.chargesText != null)
-                slot.chargesText.text = string.Empty;
+            CombatUiDirtySetUtility.SetTextIfChanged(slot.chargesText, string.Empty);
 
-            if (slot.background != null)
-                slot.background.color = data == null ? emptyColor : (targeting ? targetingColor : (selected ? selectedColor : normalColor));
+            CombatUiDirtySetUtility.SetColorIfChanged(
+                slot.background,
+                data == null ? emptyColor : (targeting ? targetingColor : (selected ? selectedColor : normalColor)));
 
             if (slot.button != null)
                 slot.button.interactable = data != null && (_rewardChoiceMode || !IsInteractionLocked());
@@ -170,7 +175,7 @@ public partial class ConsumableBarUIManager
         if (activePanelRoot == null)
             return;
 
-        activePanelRoot.gameObject.SetActive(true);
+        CombatUiDirtySetUtility.SetActiveIfChanged(activePanelRoot.gameObject, true);
         if (activePanelRoot == actionPanelRoot)
         {
             RectTransform actionAnchor = GetSlotActionAnchor(slot);
@@ -205,11 +210,10 @@ public partial class ConsumableBarUIManager
             button.interactable = enabled;
             Image image = button.GetComponent<Image>();
             if (image != null)
-                image.color = enabled ? enabledColor : disabledButtonColor;
+                CombatUiDirtySetUtility.SetColorIfChanged(image, enabled ? enabledColor : disabledButtonColor);
         }
 
-        if (label != null)
-            label.text = text;
+        CombatUiDirtySetUtility.SetTextIfChanged(label, text);
     }
 
     private void RefreshTooltip()
@@ -238,7 +242,8 @@ public partial class ConsumableBarUIManager
         if (activeTooltipRoot == null || data == null)
             return;
 
-        activeTooltipRoot.gameObject.SetActive(true);
+        bool wasTooltipActive = activeTooltipRoot.gameObject.activeSelf;
+        CombatUiDirtySetUtility.SetActiveIfChanged(activeTooltipRoot.gameObject, true);
         if (activeTooltipRoot == tooltipRoot)
         {
             RectTransform tooltipAnchor = GetSlotTooltipAnchor(slot);
@@ -246,14 +251,25 @@ public partial class ConsumableBarUIManager
                 PositionTooltipAtAnchor(activeTooltipRoot, tooltipAnchor, GetPresentationOffset(isTooltip: true));
         }
 
-        if (activeTooltipTitle != null)
-            activeTooltipTitle.text = data.displayName;
+        string tooltipTitle = data.displayName ?? string.Empty;
+        string tooltipBody = ApplyConsumableKeywordMarkup(data);
+        bool contentChanged = IsTooltipContentDifferent(activeTooltipTitle, activeTooltipBody, tooltipTitle, tooltipBody);
 
-        if (activeTooltipBody != null)
-            activeTooltipBody.text = ApplyConsumableKeywordMarkup(data);
+        CombatUiDirtySetUtility.SetTextIfChanged(activeTooltipTitle, tooltipTitle);
+        CombatUiDirtySetUtility.SetTextIfChanged(activeTooltipBody, tooltipBody);
 
-        EnsureTooltipAutoSize(activeTooltipRoot, activeTooltipTitle, activeTooltipBody);
+        if (!wasTooltipActive || contentChanged)
+            EnsureTooltipAutoSize(activeTooltipRoot, activeTooltipTitle, activeTooltipBody);
+
         UpdateConsumableKeywordTooltips(activeTooltipRoot, activeTooltipBody);
+    }
+
+    private static bool IsTooltipContentDifferent(TMP_Text title, TMP_Text body, string expectedTitle, string expectedBody)
+    {
+        if (title != null && title.text != expectedTitle)
+            return true;
+
+        return body != null && body.text != expectedBody;
     }
 
     private string BuildTooltipBody(ConsumableDataSO data)

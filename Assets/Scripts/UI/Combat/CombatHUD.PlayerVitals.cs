@@ -602,18 +602,18 @@ public partial class CombatHUD
 
         if (playerHpText != null)
         {
-            SetTextIfChanged(playerHpText, $"{safeHp}/{safeMaxHp}");
-            SetColorIfChanged(playerHpText, staggered ? playerHpTextStaggerColor : playerHpTextNormalColor);
+            CombatUiDirtySetUtility.SetTextIfChanged(playerHpText, $"{safeHp}/{safeMaxHp}");
+            CombatUiDirtySetUtility.SetColorIfChanged(playerHpText, staggered ? playerHpTextStaggerColor : playerHpTextNormalColor);
         }
 
         if (playerHpBarBackground != null)
-            SetColorIfChanged(playerHpBarBackground, playerHpBarBackgroundColor);
+            CombatUiDirtySetUtility.SetColorIfChanged(playerHpBarBackground, playerHpBarBackgroundColor);
         if (playerHpBarOutline != null)
-            SetOutlineColorIfChanged(playerHpBarOutline, (staggered || guard > 0) ? playerHpProtectedOutlineColor : playerHpOutlineColor);
+            CombatUiDirtySetUtility.SetOutlineColorIfChanged(playerHpBarOutline, (staggered || guard > 0) ? playerHpProtectedOutlineColor : playerHpOutlineColor);
         if (playerHpBarFill != null)
         {
-            SetFillAmountIfChanged(playerHpBarFill, Mathf.Clamp01((float)safeHp / safeMaxHp));
-            SetColorIfChanged(playerHpBarFill, staggered ? playerHpStaggerFillColor : (guard > 0 ? playerHpGuardFillColor : playerHpFillColor));
+            CombatUiDirtySetUtility.SetFillAmountIfChanged(playerHpBarFill, Mathf.Clamp01((float)safeHp / safeMaxHp));
+            CombatUiDirtySetUtility.SetColorIfChanged(playerHpBarFill, staggered ? playerHpStaggerFillColor : (guard > 0 ? playerHpGuardFillColor : playerHpFillColor));
         }
 
         RefreshPlayerGuardVisual(guard);
@@ -622,48 +622,12 @@ public partial class CombatHUD
     private void RefreshPlayerGuardVisual(int guard)
     {
         if (playerGuardRoot != null && Application.isPlaying && autoTogglePlayerGuardRootInPlayMode)
-            SetActiveIfChanged(playerGuardRoot.gameObject, guard > 0);
+            CombatUiDirtySetUtility.SetActiveIfChanged(playerGuardRoot.gameObject, guard > 0);
         if (playerGuardText != null)
         {
-            SetTextIfChanged(playerGuardText, Mathf.Max(0, guard).ToString());
-            SetColorIfChanged(playerGuardText, Color.white);
+            CombatUiDirtySetUtility.SetTextIfChanged(playerGuardText, Mathf.Max(0, guard).ToString());
+            CombatUiDirtySetUtility.SetColorIfChanged(playerGuardText, Color.white);
         }
-    }
-
-    private static void SetActiveIfChanged(GameObject target, bool active)
-    {
-        if (target != null && target.activeSelf != active)
-            target.SetActive(active);
-    }
-
-    private static void SetTextIfChanged(TMP_Text text, string value)
-    {
-        if (text != null && text.text != value)
-            text.text = value;
-    }
-
-    private static void SetColorIfChanged(Graphic graphic, Color value)
-    {
-        if (graphic != null && graphic.color != value)
-            graphic.color = value;
-    }
-
-    private static void SetColorIfChanged(TMP_Text text, Color value)
-    {
-        if (text != null && text.color != value)
-            text.color = value;
-    }
-
-    private static void SetOutlineColorIfChanged(Outline outline, Color value)
-    {
-        if (outline != null && outline.effectColor != value)
-            outline.effectColor = value;
-    }
-
-    private static void SetFillAmountIfChanged(Image image, float value)
-    {
-        if (image != null && !Mathf.Approximately(image.fillAmount, value))
-            image.fillAmount = value;
     }
 
     private void RefreshPlayerGuardIcon()

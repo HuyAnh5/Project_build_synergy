@@ -4188,7 +4188,7 @@ MonoBehaviour:
   totalDamageFadeDuration: 0.22
   arcUp: 0.2
   arcDown: 4
-  arcSide: 0.35
+  arcSide: 1
   arcSideDrift: 0.1
   totalDamageUp: 0.45
   totalDamageStartScale: 1

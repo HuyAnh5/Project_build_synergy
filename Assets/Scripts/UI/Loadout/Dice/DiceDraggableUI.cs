@@ -9,6 +9,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
 {
     private const string CritFailPopupAnchorName = "DiceCard_Pivot";
     private const string EnchantHoverZoneName = "EnchantHoverZone";
+    private const int IdlePointerRefreshIntervalFrames = 6;
     private static readonly Dictionary<DiceSpinnerGeneric, DiceDraggableUI> s_diceToUiMap = new();
 
     public DiceSpinnerGeneric dice;
@@ -91,6 +92,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private bool _suppressNextClick;
     private Vector2 _pointerDownScreenPosition;
     private float _pointerDownTime;
+    private int _nextIdlePointerRefreshFrame;
     private RectTransform _holdInspectRingRect;
     private Image _holdInspectRingImage;
     private static Sprite s_holdInspectRingSprite;
@@ -421,9 +423,23 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private void Update()
     {
         UpdateHoldInspect();
-        RefreshCardHoverTooltipStateFromPointer();
+        if (ShouldRefreshPointerStateThisFrame())
+            RefreshCardHoverTooltipStateFromPointer();
+
         if (IsHoverTooltipActive)
             RefreshHoverTooltip();
+    }
+
+    private bool ShouldRefreshPointerStateThisFrame()
+    {
+        if (_pointerHeld || _dragging || IsHoverTooltipActive)
+            return true;
+
+        if (Time.frameCount < _nextIdlePointerRefreshFrame)
+            return false;
+
+        _nextIdlePointerRefreshFrame = Time.frameCount + IdlePointerRefreshIntervalFrames;
+        return true;
     }
 
     private void UpdateHoldInspect()
@@ -478,8 +494,12 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         if (_holdInspectRingRect == null || _holdInspectRingImage == null)
             return;
 
-        _holdInspectRingImage.fillAmount = Mathf.Clamp01(progress);
-        _holdInspectRingImage.color = holdInspectRingColor;
+        float fillAmount = Mathf.Clamp01(progress);
+        if (!Mathf.Approximately(_holdInspectRingImage.fillAmount, fillAmount))
+            _holdInspectRingImage.fillAmount = fillAmount;
+
+        if (_holdInspectRingImage.color != holdInspectRingColor)
+            _holdInspectRingImage.color = holdInspectRingColor;
 
         Canvas sourceCanvas = _rootCanvas != null ? _rootCanvas : GetComponentInParent<Canvas>();
         Canvas canvas = sourceCanvas != null ? SkillTooltipUI.GetOrCreateSharedHostCanvas(sourceCanvas) : null;
@@ -498,14 +518,13 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         }
 
         _holdInspectRingRect.anchoredPosition = localPoint;
-        if (!_holdInspectRingRect.gameObject.activeSelf)
-            _holdInspectRingRect.gameObject.SetActive(true);
+        CombatUiDirtySetUtility.SetActiveIfChanged(_holdInspectRingRect.gameObject, true);
     }
 
     private void HideHoldInspectRing()
     {
-        if (_holdInspectRingRect != null && _holdInspectRingRect.gameObject.activeSelf)
-            _holdInspectRingRect.gameObject.SetActive(false);
+        if (_holdInspectRingRect != null)
+            CombatUiDirtySetUtility.SetActiveIfChanged(_holdInspectRingRect.gameObject, false);
     }
 
     private void EnsureHoldInspectRing()

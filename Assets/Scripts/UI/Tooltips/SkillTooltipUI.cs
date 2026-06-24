@@ -54,6 +54,7 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
     private string _activeKeywordId;
     private bool _lastExpandedState;
     private string _lastContentSignature;
+    private readonly Dictionary<TMP_Text, string> _keywordMeshTextCache = new Dictionary<TMP_Text, string>();
 
     private static SkillTooltipPrefabSettingsSO _prefabSettings;
 

@@ -39,6 +39,7 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
         public TMP_Text body;
         public LayoutElement titleLayout;
         public LayoutElement bodyLayout;
+        public string contentSignature;
     }
 
     private static ActorWorldKeywordTooltipUI _instance;
@@ -158,16 +159,28 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
             if (view == null || view.root == null)
                 continue;
 
-            ApplyContent(view, contents[i]);
+            string contentSignature = BuildContentSignature(contents[i]);
+            bool wasActive = view.root.gameObject.activeSelf;
+            bool contentChanged = view.contentSignature != contentSignature;
+            if (contentChanged)
+            {
+                ApplyContent(view, contents[i]);
+                view.contentSignature = contentSignature;
+            }
+
             ApplyWidthConstraints(view);
-            view.root.gameObject.SetActive(true);
-            LayoutRebuilder.ForceRebuildLayoutImmediate(view.root);
+            CombatUiDirtySetUtility.SetActiveIfChanged(view.root.gameObject, true);
+            if (contentChanged || !wasActive)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(view.root);
 
             float width = Mathf.Clamp(view.root.rect.width, TooltipMinWidth, TooltipMaxWidth);
             float height = Mathf.Max(10f, view.root.rect.height);
             view.root.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, width);
-            LayoutRebuilder.ForceRebuildLayoutImmediate(view.root);
-            height = Mathf.Max(10f, view.root.rect.height);
+            if (contentChanged || !wasActive)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(view.root);
+                height = Mathf.Max(10f, view.root.rect.height);
+            }
 
             float preferredLeftX = placeRight
                 ? anchorX
@@ -229,7 +242,7 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
         for (int i = contents.Count; i < _views.Count; i++)
         {
             if (_views[i]?.root != null)
-                _views[i].root.gameObject.SetActive(false);
+                CombatUiDirtySetUtility.SetActiveIfChanged(_views[i].root.gameObject, false);
         }
     }
 
@@ -330,19 +343,28 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
         return SceneCanvasLookup.FindByName(SharedTooltipHostCanvasName);
     }
 
+    private static string BuildContentSignature(TooltipContent content)
+    {
+        int iconId = content.icon != null ? content.icon.GetInstanceID() : 0;
+        return $"{content.title}\u001f{content.description}\u001f{iconId}";
+    }
+
     private static void ApplyContent(TooltipView view, TooltipContent content)
     {
         if (view.title != null)
-            view.title.text = content.title;
+            CombatUiDirtySetUtility.SetTextIfChanged(view.title, content.title);
 
         if (view.body != null)
-            view.body.text = content.description;
+            CombatUiDirtySetUtility.SetTextIfChanged(view.body, content.description);
 
         if (view.icon != null)
         {
-            view.icon.sprite = content.icon;
-            view.icon.enabled = content.icon != null;
-            view.icon.color = content.icon != null ? Color.white : new Color(1f, 1f, 1f, 0f);
+            if (view.icon.sprite != content.icon)
+                view.icon.sprite = content.icon;
+            bool showIcon = content.icon != null;
+            if (view.icon.enabled != showIcon)
+                view.icon.enabled = showIcon;
+            CombatUiDirtySetUtility.SetColorIfChanged(view.icon, showIcon ? Color.white : new Color(1f, 1f, 1f, 0f));
         }
     }
 

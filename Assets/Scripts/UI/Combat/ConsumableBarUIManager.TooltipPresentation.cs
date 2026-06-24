@@ -24,6 +24,7 @@ public partial class ConsumableBarUIManager
         public TMP_Text body;
         public VerticalLayoutGroup layout;
         public ContentSizeFitter fitter;
+        public string contentSignature;
         public bool usesTemplate;
     }
 
@@ -39,6 +40,8 @@ public partial class ConsumableBarUIManager
     private string _activeConsumableKeywordId;
     private SkillTooltipKeywordGlossarySO _consumableKeywordGlossary;
     private SkillTooltipKeywordTooltipTemplate _consumableKeywordTooltipPrefab;
+    private TMP_Text _lastConsumableKeywordMeshTextComponent;
+    private string _lastConsumableKeywordMeshText;
     private static SkillTooltipPrefabSettingsSO s_consumableTooltipPrefabSettings;
 
     private void PositionPanelAtAnchor(RectTransform panel, RectTransform anchor, Vector2 offset)
@@ -429,7 +432,7 @@ public partial class ConsumableBarUIManager
             return results;
 
         HashSet<string> seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        bodyText.ForceMeshUpdate();
+        EnsureConsumableKeywordTextMeshCurrent(bodyText);
         TMP_LinkInfo[] links = bodyText.textInfo.linkInfo;
         for (int linkIndex = 0; linkIndex < bodyText.textInfo.linkCount; linkIndex++)
         {
@@ -453,13 +456,31 @@ public partial class ConsumableBarUIManager
 
         Canvas canvas = bodyText.GetComponentInParent<Canvas>();
         Camera eventCamera = GetCanvasEventCamera(canvas);
-        bodyText.ForceMeshUpdate();
+        EnsureConsumableKeywordTextMeshCurrent(bodyText);
         int linkIndex = TMP_TextUtilities.FindIntersectingLink(bodyText, Input.mousePosition, eventCamera);
         if (linkIndex < 0)
             return false;
 
         TMP_LinkInfo link = bodyText.textInfo.linkInfo[linkIndex];
         return TryBuildConsumableKeywordTooltipContent(link.GetLinkID(), link.GetLinkText(), out content);
+    }
+
+    private void EnsureConsumableKeywordTextMeshCurrent(TMP_Text bodyText)
+    {
+        if (bodyText == null)
+            return;
+
+        string currentText = bodyText.text ?? string.Empty;
+        if (_lastConsumableKeywordMeshTextComponent == bodyText &&
+            _lastConsumableKeywordMeshText == currentText &&
+            !bodyText.havePropertiesChanged)
+        {
+            return;
+        }
+
+        bodyText.ForceMeshUpdate();
+        _lastConsumableKeywordMeshTextComponent = bodyText;
+        _lastConsumableKeywordMeshText = currentText;
     }
 
     private bool TryBuildConsumableKeywordTooltipContent(string keywordId, string currentValueText, out ConsumableKeywordTooltipContent content)
@@ -524,9 +545,18 @@ public partial class ConsumableBarUIManager
             if (view == null || view.root == null)
                 return;
 
-            ApplyConsumableKeywordTooltipContent(view, contents[i]);
-            view.root.gameObject.SetActive(true);
-            LayoutRebuilder.ForceRebuildLayoutImmediate(view.root);
+            string contentSignature = BuildConsumableKeywordTooltipSignature(contents[i]);
+            bool wasActive = view.root.gameObject.activeSelf;
+            bool contentChanged = view.contentSignature != contentSignature;
+            if (contentChanged)
+            {
+                ApplyConsumableKeywordTooltipContent(view, contents[i]);
+                view.contentSignature = contentSignature;
+            }
+
+            CombatUiDirtySetUtility.SetActiveIfChanged(view.root.gameObject, true);
+            if (contentChanged || !wasActive)
+                LayoutRebuilder.ForceRebuildLayoutImmediate(view.root);
             totalHeight += Mathf.Max(10f, view.root.rect.height);
             if (i < contents.Count - 1)
                 totalHeight += ConsumableKeywordTooltipStackGap;
@@ -557,7 +587,7 @@ public partial class ConsumableBarUIManager
         for (int i = contents.Count; i < _consumableKeywordTooltipViews.Count; i++)
         {
             if (_consumableKeywordTooltipViews[i]?.root != null)
-                _consumableKeywordTooltipViews[i].root.gameObject.SetActive(false);
+                CombatUiDirtySetUtility.SetActiveIfChanged(_consumableKeywordTooltipViews[i].root.gameObject, false);
         }
     }
 
@@ -680,20 +710,28 @@ public partial class ConsumableBarUIManager
             return;
 
         if (view.title != null)
-            view.title.text = content.title ?? string.Empty;
+            CombatUiDirtySetUtility.SetTextIfChanged(view.title, content.title ?? string.Empty);
         if (view.body != null)
-            view.body.text = content.description ?? string.Empty;
+            CombatUiDirtySetUtility.SetTextIfChanged(view.body, content.description ?? string.Empty);
         if (view.icon != null)
         {
             bool showIcon = content.icon != null;
-            view.icon.sprite = content.icon;
-            view.icon.enabled = showIcon;
+            if (view.icon.sprite != content.icon)
+                view.icon.sprite = content.icon;
+            if (view.icon.enabled != showIcon)
+                view.icon.enabled = showIcon;
             if (view.iconLayout != null)
             {
                 view.iconLayout.preferredWidth = showIcon ? 20f : 0f;
                 view.iconLayout.preferredHeight = showIcon ? 20f : 0f;
             }
         }
+    }
+
+    private static string BuildConsumableKeywordTooltipSignature(ConsumableKeywordTooltipContent content)
+    {
+        int iconId = content.icon != null ? content.icon.GetInstanceID() : 0;
+        return $"{content.keywordId}\u001f{content.title}\u001f{content.description}\u001f{iconId}";
     }
 
     private bool IsPointerOverAnyConsumableKeywordTooltip()
@@ -718,7 +756,7 @@ public partial class ConsumableBarUIManager
         for (int i = 0; i < _consumableKeywordTooltipViews.Count; i++)
         {
             if (_consumableKeywordTooltipViews[i]?.root != null)
-                _consumableKeywordTooltipViews[i].root.gameObject.SetActive(false);
+                CombatUiDirtySetUtility.SetActiveIfChanged(_consumableKeywordTooltipViews[i].root.gameObject, false);
         }
     }
 }

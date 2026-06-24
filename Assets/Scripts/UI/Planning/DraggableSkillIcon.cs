@@ -23,6 +23,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     private const string FocusBadgeName = "FocusCostBadge";
     private const string SlotBadgeName = "SlotCostBadge";
     private const string ElementBadgeName = "ElementBadge";
+    private const int IdleMetadataRefreshIntervalFrames = 6;
 
     [Title("Source")]
     [Tooltip("If enabled, this icon always reads the skill from RunInventoryManager.")]
@@ -119,6 +120,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     private SkillIconPreviewController _previewController;
     private bool _pointerInside;
     private RectTransform _previewHoverContainer;
+    private int _nextIdleMetadataRefreshFrame;
 
     // --- Click-to-Select ---
     private bool _selected;
@@ -322,10 +324,24 @@ public partial class DraggableSkillIcon : MonoBehaviour,
 
     private void Update()
     {
-        RefreshIfVisualMetadataChanged();
+        if (ShouldRefreshVisualMetadataThisFrame())
+            RefreshIfVisualMetadataChanged();
+
         TickActiveAura();
         ClearHoverResourcePreviewIfPointerLeftBridge();
         _previewController?.Tick();
+    }
+
+    private bool ShouldRefreshVisualMetadataThisFrame()
+    {
+        if (_pointerInside || _selected || _dragRegistered)
+            return true;
+
+        if (Time.frameCount < _nextIdleMetadataRefreshFrame)
+            return false;
+
+        _nextIdleMetadataRefreshFrame = Time.frameCount + IdleMetadataRefreshIntervalFrames;
+        return true;
     }
 
     private void ClearHoverResourcePreviewIfPointerLeftBridge()
