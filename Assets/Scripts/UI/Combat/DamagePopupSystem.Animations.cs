@@ -186,7 +186,9 @@ public partial class DamagePopupSystem
     }
 
     /// <summary>
-    /// Spawns the S-curve popup used by guard and focus-gain values.
+    /// Spawns the curved popup used by guard and focus-gain values.
+    /// Guard changes can happen during enemy attacks, so this keeps the old
+    /// S-curve feel without DOTween path allocation or per-frame trigonometry.
     /// </summary>
     private void SpawnGuardSCurve(CombatActor source, CombatActor target, string text)
     {
@@ -225,19 +227,29 @@ public partial class DamagePopupSystem
         Vector3 start = GetCenter(target, PopupSpawnKind.Guard);
         popup.transform.position = start;
 
+        float duration = Mathf.Max(0.01f, guardDuration);
         float side = RandomSideSign();
-        float tweenValue = 0f;
+        float amp = sAmp * side;
+        float drift = sSideDrift * side;
 
         Sequence sequence = DOTween.Sequence();
         ApplyScalePopAndShrink(sequence, popup.transform);
-        sequence.Join(DOTween.To(() => tweenValue, value =>
+        sequence.Join(DOTween.To(() => 0f, value =>
         {
-            tweenValue = value;
-            float x = Mathf.Sin(tweenValue * Mathf.PI * 2f) * sAmp + (sSideDrift * side) * tweenValue;
-            float y = tweenValue * sUp;
+            float x = EvaluateGuardCurveX(value, amp, drift);
+            float y = value * sUp;
             popup.transform.position = start + new Vector3(x, y, 0f);
-        }, 1f, guardDuration).SetEase(Ease.OutQuad));
-        sequence.Join(popup.DOFade(0f, guardDuration).SetEase(Ease.InQuad));
+        }, 1f, duration).SetEase(Ease.OutQuad));
+        sequence.Join(popup.DOFade(0f, duration).SetEase(Ease.InQuad));
         sequence.OnComplete(() => Return(popup));
+    }
+
+    private static float EvaluateGuardCurveX(float t, float amp, float drift)
+    {
+        // Smooth cubic approximation of the old sine S-curve:
+        // starts at 0, bends to one side, crosses back through center, then settles with drift.
+        float centered = (t * 2f) - 1f;
+        float sCurve = centered * (1f - (centered * centered));
+        return (sCurve * amp) + (drift * t);
     }
 }

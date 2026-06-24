@@ -63,21 +63,7 @@ public partial class DiceSpinnerGeneric
         _faceBaseColors[faceIndex] = faceText.color;
     }
 
-    private void CacheFaceIconBaseColor(int faceIndex, SpriteRenderer iconRenderer)
-    {
-        if (_faceIconBaseColors == null || faceIndex < 0 || faceIndex >= _faceIconBaseColors.Length || iconRenderer == null)
-            return;
-
-        if (_facePreviewIconTweens != null &&
-            faceIndex < _facePreviewIconTweens.Length &&
-            _facePreviewIconTweens[faceIndex] != null &&
-            _facePreviewIconTweens[faceIndex].IsActive())
-        {
-            return;
-        }
-
-        _faceIconBaseColors[faceIndex] = iconRenderer.color;
-    }
+    
 
     private void CacheFaceIconBaseLocalScale(int faceIndex, SpriteRenderer iconRenderer)
     {

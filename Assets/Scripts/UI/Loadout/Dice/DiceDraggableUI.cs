@@ -84,9 +84,6 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     private DiceSpinnerGeneric _registeredDice;
     private bool _cardHoverTooltipActive;
     private bool _enchantHoverTooltipActive;
-    private RectTransform _enchantHoverZone;
-    private Image _enchantHoverZoneImage;
-    private int _enchantHoverZoneFaceIndex = -1;
     private RectTransform _diceEnchantTooltipAnchor;
     private DiceFaceEnchantTooltipAsset _hoverTooltipAsset;
     private bool _pointerHeld;
@@ -409,9 +406,6 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         HideHoldInspectRing();
         _cardHoverTooltipActive = false;
         _enchantHoverTooltipActive = false;
-        _enchantHoverZoneFaceIndex = -1;
-        if (_enchantHoverZone != null)
-            _enchantHoverZone.gameObject.SetActive(false);
         if (_hoverTooltipAsset != null)
             Destroy(_hoverTooltipAsset);
         EndDragRegistration();
@@ -422,8 +416,6 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
     {
         DiceDraggableUiRegistry.Unregister(this);
         HideHoldInspectRing();
-        if (_enchantHoverZone != null)
-            Destroy(_enchantHoverZone.gameObject);
     }
 
     private void Update()

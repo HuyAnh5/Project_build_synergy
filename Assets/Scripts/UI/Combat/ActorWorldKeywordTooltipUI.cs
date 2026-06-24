@@ -43,7 +43,6 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
 
     private static ActorWorldKeywordTooltipUI _instance;
     private static SkillTooltipPrefabSettingsSO _prefabSettings;
-    private static SkillTooltipPrefabProvider _prefabProvider;
 
     private readonly List<TooltipView> _views = new List<TooltipView>();
     private RectTransform _canvasRect;
@@ -275,20 +274,12 @@ public sealed class ActorWorldKeywordTooltipUI : MonoBehaviour
 
     private static SkillTooltipKeywordTooltipTemplate GetKeywordTooltipPrefab()
     {
-        SkillTooltipPrefabProvider provider = GetPrefabProvider();
+        SkillTooltipPrefabProvider provider = SkillTooltipPrefabProviderRegistry.Get();
         if (provider != null && provider.KeywordTooltipPrefab != null)
             return provider.KeywordTooltipPrefab;
 
         SkillTooltipPrefabSettingsSO settings = GetPrefabSettings();
         return settings != null ? settings.KeywordTooltipPrefab : null;
-    }
-
-    private static SkillTooltipPrefabProvider GetPrefabProvider()
-    {
-        if (_prefabProvider == null)
-            _prefabProvider = SkillTooltipPrefabProviderRegistry.Get();
-
-        return _prefabProvider;
     }
 
     private static SkillTooltipPrefabSettingsSO GetPrefabSettings()

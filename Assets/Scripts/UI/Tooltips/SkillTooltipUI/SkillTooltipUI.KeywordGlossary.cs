@@ -30,14 +30,21 @@ public sealed partial class SkillTooltipUI
         public bool usesTemplate;
     }
 
-    private SkillTooltipKeywordTooltipTemplate KeywordTooltipPrefab =>
-        _layout != null && _layout.KeywordTooltipPrefab != null
-            ? _layout.KeywordTooltipPrefab
-            : GetPrefabProvider() != null && GetPrefabProvider().KeywordTooltipPrefab != null
-                ? GetPrefabProvider().KeywordTooltipPrefab
-                : GetPrefabSettings() != null
-                    ? GetPrefabSettings().KeywordTooltipPrefab
-                    : null;
+    private SkillTooltipKeywordTooltipTemplate KeywordTooltipPrefab
+    {
+        get
+        {
+            if (_layout != null && _layout.KeywordTooltipPrefab != null)
+                return _layout.KeywordTooltipPrefab;
+
+            SkillTooltipPrefabProvider provider = SkillTooltipPrefabProviderRegistry.Get();
+            if (provider != null && provider.KeywordTooltipPrefab != null)
+                return provider.KeywordTooltipPrefab;
+
+            SkillTooltipPrefabSettingsSO settings = GetPrefabSettings();
+            return settings != null ? settings.KeywordTooltipPrefab : null;
+        }
+    }
 
     private void BindKeywordGlossary()
     {
@@ -86,11 +93,7 @@ public sealed partial class SkillTooltipUI
         return !string.IsNullOrWhiteSpace(resolved);
     }
 
-    private void ClearKeywordTooltipState()
-    {
-        _activeKeywordId = null;
-        HideAllKeywordTooltips();
-    }
+    
 
     private void HideAllKeywordTooltips()
     {
@@ -351,106 +354,9 @@ public sealed partial class SkillTooltipUI
         };
     }
 
-    private KeywordTooltipView CreateKeywordTooltipViewFallback(RectTransform parent)
-    {
-        GameObject rootGo = new GameObject("KeywordTooltip", typeof(RectTransform), typeof(Image), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
-        RectTransform rootRect = rootGo.GetComponent<RectTransform>();
-        rootRect.SetParent(parent, false);
-        Image background = rootGo.GetComponent<Image>();
-        background.raycastTarget = true;
-        if (_layout != null && _layout.Background != null)
-        {
-            background.sprite = _layout.Background.sprite;
-            background.type = _layout.Background.type;
-            background.color = _layout.Background.color;
-            background.material = _layout.Background.material;
-        }
-        else
-        {
-            background.color = new Color(0.11f, 0.13f, 0.18f, 0.96f);
-        }
+    
 
-        VerticalLayoutGroup layout = rootGo.GetComponent<VerticalLayoutGroup>();
-        layout.padding = new RectOffset((int)KeywordTooltipPadding, (int)KeywordTooltipPadding, (int)KeywordTooltipPadding, (int)KeywordTooltipPadding);
-        layout.spacing = 6f;
-        layout.childControlHeight = true;
-        layout.childControlWidth = true;
-        layout.childForceExpandHeight = false;
-        layout.childForceExpandWidth = false;
-
-        ContentSizeFitter fitter = rootGo.GetComponent<ContentSizeFitter>();
-        fitter.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
-        fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
-
-        GameObject headerGo = new GameObject("Header", typeof(RectTransform), typeof(HorizontalLayoutGroup));
-        RectTransform headerRect = headerGo.GetComponent<RectTransform>();
-        headerRect.SetParent(rootRect, false);
-        HorizontalLayoutGroup headerLayout = headerGo.GetComponent<HorizontalLayoutGroup>();
-        headerLayout.spacing = 6f;
-        headerLayout.childAlignment = TextAnchor.MiddleLeft;
-        headerLayout.childControlHeight = true;
-        headerLayout.childControlWidth = false;
-        headerLayout.childForceExpandHeight = false;
-        headerLayout.childForceExpandWidth = false;
-
-        TMP_Text title = CreateKeywordTooltipText("Title", headerRect, _title, 30f, FontStyles.Bold, false);
-
-        GameObject iconGo = new GameObject("Icon", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
-        RectTransform iconRect = iconGo.GetComponent<RectTransform>();
-        iconRect.SetParent(headerRect, false);
-        Image icon = iconGo.GetComponent<Image>();
-        icon.raycastTarget = false;
-        icon.preserveAspect = true;
-        LayoutElement iconLayout = iconGo.GetComponent<LayoutElement>();
-        iconLayout.preferredWidth = 0f;
-        iconLayout.preferredHeight = 0f;
-        iconLayout.minWidth = 0f;
-        iconLayout.minHeight = 0f;
-
-        TMP_Text body = CreateKeywordTooltipText("Body", rootRect, _effect, 14f, FontStyles.Normal, true);
-        body.enableAutoSizing = false;
-        body.textWrappingMode = TextWrappingModes.Normal;
-
-        return new KeywordTooltipView
-        {
-            root = rootRect,
-            background = background,
-            headerLayout = headerLayout,
-            icon = icon,
-            iconLayout = iconLayout,
-            title = title,
-            body = body,
-            fitter = fitter,
-            layout = layout,
-            usesTemplate = false
-        };
-    }
-
-    private TMP_Text CreateKeywordTooltipText(string name, Transform parent, TMP_Text template, float fontSize, FontStyles style, bool constrainWidth)
-    {
-        GameObject textGo = new GameObject(name, typeof(RectTransform), typeof(TextMeshProUGUI), typeof(LayoutElement));
-        RectTransform rect = textGo.GetComponent<RectTransform>();
-        rect.SetParent(parent, false);
-        TMP_Text text = textGo.GetComponent<TMP_Text>();
-        if (template != null)
-        {
-            text.font = template.font;
-            text.fontSharedMaterial = template.fontSharedMaterial;
-            text.color = template.color;
-        }
-
-        text.fontSize = fontSize;
-        text.fontStyle = style;
-        text.alignment = TextAlignmentOptions.TopLeft;
-        text.textWrappingMode = TextWrappingModes.Normal;
-        text.overflowMode = TextOverflowModes.Overflow;
-        text.raycastTarget = false;
-
-        LayoutElement layout = textGo.GetComponent<LayoutElement>();
-        layout.preferredWidth = constrainWidth ? KeywordTooltipMaxWidth - (KeywordTooltipPadding * 2f) : -1f;
-        layout.flexibleWidth = 0f;
-        return text;
-    }
+    
 
     private void ApplyKeywordTooltipContent(KeywordTooltipView view, KeywordTooltipContent content)
     {

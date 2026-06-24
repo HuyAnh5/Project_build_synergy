@@ -120,47 +120,14 @@ public partial class DiceSpinnerGeneric : ISkillTooltipSource
         return false;
     }
 
-    private bool TryBuildFaceIconScreenRect(DiceFace face, Camera cam, out Rect screenRect, float padding)
-    {
-        screenRect = default;
-        bool hasRect = false;
-
-        if (TryBuildRendererScreenRect(face.faceIconSpriteRenderer, cam, out Rect iconRect, padding: 0f))
-        {
-            screenRect = iconRect;
-            hasRect = true;
-        }
-
-        Renderer valueRenderer = face.faceValueText3D != null ? face.faceValueText3D.GetComponent<Renderer>() : null;
-        if (TryBuildRendererScreenRect(valueRenderer, cam, out Rect valueRect, padding: 0f))
-        {
-            screenRect = hasRect ? UnionScreenRects(screenRect, valueRect) : valueRect;
-            hasRect = true;
-        }
-
-        if (!hasRect)
-            return false;
-
-        screenRect.xMin -= padding;
-        screenRect.xMax += padding;
-        screenRect.yMin -= padding;
-        screenRect.yMax += padding;
-        return screenRect.width > 0f && screenRect.height > 0f;
-    }
+    
 
     private bool TryBuildFaceEnchantIconScreenRect(DiceFace face, Camera cam, out Rect screenRect, float padding)
     {
         return TryBuildRendererScreenRect(face.faceIconSpriteRenderer, cam, out screenRect, padding);
     }
 
-    private Rect UnionScreenRects(Rect a, Rect b)
-    {
-        return Rect.MinMaxRect(
-            Mathf.Min(a.xMin, b.xMin),
-            Mathf.Min(a.yMin, b.yMin),
-            Mathf.Max(a.xMax, b.xMax),
-            Mathf.Max(a.yMax, b.yMax));
-    }
+    
 
     private bool TryBuildRendererScreenRect(Renderer renderer, Camera cam, out Rect screenRect, float padding)
     {

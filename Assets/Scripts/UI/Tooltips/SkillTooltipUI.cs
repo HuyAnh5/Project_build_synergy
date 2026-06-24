@@ -56,7 +56,6 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
     private string _lastContentSignature;
 
     private static SkillTooltipPrefabSettingsSO _prefabSettings;
-    private static SkillTooltipPrefabProvider _prefabProvider;
 
     public static void Show(Canvas canvas, RectTransform target, ScriptableObject asset, SkillRuntime runtime = null)
         => ShowInternal(canvas, target, asset, runtime, null);
@@ -326,17 +325,9 @@ public sealed partial class SkillTooltipUI : MonoBehaviour, IPointerClickHandler
         return _prefabSettings;
     }
 
-    private static SkillTooltipPrefabProvider GetPrefabProvider()
-    {
-        if (_prefabProvider == null)
-            _prefabProvider = SkillTooltipPrefabProviderRegistry.Get();
-
-        return _prefabProvider;
-    }
-
     private static GameObject GetSkillTooltipPrefab()
     {
-        SkillTooltipPrefabProvider provider = GetPrefabProvider();
+        SkillTooltipPrefabProvider provider = SkillTooltipPrefabProviderRegistry.Get();
         if (provider != null && provider.SkillTooltipPrefab != null)
             return provider.SkillTooltipPrefab;
 

@@ -40,8 +40,7 @@ internal static class TurnManagerLifecycleUtility
     {
         if (player != null && player.status != null)
         {
-            bool unusedSkip;
-            int dot = player.status.OnTurnStarted(consumeFreezeToSkipTurn: false, out unusedSkip);
+            int dot = player.status.OnTurnStarted(consumeFreezeToSkipTurn: false, out _);
             if (logPhase)
                 Debug.Log($"[TM] PlayerTurnStart dot={dot} focusBefore={player.focus} diceDelta={player.status.GetAllDiceDelta()} ailment={(player.status != null && player.status.HasAilment(out var at, out _) ? at.ToString() : "None")}", context);
 

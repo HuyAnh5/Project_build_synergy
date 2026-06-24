@@ -542,29 +542,63 @@ public partial class ActorWorldUI : MonoBehaviour
 
         if (hpText != null)
         {
-            hpText.text = $"{safeHp}/{safeMaxHp}";
-            hpText.color = staggered ? hpTextStaggerColor : hpTextNormalColor;
+            SetTextIfChanged(hpText, $"{safeHp}/{safeMaxHp}");
+            SetColorIfChanged(hpText, staggered ? hpTextStaggerColor : hpTextNormalColor);
         }
 
         if (hpBarBackground != null)
-            hpBarBackground.color = hpBarBackgroundColor;
+            SetColorIfChanged(hpBarBackground, hpBarBackgroundColor);
 
         if (hpBarOutline != null)
-            hpBarOutline.effectColor = (staggered || guard > 0) ? hpProtectedOutlineColor : hpOutlineColor;
+            SetOutlineColorIfChanged(hpBarOutline, (staggered || guard > 0) ? hpProtectedOutlineColor : hpOutlineColor);
 
         if (hpBarFill != null)
         {
-            hpBarFill.fillAmount = Mathf.Clamp01((float)safeHp / safeMaxHp);
-            hpBarFill.color = staggered ? hpStaggerFillColor : (guard > 0 ? hpGuardFillColor : hpFillColor);
+            SetFillAmountIfChanged(hpBarFill, Mathf.Clamp01((float)safeHp / safeMaxHp));
+            SetColorIfChanged(hpBarFill, staggered ? hpStaggerFillColor : (guard > 0 ? hpGuardFillColor : hpFillColor));
         }
 
         if (guardRoot != null && Application.isPlaying && autoToggleGuardRootInPlayMode)
-            guardRoot.gameObject.SetActive(guard > 0);
+            SetActiveIfChanged(guardRoot.gameObject, guard > 0);
         if (guardText != null)
-            guardText.text = Mathf.Max(0, guard).ToString();
+            SetTextIfChanged(guardText, Mathf.Max(0, guard).ToString());
     }
 
+    private static void SetActiveIfChanged(GameObject target, bool active)
+    {
+        if (target != null && target.activeSelf != active)
+            target.SetActive(active);
+    }
 
+    private static void SetTextIfChanged(TMP_Text text, string value)
+    {
+        if (text != null && text.text != value)
+            text.text = value;
+    }
+
+    private static void SetColorIfChanged(Graphic graphic, Color value)
+    {
+        if (graphic != null && graphic.color != value)
+            graphic.color = value;
+    }
+
+    private static void SetColorIfChanged(TMP_Text text, Color value)
+    {
+        if (text != null && text.color != value)
+            text.color = value;
+    }
+
+    private static void SetOutlineColorIfChanged(Outline outline, Color value)
+    {
+        if (outline != null && outline.effectColor != value)
+            outline.effectColor = value;
+    }
+
+    private static void SetFillAmountIfChanged(Image image, float value)
+    {
+        if (image != null && !Mathf.Approximately(image.fillAmount, value))
+            image.fillAmount = value;
+    }
 
 }
 

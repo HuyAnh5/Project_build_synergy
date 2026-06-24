@@ -6,7 +6,6 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
 {
     public TurnManager turn;
     private CombatActor _actor;
-    private ActorWorldUI _worldUI;
     private CombatHUD _hud;
 
     void Awake()
@@ -15,7 +14,6 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
         if (_actor == null) _actor = GetComponentInParent<CombatActor>();
         if (turn == null)
             turn = TurnManagerRegistry.Get();
-        _worldUI = GetComponentInParent<ActorWorldUI>();
     }
 
     public void OnPointerClick(PointerEventData eventData)
@@ -162,13 +160,7 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
             RestoreHudResourceBaseline(asset);
     }
 
-    private ActorWorldUI GetWorldUI()
-    {
-        if (_worldUI != null)
-            return _worldUI;
-
-        return ActorWorldUiRegistry.FindForActor(_actor);
-    }
+    
 
     private SkillRuntime GetSelectedRuntime(DraggableSkillIcon selected)
     {

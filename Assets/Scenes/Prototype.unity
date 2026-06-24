@@ -4195,7 +4195,7 @@ MonoBehaviour:
   totalDamagePopScale: 1.25
   totalDamageSettleScale: 1
   sUp: 1.5
-  sAmp: 0.3
+  sAmp: 1
   sSideDrift: 0.12
   hpColor: {r: 1, g: 1, b: 1, a: 1}
   guardColor: {r: 0.3, g: 0.75, b: 1, a: 1}

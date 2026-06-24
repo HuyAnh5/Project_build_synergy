@@ -19,7 +19,6 @@ public partial class PassiveSystem : MonoBehaviour
     private readonly Dictionary<DiceSpinnerGeneric, int[]> _baseFaceValues = new Dictionary<DiceSpinnerGeneric, int[]>();
     private readonly Dictionary<DiceSpinnerGeneric, int[]> _permanentFaceBonuses = new Dictionary<DiceSpinnerGeneric, int[]>();
     private readonly Dictionary<DiceSpinnerGeneric, int> _combatAllFaceBonuses = new Dictionary<DiceSpinnerGeneric, int>();
-    private BattlePartyManager2D _cachedParty;
     private DiceSlotRig _cachedDiceRig;
 
     private bool _bloodCounterAddedValueActive;
@@ -102,12 +101,7 @@ public partial class PassiveSystem : MonoBehaviour
         }
     }
 
-    private BattlePartyManager2D GetParty()
-    {
-        if (_cachedParty == null)
-            _cachedParty = BattlePartyManagerRegistry.Get();
-        return _cachedParty;
-    }
+    
 
     private DiceSlotRig GetDiceRig()
     {
@@ -170,76 +164,7 @@ public partial class PassiveSystem : MonoBehaviour
         return true;
     }
 
-    private SkillConditionContext BuildPassiveConditionContext(CombatActor owner, DiceSlotRig diceRig, CombatActor target)
-    {
-        var localBaseValues = new List<int>(3);
-        var localResolvedValues = new List<int>(3);
-        var localNumericFlags = new List<bool>(3);
-        var localCritFlags = new List<bool>(3);
-        var localFailFlags = new List<bool>(3);
-
-        if (diceRig != null)
-        {
-            for (int i = 0; i < 3; i++)
-            {
-                if (!diceRig.IsSlotActive(i))
-                    continue;
-
-                localBaseValues.Add(diceRig.IsNumericFaceForConditions(i) ? diceRig.GetBaseValue(i) : 0);
-                localResolvedValues.Add(diceRig.GetResolvedDieValue(i, owner));
-                localNumericFlags.Add(diceRig.IsNumericFaceForConditions(i));
-                localCritFlags.Add(diceRig.IsCrit(i));
-                localFailFlags.Add(diceRig.IsFail(i));
-            }
-        }
-
-        BattlePartyManager2D party = GetParty();
-        int enemiesWithBurnCount = 0;
-        int markedEnemiesCount = 0;
-        int totalBleedOnBoard = 0;
-        int aliveEnemiesCount = 0;
-
-        if (party != null && party.Enemies != null)
-        {
-            for (int i = 0; i < party.Enemies.Count; i++)
-            {
-                CombatActor enemy = party.Enemies[i];
-                if (enemy == null || enemy.IsDead || enemy.status == null)
-                    continue;
-
-                aliveEnemiesCount++;
-                if (enemy.status.burnStacks > 0)
-                    enemiesWithBurnCount++;
-                if (enemy.status.marked)
-                    markedEnemiesCount++;
-                totalBleedOnBoard += Mathf.Max(0, enemy.status.bleedStacks);
-            }
-        }
-
-        return new SkillConditionContext
-        {
-            scope = SkillConditionScope.Global,
-            localBaseValues = localBaseValues,
-            localNumericFlags = localNumericFlags,
-            localResolvedValues = localResolvedValues,
-            localCritFlags = localCritFlags,
-            localFailFlags = localFailFlags,
-            currentFocus = owner != null ? owner.focus : 0,
-            currentGuard = owner != null ? owner.guardPool : 0,
-            occupiedSlots = localBaseValues.Count,
-            remainingSlots = Mathf.Clamp(3 - localBaseValues.Count, 0, 3),
-            enemiesWithBurnCount = enemiesWithBurnCount,
-            markedEnemiesCount = markedEnemiesCount,
-            totalBleedOnBoard = totalBleedOnBoard,
-            aliveEnemiesCount = aliveEnemiesCount,
-            targetHasBurn = target != null && target.status != null && target.status.burnStacks > 0,
-            targetHasFreeze = target != null && target.status != null && target.status.frozen,
-            targetHasChilled = target != null && target.status != null && target.status.chilledTurns > 0,
-            targetHasMark = target != null && target.status != null && target.status.marked,
-            targetHasBleed = target != null && target.status != null && target.status.bleedStacks > 0,
-            targetHasStagger = target != null && target.status != null && target.status.staggered
-        };
-    }
+    
 
     public void OnCombatStarted()
     {

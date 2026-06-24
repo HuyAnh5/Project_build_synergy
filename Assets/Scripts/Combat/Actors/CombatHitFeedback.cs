@@ -70,8 +70,14 @@ public class CombatHitFeedback : MonoBehaviour
 
         StartFlash(GetFlashColor(kind));
 
-        if (spawnProceduralBursts && kind != FeedbackKind.Hit)
+        if (spawnProceduralBursts && ShouldSpawnProceduralBurst(kind))
             SpawnBurst(kind);
+    }
+
+    private static bool ShouldSpawnProceduralBurst(FeedbackKind kind)
+    {
+        return kind != FeedbackKind.Hit &&
+               kind != FeedbackKind.Guard;
     }
 
     private void CacheSprites()
