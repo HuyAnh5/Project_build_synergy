@@ -463,6 +463,8 @@ public partial class DiceEquipUIManager
             bool fail = dieResolvedThisRoll && die.LastRollIsFail;
             if (pendingUsedVisual)
                 diceUi.SetPreviewSpentLike(true, true);
+            else
+                diceUi.ClearPreviewSpentLike(instant, suppressMove: false);
             if (spent)
                 diceUi.ClearPreviewSpentLike(true, true);
             die.SetCombatRollFeedback(crit, fail);

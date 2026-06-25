@@ -159,8 +159,7 @@ public static class BuffDebuffFlowRuntimeUtility
         if (effect == null)
             return false;
 
-        return effect.type == BuffDebuffFlowEffectType.ReloadUsedDice ||
-               effect.type == BuffDebuffFlowEffectType.RerollUsedDice ||
+        return effect.type == BuffDebuffFlowEffectType.RerollUsedDice ||
                effect.type == BuffDebuffFlowEffectType.TransformUsedDiceHigh ||
                effect.type == BuffDebuffFlowEffectType.TransformUsedDiceLow;
     }
@@ -183,7 +182,6 @@ public static class BuffDebuffFlowRuntimeUtility
 
             switch (effect.type)
             {
-                case BuffDebuffFlowEffectType.ReloadUsedDice:
                 case BuffDebuffFlowEffectType.RerollUsedDice:
                     StartReload(die, turnManager, rolling);
                     break;
@@ -223,13 +221,12 @@ public static class BuffDebuffFlowRuntimeUtility
 
         diceRig.RefreshRollInfoCache();
         if (turnManager != null)
-            turnManager.RefreshPlanningAfterDiceAvailabilityChanged();
+            turnManager.RefreshPlanningAfterDiceValueReorder(rolling);
     }
 
     private static void StartReload(DiceSpinnerGeneric die, TurnManager turnManager, List<DiceSpinnerGeneric> rolling)
     {
         RestoreDie(turnManager, die);
-        TrackRollComplete(turnManager, die);
         rolling.Add(die);
         die.RollRandomFace();
     }
@@ -242,7 +239,6 @@ public static class BuffDebuffFlowRuntimeUtility
             return;
 
         RestoreDie(turnManager, die);
-        TrackRollComplete(turnManager, die);
         rolling.Add(die);
         die.RollToFaceIndex(targetFace);
     }
@@ -277,14 +273,5 @@ public static class BuffDebuffFlowRuntimeUtility
     {
         if (turnManager != null)
             turnManager.RestoreDieToAvailableThisTurn(die);
-    }
-
-    private static void TrackRollComplete(TurnManager turnManager, DiceSpinnerGeneric die)
-    {
-        if (turnManager == null || die == null)
-            return;
-
-        die.onRollComplete -= turnManager.RefreshPlanningAfterDiceAvailabilityChanged;
-        die.onRollComplete += turnManager.RefreshPlanningAfterDiceAvailabilityChanged;
     }
 }

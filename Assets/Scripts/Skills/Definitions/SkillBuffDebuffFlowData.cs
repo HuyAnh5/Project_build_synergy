@@ -5,13 +5,12 @@ using UnityEngine;
 
 public enum BuffDebuffFlowEffectType
 {
-    ReloadUsedDice,
+    RerollUsedDice = 0,
     TransformUsedDiceHigh,
     TransformUsedDiceLow,
     RepeatFirstSkillNextTurn,
     NextSkillAddValue,
-    EmberWeapon,
-    RerollUsedDice
+    EmberWeapon
 }
 
 public enum BuffDebuffFlowTarget
@@ -28,7 +27,7 @@ public class BuffDebuffFlowEffectData
     public string Summary => BuildSummary();
 
     [LabelText("Type")]
-    public BuffDebuffFlowEffectType type = BuffDebuffFlowEffectType.ReloadUsedDice;
+    public BuffDebuffFlowEffectType type = BuffDebuffFlowEffectType.RerollUsedDice;
 
     [LabelText("Target")]
     [ShowIf(nameof(ShowsTarget))]
@@ -66,9 +65,15 @@ public class BuffDebuffFlowEffectData
     [LabelText("Show In Preview")]
     public bool previewable = true;
 
+    public void NormalizeLegacyType()
+    {
+        int rawValue = (int)type;
+        if (rawValue == 6)
+            type = BuffDebuffFlowEffectType.RerollUsedDice;
+    }
+
     private bool ShowsTarget()
-        => type == BuffDebuffFlowEffectType.ReloadUsedDice ||
-           type == BuffDebuffFlowEffectType.RerollUsedDice ||
+        => type == BuffDebuffFlowEffectType.RerollUsedDice ||
            type == BuffDebuffFlowEffectType.TransformUsedDiceHigh ||
            type == BuffDebuffFlowEffectType.TransformUsedDiceLow;
 
@@ -87,10 +92,8 @@ public class BuffDebuffFlowEffectData
     {
         switch (type)
         {
-            case BuffDebuffFlowEffectType.ReloadUsedDice:
-                return "Reload used dice after cast";
             case BuffDebuffFlowEffectType.RerollUsedDice:
-                return "Reroll used dice after cast (no result condition)";
+                return "Reroll used dice after cast";
             case BuffDebuffFlowEffectType.TransformUsedDiceHigh:
                 return "Reroll used dice to value >= current";
             case BuffDebuffFlowEffectType.TransformUsedDiceLow:

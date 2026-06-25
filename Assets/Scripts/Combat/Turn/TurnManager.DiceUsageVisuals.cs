@@ -35,6 +35,10 @@ public partial class TurnManager
             RefreshPlanningInteractivity();
         }
 
+        DiceEquipUIManager diceEquipUiManager = GetDiceEquipUiManager();
+        if (diceEquipUiManager != null)
+            diceEquipUiManager.AnimateDiceToReady(new[] { die }, instant: false);
+
         return true;
     }
 
@@ -86,6 +90,14 @@ public partial class TurnManager
     {
         if (die != null)
             die.onRollComplete -= RefreshPlanningAfterDiceAvailabilityChanged;
+
+        if (diceRig != null)
+            diceRig.RefreshRollInfoCache();
+
+        _playerContext.Bind(player);
+        if (_playerContext.PassiveSystem != null)
+            _playerContext.PassiveSystem.OnDiceRolled(player, diceRig, die);
+
         RefreshPlanningAfterDiceAvailabilityChanged();
     }
 

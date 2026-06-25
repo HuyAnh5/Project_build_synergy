@@ -62,11 +62,11 @@ public static class AttackPreviewCalculator
             if (resolvedPassiveSystem != null)
             {
                 if (immediatePrimaryDamage > 0)
-                    immediatePrimaryDamage = resolvedPassiveSystem.PreviewOutgoingHitDamage(rt, immediatePrimaryDamage);
+                    immediatePrimaryDamage = resolvedPassiveSystem.PreviewOutgoingDamageAgainstTarget(target, immediatePrimaryDamage);
                 if (immediateSecondaryDamage > 0)
-                    immediateSecondaryDamage = resolvedPassiveSystem.PreviewOutgoingHitDamage(rt, immediateSecondaryDamage);
+                    immediateSecondaryDamage = resolvedPassiveSystem.PreviewOutgoingDamageAgainstTarget(target, immediateSecondaryDamage);
                 if (followUpDamage > 0)
-                    followUpDamage = resolvedPassiveSystem.PreviewOutgoingHitDamage(rt, followUpDamage);
+                    followUpDamage = resolvedPassiveSystem.PreviewOutgoingDamageAgainstTarget(target, followUpDamage);
 
             }
 
@@ -183,7 +183,7 @@ public static class AttackPreviewCalculator
         preview.finalDamage = Mathf.Max(0, dmg);
         if (ps != null)
         {
-            preview.finalDamage = ps.PreviewOutgoingHitDamage(rt, preview.finalDamage);
+            preview.finalDamage = ps.PreviewOutgoingDamageAgainstTarget(target, preview.finalDamage);
         }
         preview.burnConsumeDamage = Mathf.Max(0, burnConsumeDamage);
         preview.primaryDamage = Mathf.Max(0, preview.finalDamage - preview.burnConsumeDamage);

@@ -94,7 +94,7 @@ public static class ConsumableRuntimeUtility
         if (!targetDie.SetFaceEnchant(targetFaceIndex, sourceFace.enchant))
             return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Could not paste the copied enchant to the target face.");
 
-        NotifyDiceStateChanged(targetDie);
+        NotifyDiceStateChanged(targetDie, triggerRollPassives: false);
 
         return ConsumableUseResult.Ok(
             $"Copied face {sourceFaceIndex} from {sourceDie.name} to face {targetFaceIndex} on {targetDie.name}.");
@@ -179,7 +179,7 @@ public static class ConsumableRuntimeUtility
         if (!die.SetFaceValue(faceIndex, nextValue))
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Could not change the dice face value.");
 
-        NotifyDiceStateChanged(die);
+        NotifyDiceStateChanged(die, triggerRollPassives: false);
 
         return ConsumableUseResult.Ok($"{die.name} face {faceIndex} changed to {nextValue}.");
     }
@@ -192,7 +192,7 @@ public static class ConsumableRuntimeUtility
         if (!die.SetFaceEnchant(faceIndex, data.faceEnchant))
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Could not apply enchant to the dice face.");
 
-        NotifyDiceStateChanged(die);
+        NotifyDiceStateChanged(die, triggerRollPassives: false);
 
         return ConsumableUseResult.Ok($"{die.name} face {faceIndex} gained {DiceFaceEnchantUtility.GetDisplayName(data.faceEnchant)}.");
     }
@@ -203,7 +203,7 @@ public static class ConsumableRuntimeUtility
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Select a dice face first.");
 
         die.SnapToFaceIndexImmediate(faceIndex, syncRollState: true);
-        NotifyDiceStateChanged(die);
+        NotifyDiceStateChanged(die, triggerRollPassives: true);
         return ConsumableUseResult.Ok($"{die.name} rolled face is now set to face {faceIndex}.");
     }
 
@@ -256,7 +256,7 @@ public static class ConsumableRuntimeUtility
         if (target == user)
             return ConsumableUseResult.Fail(ConsumableUseFailure.InvalidTarget, "Target must be an enemy or another actor.");
 
-        CombatActor.DamageResult damage = target.TakeDamageDetailed(Mathf.Max(0, data.valueA), bypassGuard: false);
+        CombatActor.DamageResult damage = target.TakeDamageDetailed(Mathf.Max(0, data.valueA), bypassGuard: false, attacker: user);
         return ConsumableUseResult.Ok($"Final Verdict dealt {damage.blocked + damage.hpLost} total damage.");
     }
 
@@ -292,7 +292,7 @@ public static class ConsumableRuntimeUtility
             return ConsumableUseResult.Fail(ConsumableUseFailure.MissingTarget, "Select a die first.");
 
         targetDie.EnableDoubleValueForTurn();
-        NotifyDiceStateChanged(targetDie);
+        NotifyDiceStateChanged(targetDie, triggerRollPassives: false);
         return ConsumableUseResult.Ok($"{targetDie.name} face values are doubled for this turn.");
     }
 
@@ -334,7 +334,7 @@ public static class ConsumableRuntimeUtility
                 return;
 
             targetDie.onRollComplete -= HandleRerollRollComplete;
-            NotifyDiceStateChanged(targetDie, turnManager);
+            NotifyDiceStateChanged(targetDie, turnManager, triggerRollPassives: true);
         }
     }
 
@@ -374,7 +374,7 @@ public static class ConsumableRuntimeUtility
                 return;
 
             targetDie.onRollComplete -= HandleReloadRollComplete;
-            NotifyDiceStateChanged(targetDie, turnManager);
+            NotifyDiceStateChanged(targetDie, turnManager, triggerRollPassives: true);
         }
     }
 
@@ -386,7 +386,7 @@ public static class ConsumableRuntimeUtility
         return turnManager.diceRig.HasRolledThisTurn && !turnManager.diceRig.IsRolling;
     }
 
-    public static void NotifyDiceStateChanged(DiceSpinnerGeneric changedDie, TurnManager explicitTurnManager = null)
+    public static void NotifyDiceStateChanged(DiceSpinnerGeneric changedDie, TurnManager explicitTurnManager = null, bool triggerRollPassives = false)
     {
         if (changedDie == null)
             return;
@@ -421,6 +421,6 @@ public static class ConsumableRuntimeUtility
             passiveSystem.SyncTrackedBaseFaceValues(changedDie);
 
         turnManager.diceRig.RefreshRollInfoCache();
-        turnManager.RefreshPlanningAfterDiceValueReorder();
+        turnManager.RefreshPlanningAfterDiceValueReorder(changedDie, triggerRollPassives);
     }
 }

@@ -15,7 +15,8 @@ public enum PassiveEffectId
     BloodCounterNextAttackDamage = 3,
     GuardBreakMark = 4,
     MeleeFollowUpDamage = 5,
-    MinimumImpactDamage = 6
+    MinimumImpactDamage = 6,
+    RollThreeRandomEnemyDamage = 7
 }
 
 [Serializable, InlineProperty]
@@ -54,6 +55,8 @@ public class PassiveEffectEntry
                 return $"Each Melee hit deals +{value} follow-up damage.";
             case PassiveEffectId.MinimumImpactDamage:
                 return $"Damage you deal below {value} becomes {value}.";
+            case PassiveEffectId.RollThreeRandomEnemyDamage:
+                return $"Whenever you roll a 3, deal {value} damage to a random front enemy.";
             default:
                 return id.ToString();
         }
@@ -134,6 +137,10 @@ public class SkillPassiveSO : ScriptableObject
     [ButtonGroup("Tabs/Gameplay/Quick Add/Row2")]
     [Button("Minimum Impact 5")]
     private void AddMinimumImpact() => AddEffect(e => { e.id = PassiveEffectId.MinimumImpactDamage; e.valueI = 5; });
+
+    [ButtonGroup("Tabs/Gameplay/Quick Add/Row3")]
+    [Button("Roll 3 Hit")]
+    private void AddRollThreeHit() => AddEffect(e => { e.id = PassiveEffectId.RollThreeRandomEnemyDamage; e.valueI = 1; });
 
     private void AddEffect(Action<PassiveEffectEntry> init)
     {

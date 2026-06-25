@@ -27,13 +27,6 @@ public partial class SkillBuffDebuffSO
     [TabGroup("Tabs", "Gameplay")]
     [TitleGroup("Tabs/Gameplay/Quick Add", "Common flow effects", Alignment = TitleAlignments.Centered)]
     [ButtonGroup("Tabs/Gameplay/Quick Add/Row1")]
-    [Button("Reload Used Dice", ButtonSizes.Medium)]
-    private void AddFlowReload()
-    {
-        AddFlowEffect(BuffDebuffFlowEffectType.ReloadUsedDice);
-    }
-
-    [ButtonGroup("Tabs/Gameplay/Quick Add/Row1")]
     [Button("Reroll Used Dice", ButtonSizes.Medium)]
     private void AddFlowReroll()
     {
@@ -92,7 +85,6 @@ public partial class SkillBuffDebuffSO
         BuffDebuffFlowEffectData effect = new BuffDebuffFlowEffectData { type = type };
         switch (type)
         {
-            case BuffDebuffFlowEffectType.ReloadUsedDice:
             case BuffDebuffFlowEffectType.RerollUsedDice:
             case BuffDebuffFlowEffectType.TransformUsedDiceHigh:
             case BuffDebuffFlowEffectType.TransformUsedDiceLow:

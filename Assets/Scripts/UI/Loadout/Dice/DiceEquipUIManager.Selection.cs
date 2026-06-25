@@ -82,4 +82,22 @@ public partial class DiceEquipUIManager
                 diceUi.PlayInvalidSelectionFeedback();
         }
     }
+
+    public void AnimateDiceToReady(IEnumerable<DiceSpinnerGeneric> diceBuffer, bool instant = false)
+    {
+        if (diceBuffer == null)
+            return;
+
+        foreach (DiceSpinnerGeneric die in diceBuffer)
+        {
+            if (die == null)
+                continue;
+
+            if (_uiByDice.TryGetValue(die, out DiceDraggableUI diceUi) && diceUi != null)
+            {
+                diceUi.EndCastMotionLock();
+                diceUi.SetSelected(false, instant, suppressMove: false);
+            }
+        }
+    }
 }

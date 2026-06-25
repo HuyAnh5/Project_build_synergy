@@ -113,6 +113,7 @@ public partial class ConsumableBarUIManager
             List<DiceSpinnerGeneric> selectedDice = new List<DiceSpinnerGeneric>();
             if (diceEquipUiManager != null)
                 diceEquipUiManager.GetSelectedDice(selectedDice);
+            List<DiceSpinnerGeneric> rerolledDice = new List<DiceSpinnerGeneric>(selectedDice);
 
             int pendingRerolls = 0;
             for (int i = 0; i < selectedDice.Count; i++)
@@ -148,7 +149,7 @@ public partial class ConsumableBarUIManager
                 if (turnManager != null && turnManager.diceRig != null)
                 {
                     turnManager.diceRig.RefreshRollInfoCache();
-                    turnManager.RefreshPlanningAfterDiceValueReorder();
+                    turnManager.RefreshPlanningAfterDiceValueReorder(rerolledDice);
                 }
             }
         }
@@ -188,7 +189,7 @@ public partial class ConsumableBarUIManager
                                         (data.family == ConsumableFamily.Zodiac || data.UsesDiceSelection());
 
         if (shouldClearDiceSelection)
-            diceEquipUiManager?.ClearSelectedDice(instant: true);
+            diceEquipUiManager?.ClearSelectedDice(instant: false);
     }
 
     public void ClearSelectionForExternalConsumableResolution(int consumedSlot)

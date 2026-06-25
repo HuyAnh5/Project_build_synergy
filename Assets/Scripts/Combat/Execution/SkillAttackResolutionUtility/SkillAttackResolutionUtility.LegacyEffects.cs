@@ -249,7 +249,7 @@ internal static partial class SkillAttackResolutionUtility
         if (bounceTarget == null)
             return;
 
-        CombatActor.DamageResult bounce = bounceTarget.TakeDamageDetailed(finalDamage, bypassGuard: false);
+        CombatActor.DamageResult bounce = bounceTarget.TakeDamageDetailed(finalDamage, bypassGuard: false, attacker: caster);
         if (popups != null)
             popups.SpawnDamageSplit(caster, bounceTarget, bounce.blocked, bounce.hpLost);
     }

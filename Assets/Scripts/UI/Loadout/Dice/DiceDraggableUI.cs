@@ -7,6 +7,13 @@ using UnityEngine.UI;
 [RequireComponent(typeof(RectTransform))]
 public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerClickHandler, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler, ISkillTooltipSource
 {
+    private enum DiceDisplaySlot
+    {
+        Ready,
+        Lifted,
+        Spent
+    }
+
     private const string CritFailPopupAnchorName = "DiceCard_Pivot";
     private const string EnchantHoverZoneName = "EnchantHoverZone";
     private const int IdlePointerRefreshIntervalFrames = 6;
@@ -208,7 +215,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         if (_castMotionLocked || suppressMove)
             return;
 
-        MoveToDisplayPosition(instant);
+        MoveToResolvedDisplaySlot(instant);
     }
 
     public void SetCombatVisualState(bool spent, bool crit, bool fail, bool instant = false)
@@ -232,7 +239,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         if (_castMotionLocked)
             return;
 
-        MoveToDisplayPosition(instant);
+        MoveToResolvedDisplaySlot(instant);
         if (failTriggered)
             PlayShake(failShakeStrength, failShakeDuration, failShakeVibrato);
     }
@@ -268,7 +275,7 @@ public partial class DiceDraggableUI : MonoBehaviour, IBeginDragHandler, IDragHa
         if (_dragging)
             return;
 
-        MoveToDisplayPosition(instant: true);
+        MoveToResolvedDisplaySlot(instant: true);
         PlayShake(invalidShakeStrength, invalidShakeDuration, invalidShakeVibrato);
         FlashInvalidBackground();
     }

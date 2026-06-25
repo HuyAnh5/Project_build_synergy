@@ -15,7 +15,7 @@ public partial class DiceDraggableUI
         EnsureInitialized();
 
         RectTransform targetParent = parent as RectTransform;
-        Vector2 target = GetDisplayAnchoredPosition(anchoredPos);
+        Vector2 target = GetDisplayAnchoredPosition(anchoredPos, ResolveDisplaySlot());
         float duration = GetSnapDuration();
         _homeAnchoredPos = anchoredPos;
 
@@ -83,7 +83,7 @@ public partial class DiceDraggableUI
     }
 
     public Tween AnimateCastDisplayToReady(float duration, Ease ease)
-        => AnimateCastDisplayToYOffset(0f, duration, ease);
+        => AnimateCastDisplayToSlot(DiceDisplaySlot.Ready, duration, ease);
 
     public Tween BeginCastLaunch(float duration, Ease ease)
     {
@@ -101,13 +101,14 @@ public partial class DiceDraggableUI
     }
 
     public Tween AnimateCastDisplayToSpent(float duration, Ease ease)
-        => AnimateCastDisplayToYOffset(-spentDropY, duration, ease);
+        => AnimateCastDisplayToSlot(DiceDisplaySlot.Spent, duration, ease);
 
-    private Tween AnimateCastDisplayToYOffset(float targetYOffset, float duration, Ease ease)
+    private Tween AnimateCastDisplayToSlot(DiceDisplaySlot slot, float duration, Ease ease)
     {
         EnsureInitialized();
         BeginCastMotionLock();
 
+        float targetYOffset = GetSlotYOffset(slot);
         Vector2 target = _homeAnchoredPos + new Vector2(0f, targetYOffset);
         if (duration <= 0f)
         {
@@ -129,15 +130,37 @@ public partial class DiceDraggableUI
         return _moveTween;
     }
 
-    private Vector2 GetDisplayAnchoredPosition(Vector2 anchoredPos)
+    private DiceDisplaySlot ResolveDisplaySlot()
+    {
+        if (_spent)
+            return DiceDisplaySlot.Spent;
+
+        if (_previewSpentLike || _selected)
+            return DiceDisplaySlot.Lifted;
+
+        return DiceDisplaySlot.Ready;
+    }
+
+    private float GetSlotYOffset(DiceDisplaySlot slot)
+    {
+        switch (slot)
+        {
+            case DiceDisplaySlot.Lifted:
+                return selectedLiftY;
+            case DiceDisplaySlot.Spent:
+                return -spentDropY;
+            case DiceDisplaySlot.Ready:
+            default:
+                return 0f;
+        }
+    }
+
+    private Vector2 GetDisplayAnchoredPosition(Vector2 anchoredPos, DiceDisplaySlot slot)
     {
         if (_castMotionLocked && _castYOffsetOverride.HasValue)
             return anchoredPos + new Vector2(0f, _castYOffsetOverride.Value);
 
-        float yOffset = _spent
-            ? -spentDropY
-            : ((_previewSpentLike || _selected) ? selectedLiftY : 0f);
-        return anchoredPos + new Vector2(0f, yOffset);
+        return anchoredPos + new Vector2(0f, GetSlotYOffset(slot));
     }
 
     private void RefreshVisualState()
@@ -191,13 +214,16 @@ public partial class DiceDraggableUI
             _cg.alpha = _hasPreviewTint ? 1f : _restingAlpha;
     }
 
-    private void MoveToDisplayPosition(bool instant)
+    private void MoveToResolvedDisplaySlot(bool instant)
     {
         if (_castMotionLocked)
             return;
 
         KillMoveTweens();
-        Vector2 target = GetDisplayAnchoredPosition(_homeAnchoredPos);
+        Vector2 target = GetDisplayAnchoredPosition(_homeAnchoredPos, ResolveDisplaySlot());
+        if (!instant && Vector2.SqrMagnitude(_rt.anchoredPosition - target) <= 0.0001f)
+            return;
+
         if (instant)
             _rt.anchoredPosition = target;
         else
@@ -213,12 +239,12 @@ public partial class DiceDraggableUI
     private void PlayShake(Vector2 strength, float duration, int vibrato)
     {
         KillMoveTweens();
-        _rt.anchoredPosition = GetDisplayAnchoredPosition(_homeAnchoredPos);
+        _rt.anchoredPosition = GetDisplayAnchoredPosition(_homeAnchoredPos, ResolveDisplaySlot());
         _shakeTween = _rt.DOShakeAnchorPos(duration, strength, Mathf.Max(1, vibrato), randomness: 0f, snapping: false, fadeOut: true)
             .SetUpdate(true)
             .OnComplete(() =>
             {
-                _rt.anchoredPosition = GetDisplayAnchoredPosition(_homeAnchoredPos);
+                _rt.anchoredPosition = GetDisplayAnchoredPosition(_homeAnchoredPos, ResolveDisplaySlot());
                 _shakeTween = null;
             });
     }
@@ -318,7 +344,7 @@ public partial class DiceDraggableUI
         _previewSpentLike = active;
 
         if (!_dragging && !_castMotionLocked && !suppressMove)
-            MoveToDisplayPosition(instant);
+            MoveToResolvedDisplaySlot(instant);
 
         RefreshVisualState();
     }
@@ -344,7 +370,7 @@ public partial class DiceDraggableUI
         _previewSpentLike = false;
 
         if (!_dragging && !_castMotionLocked && !suppressMove)
-            MoveToDisplayPosition(instant);
+            MoveToResolvedDisplaySlot(instant);
 
         RefreshVisualState();
     }

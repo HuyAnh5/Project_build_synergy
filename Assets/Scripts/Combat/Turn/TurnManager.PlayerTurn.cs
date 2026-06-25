@@ -10,6 +10,7 @@ public partial class TurnManager
 
         SetPhase(Phase.Planning);
         _playerContext.Bind(player);
+        _playerContext.PassiveSystem?.OnTurnStarted();
         if (_playerContext.SkillCombatState != null)
             _playerContext.SkillCombatState.BeginPlayerTurn();
         TurnManagerLifecycleUtility.BeginPlayerTurnStatusesAndFocus(player, logPhase, this);

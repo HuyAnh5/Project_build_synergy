@@ -187,7 +187,15 @@ public class CombatActor : MonoBehaviour
 
     public DamageResult TakeDamageDetailed(int dmg, bool bypassGuard, CombatActor attacker = null)
     {
-        DamageResult r = new DamageResult { requested = Mathf.Max(0, dmg), blocked = 0, hpLost = 0, guardBroken = false };
+        int requestedDamage = Mathf.Max(0, dmg);
+        if (attacker != null)
+        {
+            PassiveSystem attackerPassiveSystem = attacker.GetComponent<PassiveSystem>();
+            if (attackerPassiveSystem != null)
+                requestedDamage = attackerPassiveSystem.AdjustOutgoingDamageAgainstTarget(this, requestedDamage);
+        }
+
+        DamageResult r = new DamageResult { requested = requestedDamage, blocked = 0, hpLost = 0, guardBroken = false };
 
         int remaining = r.requested;
         int guardBeforeHit = guardPool;

@@ -71,5 +71,35 @@ public partial class SkillBuffDebuffSO : ScriptableObject
 
         slotsRequired = Mathf.Clamp(slotsRequired, 1, 3);
         focusCost = Mathf.Max(0, focusCost);
+        NormalizeLegacyFlowEffects();
+    }
+
+    private void NormalizeLegacyFlowEffects()
+    {
+        if (gameplay == null)
+            return;
+
+        NormalizeEffectList(gameplay.baseEffects);
+
+        if (gameplay.conditionalOutcomes == null)
+            return;
+
+        for (int i = 0; i < gameplay.conditionalOutcomes.Count; i++)
+        {
+            BuffDebuffFlowConditionalOutcomeData branch = gameplay.conditionalOutcomes[i];
+            if (branch == null)
+                continue;
+
+            NormalizeEffectList(branch.effects);
+        }
+    }
+
+    private static void NormalizeEffectList(System.Collections.Generic.List<BuffDebuffFlowEffectData> effects)
+    {
+        if (effects == null)
+            return;
+
+        for (int i = 0; i < effects.Count; i++)
+            effects[i]?.NormalizeLegacyType();
     }
 }

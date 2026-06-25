@@ -274,9 +274,32 @@ public partial class TurnManager : MonoBehaviour
 
     public void RefreshPlanningAfterDiceValueReorder()
     {
+        if (diceRig != null)
+            diceRig.RefreshRollInfoCache();
+
         _board.RecalculateRuntimesAndRebalance(player, diceRig);
         RefreshAllViews();
         RefreshPlanningInteractivity();
+    }
+
+    public void RefreshPlanningAfterDiceValueReorder(DiceSpinnerGeneric changedDie, bool triggersRollPassives = true)
+    {
+        RefreshPlanningAfterDiceValueReorder(changedDie != null ? new[] { changedDie } : null, triggersRollPassives);
+    }
+
+    public void RefreshPlanningAfterDiceValueReorder(System.Collections.Generic.IReadOnlyList<DiceSpinnerGeneric> changedDice, bool triggersRollPassives = true)
+    {
+        if (diceRig != null)
+            diceRig.RefreshRollInfoCache();
+
+        _playerContext.Bind(player);
+        if (triggersRollPassives && _playerContext.PassiveSystem != null)
+        {
+            if (changedDice != null)
+                _playerContext.PassiveSystem.OnDiceRolled(player, diceRig, changedDice);
+        }
+
+        RefreshPlanningAfterDiceValueReorder();
     }
 
 
