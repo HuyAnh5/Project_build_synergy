@@ -31,12 +31,8 @@ public partial class RunInventoryManager
     [Serializable]
     public class PassiveSlotBinding
     {
-        [LabelText("UI Icon")]
-        [Tooltip("Legacy passive UI binding. RunInventoryManager no longer stores passive slots.")]
-        public PassiveDraggableUI uiIcon;
-
         [LabelText("Passive")]
-        [Tooltip("Legacy passive asset field retained for compatibility with older passive UI scripts.")]
+        [Tooltip("Legacy passive asset field retained for compatibility with passive inventory/runtime sync.")]
         public SkillPassiveSO passiveAsset;
     }
 

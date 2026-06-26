@@ -244,12 +244,16 @@ MonoBehaviour:
   emberWeaponBonusDamage: 1
   emberWeaponBurnEqualsDamage: 1
   emberWeaponBurnOnCritOnly: 0
+  emberWeaponBurnTurns: 3
   cinderbrandTurns: 0
   cinderbrandBonusPerBurn: 1
+  repeatFirstSkillNextTurnPending: 0
+  repeatFirstSkillReadyExtraCasts: 0
+  nextSkillAddedValue: 0
+  nextSkillAddedValueCharges: 0
   _hasAilment: 0
   _ailmentType: 0
   _ailmentTurnsLeft: 0
-  debugForceAilmentChance100: 1
   debugLog: 1
 --- !u!114 &2511759822590512691
 MonoBehaviour:
@@ -269,12 +273,12 @@ MonoBehaviour:
   maxHP: 30
   hp: 30
   maxFocus: 9
-  focus: 3
+  focus: 0
   startingFocus: 3
   guardPool: 0
   firePoint: {fileID: 2662277246265213219}
   status: {fileID: 5189020765822597547}
-  worldUiMode: 0
+  worldUiTag: Standard
   uiAnchor: {fileID: 160035848761791491}
   autoSetupUiAnchor: 1
   uiAnchorName: UIAnchor

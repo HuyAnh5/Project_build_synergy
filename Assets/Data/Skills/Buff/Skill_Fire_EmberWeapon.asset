@@ -26,14 +26,14 @@ MonoBehaviour:
     designIntent: Turns Melee skills into a Burn engine and opens the Fire loop.
   identity: 0
   target: 0
-  slotsRequired: 1
-  focusCost: 2
+  slotsRequired: 3
+  focusCost: 0
   focusGainOnCast: 0
   gameplay:
     descriptionTemplate: 
     requirements: []
     baseEffects:
-    - type: 5
+    - type: 0
       target: 0
       amount: 1
       durationTurns: 3

@@ -24,6 +24,8 @@ public partial class PassiveSystem : MonoBehaviour
 
     private bool _bloodCounterAddedValueActive;
 
+    partial void OverrideTesterPassiveRuntimeEnabled(SkillPassiveSO passive, ref bool enabled);
+
     private void Awake()
     {
         TryBindInventory();
@@ -156,6 +158,13 @@ public partial class PassiveSystem : MonoBehaviour
         return passive != null && equipped.Contains(passive);
     }
 
+    private bool IsPassiveRuntimeEnabled(SkillPassiveSO passive)
+    {
+        bool enabled = true;
+        OverrideTesterPassiveRuntimeEnabled(passive, ref enabled);
+        return enabled;
+    }
+
     public bool Unequip(SkillPassiveSO passive)
     {
         if (passive == null || !equipped.Remove(passive))
@@ -220,7 +229,7 @@ public partial class PassiveSystem : MonoBehaviour
         for (int i = 0; i < equipped.Count; i++)
         {
             SkillPassiveSO passive = equipped[i];
-            if (passive == null || passive.effects == null)
+            if (passive == null || passive.effects == null || !IsPassiveRuntimeEnabled(passive))
                 continue;
 
             for (int k = 0; k < passive.effects.Count; k++)
@@ -392,7 +401,7 @@ public partial class PassiveSystem : MonoBehaviour
         for (int i = 0; i < equipped.Count; i++)
         {
             SkillPassiveSO passive = equipped[i];
-            if (passive == null || passive.effects == null)
+            if (passive == null || passive.effects == null || !IsPassiveRuntimeEnabled(passive))
                 continue;
 
             bool hasEffect = false;

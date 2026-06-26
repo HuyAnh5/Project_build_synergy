@@ -16,7 +16,7 @@ MonoBehaviour:
   displayName: BRUISER
   role: 0
   extraTags: []
-  maxHP: 30
+  maxHP: 70
   startingGuard: 0
   damageScalar: 1
   intentSelectionMode: 1

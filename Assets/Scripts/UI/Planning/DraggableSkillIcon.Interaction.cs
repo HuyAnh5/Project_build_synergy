@@ -56,7 +56,12 @@ public partial class DraggableSkillIcon
     {
         if (!turn || !turn.CanInteractWithSkills) return;
         var a = GetSkillAsset();
-        if (a == null || a is SkillPassiveSO) return;
+        if (a == null) return;
+        if (a is SkillPassiveSO passive)
+        {
+            HandleTesterPassivePointerClick(passive);
+            return;
+        }
 
         if (!CanDragCurrentSkill())
         {

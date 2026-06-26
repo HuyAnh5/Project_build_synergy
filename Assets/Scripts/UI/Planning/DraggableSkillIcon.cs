@@ -129,6 +129,10 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     private static readonly Color SelectedBlinkColorA = new Color(1f, 0.92f, 0.3f, 1f);  // đỉnh sáng
     private static readonly Color SelectedBlinkColorB = new Color(1f, 0.65f, 0.1f, 0.5f); // đỉnh mờ
 
+    partial void RefreshTesterPassiveVisualState();
+    partial void HandleTesterPassivePointerClick(SkillPassiveSO passive);
+    partial void ApplyTesterPassiveVisualState();
+
     private void Awake()
     {
         DraggableSkillIconRegistry.Register(this);
@@ -264,6 +268,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         RefreshLabel();
         RefreshCostBadges();
         RefreshElementBadge();
+        RefreshTesterPassiveVisualState();
         RefreshActiveRuntimeState();
         ApplyVisualState();
         CaptureVisualSnapshot();
@@ -384,6 +389,8 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         Color c = _img.color;
         c.a = alpha;
         _img.color = c;
+
+        ApplyTesterPassiveVisualState();
 
         ApplyActiveAuraVisibility();
 
