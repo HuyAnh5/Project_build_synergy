@@ -4,7 +4,7 @@ using Sirenix.OdinInspector;
 public partial class SkillBuffDebuffSO
 {
     [TabGroup("Tabs", "Gameplay")]
-    [TitleGroup("Tabs/Gameplay/New Buff Debuff Schema", "Flow-focused effects for dice, cast momentum, and configurable buffs.")]
+    [TitleGroup("Tabs/Gameplay/Buff Debuff Effects", "Inspector-authored utility effects for buff/debuff skills.")]
     [HideLabel]
     public BuffDebuffFlowData gameplay = new BuffDebuffFlowData();
 
@@ -75,6 +75,37 @@ public partial class SkillBuffDebuffSO
         });
     }
 
+    [ButtonGroup("Tabs/Gameplay/Quick Add/Row3")]
+    [Button("Gain AP", ButtonSizes.Medium)]
+    private void AddFlowGainAP()
+    {
+        AddFlowEffect(BuffDebuffFlowEffectType.GainAP, e => e.amount = 1);
+    }
+
+    [ButtonGroup("Tabs/Gameplay/Quick Add/Row3")]
+    [Button("Gain Guard", ButtonSizes.Medium)]
+    private void AddFlowGainGuard()
+    {
+        AddFlowEffect(BuffDebuffFlowEffectType.GainGuard, e =>
+        {
+            e.target = BuffDebuffFlowTarget.Self;
+            e.amount = 5;
+        });
+    }
+
+    [ButtonGroup("Tabs/Gameplay/Quick Add/Row3")]
+    [Button("Apply Status", ButtonSizes.Medium)]
+    private void AddFlowApplyStatus()
+    {
+        AddFlowEffect(BuffDebuffFlowEffectType.ApplyStatus, e =>
+        {
+            e.target = identity == BuffDebuffIdentity.Buff ? BuffDebuffFlowTarget.Self : BuffDebuffFlowTarget.SelectedTarget;
+            e.status = StatusKind.Burn;
+            e.amount = 1;
+            e.durationTurns = 3;
+        });
+    }
+
     private void AddFlowEffect(BuffDebuffFlowEffectType type, System.Action<BuffDebuffFlowEffectData> init = null)
     {
         if (gameplay == null)
@@ -103,6 +134,23 @@ public partial class SkillBuffDebuffSO
                 effect.emberBurnOnCritOnly = true;
                 effect.emberBurnTurns = 3;
                 break;
+            case BuffDebuffFlowEffectType.GainAP:
+                effect.amount = 1;
+                effect.target = BuffDebuffFlowTarget.Self;
+                break;
+            case BuffDebuffFlowEffectType.GainGuard:
+                effect.amount = 5;
+                effect.target = BuffDebuffFlowTarget.Self;
+                break;
+            case BuffDebuffFlowEffectType.Heal:
+                effect.amount = 5;
+                effect.target = BuffDebuffFlowTarget.Self;
+                break;
+            case BuffDebuffFlowEffectType.ApplyStatus:
+                effect.amount = 1;
+                effect.durationTurns = 3;
+                effect.target = identity == BuffDebuffIdentity.Buff ? BuffDebuffFlowTarget.Self : BuffDebuffFlowTarget.SelectedTarget;
+                break;
         }
 
         init?.Invoke(effect);
@@ -124,11 +172,11 @@ public partial class SkillBuffDebuffSO
 
         if (gameplay.baseEffects == null || gameplay.baseEffects.Count == 0)
         {
-            lines.Add("Base Effects: None");
+            lines.Add("Effects: None");
         }
         else
         {
-            lines.Add("Base Effects:");
+            lines.Add("Effects:");
             for (int i = 0; i < gameplay.baseEffects.Count; i++)
             {
                 BuffDebuffFlowEffectData effect = gameplay.baseEffects[i];

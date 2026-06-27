@@ -5367,8 +5367,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 73b6414dff2ea0543a810042d7168c7a, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PassiveEquipDropZone
-  manager: {fileID: 1863713871}
-  slotIndex: 0
 --- !u!114 &898835269
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5596,15 +5594,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b3474297bf3ebc44ab634176454dc39f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PassiveDraggableUI
-  passive: {fileID: 0}
-  iconImage: {fileID: 1027935526}
-  nameText: {fileID: 0}
-  manager: {fileID: 0}
-  tweenDuration: 0.18
-  _rt: {fileID: 0}
-  _prevParent: {fileID: 0}
-  _prevAnchoredPos: {x: 0, y: 0}
-  _dragRegistered: 0
 --- !u!225 &1027935525
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -10250,12 +10239,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c1ef31eac89481141a2411503933d8c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PassiveEquipUIManager
-  equipSlotAnchors:
-  - {fileID: 898835267}
-  runInventory: {fileID: 1082519198}
-  interactionsLocked: 0
-  equipped:
-  - {fileID: 1027935524}
 --- !u!1 &1888259523
 GameObject:
   m_ObjectHideFlags: 0

@@ -6,6 +6,7 @@ using System.Collections.Generic;
 public sealed class SkillResolveContext
 {
     public SkillDamageSO skill;
+    public SkillGameplayData gameplay;
     public SkillRuntime runtime;
     public CombatActor caster;
     public CombatActor target;

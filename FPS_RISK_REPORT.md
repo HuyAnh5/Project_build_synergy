@@ -8,9 +8,9 @@ Latest check:
 
 * `dotnet build Project_build_synergy.sln`
 * 0 errors
-* 35 warnings
+* 0 warnings
 
-Remaining warnings are editor/inspector obsolete API warnings and are not currently treated as runtime FPS blockers.
+Recent editor/setup obsolete API cleanup removed the previous warning noise from this solution build.
 
 ## High-Risk Patterns
 
@@ -76,8 +76,17 @@ Completed:
 * `DraggableSkillIcon` idle metadata polling is throttled while hover/selected/drag remains immediate.
 * `DiceDraggableUI` idle pointer safety polling is throttled while hover/hold/drag remains immediate.
 * Skill and consumable keyword tooltip link detection cache TMP mesh generation by text content instead of forcing mesh generation on unchanged text every frame.
+* `ActorWorldUI.RefreshIntent()` now uses a runtime intent signature and dirty setters, so enemy intent icon/text/active state is not reapplied every `LateUpdate` when intent/player-relevant state is unchanged.
+* `ActorWorldUI` idle world-UI tooltip scanning is throttled while keeping active tooltips refreshed every frame.
+* `SkillTooltipUI.Update()` throttles steady-state tooltip upkeep/link checks while keeping source refresh and Shift-expanded refresh immediate.
+* `TargetingArrowUI` skips segment redraw when start/end points and style settings are unchanged.
+* Actor, skill, and consumable keyword tooltip sizing now avoids redundant horizontal size writes/rebuilds when width is unchanged.
 * `TurnManager` continue-button lookup no longer repeatedly scans all buttons after a miss.
 * Skill and actor keyword tooltip prefab-provider lookup now uses a shared registry/cache with fallback scan.
+* `ActorWorldUiRegistry`, `DraggableSkillIconRegistry`, and `DiceDraggableUiRegistry` now cache stable snapshot arrays instead of allocating a new array on every snapshot request.
+* `CombatActorRegistry.GetAllSnapshot(includeInactive: true)` now caches its stable all-actor snapshot; active-only queries still rebuild to preserve active-state semantics.
+* `CombatUiDirtySetUtility` now includes LayoutElement/RectTransform dirty setters for tooltip/layout code paths.
+* Target/guard preview bundle construction is shared, reducing duplicate preview work and making future optimization safer.
 
 ### Guard-hit feedback spike mitigation
 
@@ -103,16 +112,15 @@ Why:
 2. `DiceDraggableUI.Update()` still has per-card hover/inspect/tooltip/tween-adjacent behavior, though idle pointer safety polling is throttled.
 3. `DiceEquipUIManager.LateUpdate()` still refreshes combat dice runtime state and world-slot sync while active; world-slot sync appears visually intentional.
 4. Tooltip/keyword/layout systems are improved but still contain active hover/link positioning work.
-5. `ActorWorldUI.RefreshIntent()` still runs through normal runtime refresh and should only be optimized with a safe intent signature.
-6. Popup/tween feedback bursts remain unbounded from a profiling perspective for non-Guard burst types.
-7. Prototype/sandbox systems still contain setup/path scene scans; lower priority unless active in production flow.
+5. Popup/tween feedback bursts remain unbounded from a profiling perspective for non-Guard burst types.
+6. Prototype/sandbox systems still contain setup/path scene scans; lower priority unless active in production flow.
 
 ## Recommended Next FPS Batches
 
 1. Shared tooltip presenter/positioner to reduce duplicated active hover/layout work.
 2. `DraggableSkillIcon` runtime-state dirty gate beyond metadata throttling.
 3. `DiceEquipUIManager` active/mode gate for `LateUpdate` only after confirming world dice mirror expectations in Unity.
-4. Shared `CombatPreviewPresenter` to avoid repeated preview clear/show logic.
+4. Shared resource/focus preview owner to finish the preview consolidation after the target/guard preview slice.
 5. Damage popup active cap or backpressure after profiling confirms popup spikes.
 
 ## Unity Profiling Checklist

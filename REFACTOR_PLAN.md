@@ -370,3 +370,21 @@ Verification for P0-1:
 * Confirm player HUD status row and enemy world status row match pre-refactor behavior.
 * Confirm target preview still overlays statuses correctly.
 * Confirm no scene/prefab references are lost.
+
+## Latest Completed Safe Slices
+
+Completed after the initial audit/P0 work:
+
+* Shared combat status row rendering was extracted for player HUD and actor world UI.
+* Actor/world/skill/dice UI lookup paths were moved toward registries and cached fallbacks.
+* Guard-hit popup/feedback paths were simplified to reduce guard-specific FPS spikes while preserving curved popup motion.
+* `CombatTargetPreviewPresenter` now centralizes target preview show/clear.
+* `CombatGuardPreviewUtility` now centralizes guard preview die-value/self-guard calculations.
+* `CombatPreviewBundleUtility.BuildActionBundleWithSelfGuard()` now centralizes duplicated target/guard preview bundle construction for `TargetClickable2D` and `SkillIconPreviewController`.
+* UI and actor registries now cache stable snapshots to avoid repeated array allocation in preview/refresh paths.
+
+Next safest continuation:
+
+* Finish resource/focus preview ownership consolidation between skill icon preview, target clickables, and `CombatHUD`.
+* Continue tooltip presenter/positioner extraction in small slices.
+* Defer dice payment snapshot service and `SkillExecutor` request-object refactor until the UI preview paths are manually tested in Unity.

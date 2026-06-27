@@ -26,7 +26,7 @@ MonoBehaviour:
     designIntent: Turns Melee skills into a Burn engine and opens the Fire loop.
   identity: 0
   target: 0
-  slotsRequired: 3
+  slotsRequired: 2
   focusCost: 0
   focusGainOnCast: 0
   gameplay:
@@ -36,9 +36,28 @@ MonoBehaviour:
     - type: 0
       target: 0
       amount: 1
+      status: 1
       durationTurns: 3
       emberBurnEqualsFinalDamage: 1
       emberBurnOnCritOnly: 1
       emberBurnTurns: 3
       previewable: 1
-    conditionalOutcomes: []
+    conditionalOutcomes:
+    - tooltipText: 
+      condition:
+        scope: 0
+        logic: 1
+        clauses:
+        - reference: 11
+          comparison: 6
+          value: 0
+      effects:
+      - type: 11
+        target: 0
+        amount: 3
+        status: 1
+        durationTurns: 1
+        emberBurnEqualsFinalDamage: 1
+        emberBurnOnCritOnly: 1
+        emberBurnTurns: 3
+        previewable: 1

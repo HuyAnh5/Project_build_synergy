@@ -29,11 +29,14 @@ internal sealed partial class SkillIconPreviewController
 
     private void ShowSelfEnchantGuardPreview()
     {
-        if (_turn == null || _turn.player == null || _simpleEnchantPreview.guardGain <= 0)
+        if (_turn == null || _turn.player == null)
             return;
 
         ActorWorldUI playerUi = FindActorWorldUi(_turn.player);
         if (playerUi == null)
+            return;
+
+        if (_simpleEnchantPreview.guardGain <= 0)
             return;
 
         CombatActor player = _turn.player;

@@ -116,7 +116,7 @@ MonoBehaviour:
     - tooltipText: 
       condition:
         scope: 0
-        logic: 0
+        logic: 1
         clauses:
         - reference: 11
           comparison: 6

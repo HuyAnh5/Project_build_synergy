@@ -6,9 +6,6 @@ public static class BuffDebuffFlowRuntimeUtility
 {
     private const float DiceFlowRollTimeoutSeconds = 2.5f;
 
-    public static bool CanUseNewPipeline(SkillBuffDebuffSO skill)
-        => skill != null;
-
     public static bool CheckRequirements(
         SkillBuffDebuffSO skill,
         SkillRuntime runtime,
@@ -75,7 +72,7 @@ public static class BuffDebuffFlowRuntimeUtility
     {
         List<BuffDebuffFlowEffectData> effects = ResolveEffects(skill, runtime, caster, target);
         for (int i = 0; i < effects.Count; i++)
-            ApplyActorEffect(effects[i], caster);
+            BuffDebuffFlowActorEffectApplier.Apply(effects[i], caster, target);
     }
 
     public static bool HasPostCastDiceEffects(SkillBuffDebuffSO skill, SkillRuntime runtime, CombatActor caster, CombatActor target)
@@ -125,32 +122,6 @@ public static class BuffDebuffFlowRuntimeUtility
         {
             if (source[i] != null)
                 destination.Add(source[i]);
-        }
-    }
-
-    private static void ApplyActorEffect(BuffDebuffFlowEffectData effect, CombatActor caster)
-    {
-        if (effect == null || caster == null || caster.status == null)
-            return;
-
-        switch (effect.type)
-        {
-            case BuffDebuffFlowEffectType.RepeatFirstSkillNextTurn:
-                caster.status.GrantRepeatFirstSkillNextTurn(Mathf.Max(1, effect.amount));
-                break;
-
-            case BuffDebuffFlowEffectType.NextSkillAddValue:
-                caster.status.GrantNextSkillAddedValue(Mathf.Max(0, effect.amount));
-                break;
-
-            case BuffDebuffFlowEffectType.EmberWeapon:
-                caster.status.GrantEmberWeapon(
-                    Mathf.Max(1, effect.durationTurns),
-                    Mathf.Max(0, effect.amount),
-                    effect.emberBurnEqualsFinalDamage,
-                    effect.emberBurnOnCritOnly,
-                    Mathf.Max(1, effect.emberBurnTurns));
-                break;
         }
     }
 

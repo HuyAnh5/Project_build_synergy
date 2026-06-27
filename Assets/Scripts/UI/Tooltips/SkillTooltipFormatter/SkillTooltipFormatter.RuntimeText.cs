@@ -133,45 +133,51 @@ public static partial class SkillTooltipFormatter
 
     private static void AppendBuffDebuffRequirements(ref TooltipContent content, SkillBuffDebuffSO skill)
     {
-        if (skill == null || skill.gameplay == null || skill.gameplay.requirements == null)
+        if (skill == null)
             return;
 
-        for (int i = 0; i < skill.gameplay.requirements.Count; i++)
+        if (skill.gameplay != null && skill.gameplay.requirements != null)
         {
-            SkillRequirementData requirement = skill.gameplay.requirements[i];
-            if (requirement != null)
-                content.requires.Add(FormatRequirement(requirement));
+            for (int i = 0; i < skill.gameplay.requirements.Count; i++)
+            {
+                SkillRequirementData requirement = skill.gameplay.requirements[i];
+                if (requirement != null)
+                    content.requires.Add(FormatRequirement(requirement));
+            }
         }
     }
 
     private static void AppendBuffDebuffConditionalOutcomes(ref TooltipContent content, SkillBuffDebuffSO skill)
     {
-        if (skill == null || skill.gameplay == null || skill.gameplay.conditionalOutcomes == null)
+        if (skill == null)
             return;
 
-        for (int i = 0; i < skill.gameplay.conditionalOutcomes.Count; i++)
+        if (skill.gameplay != null && skill.gameplay.conditionalOutcomes != null)
         {
-            BuffDebuffFlowConditionalOutcomeData branch = skill.gameplay.conditionalOutcomes[i];
-            if (branch == null || branch.effects == null || branch.effects.Count == 0)
-                continue;
-
-            if (!string.IsNullOrWhiteSpace(branch.tooltipText))
+            for (int i = 0; i < skill.gameplay.conditionalOutcomes.Count; i++)
             {
-                content.conditions.Add(FormatAuthoredTooltipText(branch.tooltipText));
-                continue;
-            }
+                BuffDebuffFlowConditionalOutcomeData branch = skill.gameplay.conditionalOutcomes[i];
+                if (branch == null || branch.effects == null || branch.effects.Count == 0)
+                    continue;
 
-            string conditionText = FormatCondition(branch.condition);
-            List<string> effects = new List<string>();
-            for (int effectIndex = 0; effectIndex < branch.effects.Count; effectIndex++)
-            {
-                BuffDebuffFlowEffectData effect = branch.effects[effectIndex];
-                if (effect != null && effect.previewable)
-                    effects.Add(effect.Summary);
-            }
+                if (!string.IsNullOrWhiteSpace(branch.tooltipText))
+                {
+                    content.conditions.Add(FormatAuthoredTooltipText(branch.tooltipText));
+                    continue;
+                }
 
-            if (effects.Count > 0)
-                content.conditions.Add($"If {conditionText}: {string.Join(" ", effects)}.");
+                string conditionText = FormatCondition(branch.condition);
+                List<string> effects = new List<string>();
+                for (int effectIndex = 0; effectIndex < branch.effects.Count; effectIndex++)
+                {
+                    BuffDebuffFlowEffectData effect = branch.effects[effectIndex];
+                    if (effect != null && effect.previewable)
+                        effects.Add(effect.Summary);
+                }
+
+                if (effects.Count > 0)
+                    content.conditions.Add($"If {conditionText}: {string.Join(" ", effects)}.");
+            }
         }
     }
 

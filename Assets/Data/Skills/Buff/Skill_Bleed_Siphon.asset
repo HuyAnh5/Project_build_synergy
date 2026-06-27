@@ -31,5 +31,14 @@ MonoBehaviour:
   gameplay:
     descriptionTemplate: 
     requirements: []
-    baseEffects: []
+    baseEffects:
+    - type: 0
+      target: 1
+      amount: 1
+      status: 1
+      durationTurns: 1
+      emberBurnEqualsFinalDamage: 1
+      emberBurnOnCritOnly: 1
+      emberBurnTurns: 3
+      previewable: 1
     conditionalOutcomes: []

@@ -18,6 +18,7 @@ This report tracks code that may be removable later. Nothing in this file is per
 | Tooltip-local `SkillTooltipPrefabProvider` caches and private `GetPrefabProvider()` helpers in skill/actor keyword tooltip classes | A shared `SkillTooltipPrefabProviderRegistry` now owns provider lookup/cache; the duplicated private caches had no unique behavior. | `dotnet build Project_build_synergy.sln` passes |
 | Local `unusedSkip` variable in `TurnManagerLifecycleUtility.BeginPlayerTurnStatusesAndFocus` | The out value was intentionally ignored; replaced with discard `_` without changing the `OnTurnStarted` call. | `dotnet build Project_build_synergy.sln` passes |
 | `TargetClickable2D.GetWorldUI` and private `_worldUI` cache | Actor world UI lookup now goes through `ActorWorldUiRegistry`; the private wrapper/cache had no callers. | `dotnet build Project_build_synergy.sln` passes |
+| `TargetClickable2D.TryBuildSelfGuardFinalPreview` and `ResolveSelfGuardGain` private wrappers | Self-guard preview now goes through `CombatGuardPreviewUtility` / `CombatPreviewBundleUtility`; the wrappers had no remaining callers and one wrapper was the source of a compile error because its `out` parameter was not assigned on the null-turn branch. | `dotnet build Project_build_synergy.sln` passes |
 | Unused skill keyword tooltip fallback builder helpers | Keyword tooltip creation now requires prefab/settings and logs a clear error when missing; the private fallback builder path had no callers. | `dotnet build Project_build_synergy.sln` passes |
 | Unused dice world-tooltip face-icon rect union helper path | Face-enchant tooltip rect path no longer used the combined face icon/value helper; the private combined rect helper and union helper had no callers. | `dotnet build Project_build_synergy.sln` passes |
 | Unused dice enchant hover-zone auto-position builder helpers and fields | `EnsureManagedEnchantHoverZone()` no longer creates the managed hover zone; private creation/position helpers and their private fields had no callers/assignments. Existing proxy enter/exit handlers were kept. | `dotnet build Project_build_synergy.sln` passes |
@@ -48,6 +49,6 @@ Do not run a broad private-method deletion sweep yet.
 
 ## Notes From Current Continuation
 
-No files were deleted in the latest cleanup. The newest batches focused on FPS-safe dirty setters, idle polling throttles, tooltip mesh caching, and report updates.
+No files were deleted in the latest cleanup. The newest batches focused on FPS-safe dirty setters, idle polling throttles, tooltip mesh caching, registry snapshot caching, shared preview helpers, and report updates.
 
 Large candidate groups remain intentionally untouched because Unity scene/prefab/event references cannot be proven safe from C# search alone.

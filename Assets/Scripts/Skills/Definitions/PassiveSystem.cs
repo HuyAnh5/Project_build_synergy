@@ -378,6 +378,7 @@ public partial class PassiveSystem : MonoBehaviour
     {
         if (runtime == null || runtime.kind != SkillKind.Attack || runtime.range != RangeType.Melee)
             return 0;
+
         return GetEffectValue(PassiveEffectId.MeleeFollowUpDamage);
     }
 
@@ -434,11 +435,11 @@ public partial class PassiveSystem : MonoBehaviour
 
     private void HandleRollThreeEnemyDamage(CombatActor owner, DiceSlotRig diceRig, IReadOnlyList<DiceSpinnerGeneric> changedDice, bool processAllActiveDice)
     {
-        int damagePerProc = GetEffectValue(PassiveEffectId.RollThreeRandomEnemyDamage);
-        if (owner == null || diceRig == null || damagePerProc <= 0)
+        int legacyRollThreeDamage = GetEffectValue(PassiveEffectId.RollThreeRandomEnemyDamage);
+        if (owner == null || diceRig == null)
             return;
 
-        int procCount = 0;
+        List<int> procDamages = new List<int>(3);
         for (int slot0 = 0; slot0 < 3; slot0++)
         {
             if (!diceRig.IsSlotActive(slot0))
@@ -455,14 +456,14 @@ public partial class PassiveSystem : MonoBehaviour
                 continue;
 
             int rolledValue = rollInfo.rolledValue;
-            if (rolledValue == 3)
-                procCount++;
+            if (rolledValue == 3 && legacyRollThreeDamage > 0)
+                procDamages.Add(legacyRollThreeDamage);
         }
 
-        if (procCount <= 0)
+        if (procDamages.Count <= 0)
             return;
 
-        StartCoroutine(ResolveRollThreeEnemyDamageSequence(owner, damagePerProc, procCount));
+        StartCoroutine(ResolveRollThreeEnemyDamageSequence(owner, procDamages));
     }
 
     private static bool ContainsChangedDie(IReadOnlyList<DiceSpinnerGeneric> changedDice, DiceSpinnerGeneric die)
@@ -481,16 +482,23 @@ public partial class PassiveSystem : MonoBehaviour
         return false;
     }
 
-    private IEnumerator ResolveRollThreeEnemyDamageSequence(CombatActor owner, int damagePerProc, int procCount)
+    private IEnumerator ResolveRollThreeEnemyDamageSequence(CombatActor owner, IReadOnlyList<int> procDamages)
     {
         DamagePopupSystem popups = DamagePopupSystemRegistry.Get();
-        for (int i = 0; i < procCount; i++)
+        if (procDamages == null)
+            yield break;
+
+        for (int i = 0; i < procDamages.Count; i++)
         {
+            int damage = Mathf.Max(0, procDamages[i]);
+            if (damage <= 0)
+                continue;
+
             CombatActor target = ResolvePreferredEnemyTarget(owner);
             if (target == null)
                 break;
 
-            CombatActor.DamageResult result = target.TakeDamageDetailed(damagePerProc, bypassGuard: false, attacker: owner);
+            CombatActor.DamageResult result = target.TakeDamageDetailed(damage, bypassGuard: false, attacker: owner);
             if (result.blocked > 0 || result.hpLost > 0)
                 CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Hit);
             if (result.guardBroken && target.status != null)
@@ -499,7 +507,7 @@ public partial class PassiveSystem : MonoBehaviour
                 popups.SpawnDamageSplit(owner, target, result.blocked, result.hpLost);
             PulsePassiveEffect(PassiveEffectId.RollThreeRandomEnemyDamage);
 
-            if (i < procCount - 1)
+            if (i < procDamages.Count - 1)
                 yield return new WaitForSeconds(RollThreeHitDelay);
         }
     }

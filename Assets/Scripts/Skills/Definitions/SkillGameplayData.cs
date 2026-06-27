@@ -329,5 +329,10 @@ public class SkillGameplayData
     private bool HasNoRequirements() => requirements == null || requirements.Count == 0;
     private bool HasNoBaseEffects() => baseEffects == null || baseEffects.Count == 0;
     private bool HasNoConditionalOutcomes() => conditionalOutcomes == null || conditionalOutcomes.Count == 0;
+
+    public bool HasAuthoringData =>
+        (requirements != null && requirements.Count > 0) ||
+        (baseEffects != null && baseEffects.Count > 0) ||
+        (conditionalOutcomes != null && conditionalOutcomes.Count > 0);
 }
 

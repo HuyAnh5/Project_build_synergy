@@ -38,13 +38,6 @@ public static partial class TargetPreviewBuilder
         return data;
     }
 
-    // Builds preview deltas for utility skills such as heals.
-    private static void BuildUtilityPreview(SkillRuntime rt, int dieValue, ref TargetPreviewData data)
-    {
-        // Buff/debuff flow effects currently affect cast flow, dice, or owner state.
-        // They do not mutate target HP in the shared target preview.
-    }
-
     // Resolves all targets affected by the action, including AoE fallback behavior.
     private static List<CombatActor> ResolveActionTargets(
         SkillRuntime rt,

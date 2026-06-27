@@ -103,11 +103,25 @@ Reason:
 * Skill tooltip, actor keyword tooltip, consumable tooltip, and dice tooltip still duplicate positioning/content-refresh patterns.
 * Canvas lookup, dirty setters, content signatures, and TMP mesh caching are now shared/partially applied, so the next step can focus on extracting an actual shared presenter/positioner.
 
+### Combat target/guard preview presentation
+
+First shared-preview slice is now complete:
+
+* `CombatTargetPreviewPresenter` centralizes target preview show/clear across `ActorWorldUI` and `CombatHUD`.
+* `CombatGuardPreviewUtility` centralizes guard die-value resolution and self-guard final preview data.
+* `CombatPreviewBundleUtility.BuildActionBundleWithSelfGuard()` centralizes the duplicated bundle-build flow used by `TargetClickable2D` and `SkillIconPreviewController`.
+* Removed leftover private self-guard wrapper helpers from `TargetClickable2D` after call sites moved to the shared utility.
+
+Remaining preview duplication:
+
+* Resource/focus preview ownership is still split between skill icons, target clickables, and HUD.
+* Target input/raycast/drop handling is still owned by `TargetClickable2D` and should not be moved until covered by manual tests.
+
 Next medium-risk target:
 
-* Shared `CombatPreviewPresenter` for target/resource preview.
+* Shared resource/focus preview owner for `SkillIconPreviewController`, `TargetClickable2D`, and `CombatHUD`.
 
 Reason:
 
-* Target previews are spread across target clickables, skill icon preview controller, HUD, actor world UI, and target preview builder.
-* This touches gameplay-adjacent preview behavior, so it should be done after tooltip cleanup or with very explicit manual tests.
+* Target preview presentation is now shared, but resource preview ownership and restore behavior still has duplicated edge-case logic.
+* This touches hover/drag/select behavior, so it should be staged with explicit Unity tests.

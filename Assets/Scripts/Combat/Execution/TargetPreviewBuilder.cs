@@ -53,10 +53,7 @@ public static partial class TargetPreviewBuilder
         }
 
         if (rt.kind == SkillKind.Utility)
-        {
-            BuildUtilityPreview(rt, dieValue, ref data);
             return data;
-        }
 
         return data;
     }
@@ -86,6 +83,9 @@ public static partial class TargetPreviewBuilder
 
         if (rt == null || caster == null)
             return bundle;
+
+        if (rt.kind == SkillKind.Utility && rt.sourceAsset is SkillBuffDebuffSO)
+            return TryBuildBuffDebuffFlowBundle(rt, caster, clickedTarget, bundle);
 
         PassiveSystem passiveSystem = caster.GetComponent<PassiveSystem>();
         if (passiveSystem != null)

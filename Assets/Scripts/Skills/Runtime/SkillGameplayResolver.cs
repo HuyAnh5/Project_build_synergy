@@ -51,21 +51,21 @@ public static partial class SkillGameplayResolver
     public static SkillResolvedResult Resolve(SkillResolveContext context)
     {
         SkillResolvedResult result = new SkillResolvedResult();
-        if (context == null || context.skill == null || context.skill.gameplay == null)
+        if (context == null || context.gameplay == null)
         {
             result.canCast = false;
             result.failureReason = "Missing skill gameplay data.";
             return result;
         }
 
-        SkillGameplayData gameplay = context.skill.gameplay;
+        SkillGameplayData gameplay = context.gameplay;
         result.executionCount = ResolveBaseExecutionCount(gameplay.baseEffects);
         result.resolvedAPCost = context.runtime != null
             ? Mathf.Max(0, context.runtime.focusCost)
-            : Mathf.Max(0, context.skill.focusCost);
+            : ResolveFallbackFocusCost(context);
         result.resolvedDiceCost = context.runtime != null
             ? Mathf.Clamp(context.runtime.slotsRequired, 1, 3)
-            : Mathf.Clamp(context.skill.slotsRequired, 1, 3);
+            : ResolveFallbackDiceCost(context);
 
         if (!CheckRequirements(gameplay, context, result))
         {
@@ -146,12 +146,31 @@ public static partial class SkillGameplayResolver
         return new SkillResolveContext
         {
             skill = skill,
+            gameplay = skill != null ? skill.gameplay : null,
             runtime = runtime,
             caster = caster,
             target = target,
             conditionContext = conditionContext,
             totalAddedValue = SkillOutputValueUtility.GetTotalActionAddedValue(runtime)
         };
+    }
+
+    private static int ResolveFallbackFocusCost(SkillResolveContext context)
+    {
+        if (context == null)
+            return 0;
+        if (context.skill != null)
+            return Mathf.Max(0, context.skill.focusCost);
+        return 0;
+    }
+
+    private static int ResolveFallbackDiceCost(SkillResolveContext context)
+    {
+        if (context == null)
+            return 1;
+        if (context.skill != null)
+            return Mathf.Clamp(context.skill.slotsRequired, 1, 3);
+        return 1;
     }
 
     private static bool CheckRequirements(SkillGameplayData gameplay, SkillResolveContext context, SkillResolvedResult result)
@@ -261,6 +280,7 @@ public static partial class SkillGameplayResolver
         return new SkillResolveContext
         {
             skill = context.skill,
+            gameplay = context.gameplay,
             runtime = context.runtime,
             caster = context.caster,
             target = target,

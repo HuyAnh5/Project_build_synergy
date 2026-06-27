@@ -10,13 +10,18 @@ public enum BuffDebuffFlowEffectType
     TransformUsedDiceLow,
     RepeatFirstSkillNextTurn,
     NextSkillAddValue,
-    EmberWeapon
+    EmberWeapon,
+    GainAP = 10,
+    GainGuard = 11,
+    Heal = 12,
+    ApplyStatus = 13
 }
 
 public enum BuffDebuffFlowTarget
 {
     Self,
-    UsedDice
+    UsedDice,
+    SelectedTarget
 }
 
 [Serializable, InlineProperty]
@@ -37,6 +42,10 @@ public class BuffDebuffFlowEffectData
     [ShowIf(nameof(UsesAmount))]
     [MinValue(0)]
     public int amount = 1;
+
+    [LabelText("Status")]
+    [ShowIf(nameof(UsesStatus))]
+    public StatusKind status = StatusKind.Burn;
 
     [LabelText("Turns")]
     [ShowIf(nameof(UsesDuration))]
@@ -75,18 +84,29 @@ public class BuffDebuffFlowEffectData
     private bool ShowsTarget()
         => type == BuffDebuffFlowEffectType.RerollUsedDice ||
            type == BuffDebuffFlowEffectType.TransformUsedDiceHigh ||
-           type == BuffDebuffFlowEffectType.TransformUsedDiceLow;
+           type == BuffDebuffFlowEffectType.TransformUsedDiceLow ||
+           type == BuffDebuffFlowEffectType.GainGuard ||
+           type == BuffDebuffFlowEffectType.Heal ||
+           type == BuffDebuffFlowEffectType.ApplyStatus;
 
     private bool UsesAmount()
         => type == BuffDebuffFlowEffectType.RepeatFirstSkillNextTurn ||
            type == BuffDebuffFlowEffectType.NextSkillAddValue ||
-           type == BuffDebuffFlowEffectType.EmberWeapon;
+           type == BuffDebuffFlowEffectType.EmberWeapon ||
+           type == BuffDebuffFlowEffectType.GainAP ||
+           type == BuffDebuffFlowEffectType.GainGuard ||
+           type == BuffDebuffFlowEffectType.Heal ||
+           type == BuffDebuffFlowEffectType.ApplyStatus;
 
     private bool UsesDuration()
-        => type == BuffDebuffFlowEffectType.EmberWeapon;
+        => type == BuffDebuffFlowEffectType.EmberWeapon ||
+           (type == BuffDebuffFlowEffectType.ApplyStatus && status == StatusKind.Burn);
 
     private bool IsEmberWeapon()
         => type == BuffDebuffFlowEffectType.EmberWeapon;
+
+    private bool UsesStatus()
+        => type == BuffDebuffFlowEffectType.ApplyStatus;
 
     private string BuildSummary()
     {
@@ -104,6 +124,14 @@ public class BuffDebuffFlowEffectData
                 return $"Next skill gains +{Mathf.Max(0, amount)} added value";
             case BuffDebuffFlowEffectType.EmberWeapon:
                 return $"Melee skills +{Mathf.Max(0, amount)} value for {Mathf.Max(1, durationTurns)} turn(s)";
+            case BuffDebuffFlowEffectType.GainAP:
+                return $"Gain {Mathf.Max(0, amount)} AP";
+            case BuffDebuffFlowEffectType.GainGuard:
+                return $"Gain {Mathf.Max(0, amount)} Guard on {target}";
+            case BuffDebuffFlowEffectType.Heal:
+                return $"Heal {target} for {Mathf.Max(0, amount)}";
+            case BuffDebuffFlowEffectType.ApplyStatus:
+                return $"Apply {Mathf.Max(0, amount)} {status} to {target}";
             default:
                 return type.ToString();
         }
@@ -143,13 +171,13 @@ public class BuffDebuffFlowData
     public string descriptionTemplate;
 
     [BoxGroup("Requirements")]
-    [InfoBox("Requirements block skill use. Use the same dice/resource condition data as Skill Damage.", InfoMessageType.Info)]
+    [InfoBox("Requirements block skill use. Keep cast gates here; effects below stay buff/debuff-specific.", InfoMessageType.Info)]
     [InfoBox("None", InfoMessageType.None, nameof(HasNoRequirements))]
     [HideLabel]
     [ListDrawerSettings(DefaultExpandedState = false, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<SkillRequirementData> requirements = new List<SkillRequirementData>();
 
-    [BoxGroup("Base Effects")]
+    [BoxGroup("Effects")]
     [InfoBox("Effects that always run when the buff/debuff skill casts.", InfoMessageType.Info, nameof(HasNoBaseEffects))]
     [HideLabel]
     [ListDrawerSettings(DefaultExpandedState = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]

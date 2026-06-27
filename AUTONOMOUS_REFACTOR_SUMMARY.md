@@ -13,13 +13,9 @@ Latest verification command:
 Latest result:
 
 * 0 errors
-* 35 warnings
+* 0 warnings
 
-The remaining warnings are currently treated as non-blocking:
-
-* Odin `ListDrawerSettingsAttribute.Expanded` obsolete warnings in data/definition files.
-* Editor-only obsolete `FindObjectOfType` warnings.
-* Editor-only TMP `enableWordWrapping` warnings.
+Recent editor/setup obsolete API cleanup removed the previous dotnet warning noise for the checked solution.
 
 No gameplay behavior was intentionally changed.
 
@@ -111,6 +107,11 @@ Changed:
 * `DiceDraggableUI.Update()` now throttles idle pointer safety polling while keeping hover, drag, and hold-inspect states immediate.
 * `SkillTooltipUI` and `ActorWorldKeywordTooltipUI` now resolve `SkillTooltipPrefabProvider` through a shared registry/cache instead of direct scene scans.
 * Skill and consumable keyword tooltip link detection now caches TMP mesh generation by text content so pointer movement over unchanged text does not force a mesh rebuild each frame.
+* `ActorWorldUI` enemy intent refresh now uses a runtime signature plus dirty setters, reducing per-enemy UI churn in `LateUpdate` while still refreshing when enemy intent, enemy status, or player HP/Guard/status changes.
+* `ActorWorldUI` idle tooltip hotspot scans are throttled while active actor keyword tooltips still refresh every frame.
+* `SkillTooltipUI.Update()` throttles steady-state upkeep/link checks, with immediate refresh preserved for Shift expanded/collapsed changes.
+* `TargetingArrowUI` skips redraw work when the arrow start/end screen points and visual style have not changed.
+* Actor, skill, and consumable keyword tooltip views avoid redundant width writes and extra layout rebuilds when measured width is already correct.
 
 Left intentionally unchanged:
 
@@ -145,6 +146,8 @@ Changed:
 
 * `TurnManager.ResolveContinueButtonUi()` now avoids repeated all-button scans after a miss.
 * Runtime TMP wrapping calls were modernized where safe.
+* Editor/setup `FindObjectOfType` calls were modernized to `FindFirstObjectByType`.
+* Editor/setup TMP `enableWordWrapping` calls were modernized to `textWrappingMode`.
 * `PassiveSystem.Rebuild()` no longer calls a private no-op `Accumulate()` path.
 * Dice edit debug gates were changed from `const bool false` to `static readonly bool false` to avoid unreachable-code warnings while preserving the disabled debug path.
 * `MapPrototypeController.UiBuild.LogMap()` now respects existing serialized `verboseLogging`.
@@ -156,7 +159,24 @@ Latest cleanup verification:
 
 * `dotnet build Project_build_synergy.sln`
 * 0 errors
-* 35 warnings
+* 0 warnings
+
+## Latest Continuation Notes
+
+Completed in the latest continuation:
+
+* Fixed the temporary compile failure in `TargetClickable2D` by removing unused private self-guard wrapper helpers after preview call sites moved to shared utilities.
+* Added cached snapshot arrays to `ActorWorldUiRegistry`, `DraggableSkillIconRegistry`, and `DiceDraggableUiRegistry` so stable UI registry snapshots no longer allocate a new array on every request.
+* Added cached all-actor snapshots to `CombatActorRegistry.GetAllSnapshot(includeInactive: true)`. Active-only actor queries still rebuild so active-state semantics stay unchanged.
+* Added LayoutElement/RectTransform dirty setters to `CombatUiDirtySetUtility`.
+* Applied those dirty setters to skill and consumable keyword tooltip icon/layout paths.
+* Added `CombatPreviewBundleUtility.BuildActionBundleWithSelfGuard()` and moved duplicated target/guard preview bundle logic out of `TargetClickable2D` and `SkillIconPreviewController`.
+
+Latest build:
+
+* `dotnet build Project_build_synergy.sln`
+* 0 errors
+* 0 warnings
 
 ## Files Modified
 
@@ -205,7 +225,7 @@ The only code deletion was a verified private no-op path in `PassiveSystem`.
 
 1. Tooltip/keyword tooltip/layout consolidation.
 2. Further dirty-flag reduction in `ConsumableBarUIManager`, `DraggableSkillIcon`, `DiceDraggableUI`, and `DiceEquipUIManager`.
-3. Shared target/resource preview presenter for `TargetClickable2D`, `SkillIconPreviewController`, `CombatHUD`, and `ActorWorldUI`.
+3. Shared resource/focus preview owner for `TargetClickable2D`, `SkillIconPreviewController`, and `CombatHUD`.
 4. Dice payment/value/crit/fail snapshot service.
 5. Runtime/preview convergence around `SkillExecutor`, `TargetPreviewBuilder`, and `SkillGameplayResolver`.
 6. Classification of prototype/demo/dice-edit systems before moving or deleting anything.

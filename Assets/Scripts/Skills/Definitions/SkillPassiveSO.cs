@@ -27,6 +27,7 @@ public class PassiveEffectEntry
     public string Summary => BuildSummary();
 
     [LabelText("Type")]
+    [ValueDropdown(nameof(GetPassiveBehaviorOptions), DropdownTitle = "Passive Behavior")]
     public PassiveEffectId id = PassiveEffectId.CritFocusOnUsedDie;
 
     [LabelText("Value")]
@@ -61,6 +62,17 @@ public class PassiveEffectEntry
                 return id.ToString();
         }
     }
+
+    private static IEnumerable<ValueDropdownItem<PassiveEffectId>> GetPassiveBehaviorOptions()
+    {
+        yield return new ValueDropdownItem<PassiveEffectId>("Crit / Used Crit Die -> Gain AP", PassiveEffectId.CritFocusOnUsedDie);
+        yield return new ValueDropdownItem<PassiveEffectId>("Guard / Counter Damage When Guard Blocks", PassiveEffectId.GuardCounterDamage);
+        yield return new ValueDropdownItem<PassiveEffectId>("Blood / Next Attack Damage After HP Hit", PassiveEffectId.BloodCounterNextAttackDamage);
+        yield return new ValueDropdownItem<PassiveEffectId>("Guard Break / Apply Mark To Attacker", PassiveEffectId.GuardBreakMark);
+        yield return new ValueDropdownItem<PassiveEffectId>("Melee / Follow-up Damage", PassiveEffectId.MeleeFollowUpDamage);
+        yield return new ValueDropdownItem<PassiveEffectId>("Damage / Minimum Impact", PassiveEffectId.MinimumImpactDamage);
+        yield return new ValueDropdownItem<PassiveEffectId>("Dice / Roll Value 3 Random Hit", PassiveEffectId.RollThreeRandomEnemyDamage);
+    }
 }
 
 [CreateAssetMenu(menuName = "Game/Skill/Passive", fileName = "SkillPassive_")]
@@ -79,7 +91,7 @@ public class SkillPassiveSO : ScriptableObject
     [TabGroup("Tabs", "Core")]
     [VerticalGroup("Tabs/Core/Header/Info")]
     [LabelText("Description")]
-    [InfoBox("Write passive tooltip text here. Preview and tooltip read this field; leave empty to auto-generate from Base Effects.", InfoMessageType.Info)]
+    [InfoBox("Write passive tooltip text here. Preview and tooltip read this field; leave empty to auto-generate from Behaviors.", InfoMessageType.Info)]
     [TextArea(2, 5)]
     [ShowInInspector]
     private string DescriptionTemplate
@@ -100,9 +112,7 @@ public class SkillPassiveSO : ScriptableObject
     public SkillSpecMetadata spec = new SkillSpecMetadata();
 
     [TabGroup("Tabs", "Gameplay")]
-    [TitleGroup("Tabs/Gameplay/Passive Schema", "Concrete id-driven passive effects.")]
-    [BoxGroup("Tabs/Gameplay/Passive Schema/Base Effects")]
-    [InfoBox("Effects are handled by PassiveSystem. Add one concrete passive effect per row.", InfoMessageType.Info)]
+    [TitleGroup("Tabs/Gameplay/Passive Behaviors", "Choose an existing behavior. Ask Codex to add new passive behavior code when the idea is unique.")]
     [HideLabel]
     [ListDrawerSettings(DefaultExpandedState = true, DraggableItems = true, ShowIndexLabels = false, ListElementLabelName = "Summary")]
     public List<PassiveEffectEntry> effects = new();
@@ -113,34 +123,30 @@ public class SkillPassiveSO : ScriptableObject
     private string GameplaySummary => BuildGameplaySummary();
 
     [TabGroup("Tabs", "Gameplay")]
-    [TitleGroup("Tabs/Gameplay/Quick Add", "Quick Add")]
+    [TitleGroup("Tabs/Gameplay/Quick Add", "Behavior presets")]
     [ButtonGroup("Tabs/Gameplay/Quick Add/Row1")]
     [Button("Crit +1 AP")]
     private void AddCritFocus() => AddEffect(e => { e.id = PassiveEffectId.CritFocusOnUsedDie; e.valueI = 1; });
 
     [ButtonGroup("Tabs/Gameplay/Quick Add/Row1")]
-    [Button("Guard Counter")]
-    private void AddGuardCounter() => AddEffect(e => { e.id = PassiveEffectId.GuardCounterDamage; e.valueI = 1; });
+    [Button("Minimum Impact 5")]
+    private void AddMinimumImpact() => AddEffect(e => { e.id = PassiveEffectId.MinimumImpactDamage; e.valueI = 5; });
 
     [ButtonGroup("Tabs/Gameplay/Quick Add/Row1")]
-    [Button("Blood Counter")]
-    private void AddBloodCounter() => AddEffect(e => { e.id = PassiveEffectId.BloodCounterNextAttackDamage; e.valueI = 1; });
-
-    [ButtonGroup("Tabs/Gameplay/Quick Add/Row2")]
-    [Button("Guard Break Mark")]
-    private void AddGuardBreakMark() => AddEffect(e => { e.id = PassiveEffectId.GuardBreakMark; e.valueI = 1; });
+    [Button("Roll 3 Hit")]
+    private void AddRollThreeHit() => AddEffect(e => { e.id = PassiveEffectId.RollThreeRandomEnemyDamage; e.valueI = 1; });
 
     [ButtonGroup("Tabs/Gameplay/Quick Add/Row2")]
     [Button("Melee Follow-up")]
     private void AddMeleeFollowUp() => AddEffect(e => { e.id = PassiveEffectId.MeleeFollowUpDamage; e.valueI = 1; });
 
     [ButtonGroup("Tabs/Gameplay/Quick Add/Row2")]
-    [Button("Minimum Impact 5")]
-    private void AddMinimumImpact() => AddEffect(e => { e.id = PassiveEffectId.MinimumImpactDamage; e.valueI = 5; });
+    [Button("Guard Counter")]
+    private void AddGuardCounter() => AddEffect(e => { e.id = PassiveEffectId.GuardCounterDamage; e.valueI = 1; });
 
-    [ButtonGroup("Tabs/Gameplay/Quick Add/Row3")]
-    [Button("Roll 3 Hit")]
-    private void AddRollThreeHit() => AddEffect(e => { e.id = PassiveEffectId.RollThreeRandomEnemyDamage; e.valueI = 1; });
+    [ButtonGroup("Tabs/Gameplay/Quick Add/Row2")]
+    [Button("Blood Counter")]
+    private void AddBloodCounter() => AddEffect(e => { e.id = PassiveEffectId.BloodCounterNextAttackDamage; e.valueI = 1; });
 
     private void AddEffect(Action<PassiveEffectEntry> init)
     {
@@ -163,14 +169,17 @@ public class SkillPassiveSO : ScriptableObject
 
     private string BuildGameplaySummary()
     {
-        if (effects == null || effects.Count == 0)
-            return "Passive Gameplay\nBase Effects: None";
-
         List<string> lines = new List<string>
         {
             "Passive Gameplay",
-            "Base Effects:"
+            "Behaviors:"
         };
+
+        if (effects == null || effects.Count == 0)
+        {
+            lines.Add("- None");
+            return string.Join("\n", lines);
+        }
 
         for (int i = 0; i < effects.Count; i++)
         {
