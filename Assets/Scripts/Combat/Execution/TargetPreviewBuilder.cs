@@ -404,6 +404,7 @@ internal static class CombatActionPreviewSimulator
         destination.burnTurns = source.burnTurns;
         CopyBurnBatches(source, destination);
         destination.marked = source.marked;
+        destination.markPayoffsRemaining = source.markPayoffsRemaining;
         destination.bleedStacks = source.bleedStacks;
         destination.frozen = source.frozen;
         destination.chilledTurns = source.chilledTurns;
@@ -484,6 +485,7 @@ internal static class CombatActionPreviewSimulator
         private readonly int _burnTurns;
         private readonly BurnBatchSnapshot[] _burnBatches;
         private readonly bool _marked;
+        private readonly int _markPayoffsRemaining;
         private readonly int _bleedStacks;
         private readonly bool _frozen;
         private readonly int _chilledTurns;
@@ -496,6 +498,7 @@ internal static class CombatActionPreviewSimulator
             _burnTurns = status != null ? status.burnTurns : 0;
             _burnBatches = CaptureBurnBatches(status);
             _marked = status != null && status.marked;
+            _markPayoffsRemaining = status != null ? status.markPayoffsRemaining : 0;
             _bleedStacks = status != null ? status.bleedStacks : 0;
             _frozen = status != null && status.frozen;
             _chilledTurns = status != null ? status.chilledTurns : 0;
@@ -513,6 +516,7 @@ internal static class CombatActionPreviewSimulator
             status.burnTurns = _burnTurns;
             RestoreBurnBatches(status, _burnBatches);
             status.marked = _marked;
+            status.markPayoffsRemaining = _markPayoffsRemaining;
             status.bleedStacks = _bleedStacks;
             status.frozen = _frozen;
             status.chilledTurns = _chilledTurns;

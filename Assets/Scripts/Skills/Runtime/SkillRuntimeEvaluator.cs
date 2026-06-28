@@ -93,6 +93,10 @@ public static partial class SkillRuntimeEvaluator
             rt.ownerFlatDamageBonus = Mathf.Max(0, owner.status.emberWeaponBonusDamage);
 
         rt.ownerActionAddedValueBonus = owner.status.PeekNextSkillAddedValue();
+
+        PassiveSystem passiveSystem = owner.GetComponent<PassiveSystem>();
+        if (passiveSystem != null)
+            rt.ownerActionAddedValueBonus += passiveSystem.GetCombatAddedValueBonus();
     }
 
 }

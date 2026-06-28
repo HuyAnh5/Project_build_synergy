@@ -16,7 +16,11 @@ public enum PassiveEffectId
     GuardBreakMark = 4,
     MeleeFollowUpDamage = 5,
     MinimumImpactDamage = 6,
-    RollThreeRandomEnemyDamage = 7
+    RollThreeRandomEnemyDamage = 7,
+    FailDieNextSkillAddedValue = 8,
+    MarkPayoffMinHits = 9,
+    FailDiceCountdownCombatAddedValue = 10,
+    RangedHitChanceApplyMark = 11
 }
 
 [Serializable, InlineProperty]
@@ -31,7 +35,12 @@ public class PassiveEffectEntry
     public PassiveEffectId id = PassiveEffectId.CritFocusOnUsedDie;
 
     [LabelText("Value")]
+    [ShowIf(nameof(UsesValue))]
     public int valueI = 1;
+
+    [LabelText("Value 2")]
+    [ShowIf(nameof(UsesValue2))]
+    public int value2I = 0;
 
     public void ApplyDefaults()
     {
@@ -58,6 +67,14 @@ public class PassiveEffectEntry
                 return $"Damage you deal below {value} becomes {value}.";
             case PassiveEffectId.RollThreeRandomEnemyDamage:
                 return $"Whenever you roll a 3, deal {value} damage to a random front enemy.";
+            case PassiveEffectId.FailDieNextSkillAddedValue:
+                return $"When using a Fail die, your next skill this turn gains +{value} Added Value.";
+            case PassiveEffectId.MarkPayoffMinHits:
+                return "Mark you apply lasts for at least 2 payoff hits.";
+            case PassiveEffectId.FailDiceCountdownCombatAddedValue:
+                return $"Every {value} Fail dice used, gain +{Mathf.Max(0, value2I)} Added Value for this combat.";
+            case PassiveEffectId.RangedHitChanceApplyMark:
+                return $"Ranged hits have a {Mathf.Clamp(value, 0, 100)}% chance to apply Mark.";
             default:
                 return id.ToString();
         }
@@ -72,7 +89,33 @@ public class PassiveEffectEntry
         yield return new ValueDropdownItem<PassiveEffectId>("Melee / Follow-up Damage", PassiveEffectId.MeleeFollowUpDamage);
         yield return new ValueDropdownItem<PassiveEffectId>("Damage / Minimum Impact", PassiveEffectId.MinimumImpactDamage);
         yield return new ValueDropdownItem<PassiveEffectId>("Dice / Roll Value 3 Random Hit", PassiveEffectId.RollThreeRandomEnemyDamage);
+        yield return new ValueDropdownItem<PassiveEffectId>("Fail / Used Fail Die -> Next Skill +Value", PassiveEffectId.FailDieNextSkillAddedValue);
+        yield return new ValueDropdownItem<PassiveEffectId>("Mark / Payoff Lasts Multiple Hits", PassiveEffectId.MarkPayoffMinHits);
+        yield return new ValueDropdownItem<PassiveEffectId>("Fail / Dice Countdown -> Combat +Value", PassiveEffectId.FailDiceCountdownCombatAddedValue);
+        yield return new ValueDropdownItem<PassiveEffectId>("Range / Hit Chance -> Apply Mark", PassiveEffectId.RangedHitChanceApplyMark);
     }
+
+    private bool UsesValue()
+    {
+        switch (id)
+        {
+            case PassiveEffectId.CritFocusOnUsedDie:
+            case PassiveEffectId.GuardCounterDamage:
+            case PassiveEffectId.BloodCounterNextAttackDamage:
+            case PassiveEffectId.MeleeFollowUpDamage:
+            case PassiveEffectId.MinimumImpactDamage:
+            case PassiveEffectId.RollThreeRandomEnemyDamage:
+            case PassiveEffectId.FailDieNextSkillAddedValue:
+            case PassiveEffectId.FailDiceCountdownCombatAddedValue:
+            case PassiveEffectId.RangedHitChanceApplyMark:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private bool UsesValue2()
+        => id == PassiveEffectId.FailDiceCountdownCombatAddedValue;
 }
 
 [CreateAssetMenu(menuName = "Game/Skill/Passive", fileName = "SkillPassive_")]

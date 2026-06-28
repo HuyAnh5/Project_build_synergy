@@ -10,6 +10,7 @@ internal static class StatusStateUtility
         owner.SyncBurnDisplay(0, 0);
         owner.GetBurnBatches().Clear();
         owner.marked = false;
+        owner.markPayoffsRemaining = 0;
         owner.bleedStacks = 0;
         owner.chilledTurns = 0;
         owner.frozen = false;

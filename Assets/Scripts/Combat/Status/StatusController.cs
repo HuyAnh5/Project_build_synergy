@@ -18,6 +18,7 @@ public class StatusController : MonoBehaviour
 
     // Mark: tồn tại tới hit kế tiếp
     public bool marked;
+    [HideInInspector] public int markPayoffsRemaining;
 
     // Bleed: stack giảm dần (-1 mỗi cuối turn), đầu turn mất HP = stack
     public int bleedStacks;
@@ -176,7 +177,42 @@ public class StatusController : MonoBehaviour
     public int ConsumeAllBurn()
         => StatusStateUtility.ConsumeAllBurn(this);
 
-    public void ApplyMark() => marked = true;
+    public void ApplyMark()
+        => ApplyMark(1);
+
+    public void ApplyMark(int minimumPayoffCount)
+    {
+        marked = true;
+        markPayoffsRemaining = Mathf.Max(markPayoffsRemaining, Mathf.Max(1, minimumPayoffCount));
+    }
+
+    public void ApplyMark(CombatActor source)
+    {
+        int minimumPayoffs = 1;
+        PassiveSystem passiveSystem = source != null ? source.GetComponent<PassiveSystem>() : null;
+        if (passiveSystem != null)
+            minimumPayoffs = passiveSystem.GetAppliedMarkMinimumPayoffCount();
+
+        ApplyMark(minimumPayoffs);
+    }
+
+    public bool ConsumeMarkPayoff()
+    {
+        if (!marked)
+            return false;
+
+        if (markPayoffsRemaining <= 0)
+            markPayoffsRemaining = 1;
+
+        markPayoffsRemaining--;
+        if (markPayoffsRemaining <= 0)
+        {
+            marked = false;
+            markPayoffsRemaining = 0;
+        }
+
+        return true;
+    }
 
     public void ApplyBleed(int stacks)
         => StatusStateUtility.ApplyBleed(this, stacks);

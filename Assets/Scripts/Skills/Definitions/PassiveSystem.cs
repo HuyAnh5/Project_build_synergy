@@ -23,6 +23,9 @@ public partial class PassiveSystem : MonoBehaviour
     private const float RollThreeHitDelay = 0.15f;
 
     private bool _bloodCounterAddedValueActive;
+    private bool _failDieNextSkillAddedValueActive;
+    private int _failDiceCountdownProgress;
+    private int _combatAddedValueBonus;
 
     partial void OverrideTesterPassiveRuntimeEnabled(SkillPassiveSO passive, ref bool enabled);
 
@@ -44,10 +47,12 @@ public partial class PassiveSystem : MonoBehaviour
         TryBindInventory();
         SyncFromInventoryIfPossible();
         Rebuild();
+        PassiveSystemRegistry.Register(this);
     }
 
     private void OnDisable()
     {
+        PassiveSystemRegistry.Unregister(this);
         UnbindInventory();
     }
 
@@ -179,6 +184,10 @@ public partial class PassiveSystem : MonoBehaviour
     public void OnCombatStarted()
     {
         _combatAllFaceBonuses.Clear();
+        _bloodCounterAddedValueActive = false;
+        _failDieNextSkillAddedValueActive = false;
+        _failDiceCountdownProgress = 0;
+        _combatAddedValueBonus = 0;
         CaptureKnownDiceFaces(refreshTrackedBaseValues: true);
         ReapplyAllTrackedFaceBonuses();
     }
@@ -243,23 +252,112 @@ public partial class PassiveSystem : MonoBehaviour
         return total;
     }
 
-    public void HandleUsedDiceCritFocus(CombatActor owner, DiceSlotRig diceRig, int paymentMask)
+    public void HandleUsedDiceCritFocus(CombatActor owner, DiceSlotRig diceRig, int paymentMask, SkillRuntime runtime = null)
     {
         int focusPerCrit = GetEffectValue(PassiveEffectId.CritFocusOnUsedDie);
         if (owner == null || diceRig == null || focusPerCrit <= 0 || paymentMask <= 0)
             return;
 
-        int critCount = 0;
-        for (int slot0 = 0; slot0 < 3; slot0++)
-        {
-            if ((paymentMask & (1 << slot0)) != 0 && diceRig.IsCrit(slot0))
-                critCount++;
-        }
+        int critCount = CountUsedDiceWithFlag(runtime != null ? runtime.localCritFlags : null, diceRig, paymentMask, diceRig.IsCrit);
 
         if (critCount > 0)
         {
             owner.GainFocus(focusPerCrit * critCount);
             PulsePassiveEffect(PassiveEffectId.CritFocusOnUsedDie);
+        }
+    }
+
+    public void HandleUsedDicePassiveEffects(CombatActor owner, DiceSlotRig diceRig, int paymentMask, SkillRuntime runtime = null)
+    {
+        HandleUsedDiceCritFocus(owner, diceRig, paymentMask, runtime);
+        HandleUsedFailDiceEffects(owner, diceRig, paymentMask, runtime);
+    }
+
+    private void HandleUsedFailDiceEffects(CombatActor owner, DiceSlotRig diceRig, int paymentMask, SkillRuntime runtime)
+    {
+        if (owner == null || diceRig == null || paymentMask <= 0)
+            return;
+
+        int failCount = CountUsedDiceWithFlag(runtime != null ? runtime.localFailFlags : null, diceRig, paymentMask, diceRig.IsFail);
+
+        if (failCount <= 0)
+            return;
+
+        int nextSkillAddedValue = GetEffectValue(PassiveEffectId.FailDieNextSkillAddedValue);
+        if (nextSkillAddedValue > 0 && owner.status != null)
+        {
+            owner.status.GrantNextSkillAddedValue(nextSkillAddedValue * failCount);
+            _failDieNextSkillAddedValueActive = true;
+            PulsePassiveEffect(PassiveEffectId.FailDieNextSkillAddedValue);
+        }
+
+        ApplyFailCountdownCombatAddedValue(failCount);
+        SkillTooltipUI.RefreshCurrent();
+    }
+
+    private delegate bool DiceSlotFlagGetter(int slot0);
+
+    private static int CountUsedDiceWithFlag(IReadOnlyList<bool> runtimeFlags, DiceSlotRig diceRig, int paymentMask, DiceSlotFlagGetter fallback)
+    {
+        if (paymentMask <= 0)
+            return 0;
+
+        if (runtimeFlags != null && runtimeFlags.Count > 0)
+        {
+            int count = 0;
+            for (int i = 0; i < runtimeFlags.Count; i++)
+            {
+                if (runtimeFlags[i])
+                    count++;
+            }
+
+            return count;
+        }
+
+        if (diceRig == null || fallback == null)
+            return 0;
+
+        int fallbackCount = 0;
+        for (int slot0 = 0; slot0 < 3; slot0++)
+        {
+            if ((paymentMask & (1 << slot0)) != 0 && fallback(slot0))
+                fallbackCount++;
+        }
+
+        return fallbackCount;
+    }
+
+    private void ApplyFailCountdownCombatAddedValue(int failCount)
+    {
+        if (equipped == null || failCount <= 0)
+            return;
+
+        for (int i = 0; i < equipped.Count; i++)
+        {
+            SkillPassiveSO passive = equipped[i];
+            if (passive == null || passive.effects == null || !IsPassiveRuntimeEnabled(passive))
+                continue;
+
+            for (int k = 0; k < passive.effects.Count; k++)
+            {
+                PassiveEffectEntry effect = passive.effects[k];
+                if (effect == null || effect.id != PassiveEffectId.FailDiceCountdownCombatAddedValue)
+                    continue;
+
+                int threshold = Mathf.Max(1, effect.valueI);
+                int addedValue = Mathf.Max(0, effect.value2I);
+                if (addedValue <= 0)
+                    continue;
+
+                _failDiceCountdownProgress += failCount;
+                int procCount = _failDiceCountdownProgress / threshold;
+                if (procCount <= 0)
+                    continue;
+
+                _failDiceCountdownProgress -= procCount * threshold;
+                _combatAddedValueBonus += addedValue * procCount;
+                PulsePassiveEffect(PassiveEffectId.FailDiceCountdownCombatAddedValue);
+            }
         }
     }
 
@@ -295,6 +393,65 @@ public partial class PassiveSystem : MonoBehaviour
         return critCount * focusPerCrit;
     }
 
+    public int GetCombatAddedValueBonus()
+        => Mathf.Max(0, _combatAddedValueBonus);
+
+    public int GetFailDiceCountdownRemaining(int threshold)
+    {
+        int safeThreshold = Mathf.Max(1, threshold);
+        int progress = Mathf.Clamp(_failDiceCountdownProgress, 0, safeThreshold - 1);
+        int remaining = safeThreshold - progress;
+        return Mathf.Clamp(remaining, 1, safeThreshold);
+    }
+
+    public int GetAppliedMarkMinimumPayoffCount()
+    {
+        return HasEffect(PassiveEffectId.MarkPayoffMinHits) ? 2 : 1;
+    }
+
+    private bool HasEffect(PassiveEffectId effectId)
+    {
+        if (equipped == null)
+            return false;
+
+        for (int i = 0; i < equipped.Count; i++)
+        {
+            SkillPassiveSO passive = equipped[i];
+            if (passive == null || passive.effects == null || !IsPassiveRuntimeEnabled(passive))
+                continue;
+
+            for (int k = 0; k < passive.effects.Count; k++)
+            {
+                PassiveEffectEntry effect = passive.effects[k];
+                if (effect != null && effect.id == effectId)
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    public void HandleResolvedHit(SkillRuntime runtime, CombatActor target, CombatActor.DamageResult result)
+    {
+        if (runtime == null || target == null || target.status == null)
+            return;
+
+        bool hitSucceeded = result.blocked > 0 || result.hpLost > 0 || result.requested > 0;
+        if (!hitSucceeded || runtime.kind != SkillKind.Attack || runtime.range != RangeType.Ranged)
+            return;
+
+        int chance = Mathf.Clamp(GetEffectValue(PassiveEffectId.RangedHitChanceApplyMark), 0, 100);
+        if (chance <= 0)
+            return;
+
+        if (chance >= 100 || Random.Range(0, 100) < chance)
+        {
+            CombatActor owner = GetComponent<CombatActor>();
+            target.status.ApplyMark(owner);
+            PulsePassiveEffect(PassiveEffectId.RangedHitChanceApplyMark);
+        }
+    }
+
     public void HandleIncomingDamage(CombatActor attacker, CombatActor.DamageResult result)
     {
         if (attacker == null || attacker.IsDead)
@@ -324,7 +481,7 @@ public partial class PassiveSystem : MonoBehaviour
 
         if (result.guardBroken && GetEffectValue(PassiveEffectId.GuardBreakMark) > 0 && attacker.status != null)
         {
-            attacker.status.ApplyMark();
+            attacker.status.ApplyMark(GetComponent<CombatActor>());
             PulsePassiveEffect(PassiveEffectId.GuardBreakMark);
         }
     }
@@ -384,7 +541,7 @@ public partial class PassiveSystem : MonoBehaviour
 
     public void ClearBloodCounterAddedValueIfUnused()
     {
-        if (!_bloodCounterAddedValueActive)
+        if (!_bloodCounterAddedValueActive && !_failDieNextSkillAddedValueActive)
             return;
 
         CombatActor owner = GetComponent<CombatActor>();
@@ -392,6 +549,7 @@ public partial class PassiveSystem : MonoBehaviour
             owner.status.ClearNextSkillAddedValue();
 
         _bloodCounterAddedValueActive = false;
+        _failDieNextSkillAddedValueActive = false;
     }
 
     public void PulsePassiveEffect(PassiveEffectId effectId)
@@ -563,5 +721,50 @@ public partial class PassiveSystem : MonoBehaviour
             return false;
 
         return owner.team != target.team;
+    }
+}
+
+internal static class PassiveSystemRegistry
+{
+    private static PassiveSystem _playerPassiveSystem;
+
+    public static void Register(PassiveSystem passiveSystem)
+    {
+        if (passiveSystem == null)
+            return;
+
+        CombatActor actor = passiveSystem.GetComponent<CombatActor>();
+        if (actor != null && actor.isPlayer)
+            _playerPassiveSystem = passiveSystem;
+    }
+
+    public static void Unregister(PassiveSystem passiveSystem)
+    {
+        if (passiveSystem != null && _playerPassiveSystem == passiveSystem)
+            _playerPassiveSystem = null;
+    }
+
+    public static PassiveSystem GetPlayer()
+    {
+        if (_playerPassiveSystem != null && _playerPassiveSystem.isActiveAndEnabled)
+            return _playerPassiveSystem;
+
+#if UNITY_2023_1_OR_NEWER
+        PassiveSystem[] systems = Object.FindObjectsByType<PassiveSystem>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+#else
+        PassiveSystem[] systems = Object.FindObjectsOfType<PassiveSystem>();
+#endif
+        for (int i = 0; systems != null && i < systems.Length; i++)
+        {
+            PassiveSystem system = systems[i];
+            CombatActor actor = system != null ? system.GetComponent<CombatActor>() : null;
+            if (actor != null && actor.isPlayer)
+            {
+                _playerPassiveSystem = system;
+                return _playerPassiveSystem;
+            }
+        }
+
+        return null;
     }
 }

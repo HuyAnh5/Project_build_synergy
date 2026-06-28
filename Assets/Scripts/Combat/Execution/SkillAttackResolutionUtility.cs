@@ -143,6 +143,7 @@ internal static partial class SkillAttackResolutionUtility
         CombatActor.DamageResult primaryDamageResult = dmgResult;
         if (immediateDamage > 0)
             CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Hit);
+        ps?.HandleResolvedHit(rt, target, dmgResult);
         List<ResolvedEffect> delayedPassiveMeleeFollowUps = null;
         QueuePassiveMeleeFollowUp(rt, ps, target, immediateDamage, ref delayedPassiveMeleeFollowUps);
         if (delayedBurnConsumeDamage > 0)
@@ -194,7 +195,7 @@ internal static partial class SkillAttackResolutionUtility
         if (triggerMarkPayoff && target.status != null)
         {
             CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.MarkPayoff);
-            target.status.marked = false;
+            target.status.ConsumeMarkPayoff();
         }
 
         if (preview.consumesStagger && target.status != null)

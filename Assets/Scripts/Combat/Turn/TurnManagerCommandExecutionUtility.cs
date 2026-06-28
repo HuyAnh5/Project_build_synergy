@@ -40,7 +40,6 @@ internal static class TurnManagerCommandExecutionUtility
             }
 
             yield return ExecuteBuffSkillWithPostCastDiceFlow(command, executor, player, diceRig, buffSkill, executionRuntime, resolvedSum, aoeTargets, context as TurnManager, suppressDiceCastAnimation: false);
-            playerContext?.PassiveSystem?.HandleUsedDiceCritFocus(player, diceRig, command.paymentMask);
 
             int statusRepeatCount = ConsumeRepeatFirstSkillExtraCasts(player);
             for (int i = 0; i < statusRepeatCount; i++)
@@ -76,7 +75,6 @@ internal static class TurnManagerCommandExecutionUtility
                 Debug.Log($"[TM] Branch=Runtime (Attack/Guard/Legacy) -> rt.kind={executionRuntime.kind}", context);
 
             yield return executor.ExecuteSkill(executionRuntime, player, command.target, resolvedSum, skipCost: true, aoeTargets: aoeTargets, castDiceRig: diceRig, castStart0: command.start0, castSpan: command.span, castPaymentMask: command.paymentMask);
-            playerContext?.PassiveSystem?.HandleUsedDiceCritFocus(player, diceRig, command.paymentMask);
 
             int statusRepeatCount = ConsumeRepeatFirstSkillExtraCasts(player);
             for (int i = 0; i < statusRepeatCount; i++)

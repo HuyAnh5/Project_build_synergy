@@ -29,7 +29,7 @@ internal static class BuffDebuffFlowActorEffectApplier
                 target?.Heal(Mathf.Max(0, effect.amount));
                 break;
             case BuffDebuffFlowEffectType.ApplyStatus:
-                ApplyStatus(effect, target);
+                ApplyStatus(effect, caster, target);
                 break;
         }
     }
@@ -78,7 +78,7 @@ internal static class BuffDebuffFlowActorEffectApplier
             CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Guard);
     }
 
-    private static void ApplyStatus(BuffDebuffFlowEffectData effect, CombatActor target)
+    private static void ApplyStatus(BuffDebuffFlowEffectData effect, CombatActor caster, CombatActor target)
     {
         if (target == null || target.status == null)
             return;
@@ -93,7 +93,7 @@ internal static class BuffDebuffFlowActorEffectApplier
                 target.status.ApplyBurn(amount, Mathf.Max(1, effect.durationTurns));
                 break;
             case StatusKind.Mark:
-                target.status.ApplyMark();
+                target.status.ApplyMark(caster);
                 break;
             case StatusKind.Bleed:
                 target.status.ApplyBleed(amount);

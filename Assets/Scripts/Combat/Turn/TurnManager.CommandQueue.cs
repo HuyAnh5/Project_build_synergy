@@ -120,7 +120,10 @@ public partial class TurnManager
         }
 
         MarkDiceSpentInRange(start0, span, paymentPlan.selectedMask);
+        _playerContext.Bind(player);
+        _playerContext.PassiveSystem?.HandleUsedDicePassiveEffects(player, diceRig, paymentPlan.selectedMask, rt);
         _board.ConsumeGroupAtAnchor_NoRefund(_cursor);
+        _board.RecalculateRuntimesAndRebalance(player, diceRig);
         _queuedPlayerCommands.Enqueue(new TurnManagerQueuedPlayerCommand
         {
             kind = TurnManagerQueuedPlayerCommandKind.Skill,

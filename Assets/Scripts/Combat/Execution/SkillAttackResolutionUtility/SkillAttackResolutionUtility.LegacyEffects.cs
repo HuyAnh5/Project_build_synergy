@@ -81,7 +81,7 @@ internal static partial class SkillAttackResolutionUtility
             }
         }
 
-        if (rt.applyMark) target.status.ApplyMark();
+        if (rt.applyMark) target.status.ApplyMark(caster);
         if (rt.applyBleed)
         {
             int bleedStacks = SkillOutputValueUtility.ResolveFlatStatusStacks(rt.bleedTurns);

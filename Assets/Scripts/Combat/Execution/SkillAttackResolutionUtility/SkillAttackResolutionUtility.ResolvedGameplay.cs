@@ -93,6 +93,7 @@ internal static partial class SkillAttackResolutionUtility
             CombatActor.DamageResult damageResult = effectTarget.TakeDamageDetailed(damage, bypassGuard: info.bypassGuard, attacker: caster);
             CombatActor.DamageResult primaryDamageResult = damageResult;
             PlayFeedback(effectTarget, CombatHitFeedback.FeedbackKind.Hit);
+            passiveSystem?.HandleResolvedHit(rt, effectTarget, damageResult);
             QueuePassiveMeleeFollowUp(rt, passiveSystem, effectTarget, damage, ref delayedPassiveMeleeFollowUpEffects);
             aggregateDamageResult.blocked += damageResult.blocked;
             aggregateDamageResult.hpLost += damageResult.hpLost;
@@ -158,7 +159,7 @@ internal static partial class SkillAttackResolutionUtility
                 }
 
                 PlayFeedback(effectTarget, CombatHitFeedback.FeedbackKind.MarkPayoff);
-                effectTarget.status.marked = false;
+                effectTarget.status.ConsumeMarkPayoff();
             }
 
             if (popups != null)
@@ -301,6 +302,7 @@ internal static partial class SkillAttackResolutionUtility
                 CombatActor.DamageResult damageResult = effectTarget.TakeDamageDetailed(damage, bypassGuard: rt.bypassGuard, attacker: caster);
                 CombatActor.DamageResult primaryDamageResult = damageResult;
                 PlayFeedback(effectTarget, CombatHitFeedback.FeedbackKind.Hit);
+                passiveSystem?.HandleResolvedHit(rt, effectTarget, damageResult);
                 if (damageResult.guardBroken && effectTarget.status != null)
                     effectTarget.status.ApplyStagger();
                 else if (consumesStagger && effectTarget.status != null)
@@ -362,7 +364,7 @@ internal static partial class SkillAttackResolutionUtility
                 target.status.ApplyBurn(value + GetBonusStatusStacks(passiveSystem, StatusKind.Burn), 3);
                 break;
             case StatusKind.Mark:
-                target.status.ApplyMark();
+                target.status.ApplyMark(passiveSystem != null ? passiveSystem.GetComponent<CombatActor>() : null);
                 break;
             case StatusKind.Bleed:
                 target.status.ApplyBleed(value + GetBonusStatusStacks(passiveSystem, StatusKind.Bleed));
@@ -391,7 +393,7 @@ internal static partial class SkillAttackResolutionUtility
         if (status == StatusKind.Mark && target.status.marked)
         {
             CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.MarkPayoff);
-            target.status.marked = false;
+            target.status.ConsumeMarkPayoff();
         }
     }
 }

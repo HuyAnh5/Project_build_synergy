@@ -45,7 +45,7 @@ public static partial class SkillTooltipFormatter
                 FillBuffContent(ref content, buffDebuff, runtime ?? BuildBuffRuntime(buffDebuff));
                 break;
             case SkillPassiveSO passive:
-                string passiveDescription = passive.GetAuthoringDescription();
+                string passiveDescription = BuildPassiveDescription(passive);
                 content.effectText = string.IsNullOrWhiteSpace(passiveDescription)
                     ? string.Empty
                     : ColorQuotedAddedValues(passiveDescription.Trim());
@@ -115,6 +115,73 @@ public static partial class SkillTooltipFormatter
         }
 
         return ColorQuotedAddedValues(description);
+    }
+
+    private static string BuildPassiveDescription(SkillPassiveSO passive)
+    {
+        if (passive == null)
+            return string.Empty;
+
+        string runtimeDescription = BuildRuntimePassiveDescription(passive);
+        if (!string.IsNullOrWhiteSpace(runtimeDescription))
+            return runtimeDescription;
+
+        return passive.GetAuthoringDescription();
+    }
+
+    private static string BuildRuntimePassiveDescription(SkillPassiveSO passive)
+    {
+        if (passive == null || passive.effects == null || passive.effects.Count == 0)
+            return string.Empty;
+
+        List<string> lines = null;
+        for (int i = 0; i < passive.effects.Count; i++)
+        {
+            PassiveEffectEntry effect = passive.effects[i];
+            if (effect == null)
+                continue;
+
+            string line = BuildRuntimePassiveEffectDescription(effect);
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            if (lines == null)
+                lines = new List<string>();
+            lines.Add(line);
+        }
+
+        return lines != null && lines.Count > 0 ? string.Join(" ", lines) : string.Empty;
+    }
+
+    private static string BuildRuntimePassiveEffectDescription(PassiveEffectEntry effect)
+    {
+        if (effect == null)
+            return string.Empty;
+
+        switch (effect.id)
+        {
+            case PassiveEffectId.FailDiceCountdownCombatAddedValue:
+                return BuildFailCountdownCombatAddedValueDescription(effect);
+            default:
+                return string.Empty;
+        }
+    }
+
+    private static string BuildFailCountdownCombatAddedValueDescription(PassiveEffectEntry effect)
+    {
+        int threshold = Mathf.Max(1, effect.valueI);
+        int addedValue = Mathf.Max(0, effect.value2I);
+        PassiveSystem passiveSystem = PassiveSystemRegistry.GetPlayer();
+        int remaining = passiveSystem != null
+            ? passiveSystem.GetFailDiceCountdownRemaining(threshold)
+            : threshold;
+        int currentBonus = passiveSystem != null
+            ? passiveSystem.GetCombatAddedValueBonus()
+            : 0;
+
+        string coloredRemaining = ColorText(remaining.ToString(), IncreasedValueColor);
+        string coloredCurrentBonus = ColorText($"+{currentBonus}", IncreasedValueColor);
+        return $"Every '{coloredRemaining}' Fail dice used, gain +{addedValue} Added Value for this combat. ({coloredCurrentBonus})";
     }
 
     private static void FillDamageContent(ref TooltipContent content, SkillDamageSO skill, SkillRuntime runtime)
