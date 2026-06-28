@@ -20,7 +20,10 @@ public enum PassiveEffectId
     FailDieNextSkillAddedValue = 8,
     MarkPayoffMinHits = 9,
     FailDiceCountdownCombatAddedValue = 10,
-    RangedHitChanceApplyMark = 11
+    RangedHitChanceApplyMark = 11,
+    LowHpRefillApOncePerCombat = 12,
+    RandomCommonPassiveThisCombat = 13,
+    OneTimeReviveThenEmptySlot = 14
 }
 
 [Serializable, InlineProperty]
@@ -75,6 +78,12 @@ public class PassiveEffectEntry
                 return $"Every {value} Fail dice used, gain +{Mathf.Max(0, value2I)} Added Value for this combat.";
             case PassiveEffectId.RangedHitChanceApplyMark:
                 return $"Ranged hits have a {Mathf.Clamp(value, 0, 100)}% chance to apply Mark.";
+            case PassiveEffectId.LowHpRefillApOncePerCombat:
+                return $"Once per combat, when HP falls to {Mathf.Clamp(value, 1, 100)}% or lower, refill AP.";
+            case PassiveEffectId.RandomCommonPassiveThisCombat:
+                return "At combat start, gain a random Common passive for this combat.";
+            case PassiveEffectId.OneTimeReviveThenEmptySlot:
+                return $"Once, revive with {Mathf.Clamp(value, 1, 100)}% HP, then empty this passive slot.";
             default:
                 return id.ToString();
         }
@@ -93,6 +102,9 @@ public class PassiveEffectEntry
         yield return new ValueDropdownItem<PassiveEffectId>("Mark / Payoff Lasts Multiple Hits", PassiveEffectId.MarkPayoffMinHits);
         yield return new ValueDropdownItem<PassiveEffectId>("Fail / Dice Countdown -> Combat +Value", PassiveEffectId.FailDiceCountdownCombatAddedValue);
         yield return new ValueDropdownItem<PassiveEffectId>("Range / Hit Chance -> Apply Mark", PassiveEffectId.RangedHitChanceApplyMark);
+        yield return new ValueDropdownItem<PassiveEffectId>("HP / Low HP Percent -> Refill AP", PassiveEffectId.LowHpRefillApOncePerCombat);
+        yield return new ValueDropdownItem<PassiveEffectId>("Combat / Random Common Passive Behavior", PassiveEffectId.RandomCommonPassiveThisCombat);
+        yield return new ValueDropdownItem<PassiveEffectId>("Death / One-Time Revive Then Empty Slot", PassiveEffectId.OneTimeReviveThenEmptySlot);
     }
 
     private bool UsesValue()
@@ -108,6 +120,8 @@ public class PassiveEffectEntry
             case PassiveEffectId.FailDieNextSkillAddedValue:
             case PassiveEffectId.FailDiceCountdownCombatAddedValue:
             case PassiveEffectId.RangedHitChanceApplyMark:
+            case PassiveEffectId.LowHpRefillApOncePerCombat:
+            case PassiveEffectId.OneTimeReviveThenEmptySlot:
                 return true;
             default:
                 return false;

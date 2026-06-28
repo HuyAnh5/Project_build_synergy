@@ -120,6 +120,7 @@ public partial class TurnManager
         }
 
         MarkDiceSpentInRange(start0, span, paymentPlan.selectedMask);
+        ConsumeNextSkillAddedValueIfPresent(player);
         _playerContext.Bind(player);
         _playerContext.PassiveSystem?.HandleUsedDicePassiveEffects(player, diceRig, paymentPlan.selectedMask, rt);
         _board.ConsumeGroupAtAnchor_NoRefund(_cursor);
@@ -268,5 +269,14 @@ public partial class TurnManager
 
         _diceEquipUiManager = DiceEquipUiManagerRegistry.Get();
         return _diceEquipUiManager;
+    }
+
+    private static void ConsumeNextSkillAddedValueIfPresent(CombatActor player)
+    {
+        if (player == null || player.status == null)
+            return;
+
+        if (player.status.PeekNextSkillAddedValue() > 0)
+            player.status.ConsumeNextSkillAddedValue();
     }
 }

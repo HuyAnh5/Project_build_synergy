@@ -216,9 +216,16 @@ public class CombatActor : MonoBehaviour
             r.hpLost = before - hp;
         }
 
+        PassiveSystem passiveSystem = GetComponent<PassiveSystem>();
+        if (passiveSystem != null)
+        {
+            if (hp <= 0)
+                passiveSystem.TryPreventDeath();
+            passiveSystem.HandleHpChanged();
+        }
+
         HandleLifeStateChanged();
 
-        PassiveSystem passiveSystem = GetComponent<PassiveSystem>();
         if (passiveSystem != null && (r.blocked > 0 || r.hpLost > 0))
             passiveSystem.HandleIncomingDamage(attacker, r);
 
@@ -238,6 +245,14 @@ public class CombatActor : MonoBehaviour
 
         if (remaining > 0)
             hp = Mathf.Max(0, hp - remaining);
+
+        PassiveSystem passiveSystem = GetComponent<PassiveSystem>();
+        if (passiveSystem != null)
+        {
+            if (hp <= 0)
+                passiveSystem.TryPreventDeath();
+            passiveSystem.HandleHpChanged();
+        }
 
         HandleLifeStateChanged();
     }

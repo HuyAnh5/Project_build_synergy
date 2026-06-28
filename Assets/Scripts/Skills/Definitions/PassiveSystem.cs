@@ -15,7 +15,11 @@ public partial class PassiveSystem : MonoBehaviour
     [Tooltip("Optional explicit reference. Leave empty on prefabs; it will be auto-found at runtime.")]
     [SerializeField] private RunInventoryManager runInventory;
 
+    [Tooltip("Optional passive database for random Common passive effects.")]
+    [SerializeField] private SkillDatabaseSO skillDatabase;
+
     private readonly List<SkillPassiveSO> _syncBuffer = new List<SkillPassiveSO>(16);
+    private readonly List<SkillPassiveSO> _temporaryCombatPassives = new List<SkillPassiveSO>(4);
     private readonly Dictionary<DiceSpinnerGeneric, int[]> _baseFaceValues = new Dictionary<DiceSpinnerGeneric, int[]>();
     private readonly Dictionary<DiceSpinnerGeneric, int[]> _permanentFaceBonuses = new Dictionary<DiceSpinnerGeneric, int[]>();
     private readonly Dictionary<DiceSpinnerGeneric, int> _combatAllFaceBonuses = new Dictionary<DiceSpinnerGeneric, int>();
@@ -24,6 +28,10 @@ public partial class PassiveSystem : MonoBehaviour
 
     private bool _bloodCounterAddedValueActive;
     private bool _failDieNextSkillAddedValueActive;
+    private bool _lowHpRefillUsedThisCombat;
+    private bool _randomCommonPassiveRolledThisCombat;
+    private bool _reviveUsedThisCombat;
+    private SkillPassiveSO _randomCommonPassivePickedThisCombat;
     private int _failDiceCountdownProgress;
     private int _combatAddedValueBonus;
 
@@ -146,6 +154,12 @@ public partial class PassiveSystem : MonoBehaviour
         equipped.Clear();
         for (int i = 0; i < _syncBuffer.Count; i++)
             equipped.Add(_syncBuffer[i]);
+        for (int i = 0; i < _temporaryCombatPassives.Count; i++)
+        {
+            SkillPassiveSO passive = _temporaryCombatPassives[i];
+            if (passive != null && !equipped.Contains(passive))
+                equipped.Add(passive);
+        }
     }
 
     public bool Equip(SkillPassiveSO passive)
@@ -184,10 +198,17 @@ public partial class PassiveSystem : MonoBehaviour
     public void OnCombatStarted()
     {
         _combatAllFaceBonuses.Clear();
+        _temporaryCombatPassives.Clear();
         _bloodCounterAddedValueActive = false;
         _failDieNextSkillAddedValueActive = false;
+        _lowHpRefillUsedThisCombat = false;
+        _randomCommonPassiveRolledThisCombat = false;
+        _reviveUsedThisCombat = false;
+        _randomCommonPassivePickedThisCombat = null;
         _failDiceCountdownProgress = 0;
         _combatAddedValueBonus = 0;
+        SyncFromInventoryIfPossible();
+        ApplyRandomCommonPassiveForCombat();
         CaptureKnownDiceFaces(refreshTrackedBaseValues: true);
         ReapplyAllTrackedFaceBonuses();
     }
@@ -396,6 +417,14 @@ public partial class PassiveSystem : MonoBehaviour
     public int GetCombatAddedValueBonus()
         => Mathf.Max(0, _combatAddedValueBonus);
 
+    public int GetPendingNextSkillAddedValueBonus()
+    {
+        CombatActor owner = GetComponent<CombatActor>();
+        return owner != null && owner.status != null
+            ? owner.status.PeekNextSkillAddedValue()
+            : 0;
+    }
+
     public int GetFailDiceCountdownRemaining(int threshold)
     {
         int safeThreshold = Mathf.Max(1, threshold);
@@ -431,6 +460,112 @@ public partial class PassiveSystem : MonoBehaviour
         return false;
     }
 
+    private PassiveEffectEntry FindFirstEffect(PassiveEffectId effectId, out SkillPassiveSO sourcePassive)
+    {
+        sourcePassive = null;
+        if (equipped == null)
+            return null;
+
+        for (int i = 0; i < equipped.Count; i++)
+        {
+            SkillPassiveSO passive = equipped[i];
+            if (passive == null || passive.effects == null || !IsPassiveRuntimeEnabled(passive))
+                continue;
+
+            for (int k = 0; k < passive.effects.Count; k++)
+            {
+                PassiveEffectEntry effect = passive.effects[k];
+                if (effect == null || effect.id != effectId)
+                    continue;
+
+                sourcePassive = passive;
+                return effect;
+            }
+        }
+
+        return null;
+    }
+
+    private void ApplyRandomCommonPassiveForCombat()
+    {
+        if (_randomCommonPassiveRolledThisCombat || !HasEffect(PassiveEffectId.RandomCommonPassiveThisCombat))
+            return;
+
+        _randomCommonPassiveRolledThisCombat = true;
+        List<SkillPassiveSO> candidates = new List<SkillPassiveSO>();
+        AddRandomCommonPassiveCandidatesFromDatabase(candidates);
+        AddRandomCommonPassiveCandidatesFromLoadedAssets(candidates);
+
+        if (candidates.Count <= 0)
+            return;
+
+        SkillPassiveSO picked = candidates[Random.Range(0, candidates.Count)];
+        _randomCommonPassivePickedThisCombat = picked;
+        _temporaryCombatPassives.Add(picked);
+        if (equipped == null)
+            equipped = new List<SkillPassiveSO>();
+        if (!equipped.Contains(picked))
+            equipped.Add(picked);
+
+        PulsePassiveEffect(PassiveEffectId.RandomCommonPassiveThisCombat);
+    }
+
+    public SkillPassiveSO GetRandomCommonPassivePickedThisCombat()
+        => _randomCommonPassivePickedThisCombat;
+
+    private void AddRandomCommonPassiveCandidatesFromDatabase(List<SkillPassiveSO> candidates)
+    {
+        SkillDatabaseSO database = ResolveSkillDatabase();
+        if (database == null || database.passiveSkills == null)
+            return;
+
+        for (int i = 0; i < database.passiveSkills.Count; i++)
+            AddRandomCommonPassiveCandidate(candidates, database.passiveSkills[i]);
+    }
+
+    private void AddRandomCommonPassiveCandidatesFromLoadedAssets(List<SkillPassiveSO> candidates)
+    {
+        SkillPassiveSO[] loadedPassives = Resources.FindObjectsOfTypeAll<SkillPassiveSO>();
+        for (int i = 0; loadedPassives != null && i < loadedPassives.Length; i++)
+            AddRandomCommonPassiveCandidate(candidates, loadedPassives[i]);
+    }
+
+    private void AddRandomCommonPassiveCandidate(List<SkillPassiveSO> candidates, SkillPassiveSO candidate)
+    {
+        if (candidates == null || candidate == null || candidate.spec == null || candidate.spec.rarity != ContentRarity.Common)
+            return;
+        if (IsEquipped(candidate) || ContainsEffect(candidate, PassiveEffectId.RandomCommonPassiveThisCombat))
+            return;
+        if (candidates.Contains(candidate))
+            return;
+
+        candidates.Add(candidate);
+    }
+
+    private SkillDatabaseSO ResolveSkillDatabase()
+    {
+        if (skillDatabase != null)
+            return skillDatabase;
+
+        skillDatabase = Resources.Load<SkillDatabaseSO>("Database_Skills");
+        return skillDatabase;
+    }
+
+    private static bool ContainsEffect(SkillPassiveSO passive, PassiveEffectId effectId)
+    {
+        if (passive == null || passive.effects == null)
+            return false;
+
+        for (int i = 0; i < passive.effects.Count; i++)
+        {
+            PassiveEffectEntry effect = passive.effects[i];
+            if (effect != null && effect.id == effectId)
+                return true;
+        }
+
+        return false;
+    }
+
     public void HandleResolvedHit(SkillRuntime runtime, CombatActor target, CombatActor.DamageResult result)
     {
         if (runtime == null || target == null || target.status == null)
@@ -454,6 +589,8 @@ public partial class PassiveSystem : MonoBehaviour
 
     public void HandleIncomingDamage(CombatActor attacker, CombatActor.DamageResult result)
     {
+        HandleLowHpRefillApIfNeeded();
+
         if (attacker == null || attacker.IsDead)
             return;
 
@@ -476,6 +613,7 @@ public partial class PassiveSystem : MonoBehaviour
                 owner.status.GrantNextSkillAddedValue(addedValue);
                 _bloodCounterAddedValueActive = true;
                 PulsePassiveEffect(PassiveEffectId.BloodCounterNextAttackDamage);
+                SkillTooltipUI.RefreshCurrent();
             }
         }
 
@@ -484,6 +622,11 @@ public partial class PassiveSystem : MonoBehaviour
             attacker.status.ApplyMark(GetComponent<CombatActor>());
             PulsePassiveEffect(PassiveEffectId.GuardBreakMark);
         }
+    }
+
+    public void HandleHpChanged()
+    {
+        HandleLowHpRefillApIfNeeded();
     }
 
     private IEnumerator ApplyGuardCounterDamageAfterDelay(CombatActor attacker, int damage)
@@ -550,6 +693,56 @@ public partial class PassiveSystem : MonoBehaviour
 
         _bloodCounterAddedValueActive = false;
         _failDieNextSkillAddedValueActive = false;
+    }
+
+    public bool TryPreventDeath()
+    {
+        if (_reviveUsedThisCombat)
+            return false;
+
+        PassiveEffectEntry reviveEffect = FindFirstEffect(PassiveEffectId.OneTimeReviveThenEmptySlot, out SkillPassiveSO sourcePassive);
+        if (reviveEffect == null || sourcePassive == null)
+            return false;
+
+        CombatActor owner = GetComponent<CombatActor>();
+        if (owner == null || owner.hp > 0)
+            return false;
+
+        _reviveUsedThisCombat = true;
+        int hpPercent = Mathf.Clamp(reviveEffect.valueI, 1, 100);
+        int reviveHp = Mathf.Max(1, Mathf.CeilToInt(owner.maxHP * hpPercent / 100f));
+        owner.hp = Mathf.Clamp(reviveHp, 1, Mathf.Max(1, owner.maxHP));
+        PulsePassiveEffect(PassiveEffectId.OneTimeReviveThenEmptySlot);
+
+        if (runInventory == null)
+            TryBindInventory();
+        if (runInventory != null)
+            runInventory.RemoveOwnedPassive(sourcePassive);
+
+        Unequip(sourcePassive);
+        return true;
+    }
+
+    private void HandleLowHpRefillApIfNeeded()
+    {
+        if (_lowHpRefillUsedThisCombat)
+            return;
+
+        int thresholdPercent = GetEffectValue(PassiveEffectId.LowHpRefillApOncePerCombat);
+        if (thresholdPercent <= 0)
+            return;
+
+        CombatActor owner = GetComponent<CombatActor>();
+        if (owner == null || owner.maxHP <= 0 || owner.hp <= 0)
+            return;
+
+        float hpPercent = owner.hp / (float)owner.maxHP * 100f;
+        if (hpPercent > Mathf.Clamp(thresholdPercent, 1, 100))
+            return;
+
+        _lowHpRefillUsedThisCombat = true;
+        owner.GainFocus(owner.maxFocus);
+        PulsePassiveEffect(PassiveEffectId.LowHpRefillApOncePerCombat);
     }
 
     public void PulsePassiveEffect(PassiveEffectId effectId)

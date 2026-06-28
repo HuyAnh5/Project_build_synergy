@@ -162,6 +162,49 @@ public static partial class SkillTooltipFormatter
         {
             case PassiveEffectId.FailDiceCountdownCombatAddedValue:
                 return BuildFailCountdownCombatAddedValueDescription(effect);
+            case PassiveEffectId.FailDieNextSkillAddedValue:
+            case PassiveEffectId.BloodCounterNextAttackDamage:
+                return BuildPendingNextSkillAddedValueDescription(effect);
+            case PassiveEffectId.RandomCommonPassiveThisCombat:
+                return BuildRandomCommonPassiveDescription(effect);
+            default:
+                return string.Empty;
+        }
+    }
+
+    private static string BuildRandomCommonPassiveDescription(PassiveEffectEntry effect)
+    {
+        PassiveSystem passiveSystem = PassiveSystemRegistry.GetPlayer();
+        SkillPassiveSO picked = passiveSystem != null
+            ? passiveSystem.GetRandomCommonPassivePickedThisCombat()
+            : null;
+
+        if (picked == null)
+            return "At combat start, gain a random Common passive for this combat.\nNo Common passive rolled yet.";
+
+        string pickedTitle = GetTitle(picked);
+        string pickedDescription = picked.GetAuthoringDescription();
+        if (string.IsNullOrWhiteSpace(pickedDescription))
+            pickedDescription = pickedTitle;
+
+        return $"At combat start, gain a random Common passive for this combat.\n{pickedTitle}: {pickedDescription.Trim()}";
+    }
+
+    private static string BuildPendingNextSkillAddedValueDescription(PassiveEffectEntry effect)
+    {
+        int value = Mathf.Max(0, effect.valueI);
+        PassiveSystem passiveSystem = PassiveSystemRegistry.GetPlayer();
+        int pendingBonus = passiveSystem != null
+            ? passiveSystem.GetPendingNextSkillAddedValueBonus()
+            : 0;
+
+        string coloredPendingBonus = ColorText($"+{pendingBonus}", IncreasedValueColor);
+        switch (effect.id)
+        {
+            case PassiveEffectId.FailDieNextSkillAddedValue:
+                return $"When using a Fail die, your next skill this turn gains +{value} Added Value. ({coloredPendingBonus})";
+            case PassiveEffectId.BloodCounterNextAttackDamage:
+                return $"When an enemy hits your HP, your next attack gains +{value} Added Value. ({coloredPendingBonus})";
             default:
                 return string.Empty;
         }

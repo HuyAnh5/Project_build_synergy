@@ -19,4 +19,23 @@ public partial class RunInventoryManager
                 buffer.Add(passive);
         }
     }
+
+    public bool RemoveOwnedPassive(SkillPassiveSO passive)
+    {
+        if (passive == null || ownedSlots == null)
+            return false;
+
+        for (int i = 0; i < ownedSlots.Length; i++)
+        {
+            if (ownedSlots[i] == null || ownedSlots[i].skillAsset != passive)
+                continue;
+
+            ownedSlots[i].skillAsset = null;
+            RunInventoryBindingUtility.PushSlotToIcon(ownedSlots, i);
+            InventoryChanged?.Invoke();
+            return true;
+        }
+
+        return false;
+    }
 }

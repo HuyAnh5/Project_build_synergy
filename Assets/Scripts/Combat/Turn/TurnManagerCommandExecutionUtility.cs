@@ -27,6 +27,7 @@ internal static class TurnManagerCommandExecutionUtility
             SkillRuntime executionRuntime = SkillPlanRuntimeUtility.EvaluateRuntimeForSkillAsset(command.asset, player, diceRig, command.start0, command.span, command.start0, command.paymentMask, includeSyntheticRelayAdded: false);
             if (executionRuntime == null)
                 executionRuntime = command.runtime;
+            PreserveCommittedAddedValueBonus(command.runtime, executionRuntime);
             int resolvedSum = TurnManagerCombatUtility.ComputeResolvedDieSum(diceRig, player, command.start0, command.span, ElementType.Neutral, command.paymentMask);
             IReadOnlyList<CombatActor> aoeTargets = SkillTargetRuleUtility.IsMultiTarget(buffSkill.target)
                 ? TurnManagerCombatUtility.ResolveTargets(buffSkill.target, player, command.target, party, fallbackEnemy)
@@ -68,6 +69,7 @@ internal static class TurnManagerCommandExecutionUtility
             SkillRuntime executionRuntime = SkillPlanRuntimeUtility.EvaluateRuntimeForSkillAsset(command.asset, player, diceRig, command.start0, command.span, command.start0, command.paymentMask, includeSyntheticRelayAdded: false);
             if (executionRuntime == null)
                 executionRuntime = command.runtime;
+            PreserveCommittedAddedValueBonus(command.runtime, executionRuntime);
             int resolvedSum = TurnManagerCombatUtility.ComputeResolvedDieSum(diceRig, player, command.start0, command.span, dieElement, command.paymentMask);
             IReadOnlyList<CombatActor> aoeTargets = TurnManagerCombatUtility.ResolveAoeTargets(executionRuntime, player, command.target, party, fallbackEnemy);
 
@@ -93,7 +95,6 @@ internal static class TurnManagerCommandExecutionUtility
             if (SkillOutputValueUtility.IsMeleeAttack(executionRuntime))
                 playerContext?.HandleMeleeSkillUse(diceRig, command.start0);
 
-            ConsumeNextSkillAddedValueIfUsed(player, executionRuntime);
             DiceCombatEnchantRuntimeUtility.ResolveCommittedPostSkillFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
             yield return ResolveCommittedReloadFaceEnchants(diceRig, faceUsePlan, context as TurnManager);
         }
@@ -143,13 +144,14 @@ internal static class TurnManagerCommandExecutionUtility
         return player.status.ConsumeRepeatFirstSkillReady();
     }
 
-    private static void ConsumeNextSkillAddedValueIfUsed(CombatActor player, SkillRuntime rt)
+    private static void PreserveCommittedAddedValueBonus(SkillRuntime committedRuntime, SkillRuntime executionRuntime)
     {
-        if (player == null || player.status == null || rt == null)
+        if (committedRuntime == null || executionRuntime == null)
             return;
 
-        if (rt.ownerActionAddedValueBonus > 0)
-            player.status.ConsumeNextSkillAddedValue();
+        executionRuntime.ownerActionAddedValueBonus = Mathf.Max(
+            executionRuntime.ownerActionAddedValueBonus,
+            committedRuntime.ownerActionAddedValueBonus);
     }
 
     private static IEnumerator WaitForEnchantPopupBeat()
