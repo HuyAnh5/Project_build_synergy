@@ -110,6 +110,7 @@ MonoBehaviour:
         status: 1
         divisor: 1
         matchBaseValue: 7
+      hitCount: 1
       previewable: 1
     conditionalOutcomes: []
     customHook:
@@ -132,7 +133,7 @@ MonoBehaviour:
   target: 1
   group: 0
   element: 0
-  range: 0
+  range: 1
   hitAllEnemies: 0
   hitAllAllies: 0
   slotsRequired: 1

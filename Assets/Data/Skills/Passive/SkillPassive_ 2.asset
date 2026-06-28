@@ -16,12 +16,13 @@ MonoBehaviour:
   displayName: SkillPassive_
   description: 
   spec:
-    rarity: 0
+    rarity: 1
     specState: 0
     buildRole: 1
     implementationCoverage: 0
     normalizedText: 
     designIntent: 
   effects:
-  - id: 6
-    valueI: 3
+  - id: 11
+    valueI: 100
+    value2I: 0

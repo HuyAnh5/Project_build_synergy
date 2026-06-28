@@ -4549,14 +4549,31 @@ MonoBehaviour:
   allySlots: []
   enemySlots:
   - label: 
-    prefab: {fileID: 3343973332019958161, guid: 6bf97bb884a1a5f4ba052749dd43a07b, type: 3}
+    prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
     row: 0
+    orderInRow: 0
+  - label: 
+    prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
+    row: 1
+    orderInRow: 0
+  - label: 
+    prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
+    row: 1
     orderInRow: 0
   depthOffset: 0.5
   memberSpacing: 2
   applyScaleByRow: 0
   frontScale: 1
   backScale: 1
+  frontRowY: -0.45
+  backRowY: 0.45
+  centerRowY: 0
+  enemyRowSpacing: 3
+  rowInterleaveOffset: 0.7
+  enemyBackRowScale: 0.8
+  enemySingleRowScale: 1
+  formationTweenDuration: 0.3
+  formationEase: 6
   worldUiPrefabs:
   - tag: Standard
     prefab: {fileID: 8398901548839995563, guid: 9bdaa2a1824010c44b806a7079a2a3b1, type: 3}
@@ -6232,7 +6249,7 @@ MonoBehaviour:
   - uiIcon: {fileID: 0}
     skillAsset: {fileID: 11400000, guid: 004249d7a19bdcf42a81bdb93b274830, type: 2}
   - uiIcon: {fileID: 0}
-    skillAsset: {fileID: 11400000, guid: d0a72a3e8f4a917bf4280516f7087207, type: 2}
+    skillAsset: {fileID: 11400000, guid: ab7245a08603728499aea812ac7d28a5, type: 2}
   consumableCapacity: 5
   consumableSlots:
   - asset: {fileID: 0}

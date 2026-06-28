@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
 
 public class BattlePartyManager2D : MonoBehaviour
@@ -49,6 +50,17 @@ public class BattlePartyManager2D : MonoBehaviour
     public float frontScale = 1.0f;
     public float backScale = 0.92f;
 
+    [Header("Enemy Formation Visual")]
+    public float frontRowY = -0.15f;
+    public float backRowY = 0.45f;
+    public float centerRowY = 0f;
+    public float enemyRowSpacing = 0.9f;
+    public float rowInterleaveOffset = 0.35f;
+    public float enemyBackRowScale = 0.8f;
+    public float enemySingleRowScale = 1f;
+    public float formationTweenDuration = 0.3f;
+    public Ease formationEase = Ease.OutQuad;
+
     [Header("World UI")]
     [Tooltip("Data-driven mapping from actor worldUiTag to the prefab that should be spawned.")]
     public List<WorldUiPrefabEntry> worldUiPrefabs = new();
@@ -64,6 +76,8 @@ public class BattlePartyManager2D : MonoBehaviour
     private readonly List<CombatActor> _enemies = new(3);
     private readonly Dictionary<CombatActor, ActorWorldUI> _uiMap = new();
     private readonly Dictionary<CombatActor, int> _spawnOrder = new();
+    private readonly Dictionary<CombatActor, Tween> _formationMoveTweens = new();
+    private readonly Dictionary<CombatActor, Tween> _formationScaleTweens = new();
     private int _spawnSerial = 0;
     private bool _spawnedOnce = false;
 
@@ -376,6 +390,12 @@ public class BattlePartyManager2D : MonoBehaviour
         Transform anchor = (side == CombatActor.TeamSide.Ally) ? alliesAnchor : enemiesAnchor;
         if (!anchor) return;
 
+        if (side == CombatActor.TeamSide.Enemy)
+        {
+            LayoutEnemyFormation(anchor);
+            return;
+        }
+
         List<CombatActor> members = (side == CombatActor.TeamSide.Ally)
             ? GetAliveAllies(includePlayer: true)
             : GetAliveEnemies(frontOnly: false);
@@ -435,6 +455,161 @@ public class BattlePartyManager2D : MonoBehaviour
         }
     }
 
+    private void LayoutEnemyFormation(Transform anchor)
+    {
+        List<CombatActor> aliveEnemies = GetAliveEnemies(frontOnly: false);
+        aliveEnemies.Sort(CompareBySpawnOrder);
+        if (aliveEnemies.Count <= 0)
+            return;
+
+        PromoteBackRowIfFrontIsEmpty(aliveEnemies);
+
+        var frontEnemies = new List<CombatActor>(aliveEnemies.Count);
+        var backEnemies = new List<CombatActor>(aliveEnemies.Count);
+        for (int i = 0; i < aliveEnemies.Count; i++)
+        {
+            CombatActor enemy = aliveEnemies[i];
+            if (enemy.row == CombatActor.RowTag.Back)
+                backEnemies.Add(enemy);
+            else
+                frontEnemies.Add(enemy);
+        }
+
+        bool hasFront = frontEnemies.Count > 0;
+        bool hasBack = backEnemies.Count > 0;
+        if (!hasFront || !hasBack)
+        {
+            LayoutEnemyRow(aliveEnemies, anchor, centerRowY, enemySingleRowScale, BuildFormationRowPositions(aliveEnemies.Count, 0, frontIsReference: true));
+            return;
+        }
+
+        float[] frontPositions = BuildFormationRowPositions(frontEnemies.Count, backEnemies.Count, frontIsReference: true);
+        float[] backPositions = BuildFormationRowPositions(backEnemies.Count, frontEnemies.Count, frontIsReference: false);
+        LayoutEnemyRow(frontEnemies, anchor, frontRowY, frontScale, frontPositions);
+        LayoutEnemyRow(backEnemies, anchor, backRowY, enemyBackRowScale, backPositions);
+    }
+
+    private void PromoteBackRowIfFrontIsEmpty(List<CombatActor> aliveEnemies)
+    {
+        bool hasFront = false;
+        bool hasBack = false;
+        for (int i = 0; i < aliveEnemies.Count; i++)
+        {
+            CombatActor enemy = aliveEnemies[i];
+            if (enemy.row == CombatActor.RowTag.Front)
+                hasFront = true;
+            else if (enemy.row == CombatActor.RowTag.Back)
+                hasBack = true;
+        }
+
+        if (hasFront || !hasBack)
+            return;
+
+        for (int i = 0; i < aliveEnemies.Count; i++)
+        {
+            CombatActor enemy = aliveEnemies[i];
+            if (enemy.row == CombatActor.RowTag.Back)
+                enemy.row = CombatActor.RowTag.Front;
+        }
+    }
+
+    private void LayoutEnemyRow(List<CombatActor> rowMembers, Transform anchor, float localY, float targetScale, float[] xPositions)
+    {
+        int count = rowMembers.Count;
+        for (int i = 0; i < count; i++)
+        {
+            CombatActor enemy = rowMembers[i];
+            if (!enemy || enemy.IsDead)
+                continue;
+
+            float x = xPositions != null && i < xPositions.Length
+                ? xPositions[i]
+                : GetCenteredX(i, count, enemyRowSpacing);
+            Vector3 worldTarget = anchor.TransformPoint(new Vector3(x, localY, 0f));
+            AnimateEnemyFormation(enemy, worldTarget, targetScale);
+        }
+    }
+
+    private float[] BuildFormationRowPositions(int rowCount, int otherRowCount, bool frontIsReference)
+    {
+        if (rowCount <= 0)
+            return Array.Empty<float>();
+
+        float[] positions = new float[rowCount];
+        if (rowCount == 1)
+        {
+            positions[0] = ResolveSingleRowOffset(otherRowCount, frontIsReference);
+            return positions;
+        }
+
+        for (int i = 0; i < rowCount; i++)
+            positions[i] = GetCenteredX(i, rowCount, enemyRowSpacing);
+
+        float shift = ResolveInterleaveShift(rowCount, otherRowCount, frontIsReference);
+        if (!Mathf.Approximately(shift, 0f))
+        {
+            for (int i = 0; i < positions.Length; i++)
+                positions[i] += shift;
+        }
+
+        return positions;
+    }
+
+    private float ResolveSingleRowOffset(int otherRowCount, bool frontIsReference)
+    {
+        if (otherRowCount <= 1)
+            return 0f;
+
+        float halfSpacing = enemyRowSpacing * 0.5f;
+        float offset = Mathf.Min(rowInterleaveOffset, halfSpacing);
+        if (offset <= 0f)
+            return 0f;
+
+        if ((otherRowCount & 1) == 0)
+            return 0f;
+
+        return frontIsReference ? -offset : offset;
+    }
+
+    private float ResolveInterleaveShift(int rowCount, int otherRowCount, bool frontIsReference)
+    {
+        if (rowCount <= 0 || otherRowCount <= 0)
+            return 0f;
+
+        float halfSpacing = enemyRowSpacing * 0.5f;
+        float offset = Mathf.Min(rowInterleaveOffset, halfSpacing);
+        if (offset <= 0f)
+            return 0f;
+
+        bool sameParity = (rowCount & 1) == (otherRowCount & 1);
+        if (!sameParity)
+            return 0f;
+
+        return frontIsReference ? -offset : offset;
+    }
+
+    private void AnimateEnemyFormation(CombatActor enemy, Vector3 targetPosition, float targetScale)
+    {
+        if (enemy == null)
+            return;
+
+        if (_formationMoveTweens.TryGetValue(enemy, out Tween moveTween) && moveTween != null && moveTween.IsActive())
+            moveTween.Kill(false);
+
+        if (_formationScaleTweens.TryGetValue(enemy, out Tween scaleTween) && scaleTween != null && scaleTween.IsActive())
+            scaleTween.Kill(false);
+
+        float duration = Mathf.Max(0.01f, formationTweenDuration);
+        Transform target = enemy.transform;
+
+        _formationMoveTweens[enemy] = target
+            .DOMove(targetPosition, duration)
+            .SetEase(formationEase);
+        _formationScaleTweens[enemy] = target
+            .DOScale(new Vector3(targetScale, targetScale, 1f), duration)
+            .SetEase(formationEase);
+    }
+
     private static float GetCenteredX(int index, int count, float spacing)
     {
         if (count <= 1) return 0f;
@@ -484,8 +659,27 @@ public class BattlePartyManager2D : MonoBehaviour
             Player = null;
         }
 
+        ClearFormationTweens();
         _spawnOrder.Clear();
         _spawnSerial = 0;
+    }
+
+    private void ClearFormationTweens()
+    {
+        foreach (Tween tween in _formationMoveTweens.Values)
+        {
+            if (tween != null && tween.IsActive())
+                tween.Kill(false);
+        }
+
+        foreach (Tween tween in _formationScaleTweens.Values)
+        {
+            if (tween != null && tween.IsActive())
+                tween.Kill(false);
+        }
+
+        _formationMoveTweens.Clear();
+        _formationScaleTweens.Clear();
     }
 }
 
