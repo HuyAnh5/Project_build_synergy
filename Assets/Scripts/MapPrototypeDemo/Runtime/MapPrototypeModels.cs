@@ -30,6 +30,7 @@ public sealed class MapPrototypeNodeData
     public float row;
     public float col;
     public MapPrototypeNodeType type;
+    public int encounterIndex = -1;
     public float x;
     public float y;
     public bool visited;
@@ -63,6 +64,8 @@ public sealed class MapPrototypeData
 [Serializable]
 public sealed class MapPrototypeConfig
 {
+    public bool useLinearPrototypeLayout;
+    public int linearCombatNodeCount = 4;
     public int columns = 7;
     public int intermediateRows = 8;
     public int pathCount = 6;

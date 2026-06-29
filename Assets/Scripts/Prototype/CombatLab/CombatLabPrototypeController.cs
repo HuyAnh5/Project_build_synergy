@@ -14,6 +14,7 @@ public class CombatLabPrototypeController : MonoBehaviour
     [SerializeField] private RunInventoryManager runInventory;
     [SerializeField] private TurnManager turnManager;
     [SerializeField] private PrototypeConsumableRewardScreen rewardScreen;
+    [SerializeField] private bool autoRunPrototypeFlow = true;
 
     private readonly List<DiceSpinnerGeneric> _dicePrefabOptions = new List<DiceSpinnerGeneric>(2);
     private readonly List<CombatLabPrototypeConfigSO.SkillPairEntry> _skillGroupOptions = new List<CombatLabPrototypeConfigSO.SkillPairEntry>(6);
@@ -35,11 +36,14 @@ public class CombatLabPrototypeController : MonoBehaviour
     private void Start()
     {
         AutoResolveReferences();
-        if (turnManager != null && !_subscribedToVictory)
+        if (autoRunPrototypeFlow && turnManager != null && !_subscribedToVictory)
         {
             turnManager.CombatVictoryResolved += HandleCombatVictoryResolved;
             _subscribedToVictory = true;
         }
+
+        if (!autoRunPrototypeFlow)
+            return;
 
         ApplyPrototypeLoadout();
         ShowConsumableRewardThenStartCombat(0);
@@ -259,6 +263,48 @@ public class CombatLabPrototypeController : MonoBehaviour
                IsActiveSkill(group.skillC) &&
                IsActiveSkill(group.skillD) &&
                IsActiveSkill(group.skillE);
+    }
+
+    public void PreparePrototypeRun()
+    {
+        ApplyPrototypeLoadout();
+    }
+
+    public void StartCombatAtIndex(int combatIndex)
+    {
+        StartCombat(combatIndex);
+    }
+
+    public void ShowConsumableReward(System.Action onRewardClosed)
+    {
+        AutoResolveReferences();
+
+        if (turnManager != null)
+            turnManager.SetPlayerInteractionLocked(true);
+
+        if (!HasAvailableConsumableReward())
+        {
+            onRewardClosed?.Invoke();
+            return;
+        }
+
+        if (rewardScreen == null)
+        {
+            Debug.LogWarning("[CombatLabPrototypeController] No PrototypeConsumableRewardScreen assigned/found. Continuing without reward choice.", this);
+            onRewardClosed?.Invoke();
+            return;
+        }
+
+        rewardScreen.ShowConsumablePrototypeOffer(
+            config != null ? config.consumableRewardPool : null,
+            BuildHeldConsumableSnapshot(),
+            runInventory,
+            _ =>
+            {
+                if (rewardScreen != null)
+                    rewardScreen.gameObject.SetActive(false);
+                onRewardClosed?.Invoke();
+            });
     }
 
     private CombatLabPrototypeConfigSO.SkillPairEntry PickRandomSkillGroup()

@@ -22,11 +22,11 @@ MonoBehaviour:
       row: 0
       orderInRow: 0
     - enabled: 1
-      prefab: {fileID: 0}
-      row: 0
+      prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
+      row: 1
       orderInRow: 0
     - enabled: 1
-      prefab: {fileID: 0}
+      prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
       row: 0
       orderInRow: 0
   - label: Combat 2

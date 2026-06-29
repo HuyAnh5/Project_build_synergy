@@ -70,8 +70,6 @@ public sealed partial class MapPrototypeController
 
     private void OpenHostileModal(MapPrototypeNodeData node)
     {
-        NotifyHostileNodeOpened(node);
-
         string title = node.type == MapPrototypeNodeType.Boss
             ? (_bossRevealed && node.bossData != null ? node.bossData.bossName : "Unknown Boss")
             : MapPrototypeNodeCatalog.GetLabel(node.type);
@@ -86,7 +84,7 @@ public sealed partial class MapPrototypeController
             body += " You already ran from this node once, so it still blocks safe backtrack.";
 
         List<ModalAction> actions = new List<ModalAction>();
-        if (node.type != MapPrototypeNodeType.Boss)
+        if (!useExternalHostileFlow && node.type != MapPrototypeNodeType.Boss)
         {
             actions.Add(new ModalAction
             {
@@ -99,7 +97,13 @@ public sealed partial class MapPrototypeController
         {
             label = node.type == MapPrototypeNodeType.Boss ? "Fight Boss" : "Fight",
             danger = true,
-            handler = () => ResolveFight(node)
+            handler = () =>
+            {
+                if (useExternalHostileFlow)
+                    BeginExternalHostileEncounter(node);
+                else
+                    ResolveFight(node);
+            }
         });
 
         ShowModal(
@@ -216,30 +220,60 @@ public sealed partial class MapPrototypeController
     private void ResolveRun(MapPrototypeNodeData node)
     {
         LogMap($"ResolveRun on node {node.id} ({node.type}).");
-        node.visited = true;
-        node.ranSkipped = true;
-        CloseModal();
-        ComputeTravelOptions();
-        RenderAll();
-        NotifyHostileNodeResolved(node, RunCombatResult.PlayerFled);
-        NotifyMapStateChanged();
+        ApplyHostileNodeResult(node, RunCombatResult.PlayerFled, notifyExternal: true);
     }
 
     private void ResolveFight(MapPrototypeNodeData node)
     {
         LogMap($"ResolveFight on node {node.id} ({node.type}).");
+        ApplyHostileNodeResult(node, RunCombatResult.Victory, notifyExternal: true);
+    }
+
+    public void ResolveExternalHostileNode(string nodeId, RunCombatResult result)
+    {
+        MapPrototypeNodeData node = MapPrototypeGenerator.GetNodeById(_map, nodeId);
+        if (node == null)
+            return;
+
+        ApplyHostileNodeResult(node, result, notifyExternal: false);
+    }
+
+    private void BeginExternalHostileEncounter(MapPrototypeNodeData node)
+    {
+        if (node == null)
+            return;
+
+        CloseModal();
+        NotifyHostileNodeOpened(node);
+        NotifyMapStateChanged();
+    }
+
+    private void ApplyHostileNodeResult(MapPrototypeNodeData node, RunCombatResult result, bool notifyExternal)
+    {
+        if (node == null)
+            return;
+
         node.visited = true;
-        node.safeVisited = true;
-        node.cleared = true;
-        node.ranSkipped = false;
-        CollectHintIfAny(node);
+        if (result == RunCombatResult.Victory)
+        {
+            node.safeVisited = true;
+            node.cleared = true;
+            node.ranSkipped = false;
+            CollectHintIfAny(node);
+        }
+        else if (result == RunCombatResult.PlayerFled)
+        {
+            node.ranSkipped = true;
+        }
+
         CloseModal();
         ComputeTravelOptions();
         RenderAll();
-        NotifyHostileNodeResolved(node, RunCombatResult.Victory);
+        if (notifyExternal)
+            NotifyHostileNodeResolved(node, result);
         NotifyMapStateChanged();
 
-        if (node.type == MapPrototypeNodeType.Boss)
+        if (result == RunCombatResult.Victory && node.type == MapPrototypeNodeType.Boss)
         {
             ShowModal("CL", "Act Clear", "Prototype ends here. You cleared the boss node for this act.", new List<ModalAction>
             {

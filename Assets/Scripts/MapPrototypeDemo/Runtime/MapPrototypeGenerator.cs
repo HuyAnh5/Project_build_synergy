@@ -23,6 +23,9 @@ public static partial class MapPrototypeGenerator
         if (config == null)
             throw new ArgumentNullException(nameof(config));
 
+        if (config.useLinearPrototypeLayout)
+            return BuildLinearPrototypeAct(config);
+
         MapPrototypeData bestMap = null;
         float bestScore = float.PositiveInfinity;
         int highestIntermediateSeen = 0;
@@ -97,6 +100,49 @@ public static partial class MapPrototypeGenerator
 
         throw new InvalidOperationException(
             $"Could not generate a valid map after many attempts. built={builtCount}, maxIntermediateBuilt={highestIntermediateSeen}, maxIntermediateAfterLayout={highestPostLayoutIntermediateSeen}, layoutRejected={layoutRejectedCount}, typingRejected={typingRejectedCount}, routeRejected={routeRejectedCount}");
+    }
+
+    private static MapPrototypeData BuildLinearPrototypeAct(MapPrototypeConfig config)
+    {
+        int combatNodeCount = Mathf.Max(1, config.linearCombatNodeCount);
+        int totalNodeCount = combatNodeCount + 1;
+        float centerCol = Mathf.Floor(Mathf.Max(1, config.columns) * 0.5f);
+
+        List<MapPrototypeNodeData> nodes = new List<MapPrototypeNodeData>(combatNodeCount + 1);
+        List<MapPrototypeEdgeData> edges = new List<MapPrototypeEdgeData>(combatNodeCount);
+
+        MapPrototypeNodeData startNode = MakeNode(MapPrototypeNodeType.Start, 0f, centerCol);
+        nodes.Add(startNode);
+
+        MapPrototypeNodeData previous = startNode;
+        for (int i = 0; i < combatNodeCount; i++)
+        {
+            bool isBoss = i == combatNodeCount - 1;
+            MapPrototypeNodeData node = MakeNode(
+                isBoss ? MapPrototypeNodeType.Boss : MapPrototypeNodeType.Combat,
+                i + 1,
+                centerCol);
+            node.encounterIndex = i;
+            nodes.Add(node);
+            edges.Add(new MapPrototypeEdgeData
+            {
+                from = previous.key,
+                to = node.key
+            });
+            previous = node;
+        }
+
+        float usableHeight = Mathf.Max(1f, config.mapHeight - config.padY * 2f);
+        float rowGap = totalNodeCount > 1 ? usableHeight / (totalNodeCount - 1) : 0f;
+        float centerX = config.mapWidth * 0.5f;
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            MapPrototypeNodeData node = nodes[i];
+            node.x = centerX;
+            node.y = config.mapHeight - config.padY - rowGap * i;
+        }
+
+        return BuildGraph(config, nodes, edges);
     }
 
     private static MapPrototypeData BuildStsStyleMap(MapPrototypeConfig config)

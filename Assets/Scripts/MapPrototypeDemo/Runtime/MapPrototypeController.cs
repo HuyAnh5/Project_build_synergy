@@ -11,6 +11,7 @@ public sealed partial class MapPrototypeController : MonoBehaviour
     [Header("Prototype Rules")]
     [SerializeField] private MapPrototypeConfig config = new MapPrototypeConfig();
     [SerializeField] private bool autoGenerateOnStart = true;
+    [SerializeField] private bool useExternalHostileFlow;
     [SerializeField] private bool verboseLogging = true;
 
     [Header("Runtime UI")]

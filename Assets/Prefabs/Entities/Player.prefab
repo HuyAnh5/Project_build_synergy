@@ -79,7 +79,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: -5541574028901708686, guid: 96c0b3cfccc5ce943a5d64c4c105ae47, type: 3}
+  m_Sprite: {fileID: 3957965626179673213, guid: 70e7a60a7ca0fd1498d94dca4f973905, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -236,6 +236,7 @@ MonoBehaviour:
   burnTurns: 0
   _burnBatches: []
   marked: 0
+  markPayoffsRemaining: 0
   bleedStacks: 0
   frozen: 0
   chilledTurns: 0
@@ -356,6 +357,7 @@ MonoBehaviour:
   equipped: []
   autoSyncFromRunInventory: 1
   runInventory: {fileID: 0}
+  skillDatabase: {fileID: 0}
 --- !u!1 &7257027493111128746
 GameObject:
   m_ObjectHideFlags: 0
