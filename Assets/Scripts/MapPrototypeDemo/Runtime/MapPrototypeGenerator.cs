@@ -201,9 +201,10 @@ public static partial class MapPrototypeGenerator
                 foreach (int option in options)
                 {
                     int delta = option - col;
-                    float weight = delta == 0 ? 0.96f : 1f;
-                    if (walker.flatStreak >= 2 && delta == 0) weight -= 0.1f;
-                    if (walker.flatStreak >= 3 && delta == 0) weight -= 0.14f;
+                    float weight = delta == 0 ? 0.38f : 1f;
+                    if (walker.flatStreak >= 1 && delta == 0) weight -= 0.16f;
+                    if (walker.flatStreak >= 2 && delta == 0) weight -= 0.18f;
+                    if (walker.flatStreak >= 3 && delta == 0) weight = 0.02f;
                     if (walker.lastDelta != 0 && delta == walker.lastDelta) weight -= 0.12f;
                     if (walker.lastDelta != 0 && delta == -walker.lastDelta) weight += 0.12f;
                     if (col <= 1 && delta < 0) weight = 0.12f;

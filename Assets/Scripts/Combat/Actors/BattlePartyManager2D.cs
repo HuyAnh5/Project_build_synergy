@@ -51,15 +51,20 @@ public class BattlePartyManager2D : MonoBehaviour
     public float backScale = 0.92f;
 
     [Header("Enemy Formation Visual")]
-    public float frontRowY = -0.15f;
-    public float backRowY = 0.45f;
-    public float centerRowY = 0f;
-    public float enemyRowSpacing = 0.9f;
-    public float rowInterleaveOffset = 0.35f;
-    public float enemyBackRowScale = 0.8f;
-    public float enemySingleRowScale = 1f;
-    public float formationTweenDuration = 0.3f;
-    public Ease formationEase = Ease.OutQuad;
+    [SerializeField] private float frontRowY = -0.3f;
+    [SerializeField] private float backRowY = 0.55f;
+    [SerializeField] private float centerRowY = 0f;
+    [SerializeField] private float singleRowSpacing = 2.5f;
+    [SerializeField] private float dualRowSpacing = 2.5f;
+    [SerializeField] private float equalRowStagger = 0.7f;
+    [SerializeField] private float minCrossRowX = 1.1f;
+    [SerializeField] private int crossRowResolveIterations = 2;
+    [SerializeField] private float outerGapFactor = 0.75f;
+    [SerializeField] private int gapSideBias = 1;
+    [SerializeField] private float enemyBackRowScale = 0.8f;
+    [SerializeField] private float enemySingleRowScale = 1f;
+    [SerializeField] private float formationTweenDuration = 0.3f;
+    [SerializeField] private Ease formationEase = Ease.OutQuad;
 
     [Header("World UI")]
     [Tooltip("Data-driven mapping from actor worldUiTag to the prefab that should be spawned.")]
@@ -80,11 +85,110 @@ public class BattlePartyManager2D : MonoBehaviour
     private readonly Dictionary<CombatActor, Tween> _formationScaleTweens = new();
     private int _spawnSerial = 0;
     private bool _spawnedOnce = false;
+    private EnemyFormationSettingsSnapshot _lastFormationSettings;
+    private string _lastEnemySlotsSignature = string.Empty;
+
+    private struct EnemyFormationSlot
+    {
+        public CombatActor actor;
+        public float localX;
+        public float localY;
+        public float targetScale;
+        public bool isFrontRow;
+    }
+
+    private struct EnemyFormationSettingsSnapshot
+    {
+        public float frontRowY;
+        public float backRowY;
+        public float centerRowY;
+        public float singleRowSpacing;
+        public float dualRowSpacing;
+        public float equalRowStagger;
+        public float minCrossRowX;
+        public int crossRowResolveIterations;
+        public float outerGapFactor;
+        public int gapSideBias;
+        public float enemyBackRowScale;
+        public float enemySingleRowScale;
+        public float formationTweenDuration;
+        public Ease formationEase;
+
+        public bool Matches(EnemyFormationSettingsSnapshot other)
+        {
+            return Mathf.Approximately(frontRowY, other.frontRowY) &&
+                   Mathf.Approximately(backRowY, other.backRowY) &&
+                   Mathf.Approximately(centerRowY, other.centerRowY) &&
+                   Mathf.Approximately(singleRowSpacing, other.singleRowSpacing) &&
+                   Mathf.Approximately(dualRowSpacing, other.dualRowSpacing) &&
+                   Mathf.Approximately(equalRowStagger, other.equalRowStagger) &&
+                   Mathf.Approximately(minCrossRowX, other.minCrossRowX) &&
+                   crossRowResolveIterations == other.crossRowResolveIterations &&
+                   Mathf.Approximately(outerGapFactor, other.outerGapFactor) &&
+                   gapSideBias == other.gapSideBias &&
+                   Mathf.Approximately(enemyBackRowScale, other.enemyBackRowScale) &&
+                   Mathf.Approximately(enemySingleRowScale, other.enemySingleRowScale) &&
+                   Mathf.Approximately(formationTweenDuration, other.formationTweenDuration) &&
+                   formationEase == other.formationEase;
+        }
+    }
 
     public IReadOnlyList<CombatActor> AlliesNonPlayer => _allies;
     public IReadOnlyList<CombatActor> Enemies => _enemies;
 
     public event Action onRosterChanged;
+
+    private EnemyFormationSettingsSnapshot CaptureFormationSettings()
+    {
+        return new EnemyFormationSettingsSnapshot
+        {
+            frontRowY = frontRowY,
+            backRowY = backRowY,
+            centerRowY = centerRowY,
+            singleRowSpacing = singleRowSpacing,
+            dualRowSpacing = dualRowSpacing,
+            equalRowStagger = equalRowStagger,
+            minCrossRowX = minCrossRowX,
+            crossRowResolveIterations = crossRowResolveIterations,
+            outerGapFactor = outerGapFactor,
+            gapSideBias = gapSideBias,
+            enemyBackRowScale = enemyBackRowScale,
+            enemySingleRowScale = enemySingleRowScale,
+            formationTweenDuration = formationTweenDuration,
+            formationEase = formationEase,
+        };
+    }
+
+    private void CacheFormationSettings()
+    {
+        _lastFormationSettings = CaptureFormationSettings();
+    }
+
+    private string BuildEnemySlotsSignature()
+    {
+        if (enemySlots == null || enemySlots.Length == 0)
+            return string.Empty;
+
+        var parts = new string[enemySlots.Length];
+        for (int i = 0; i < enemySlots.Length; i++)
+        {
+            SpawnSlot slot = enemySlots[i];
+            if (slot == null || slot.prefab == null)
+            {
+                parts[i] = "null";
+                continue;
+            }
+
+            parts[i] = $"{slot.prefab.GetInstanceID()}:{slot.row}";
+        }
+
+        return string.Join("|", parts);
+    }
+
+    private void CacheEnemySlotsSignature()
+    {
+        _lastEnemySlotsSignature = BuildEnemySlotsSignature();
+    }
 
     void Awake()
     {
@@ -93,6 +197,9 @@ public class BattlePartyManager2D : MonoBehaviour
         if (turnManager == null)
             turnManager = GetComponent<TurnManager>() ?? TurnManagerRegistry.Get();
 
+        CacheFormationSettings();
+        CacheEnemySlotsSignature();
+
         if (spawnOnStart)
             EnsureSpawned();
     }
@@ -100,6 +207,31 @@ public class BattlePartyManager2D : MonoBehaviour
     private void OnDestroy()
     {
         BattlePartyManagerRegistry.Unregister(this);
+    }
+
+    private void Update()
+    {
+        if (!Application.isPlaying)
+            return;
+
+        EnemyFormationSettingsSnapshot current = CaptureFormationSettings();
+        string currentEnemySlotsSignature = BuildEnemySlotsSignature();
+        bool formationChanged = !current.Matches(_lastFormationSettings);
+        bool enemySlotsChanged = !string.Equals(currentEnemySlotsSignature, _lastEnemySlotsSignature, StringComparison.Ordinal);
+
+        if (!formationChanged && !enemySlotsChanged)
+            return;
+
+        _lastFormationSettings = current;
+        _lastEnemySlotsSignature = currentEnemySlotsSignature;
+
+        if (enemySlotsChanged)
+        {
+            SpawnPrototypeEncounter(enemySlots, resetPlayerForBattle: false);
+            return;
+        }
+
+        LayoutSide(CombatActor.TeamSide.Enemy);
     }
 
     [ContextMenu("Ensure Spawned")]
@@ -355,6 +487,12 @@ public class BattlePartyManager2D : MonoBehaviour
                 ? CombatActor.DefaultWorldUiTag
                 : entry.tag.Trim();
         }
+
+        CacheFormationSettings();
+        CacheEnemySlotsSignature();
+
+        if (Application.isPlaying)
+            SpawnPrototypeEncounter(enemySlots, resetPlayerForBattle: false);
     }
 
     private static ActorWorldUI FindEmbeddedWorldUI(CombatActor actor)
@@ -475,18 +613,12 @@ public class BattlePartyManager2D : MonoBehaviour
                 frontEnemies.Add(enemy);
         }
 
-        bool hasFront = frontEnemies.Count > 0;
-        bool hasBack = backEnemies.Count > 0;
-        if (!hasFront || !hasBack)
+        List<EnemyFormationSlot> slots = CalculateEnemyFormationSlots(frontEnemies, backEnemies);
+        for (int i = 0; i < slots.Count; i++)
         {
-            LayoutEnemyRow(aliveEnemies, anchor, centerRowY, enemySingleRowScale, BuildFormationRowPositions(aliveEnemies.Count, 0, frontIsReference: true));
-            return;
+            EnemyFormationSlot slot = slots[i];
+            LayoutEnemyActor(slot.actor, anchor, slot.localX, slot.localY, slot.targetScale);
         }
-
-        float[] frontPositions = BuildFormationRowPositions(frontEnemies.Count, backEnemies.Count, frontIsReference: true);
-        float[] backPositions = BuildFormationRowPositions(backEnemies.Count, frontEnemies.Count, frontIsReference: false);
-        LayoutEnemyRow(frontEnemies, anchor, frontRowY, frontScale, frontPositions);
-        LayoutEnemyRow(backEnemies, anchor, backRowY, enemyBackRowScale, backPositions);
     }
 
     private void PromoteBackRowIfFrontIsEmpty(List<CombatActor> aliveEnemies)
@@ -513,79 +645,197 @@ public class BattlePartyManager2D : MonoBehaviour
         }
     }
 
-    private void LayoutEnemyRow(List<CombatActor> rowMembers, Transform anchor, float localY, float targetScale, float[] xPositions)
+    private void LayoutEnemyActor(CombatActor enemy, Transform anchor, float localX, float localY, float targetScale)
     {
-        int count = rowMembers.Count;
+        if (enemy == null || anchor == null)
+            return;
+
+        Vector3 worldTarget = anchor.TransformPoint(new Vector3(localX, localY, 0f));
+        AnimateEnemyFormation(enemy, worldTarget, targetScale);
+    }
+
+    private List<EnemyFormationSlot> CalculateEnemyFormationSlots(List<CombatActor> frontEnemies, List<CombatActor> backEnemies)
+    {
+        var slots = new List<EnemyFormationSlot>((frontEnemies?.Count ?? 0) + (backEnemies?.Count ?? 0));
+        int frontCount = frontEnemies != null ? frontEnemies.Count : 0;
+        int backCount = backEnemies != null ? backEnemies.Count : 0;
+
+        if (frontCount <= 0 && backCount <= 0)
+            return slots;
+
+        if (frontCount == 0 || backCount == 0)
+        {
+            List<CombatActor> singleRowActors = frontCount > 0 ? frontEnemies : backEnemies;
+            List<float> xs = CenteredOffsets(singleRowActors.Count, singleRowSpacing);
+            for (int i = 0; i < singleRowActors.Count; i++)
+            {
+                slots.Add(new EnemyFormationSlot
+                {
+                    actor = singleRowActors[i],
+                    localX = xs[i],
+                    localY = centerRowY,
+                    targetScale = enemySingleRowScale,
+                    isFrontRow = true,
+                });
+            }
+
+            NormalizeSlotsToAnchor(slots);
+            return slots;
+        }
+
+        List<float> frontXs;
+        List<float> backXs;
+
+        if (frontCount == backCount)
+        {
+            List<float> baseXs = CenteredOffsets(frontCount, dualRowSpacing);
+            frontXs = new List<float>(baseXs.Count);
+            backXs = new List<float>(baseXs.Count);
+            for (int i = 0; i < baseXs.Count; i++)
+            {
+                frontXs.Add(baseXs[i] - equalRowStagger);
+                backXs.Add(baseXs[i] + equalRowStagger);
+            }
+        }
+        else if (frontCount > backCount)
+        {
+            frontXs = CenteredOffsets(frontCount, dualRowSpacing);
+            backXs = GapOffsets(frontXs, backCount, dualRowSpacing, gapSideBias);
+        }
+        else
+        {
+            backXs = CenteredOffsets(backCount, dualRowSpacing);
+            frontXs = GapOffsets(backXs, frontCount, dualRowSpacing, gapSideBias);
+        }
+
+        for (int i = 0; i < frontCount; i++)
+        {
+            slots.Add(new EnemyFormationSlot
+            {
+                actor = frontEnemies[i],
+                localX = frontXs[i],
+                localY = frontRowY,
+                targetScale = frontScale,
+                isFrontRow = true,
+            });
+        }
+
+        for (int i = 0; i < backCount; i++)
+        {
+            slots.Add(new EnemyFormationSlot
+            {
+                actor = backEnemies[i],
+                localX = backXs[i],
+                localY = backRowY,
+                targetScale = enemyBackRowScale,
+                isFrontRow = false,
+            });
+        }
+
+        NormalizeSlotsToAnchor(slots);
+        ResolveCrossRowOverlap(slots, minCrossRowX, crossRowResolveIterations);
+        NormalizeSlotsToAnchor(slots);
+        return slots;
+    }
+
+    private List<float> CenteredOffsets(int count, float spacing)
+    {
+        var xs = new List<float>(count);
         for (int i = 0; i < count; i++)
-        {
-            CombatActor enemy = rowMembers[i];
-            if (!enemy || enemy.IsDead)
-                continue;
+            xs.Add((i - (count - 1) * 0.5f) * spacing);
+        return xs;
+    }
 
-            float x = xPositions != null && i < xPositions.Length
-                ? xPositions[i]
-                : GetCenteredX(i, count, enemyRowSpacing);
-            Vector3 worldTarget = anchor.TransformPoint(new Vector3(x, localY, 0f));
-            AnimateEnemyFormation(enemy, worldTarget, targetScale);
+    private List<float> GapOffsets(List<float> mainXs, int neededCount, float spacing, int sideBias)
+    {
+        var gaps = new List<float>();
+        if (mainXs == null || mainXs.Count == 0 || neededCount <= 0)
+            return gaps;
+
+        for (int i = 0; i < mainXs.Count - 1; i++)
+            gaps.Add((mainXs[i] + mainXs[i + 1]) * 0.5f);
+
+        gaps.Add(mainXs[0] - spacing * outerGapFactor);
+        gaps.Add(mainXs[mainXs.Count - 1] + spacing * outerGapFactor);
+
+        gaps.Sort((a, b) =>
+        {
+            int magnitude = Mathf.Abs(a).CompareTo(Mathf.Abs(b));
+            if (magnitude != 0)
+                return magnitude;
+
+            return (sideBias * a).CompareTo(sideBias * b);
+        });
+
+        int take = Mathf.Min(neededCount, gaps.Count);
+        List<float> result = gaps.GetRange(0, take);
+        result.Sort();
+        return result;
+    }
+
+    private void NormalizeSlotsToAnchor(List<EnemyFormationSlot> slots)
+    {
+        if (slots == null || slots.Count == 0)
+            return;
+
+        float sum = 0f;
+        for (int i = 0; i < slots.Count; i++)
+            sum += slots[i].localX;
+
+        float average = sum / slots.Count;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            EnemyFormationSlot slot = slots[i];
+            slot.localX -= average;
+            slots[i] = slot;
         }
     }
 
-    private float[] BuildFormationRowPositions(int rowCount, int otherRowCount, bool frontIsReference)
+    private void ResolveCrossRowOverlap(List<EnemyFormationSlot> slots, float requiredSeparation, int iterations)
     {
-        if (rowCount <= 0)
-            return Array.Empty<float>();
+        if (slots == null || slots.Count <= 1 || requiredSeparation <= 0f || iterations <= 0)
+            return;
 
-        float[] positions = new float[rowCount];
-        if (rowCount == 1)
+        for (int iteration = 0; iteration < iterations; iteration++)
         {
-            positions[0] = ResolveSingleRowOffset(otherRowCount, frontIsReference);
-            return positions;
+            bool changed = false;
+            for (int i = 0; i < slots.Count; i++)
+            {
+                for (int j = i + 1; j < slots.Count; j++)
+                {
+                    EnemyFormationSlot a = slots[i];
+                    EnemyFormationSlot b = slots[j];
+                    if (a.isFrontRow == b.isFrontRow)
+                        continue;
+
+                    float deltaX = b.localX - a.localX;
+                    float distance = Mathf.Abs(deltaX);
+                    if (distance >= requiredSeparation)
+                        continue;
+
+                    float push = (requiredSeparation - distance) * 0.5f;
+                    float sign = deltaX >= 0f ? 1f : -1f;
+
+                    if (a.isFrontRow)
+                    {
+                        a.localX -= push * sign;
+                        b.localX += push * sign;
+                    }
+                    else
+                    {
+                        a.localX += push * sign;
+                        b.localX -= push * sign;
+                    }
+
+                    slots[i] = a;
+                    slots[j] = b;
+                    changed = true;
+                }
+            }
+
+            if (!changed)
+                break;
         }
-
-        for (int i = 0; i < rowCount; i++)
-            positions[i] = GetCenteredX(i, rowCount, enemyRowSpacing);
-
-        float shift = ResolveInterleaveShift(rowCount, otherRowCount, frontIsReference);
-        if (!Mathf.Approximately(shift, 0f))
-        {
-            for (int i = 0; i < positions.Length; i++)
-                positions[i] += shift;
-        }
-
-        return positions;
-    }
-
-    private float ResolveSingleRowOffset(int otherRowCount, bool frontIsReference)
-    {
-        if (otherRowCount <= 1)
-            return 0f;
-
-        float halfSpacing = enemyRowSpacing * 0.5f;
-        float offset = Mathf.Min(rowInterleaveOffset, halfSpacing);
-        if (offset <= 0f)
-            return 0f;
-
-        if ((otherRowCount & 1) == 0)
-            return 0f;
-
-        return frontIsReference ? -offset : offset;
-    }
-
-    private float ResolveInterleaveShift(int rowCount, int otherRowCount, bool frontIsReference)
-    {
-        if (rowCount <= 0 || otherRowCount <= 0)
-            return 0f;
-
-        float halfSpacing = enemyRowSpacing * 0.5f;
-        float offset = Mathf.Min(rowInterleaveOffset, halfSpacing);
-        if (offset <= 0f)
-            return 0f;
-
-        bool sameParity = (rowCount & 1) == (otherRowCount & 1);
-        if (!sameParity)
-            return 0f;
-
-        return frontIsReference ? -offset : offset;
     }
 
     private void AnimateEnemyFormation(CombatActor enemy, Vector3 targetPosition, float targetScale)

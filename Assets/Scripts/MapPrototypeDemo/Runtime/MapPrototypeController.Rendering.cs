@@ -107,7 +107,7 @@ public sealed partial class MapPrototypeController
         if (_map == null || mapContent == null || linesLayer == null || nodesLayer == null)
             return;
 
-        mapContent.sizeDelta = new Vector2(config.mapWidth, config.mapHeight);
+        ConfigureMapContentTransform();
         ClearChildren(linesLayer);
         ClearChildren(nodesLayer);
         _playerTokenRect = null;

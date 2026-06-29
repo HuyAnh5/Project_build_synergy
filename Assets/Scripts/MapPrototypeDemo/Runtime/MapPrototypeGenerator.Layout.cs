@@ -7,78 +7,24 @@ public static partial class MapPrototypeGenerator
 {
     private static void RebalanceMapLayout(MapPrototypeConfig config, MapPrototypeData map)
     {
-        float width = config.mapWidth;
-        float margin = config.padX + 8f;
-        float minGap = 108f;
+        Dictionary<string, Vector2> bestPositions = null;
+        float bestScore = float.PositiveInfinity;
+        const int candidateCount = 24;
 
-        Dictionary<float, List<MapPrototypeNodeData>> byRow = new Dictionary<float, List<MapPrototypeNodeData>>();
-        foreach (MapPrototypeNodeData node in map.nodes)
+        for (int i = 0; i < candidateCount; i++)
         {
-            if (node.type == MapPrototypeNodeType.Start || node.type == MapPrototypeNodeType.Boss || node.specialLeaf)
-                continue;
-
-            if (!byRow.TryGetValue(node.row, out List<MapPrototypeNodeData> rowNodes))
+            AssignLayeredOrganicPositions(config, map);
+            RelaxLayout(config, map);
+            float score = ScoreLayout(config, map);
+            if (score < bestScore)
             {
-                rowNodes = new List<MapPrototypeNodeData>();
-                byRow[node.row] = rowNodes;
+                bestScore = score;
+                bestPositions = CapturePositions(map);
             }
-
-            rowNodes.Add(node);
         }
 
-        foreach (float row in byRow.Keys.OrderBy(v => v))
-        {
-            List<MapPrototypeNodeData> rowNodes = byRow[row];
-            rowNodes.Sort((a, b) => a.x.CompareTo(b.x));
-            if (rowNodes.Count == 0)
-                continue;
-
-            float mean = rowNodes.Sum(node => node.x) / rowNodes.Count;
-            float shift = width * 0.5f - mean;
-            shift = Mathf.Clamp(shift, -72f, 72f);
-            foreach (MapPrototypeNodeData node in rowNodes)
-                node.x = Mathf.Clamp(node.x + shift, margin, width - margin);
-
-            rowNodes.Sort((a, b) => a.x.CompareTo(b.x));
-            for (int i = 1; i < rowNodes.Count; i++)
-            {
-                MapPrototypeNodeData prev = rowNodes[i - 1];
-                MapPrototypeNodeData current = rowNodes[i];
-                if (current.x - prev.x < minGap)
-                    current.x = prev.x + minGap;
-            }
-
-            for (int i = rowNodes.Count - 2; i >= 0; i--)
-            {
-                MapPrototypeNodeData next = rowNodes[i + 1];
-                MapPrototypeNodeData current = rowNodes[i];
-                if (next.x > width - margin)
-                {
-                    float overflow = next.x - (width - margin);
-                    next.x -= overflow;
-                    current.x -= overflow;
-                }
-
-                if (next.x - current.x < minGap)
-                    current.x = next.x - minGap;
-            }
-
-            float left = rowNodes[0].x;
-            float right = rowNodes[rowNodes.Count - 1].x;
-            if (left < margin)
-            {
-                float push = margin - left;
-                foreach (MapPrototypeNodeData node in rowNodes)
-                    node.x += push;
-            }
-
-            if (right > width - margin)
-            {
-                float push = right - (width - margin);
-                foreach (MapPrototypeNodeData node in rowNodes)
-                    node.x -= push;
-            }
-        }
+        if (bestPositions != null)
+            RestorePositions(map, bestPositions);
 
         foreach (MapPrototypeNodeData node in map.nodes.Where(n => n.specialLeaf))
         {
@@ -111,6 +57,237 @@ public static partial class MapPrototypeGenerator
             node.x = placement.x;
             node.y = placement.y;
             node.side = placement.side;
+        }
+    }
+
+    private static void AssignLayeredOrganicPositions(MapPrototypeConfig config, MapPrototypeData map)
+    {
+        float left = config.padX;
+        float right = config.mapWidth - config.padX;
+        float usableWidth = Mathf.Max(1f, right - left);
+        float centerX = config.mapWidth * 0.5f;
+        float defaultLayerGap = (config.mapHeight - config.padY * 2f) / (config.intermediateRows + 1f);
+        float layerGap = Mathf.Clamp(defaultLayerGap, config.layerHeightMin, config.layerHeightMax);
+
+        MapPrototypeNodeData start = map.nodes.FirstOrDefault(node => node.type == MapPrototypeNodeType.Start);
+        MapPrototypeNodeData boss = map.nodes.FirstOrDefault(node => node.type == MapPrototypeNodeType.Boss);
+        if (start != null)
+        {
+            start.x = centerX;
+            start.y = config.mapHeight - config.padY + 8f;
+        }
+        if (boss != null)
+        {
+            boss.x = centerX;
+            boss.y = config.padY - 12f;
+        }
+
+        Dictionary<float, List<MapPrototypeNodeData>> byLayer = map.nodes
+            .Where(node => node.type != MapPrototypeNodeType.Start && node.type != MapPrototypeNodeType.Boss && !node.specialLeaf)
+            .GroupBy(node => node.row)
+            .ToDictionary(group => group.Key, group => group.OrderBy(node => node.col).ToList());
+
+        foreach (KeyValuePair<float, List<MapPrototypeNodeData>> pair in byLayer.OrderBy(pair => pair.Key))
+        {
+            List<MapPrototypeNodeData> layerNodes = pair.Value;
+            int count = layerNodes.Count;
+            float densityWidth = Mathf.Min(usableWidth, config.targetLayerWidth * UnityEngine.Random.Range(0.82f, 1.16f));
+            if (count > 1)
+            {
+                float minWidth = config.minNodeSpacing * (count - 1);
+                float maxWidth = config.maxNodeSpacingInLayer * (count - 1);
+                densityWidth = Mathf.Clamp(densityWidth, minWidth, Mathf.Min(maxWidth, usableWidth));
+            }
+            else
+            {
+                densityWidth = 0f;
+            }
+
+            float layerCenter = centerX + Mathf.Sin(pair.Key * 1.37f + UnityEngine.Random.value * 2.2f) * usableWidth * 0.10f;
+            layerCenter += UnityEngine.Random.Range(-usableWidth * 0.08f, usableWidth * 0.08f);
+            layerCenter = Mathf.Clamp(layerCenter, left + densityWidth * 0.5f, right - densityWidth * 0.5f);
+
+            for (int i = 0; i < count; i++)
+            {
+                MapPrototypeNodeData node = layerNodes[i];
+                float t = count <= 1 ? 0.5f : i / (float)(count - 1);
+                float laneBend = Mathf.Sin((pair.Key + i) * 0.91f) * config.jitterX * 0.45f;
+                node.x = layerCenter - densityWidth * 0.5f + densityWidth * t + laneBend + UnityEngine.Random.Range(-config.jitterX, config.jitterX);
+                node.x = Mathf.Clamp(node.x, left, right);
+                node.y = config.mapHeight - config.padY - pair.Key * layerGap + UnityEngine.Random.Range(-config.jitterY, config.jitterY);
+            }
+        }
+    }
+
+    private static void RelaxLayout(MapPrototypeConfig config, MapPrototypeData map)
+    {
+        List<MapPrototypeNodeData> nodes = map.nodes
+            .Where(node => node.type != MapPrototypeNodeType.Start && node.type != MapPrototypeNodeType.Boss && !node.specialLeaf)
+            .ToList();
+        float left = config.padX;
+        float right = config.mapWidth - config.padX;
+
+        for (int pass = 0; pass < 5; pass++)
+        {
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                for (int j = i + 1; j < nodes.Count; j++)
+                {
+                    MapPrototypeNodeData a = nodes[i];
+                    MapPrototypeNodeData b = nodes[j];
+                    float dx = b.x - a.x;
+                    float dy = b.y - a.y;
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+                    if (dist >= config.minNodeSpacing || dist <= 0.001f)
+                        continue;
+
+                    float push = (config.minNodeSpacing - dist) * 0.32f;
+                    float nx = dx / dist;
+                    float ny = dy / dist;
+                    a.x = Mathf.Clamp(a.x - nx * push, left, right);
+                    b.x = Mathf.Clamp(b.x + nx * push, left, right);
+                    a.y -= ny * push * 0.18f;
+                    b.y += ny * push * 0.18f;
+                }
+            }
+
+            PullConnectedNodesIntoOrganicBands(config, map);
+            CompressSparseLayers(config, map);
+        }
+    }
+
+    private static void PullConnectedNodesIntoOrganicBands(MapPrototypeConfig config, MapPrototypeData map)
+    {
+        Dictionary<string, MapPrototypeNodeData> byId = map.nodes.ToDictionary(node => node.id, node => node);
+        foreach (MapPrototypeEdgeData edge in map.edges)
+        {
+            if (!byId.TryGetValue(edge.from, out MapPrototypeNodeData from) || !byId.TryGetValue(edge.to, out MapPrototypeNodeData to))
+                continue;
+            if (from.specialLeaf || to.specialLeaf)
+                continue;
+            if (Mathf.Abs(from.row - to.row) > 1.01f)
+                continue;
+
+            float dx = to.x - from.x;
+            float maxRun = config.maxNodeSpacingInLayer * 0.72f;
+            if (Mathf.Abs(dx) <= maxRun)
+                continue;
+
+            float pull = (Mathf.Abs(dx) - maxRun) * 0.08f;
+            float sign = Mathf.Sign(dx);
+            if (from.type != MapPrototypeNodeType.Start && from.type != MapPrototypeNodeType.Boss)
+                from.x += sign * pull;
+            if (to.type != MapPrototypeNodeType.Start && to.type != MapPrototypeNodeType.Boss)
+                to.x -= sign * pull;
+        }
+    }
+
+    private static void CompressSparseLayers(MapPrototypeConfig config, MapPrototypeData map)
+    {
+        float centerX = config.mapWidth * 0.5f;
+        float left = config.padX;
+        float right = config.mapWidth - config.padX;
+        IEnumerable<IGrouping<float, MapPrototypeNodeData>> layers = map.nodes
+            .Where(node => node.type != MapPrototypeNodeType.Start && node.type != MapPrototypeNodeType.Boss && !node.specialLeaf)
+            .GroupBy(node => node.row);
+
+        foreach (IGrouping<float, MapPrototypeNodeData> layer in layers)
+        {
+            List<MapPrototypeNodeData> rowNodes = layer.OrderBy(node => node.x).ToList();
+            if (rowNodes.Count < 2)
+                continue;
+
+            float span = rowNodes[rowNodes.Count - 1].x - rowNodes[0].x;
+            float desired = Mathf.Max(config.minNodeSpacing * (rowNodes.Count - 1), Mathf.Min(config.targetLayerWidth, config.maxNodeSpacingInLayer * (rowNodes.Count - 1)));
+            if (span <= desired)
+                continue;
+
+            float mean = rowNodes.Sum(node => node.x) / rowNodes.Count;
+            float factor = Mathf.Lerp(1f, desired / Mathf.Max(1f, span), 0.18f);
+            foreach (MapPrototypeNodeData node in rowNodes)
+                node.x = Mathf.Clamp(mean + (node.x - mean) * factor + (centerX - mean) * 0.02f, left, right);
+        }
+    }
+
+    private static float ScoreLayout(MapPrototypeConfig config, MapPrototypeData map)
+    {
+        float score = 0f;
+        List<MapPrototypeNodeData> nodes = map.nodes.Where(node => !node.specialLeaf).ToList();
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            for (int j = i + 1; j < nodes.Count; j++)
+            {
+                float dist = Distance(nodes[i].x, nodes[i].y, nodes[j].x, nodes[j].y);
+                if (dist < config.minNodeSpacing)
+                    score += (config.minNodeSpacing - dist) * config.nodeOverlapPenalty;
+            }
+        }
+
+        foreach (IGrouping<float, MapPrototypeNodeData> layer in nodes
+            .Where(node => node.type != MapPrototypeNodeType.Start && node.type != MapPrototypeNodeType.Boss)
+            .GroupBy(node => node.row))
+        {
+            List<MapPrototypeNodeData> rowNodes = layer.OrderBy(node => node.x).ToList();
+            for (int i = 1; i < rowNodes.Count; i++)
+            {
+                float gap = rowNodes[i].x - rowNodes[i - 1].x;
+                if (gap > config.maxNodeSpacingInLayer)
+                    score += (gap - config.maxNodeSpacingInLayer) * config.tooSparsePenalty;
+            }
+
+            if (rowNodes.Count > 1)
+            {
+                float span = rowNodes[rowNodes.Count - 1].x - rowNodes[0].x;
+                float desired = Mathf.Clamp(config.targetLayerWidth, config.minNodeSpacing * (rowNodes.Count - 1), config.maxNodeSpacingInLayer * (rowNodes.Count - 1));
+                score += Mathf.Abs(span - desired) * config.tooSparsePenalty * 0.55f;
+            }
+        }
+
+        Dictionary<string, MapPrototypeNodeData> byId = map.nodes.ToDictionary(node => node.id, node => node);
+        for (int i = 0; i < map.edges.Count; i++)
+        {
+            if (!byId.TryGetValue(map.edges[i].from, out MapPrototypeNodeData a) || !byId.TryGetValue(map.edges[i].to, out MapPrototypeNodeData b))
+                continue;
+
+            float length = Distance(a.x, a.y, b.x, b.y);
+            score += Mathf.Max(0f, length - config.maxNodeSpacingInLayer * 1.15f) * config.edgeLengthPenalty;
+            float run = Mathf.Abs(a.x - b.x);
+            if (run < config.minNodeSpacing * 0.28f && Mathf.Abs(a.row - b.row) <= 1.01f)
+                score += (config.minNodeSpacing * 0.28f - run) * 0.25f;
+
+            for (int j = i + 1; j < map.edges.Count; j++)
+            {
+                if (SharesEndpoint(map.edges[i], map.edges[j]))
+                    continue;
+                if (!byId.TryGetValue(map.edges[j].from, out MapPrototypeNodeData c) || !byId.TryGetValue(map.edges[j].to, out MapPrototypeNodeData d))
+                    continue;
+                if (SegmentsIntersect(a.x, a.y, b.x, b.y, c.x, c.y, d.x, d.y))
+                    score += config.edgeCrossingPenalty;
+            }
+        }
+
+        return score;
+    }
+
+    private static bool SharesEndpoint(MapPrototypeEdgeData a, MapPrototypeEdgeData b)
+    {
+        return a.from == b.from || a.from == b.to || a.to == b.from || a.to == b.to;
+    }
+
+    private static Dictionary<string, Vector2> CapturePositions(MapPrototypeData map)
+    {
+        return map.nodes.ToDictionary(node => node.id, node => new Vector2(node.x, node.y));
+    }
+
+    private static void RestorePositions(MapPrototypeData map, Dictionary<string, Vector2> positions)
+    {
+        foreach (MapPrototypeNodeData node in map.nodes)
+        {
+            if (!positions.TryGetValue(node.id, out Vector2 pos))
+                continue;
+
+            node.x = pos.x;
+            node.y = pos.y;
         }
     }
 
@@ -307,10 +484,10 @@ public static partial class MapPrototypeGenerator
             if (node.id == parent.id || node.id == excludeNodeId)
                 continue;
 
-            float minDist = node.specialLeaf ? 162f : 138f;
+            float minDist = node.specialLeaf ? 182f : 158f;
             if (Distance(node.x, node.y, candidate.x, candidate.y) < minDist)
                 return false;
-            if (PointToSegmentDistance(node.x, node.y, parent.x, parent.y, candidate.x, candidate.y) < 78f)
+            if (PointToSegmentDistance(node.x, node.y, parent.x, parent.y, candidate.x, candidate.y) < 92f)
                 return false;
         }
 
@@ -328,7 +505,7 @@ public static partial class MapPrototypeGenerator
 
             if (SegmentsIntersect(parent.x, parent.y, candidate.x, candidate.y, from.x, from.y, to.x, to.y))
                 return false;
-            if (PointToSegmentDistance(candidate.x, candidate.y, from.x, from.y, to.x, to.y) < 84f)
+            if (PointToSegmentDistance(candidate.x, candidate.y, from.x, from.y, to.x, to.y) < 104f)
                 return false;
         }
 
@@ -401,7 +578,7 @@ public static partial class MapPrototypeGenerator
                 float baseX = config.padX + node.col * colGap;
                 float jitter = (node.type == MapPrototypeNodeType.Start || node.type == MapPrototypeNodeType.Boss)
                     ? 0f
-                    : RandInt(-10, 10);
+                    : RandInt(-18, 18);
 
                 node.x = Mathf.Clamp(baseX + jitter, config.padX - 12f, config.mapWidth - config.padX + 12f);
                 node.y = config.mapHeight - config.padY - node.row * rowGap + RandInt(-5, 5);
@@ -479,6 +656,41 @@ public static partial class MapPrototypeGenerator
         }
 
         return picked;
+    }
+
+    private static void SeparateNearVerticalLinks(MapPrototypeConfig config, MapPrototypeData map)
+    {
+        const float minimumRun = 74f;
+        const float pushAmount = 42f;
+        float left = config.padX + 18f;
+        float right = config.mapWidth - config.padX - 18f;
+
+        Dictionary<string, MapPrototypeNodeData> byId = map.nodes.ToDictionary(node => node.id, node => node);
+        for (int pass = 0; pass < 2; pass++)
+        {
+            foreach (MapPrototypeEdgeData edge in map.edges)
+            {
+                if (!byId.TryGetValue(edge.from, out MapPrototypeNodeData from) || !byId.TryGetValue(edge.to, out MapPrototypeNodeData to))
+                    continue;
+                if (from.specialLeaf || to.specialLeaf)
+                    continue;
+                if (from.type == MapPrototypeNodeType.Start || from.type == MapPrototypeNodeType.Boss)
+                    continue;
+                if (to.type == MapPrototypeNodeType.Start || to.type == MapPrototypeNodeType.Boss)
+                    continue;
+                if (Mathf.Abs(from.row - to.row) > 1.01f)
+                    continue;
+
+                float dx = to.x - from.x;
+                if (Mathf.Abs(dx) >= minimumRun)
+                    continue;
+
+                float direction = Mathf.Approximately(dx, 0f)
+                    ? (Mathf.RoundToInt(to.row) % 2 == 0 ? 1f : -1f)
+                    : Mathf.Sign(dx);
+                to.x = Mathf.Clamp(to.x + direction * pushAmount, left, right);
+            }
+        }
     }
 
 }

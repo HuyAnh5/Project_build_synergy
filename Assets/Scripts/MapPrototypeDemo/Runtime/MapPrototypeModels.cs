@@ -70,21 +70,32 @@ public sealed class MapPrototypeConfig
     public int intermediateRows = 8;
     public int pathCount = 6;
 
-    public float mapWidth = 860f;
+    public float mapWidth = 940f;
     public float mapHeight = 1320f;
-    public float padX = 82f;
+    public float padX = 92f;
     public float padY = 82f;
+    public float minNodeSpacing = 104f;
+    public float maxNodeSpacingInLayer = 210f;
+    public float targetLayerWidth = 560f;
+    public float layerHeightMin = 112f;
+    public float layerHeightMax = 150f;
+    public float jitterX = 24f;
+    public float jitterY = 10f;
+    public float edgeCrossingPenalty = 180f;
+    public float edgeLengthPenalty = 0.024f;
+    public float nodeOverlapPenalty = 12f;
+    public float tooSparsePenalty = 0.11f;
 
     public int maxAttempts = 140;
     public int maxForcedLinearStreak = 5;
     public int maxFourNodeLinearSegments = 4;
     public int maxLinearPenalty = 40;
 
-    public float leafIdealDistance = 126f;
-    public float leafMinDistance = 112f;
-    public float leafMaxDistance = 146f;
-    public float leafMinRise = 58f;
-    public float leafMinRun = 46f;
+    public float leafIdealDistance = 154f;
+    public float leafMinDistance = 138f;
+    public float leafMaxDistance = 178f;
+    public float leafMinRise = 66f;
+    public float leafMinRun = 70f;
 
     public int maxNodeDegree = 4;
     public int minRestNodeGap = 2;
@@ -113,21 +124,32 @@ public sealed class MapPrototypeConfig
         intermediateRows = 8;
         pathCount = 6;
 
-        mapWidth = 860f;
+        mapWidth = 940f;
         mapHeight = 1320f;
-        padX = 82f;
+        padX = 92f;
         padY = 82f;
+        minNodeSpacing = 104f;
+        maxNodeSpacingInLayer = 210f;
+        targetLayerWidth = 560f;
+        layerHeightMin = 112f;
+        layerHeightMax = 150f;
+        jitterX = 24f;
+        jitterY = 10f;
+        edgeCrossingPenalty = 180f;
+        edgeLengthPenalty = 0.024f;
+        nodeOverlapPenalty = 12f;
+        tooSparsePenalty = 0.11f;
 
         maxAttempts = 140;
         maxForcedLinearStreak = 5;
         maxFourNodeLinearSegments = 4;
         maxLinearPenalty = 40;
 
-        leafIdealDistance = 126f;
-        leafMinDistance = 112f;
-        leafMaxDistance = 146f;
-        leafMinRise = 58f;
-        leafMinRun = 46f;
+        leafIdealDistance = 154f;
+        leafMinDistance = 138f;
+        leafMaxDistance = 178f;
+        leafMinRise = 66f;
+        leafMinRun = 70f;
 
         maxNodeDegree = 4;
         minRestNodeGap = 2;

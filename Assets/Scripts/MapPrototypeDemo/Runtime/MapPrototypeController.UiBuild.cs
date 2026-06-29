@@ -204,11 +204,7 @@ public sealed partial class MapPrototypeController
         mapScrollRect.scrollSensitivity = 24f;
 
         mapContent = MapPrototypeUIFactory.CreateRect("Content", mapViewport);
-        mapContent.anchorMin = new Vector2(0f, 1f);
-        mapContent.anchorMax = new Vector2(0f, 1f);
-        mapContent.pivot = new Vector2(0f, 1f);
-        mapContent.sizeDelta = new Vector2(config.mapWidth, config.mapHeight);
-        mapContent.anchoredPosition = Vector2.zero;
+        ConfigureMapContentTransform();
 
         linesLayer = MapPrototypeUIFactory.CreateRect("LinesLayer", mapContent);
         linesLayer.anchorMin = new Vector2(0f, 1f);
@@ -226,6 +222,18 @@ public sealed partial class MapPrototypeController
 
         mapScrollRect.viewport = mapViewport;
         mapScrollRect.content = mapContent;
+    }
+
+    private void ConfigureMapContentTransform()
+    {
+        if (mapContent == null)
+            return;
+
+        mapContent.anchorMin = new Vector2(0.5f, 1f);
+        mapContent.anchorMax = new Vector2(0.5f, 1f);
+        mapContent.pivot = new Vector2(0.5f, 1f);
+        mapContent.sizeDelta = new Vector2(config.mapWidth, config.mapHeight);
+        mapContent.anchoredPosition = new Vector2(0f, mapContent.anchoredPosition.y);
     }
 
     private void BuildSidebar(RectTransform parent)
