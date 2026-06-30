@@ -43,6 +43,9 @@ internal static partial class SkillAttackResolutionUtility
 
         for (int i = 0; i < resolved.effects.Count; i++)
         {
+            if (ShouldStopEnemyActionForRevive(caster))
+                break;
+
             ResolvedEffect effect = resolved.effects[i];
             if (effect == null)
                 continue;
@@ -164,9 +167,13 @@ internal static partial class SkillAttackResolutionUtility
 
             if (popups != null)
                 popups.SpawnDamageSplit(caster, effectTarget, primaryDamageResult.blocked, primaryDamageResult.hpLost);
+
+            if (ShouldStopEnemyActionForRevive(caster))
+                break;
         }
 
-        ApplyResolvedGameplayEffects(resolved.effects, caster, target, includeFollowUpEffects: false);
+        if (!ShouldStopEnemyActionForRevive(caster))
+            ApplyResolvedGameplayEffects(resolved.effects, caster, target, includeFollowUpEffects: false);
 
         return new SkillExecutor.AttackApplyResult
         {
@@ -215,6 +222,9 @@ internal static partial class SkillAttackResolutionUtility
         PassiveSystem passiveSystem = caster != null ? caster.GetComponent<PassiveSystem>() : null;
         for (int i = 0; i < effects.Count; i++)
         {
+            if (ShouldStopEnemyActionForRevive(caster))
+                break;
+
             ResolvedEffect effect = effects[i];
             if (effect == null || effect.type == SkillEffectType.DealDamage || effect.type == SkillEffectType.DealSecondaryDamage)
                 continue;
@@ -270,6 +280,9 @@ internal static partial class SkillAttackResolutionUtility
 
         for (int i = 0; i < effects.Count; i++)
         {
+            if (ShouldStopEnemyActionForRevive(caster))
+                break;
+
             ResolvedEffect effect = effects[i];
             if (effect == null || !effect.sameActionFollowUp)
                 continue;
@@ -309,10 +322,23 @@ internal static partial class SkillAttackResolutionUtility
                     effectTarget.status.ClearStagger();
                 if (popups != null)
                     popups.SpawnDamageSplit(caster, effectTarget, primaryDamageResult.blocked, primaryDamageResult.hpLost);
+
+                if (ShouldStopEnemyActionForRevive(caster))
+                    break;
             }
         }
 
-        ApplyResolvedGameplayEffects(effects, caster, selectedTarget, includeFollowUpEffects: true);
+        if (!ShouldStopEnemyActionForRevive(caster))
+            ApplyResolvedGameplayEffects(effects, caster, selectedTarget, includeFollowUpEffects: true);
+    }
+
+    private static bool ShouldStopEnemyActionForRevive(CombatActor caster)
+    {
+        if (caster == null || caster.team != CombatActor.TeamSide.Enemy)
+            return false;
+
+        PassiveSystem playerPassiveSystem = PassiveSystemRegistry.GetPlayer();
+        return playerPassiveSystem != null && playerPassiveSystem.IsEnemyTurnEndRequestedByRevive;
     }
 
     private static void PlayFeedback(CombatActor actor, CombatHitFeedback.FeedbackKind kind)
