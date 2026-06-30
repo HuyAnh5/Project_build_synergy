@@ -90,6 +90,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     [SerializeField] private float transientAffectedAuraWaveSize = 10f;
 
     private static SkillUiIconLibrarySO _sharedIconLibrary;
+    private static readonly List<RaycastResult> SelectedSkillClickRaycastResults = new List<RaycastResult>(16);
 
     private Canvas _canvas;
     private RectTransform _canvasRT;
@@ -351,6 +352,77 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         TickActiveAura();
         ClearHoverResourcePreviewIfPointerLeftBridge();
         _previewController?.Tick();
+        RejectSelectedSkillIfPointerReleasedOffValidTarget();
+    }
+
+    private void RejectSelectedSkillIfPointerReleasedOffValidTarget()
+    {
+        if (!_selected || UiDragState.SelectedSkill != this || UiDragState.IsDragging || !Input.GetMouseButtonUp(0))
+            return;
+
+        if (IsPointerOverSkillIconOrValidTarget())
+            return;
+
+        RejectSelectedTargetFeedback();
+        UiDragState.DeselectSkill();
+    }
+
+    private bool IsPointerOverSkillIconOrValidTarget()
+    {
+        EventSystem eventSystem = EventSystem.current;
+        if (eventSystem == null)
+            return false;
+
+        PointerEventData pointerData = new PointerEventData(eventSystem)
+        {
+            position = Input.mousePosition
+        };
+
+        SelectedSkillClickRaycastResults.Clear();
+        eventSystem.RaycastAll(pointerData, SelectedSkillClickRaycastResults);
+
+        for (int i = 0; i < SelectedSkillClickRaycastResults.Count; i++)
+        {
+            GameObject hit = SelectedSkillClickRaycastResults[i].gameObject;
+            if (hit == null)
+                continue;
+
+            if (hit.GetComponentInParent<DraggableSkillIcon>() != null)
+                return true;
+
+            TargetClickable2D target = hit.GetComponentInParent<TargetClickable2D>();
+            if (target != null && IsValidSelectedTarget(target))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool IsValidSelectedTarget(TargetClickable2D target)
+    {
+        if (target == null || turn == null || turn.player == null)
+            return false;
+
+        CombatActor actorTarget = target.GetComponent<CombatActor>();
+        if (actorTarget == null)
+            actorTarget = target.GetComponentInParent<CombatActor>();
+        if (actorTarget == null)
+            return false;
+
+        ScriptableObject asset = GetSkillAsset();
+        if (asset == null || asset is SkillPassiveSO)
+            return false;
+
+        if (!turn.TryGetPrototypeSkillTooltipRuntime(asset, out SkillRuntime runtime) || runtime == null)
+        {
+            if (asset is SkillDamageSO damageSkill)
+                runtime = SkillRuntime.FromDamage(damageSkill);
+            else if (asset is SkillBuffDebuffSO buffSkill)
+                runtime = SkillRuntime.FromBuffDebuff(buffSkill);
+        }
+
+        return runtime != null &&
+               TurnManagerTargetingUtility.IsValidTargetForPendingSkill(runtime, actorTarget, turn.player, turn.party, turn.enemy);
     }
 
     private bool ShouldRefreshVisualMetadataThisFrame()
