@@ -705,6 +705,11 @@ MonoBehaviour:
   elementBadgeIcon: {fileID: 0}
   skillBackgroundImage: {fileID: 0}
   skillSlotLayout: {fileID: 0}
+  targetingArrowHeadSprite: {fileID: 4313501347480536470, guid: ab90d73f4370fe643aa0b246e7564b36, type: 3}
+  targetingArrowSegmentSprite: {fileID: 6237607816614418277, guid: cf2b87c17dd10f24cbcfd68951eae0b1, type: 3}
+  overrideTargetingArrowColors: 1
+  targetingArrowHeadColor: {r: 1, g: 0.081131995, b: 0.081131995, a: 0.95}
+  targetingArrowSegmentColor: {r: 1, g: 0.111320674, b: 0.111320674, a: 0.95}
   enableActiveAura: 1
   activeAuraBrightColor: {r: 1, g: 0.82, b: 0.28, a: 0.9}
   activeAuraWaveColor: {r: 1, g: 0.62, b: 0.12, a: 0.34}

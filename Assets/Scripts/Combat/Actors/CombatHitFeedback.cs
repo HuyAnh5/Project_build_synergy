@@ -91,6 +91,10 @@ public class CombatHitFeedback : MonoBehaviour
 
     private void StartShake()
     {
+        CombatActor actor = GetComponent<CombatActor>();
+        if (CombatActorMotionLock.IsLocked(actor))
+            return;
+
         if (DOTween.IsTweening(transform, true))
             return;
 

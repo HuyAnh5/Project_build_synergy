@@ -1,0 +1,624 @@
+fileFormatVersion: 2
+guid: 0b0d1942066744b44b6eaeb469279a81
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 5890401714807272462
+    second: DaVirusColored_0
+  - first:
+      213: 8723044939061169206
+    second: DaVirusColored_1
+  - first:
+      213: -2267816111846251954
+    second: DaVirusColored_2
+  - first:
+      213: -4613680113893523889
+    second: DaVirusColored_3
+  - first:
+      213: -6770808007779819579
+    second: DaVirusColored_4
+  - first:
+      213: 7825716510504196239
+    second: DaVirusColored_5
+  - first:
+      213: -7889874661088146909
+    second: DaVirusColored_6
+  - first:
+      213: -3571677704178410295
+    second: DaVirusColored_7
+  - first:
+      213: 2607976726334129790
+    second: DaVirusColored_8
+  - first:
+      213: -7677822051637952433
+    second: DaVirusColored_9
+  - first:
+      213: 2921881210539883323
+    second: DaVirusColored_10
+  - first:
+      213: 4093848933192887221
+    second: DaVirusColored_11
+  - first:
+      213: -7347279343416708743
+    second: DaVirusColored_12
+  - first:
+      213: -8546518405907804375
+    second: DaVirusColored_13
+  - first:
+      213: -2768216648210665209
+    second: DaVirusColored_14
+  - first:
+      213: 6081895453776272373
+    second: DaVirusColored_15
+  - first:
+      213: -6711710059651613960
+    second: DaVirusColored_16
+  - first:
+      213: -8882419268184996726
+    second: DaVirusColored_17
+  - first:
+      213: 681983345765362629
+    second: DaVirusColored_18
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: DaVirusColored_0
+      rect:
+        serializedVersion: 2
+        x: 484
+        y: 1152
+        width: 93
+        height: 52
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e047073a629eeb150800000000000000
+      internalID: 5890401714807272462
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_1
+      rect:
+        serializedVersion: 2
+        x: 558
+        y: 1199
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 63c8288c72b7e0970800000000000000
+      internalID: 8723044939061169206
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_2
+      rect:
+        serializedVersion: 2
+        x: 567
+        y: 1198
+        width: 8
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e422f7df2491780e0800000000000000
+      internalID: -2267816111846251954
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_3
+      rect:
+        serializedVersion: 2
+        x: 761
+        y: 1198
+        width: 8
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f4eb718716ae8ffb0800000000000000
+      internalID: -4613680113893523889
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_4
+      rect:
+        serializedVersion: 2
+        x: 174
+        y: 1175
+        width: 56
+        height: 14
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5cfd9ed7df14902a0800000000000000
+      internalID: -6770808007779819579
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_5
+      rect:
+        serializedVersion: 2
+        x: 472
+        y: 1181
+        width: 10
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f88138134b78a9c60800000000000000
+      internalID: 7825716510504196239
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_6
+      rect:
+        serializedVersion: 2
+        x: 571
+        y: 1175
+        width: 12
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 32a4c7f4cc8818290800000000000000
+      internalID: -7889874661088146909
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_7
+      rect:
+        serializedVersion: 2
+        x: 580
+        y: 1187
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9cc53463d0ade6ec0800000000000000
+      internalID: -3571677704178410295
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_8
+      rect:
+        serializedVersion: 2
+        x: 587
+        y: 1183
+        width: 12
+        height: 13
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e76c1a3d305613420800000000000000
+      internalID: 2607976726334129790
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_9
+      rect:
+        serializedVersion: 2
+        x: 753
+        y: 1147
+        width: 15
+        height: 51
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f40857bd585e27590800000000000000
+      internalID: -7677822051637952433
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_10
+      rect:
+        serializedVersion: 2
+        x: 52
+        y: 27
+        width: 733
+        height: 1141
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b3b3e1eea7b9c8820800000000000000
+      internalID: 2921881210539883323
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_11
+      rect:
+        serializedVersion: 2
+        x: 427
+        y: 1167
+        width: 34
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5bbe2132ae540d830800000000000000
+      internalID: 4093848933192887221
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_12
+      rect:
+        serializedVersion: 2
+        x: 786
+        y: 883
+        width: 7
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 971f41e5d58390a90800000000000000
+      internalID: -7347279343416708743
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_13
+      rect:
+        serializedVersion: 2
+        x: 791
+        y: 876
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 92f078d8acaa46980800000000000000
+      internalID: -8546518405907804375
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_14
+      rect:
+        serializedVersion: 2
+        x: 794
+        y: 746
+        width: 28
+        height: 131
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 701b41600a15599d0800000000000000
+      internalID: -2768216648210665209
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_15
+      rect:
+        serializedVersion: 2
+        x: 786
+        y: 860
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5fbd56321bb376450800000000000000
+      internalID: 6081895453776272373
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_16
+      rect:
+        serializedVersion: 2
+        x: 790
+        y: 855
+        width: 6
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 8fabc0bc2473bd2a0800000000000000
+      internalID: -6711710059651613960
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_17
+      rect:
+        serializedVersion: 2
+        x: 779
+        y: 727
+        width: 15
+        height: 17
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a848fb59cbe4bb480800000000000000
+      internalID: -8882419268184996726
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirusColored_18
+      rect:
+        serializedVersion: 2
+        x: 62
+        y: 575
+        width: 31
+        height: 76
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5cba31b5d34e67900800000000000000
+      internalID: 681983345765362629
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      DaVirusColored_0: 5890401714807272462
+      DaVirusColored_1: 8723044939061169206
+      DaVirusColored_10: 2921881210539883323
+      DaVirusColored_11: 4093848933192887221
+      DaVirusColored_12: -7347279343416708743
+      DaVirusColored_13: -8546518405907804375
+      DaVirusColored_14: -2768216648210665209
+      DaVirusColored_15: 6081895453776272373
+      DaVirusColored_16: -6711710059651613960
+      DaVirusColored_17: -8882419268184996726
+      DaVirusColored_18: 681983345765362629
+      DaVirusColored_2: -2267816111846251954
+      DaVirusColored_3: -4613680113893523889
+      DaVirusColored_4: -6770808007779819579
+      DaVirusColored_5: 7825716510504196239
+      DaVirusColored_6: -7889874661088146909
+      DaVirusColored_7: -3571677704178410295
+      DaVirusColored_8: 2607976726334129790
+      DaVirusColored_9: -7677822051637952433
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

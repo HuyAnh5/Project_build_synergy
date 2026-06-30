@@ -114,6 +114,7 @@ MonoBehaviour:
   burnTurns: 0
   _burnBatches: []
   marked: 0
+  markPayoffsRemaining: 0
   bleedStacks: 0
   frozen: 0
   chilledTurns: 0
@@ -122,12 +123,16 @@ MonoBehaviour:
   emberWeaponBonusDamage: 1
   emberWeaponBurnEqualsDamage: 1
   emberWeaponBurnOnCritOnly: 0
+  emberWeaponBurnTurns: 3
   cinderbrandTurns: 0
   cinderbrandBonusPerBurn: 1
+  repeatFirstSkillNextTurnPending: 0
+  repeatFirstSkillReadyExtraCasts: 0
+  nextSkillAddedValue: 0
+  nextSkillAddedValueCharges: 0
   _hasAilment: 0
   _ailmentType: 0
   _ailmentTurnsLeft: 0
-  debugForceAilmentChance100: 1
   debugLog: 1
 --- !u!114 &3343973332019958161
 MonoBehaviour:
@@ -307,8 +312,8 @@ Transform:
   m_GameObject: {fileID: 8850496647234164499}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.3103085, y: 1.3103085, z: 1.3103085}
+  m_LocalPosition: {x: 0.035, y: 0.26, z: 0}
+  m_LocalScale: {x: 0.16291922, y: 0.16291922, z: 0.16291922}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 5623039536942470901}
@@ -360,7 +365,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: -1513185319663206051, guid: fd9c96e32b550c048851a4616805eb6e, type: 3}
+  m_Sprite: {fileID: 5830694933855508796, guid: e8649d58c9cb57d4985e4f140f81abca, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -6,6 +7,8 @@ public partial class ActorWorldUI
 {
     public void ShowTargetPreview(TargetPreviewData data)
     {
+        _hpDamageTrailTween?.Kill();
+        _hpDamageTrailTween = null;
         _targetPreviewActive = true;
         _previewData = data;
         EnsureHpPreviewFill();

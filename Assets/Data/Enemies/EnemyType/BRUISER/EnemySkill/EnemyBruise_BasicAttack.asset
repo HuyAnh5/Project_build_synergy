@@ -93,7 +93,7 @@ MonoBehaviour:
     lowestOutcome: 0
     highestOutcome: 0
     burnTurns: 3
-  icon: {fileID: -8407507342819822086, guid: b40f2e87024b7be408e498f909f2f482, type: 3}
+  icon: {fileID: -7008412969330441016, guid: a005dd5e0d725ba4d9bcd33316949bb3, type: 3}
   displayName: abc
   description: 
   gameplay:
@@ -110,6 +110,7 @@ MonoBehaviour:
         status: 1
         divisor: 1
         matchBaseValue: 7
+      hitCount: 1
       previewable: 1
     conditionalOutcomes: []
     customHook:
@@ -129,7 +130,6 @@ MonoBehaviour:
   bleedBehaviorId: 0
   physicalBehaviorId: 0
   kind: 0
-  coreAction: 1
   target: 1
   group: 0
   element: 4

@@ -535,26 +535,56 @@ public partial class SkillExecutor : MonoBehaviour
         bool hitFired = false;
 
         Sequence seq = DOTween.Sequence();
+        CombatActorMotionLock.Begin(caster);
 
-        // đi tới apex
-        seq.Append(t.DOMove(midPosition, Mathf.Max(0.01f, meleeLungeTime)).SetEase(Ease.OutQuad));
-
-        // HIT MOMENT: ngay khi tới apex
-        seq.AppendCallback(() =>
+        try
         {
-            if (hitFired) return;
-            hitFired = true;
-            onHit?.Invoke();
-        });
+            // đi tới apex
+            seq.Append(t.DOMove(midPosition, Mathf.Max(0.01f, meleeLungeTime)).SetEase(Ease.OutQuad));
 
-        // lùi về
-        seq.Append(t.DOMove(startPosition, Mathf.Max(0.01f, meleeReturnTime)).SetEase(Ease.InQuad));
+            // HIT MOMENT: ngay khi tới apex
+            seq.AppendCallback(() =>
+            {
+                if (hitFired) return;
+                hitFired = true;
+                onHit?.Invoke();
+            });
 
-        if (lungeIgnoreTimeScale) seq.SetUpdate(true);
+            // lùi về
+            seq.Append(t.DOMove(startPosition, Mathf.Max(0.01f, meleeReturnTime)).SetEase(Ease.InQuad));
 
-        yield return seq.WaitForCompletion();
+            if (lungeIgnoreTimeScale) seq.SetUpdate(true);
+
+            yield return seq.WaitForCompletion();
+        }
+        finally
+        {
+            CombatActorMotionLock.End(caster);
+            if (seq != null && seq.IsActive())
+                seq.Kill(false);
+        }
 
         if (t != null)
             t.position = startPosition;
     }
+}
+
+internal static class CombatActorMotionLock
+{
+    private static readonly HashSet<CombatActor> LockedActors = new HashSet<CombatActor>();
+
+    public static void Begin(CombatActor actor)
+    {
+        if (actor != null)
+            LockedActors.Add(actor);
+    }
+
+    public static void End(CombatActor actor)
+    {
+        if (actor != null)
+            LockedActors.Remove(actor);
+    }
+
+    public static bool IsLocked(CombatActor actor)
+        => actor != null && LockedActors.Contains(actor);
 }

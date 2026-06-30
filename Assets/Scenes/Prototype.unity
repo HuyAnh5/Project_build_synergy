@@ -2058,6 +2058,10 @@ PrefabInstance:
       propertyPath: inventory
       value: 
       objectReference: {fileID: 1082519198}
+    - target: {fileID: 401654507490956235, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
+      propertyPath: targetingArrowHeadSprite
+      value: 
+      objectReference: {fileID: 4313501347480536470, guid: ab90d73f4370fe643aa0b246e7564b36, type: 3}
     - target: {fileID: 617083261252995382, guid: a8593fa73080cb441bfb53cb0b45b905, type: 3}
       propertyPath: m_Pivot.x
       value: 0.5
@@ -9938,18 +9942,18 @@ MonoBehaviour:
   applyScaleByRow: 0
   frontScale: 1
   backScale: 1
-  frontRowY: -0.3
-  backRowY: 0.55
+  frontRowY: -0.2
+  backRowY: 0.75
   centerRowY: 0
   singleRowSpacing: 2.5
-  dualRowSpacing: 2.5
+  dualRowSpacing: 3
   equalRowStagger: 0.7
   minCrossRowX: 1.1
   crossRowResolveIterations: 2
   outerGapFactor: 0.75
   gapSideBias: 1
+  enemyFrontRowScale: 1
   enemyBackRowScale: 0.8
-  enemySingleRowScale: 1
   formationTweenDuration: 0.3
   formationEase: 6
   worldUiPrefabs:
@@ -9959,6 +9963,8 @@ MonoBehaviour:
     prefab: {fileID: 8398901548839995563, guid: 13257fe25b3fc9044a5becb9ff96fd96, type: 3}
   - tag: Boss Dragon
     prefab: {fileID: 8398901548839995563, guid: e9cec1860288a5649ad0cb041810e942, type: 3}
+  - tag: PlayerUi
+    prefab: {fileID: 8398901548839995563, guid: 2088b928ae67651408281ad6982487b9, type: 3}
   autoSpawnWorldUI: 1
   resetHPOnBattleStart: 0
   turnManager: {fileID: 733054728}
@@ -12779,7 +12785,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 604.75}
+  m_SizeDelta: {x: 0, y: 722}
   m_Pivot: {x: 0.5, y: 1}
 --- !u!222 &1018572379
 CanvasRenderer:
@@ -13816,15 +13822,15 @@ MonoBehaviour:
   - {fileID: 0}
   ownedSlots:
   - uiIcon: {fileID: 0}
-    skillAsset: {fileID: 11400000, guid: 3fdea6926fff5a7458c6207b363a3a7d, type: 2}
+    skillAsset: {fileID: 11400000, guid: ae03d7f30437ba9468c724b3c4ad15f0, type: 2}
   - uiIcon: {fileID: 0}
-    skillAsset: {fileID: 11400000, guid: f2f10c4a550d178439b91fe3979e3e0a, type: 2}
+    skillAsset: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
   - uiIcon: {fileID: 0}
-    skillAsset: {fileID: 11400000, guid: 7109d9d031c521e44bd2e484bbcb59d6, type: 2}
+    skillAsset: {fileID: 11400000, guid: d0a72a3e8f4a917bf4280516f7087207, type: 2}
   - uiIcon: {fileID: 0}
-    skillAsset: {fileID: 11400000, guid: 004249d7a19bdcf42a81bdb93b274830, type: 2}
+    skillAsset: {fileID: 11400000, guid: ccf6192d7e39806ae317f405e6f76106, type: 2}
   - uiIcon: {fileID: 0}
-    skillAsset: {fileID: 11400000, guid: ab7245a08603728499aea812ac7d28a5, type: 2}
+    skillAsset: {fileID: 11400000, guid: 5263cf5ec9fce1643bee3f5e8e1d027e, type: 2}
   consumableCapacity: 5
   consumableSlots:
   - asset: {fileID: 0}
@@ -15885,7 +15891,7 @@ Transform:
   m_GameObject: {fileID: 1286660552}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 3.33, y: -1.47, z: 0}
+  m_LocalPosition: {x: 4.7, y: -1.6, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -22834,6 +22840,96 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1872217350}
   m_CullTransparentMesh: 1
+--- !u!1 &1876037809
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1876037811}
+  - component: {fileID: 1876037810}
+  m_Layer: 0
+  m_Name: Bg_skill_0 (2)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!212 &1876037810
+SpriteRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1876037809}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: -102
+  m_Sprite: {fileID: 4589803084523416231, guid: ea056f523261f5244a398107a29de940, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 8.64, y: 1.64}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_MaskInteraction: 0
+  m_SpriteSortPoint: 0
+--- !u!4 &1876037811
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1876037809}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0.2, z: 0}
+  m_LocalScale: {x: 0.7770353, y: 0.8039915, z: 0.8169}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1883929836
 GameObject:
   m_ObjectHideFlags: 0
@@ -25161,3 +25257,4 @@ SceneRoots:
   - {fileID: 630723285}
   - {fileID: 1786440999}
   - {fileID: 1817326972}
+  - {fileID: 1876037811}

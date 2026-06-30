@@ -1,0 +1,572 @@
+fileFormatVersion: 2
+guid: 44bf56487cb019d4ab9f9744a7a55474
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 8878842130704842899
+    second: DaVirus 1_0
+  - first:
+      213: 7050048475924499622
+    second: DaVirus 1_1
+  - first:
+      213: 99499800274869319
+    second: DaVirus 1_2
+  - first:
+      213: 2890063055817060744
+    second: DaVirus 1_3
+  - first:
+      213: -6366001225852155934
+    second: DaVirus 1_4
+  - first:
+      213: 3125899722731723260
+    second: DaVirus 1_5
+  - first:
+      213: 2272046176205981362
+    second: DaVirus 1_6
+  - first:
+      213: -7107828209660703563
+    second: DaVirus 1_7
+  - first:
+      213: -3736282519284895895
+    second: DaVirus 1_8
+  - first:
+      213: -791802806735156847
+    second: DaVirus 1_9
+  - first:
+      213: -7159645624589639579
+    second: DaVirus 1_10
+  - first:
+      213: 5896917835858379181
+    second: DaVirus 1_11
+  - first:
+      213: 257718407777802339
+    second: DaVirus 1_12
+  - first:
+      213: -7037145401822861949
+    second: DaVirus 1_13
+  - first:
+      213: 540213398189652444
+    second: DaVirus 1_14
+  - first:
+      213: -6154168970815635442
+    second: DaVirus 1_15
+  - first:
+      213: -4874200923209023638
+    second: DaVirus 1_16
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 2
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: DaVirus 1_0
+      rect:
+        serializedVersion: 2
+        x: 335
+        y: 722
+        width: 23
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3904f6130ebf73b70800000000000000
+      internalID: 8878842130704842899
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_1
+      rect:
+        serializedVersion: 2
+        x: 468
+        y: 726
+        width: 7
+        height: 29
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6ac83c07cbdc6d160800000000000000
+      internalID: 7050048475924499622
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_2
+      rect:
+        serializedVersion: 2
+        x: 514
+        y: 729
+        width: 6
+        height: 63
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 74c1b9a8a8e716100800000000000000
+      internalID: 99499800274869319
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_3
+      rect:
+        serializedVersion: 2
+        x: 114
+        y: 713
+        width: 35
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 881b47c79019b1820800000000000000
+      internalID: 2890063055817060744
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_4
+      rect:
+        serializedVersion: 2
+        x: 294
+        y: 715
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2e781651d9b67a7a0800000000000000
+      internalID: -6366001225852155934
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_5
+      rect:
+        serializedVersion: 2
+        x: 301
+        y: 702
+        width: 35
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cf99ae07c3d616b20800000000000000
+      internalID: 3125899722731723260
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_6
+      rect:
+        serializedVersion: 2
+        x: 330
+        y: 699
+        width: 28
+        height: 25
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 2b6ca0e95fde78f10800000000000000
+      internalID: 2272046176205981362
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_7
+      rect:
+        serializedVersion: 2
+        x: 348
+        y: 720
+        width: 7
+        height: 6
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 5bc4ca6f6ebeb5d90800000000000000
+      internalID: -7107828209660703563
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_8
+      rect:
+        serializedVersion: 2
+        x: 354
+        y: 712
+        width: 9
+        height: 9
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 96fa58928de062cc0800000000000000
+      internalID: -3736282519284895895
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_9
+      rect:
+        serializedVersion: 2
+        x: 360
+        y: 717
+        width: 12
+        height: 8
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 199c46cda83f205f0800000000000000
+      internalID: -791802806735156847
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_10
+      rect:
+        serializedVersion: 2
+        x: 464
+        y: 696
+        width: 9
+        height: 31
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 560a7a4ec34d3ac90800000000000000
+      internalID: -7159645624589639579
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_11
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 19
+        width: 519
+        height: 692
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: da1010c478f06d150800000000000000
+      internalID: 5896917835858379181
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_12
+      rect:
+        serializedVersion: 2
+        x: 223
+        y: 708
+        width: 27
+        height: 11
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 368dca3c689939300800000000000000
+      internalID: 257718407777802339
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_13
+      rect:
+        serializedVersion: 2
+        x: 267
+        y: 708
+        width: 21
+        height: 7
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 385239b9a89075e90800000000000000
+      internalID: -7037145401822861949
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_14
+      rect:
+        serializedVersion: 2
+        x: 488
+        y: 460
+        width: 19
+        height: 73
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cd9300639393f7700800000000000000
+      internalID: 540213398189652444
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_15
+      rect:
+        serializedVersion: 2
+        x: 479
+        y: 442
+        width: 11
+        height: 10
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: e008dce5deff79aa0800000000000000
+      internalID: -6154168970815635442
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: DaVirus 1_16
+      rect:
+        serializedVersion: 2
+        x: 513
+        y: 373
+        width: 7
+        height: 39
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a6fbe30c51c5b5cb0800000000000000
+      internalID: -4874200923209023638
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      DaVirus 1_0: 8878842130704842899
+      DaVirus 1_1: 7050048475924499622
+      DaVirus 1_10: -7159645624589639579
+      DaVirus 1_11: 5896917835858379181
+      DaVirus 1_12: 257718407777802339
+      DaVirus 1_13: -7037145401822861949
+      DaVirus 1_14: 540213398189652444
+      DaVirus 1_15: -6154168970815635442
+      DaVirus 1_16: -4874200923209023638
+      DaVirus 1_2: 99499800274869319
+      DaVirus 1_3: 2890063055817060744
+      DaVirus 1_4: -6366001225852155934
+      DaVirus 1_5: 3125899722731723260
+      DaVirus 1_6: 2272046176205981362
+      DaVirus 1_7: -7107828209660703563
+      DaVirus 1_8: -3736282519284895895
+      DaVirus 1_9: -791802806735156847
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

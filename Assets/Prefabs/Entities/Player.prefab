@@ -26,8 +26,8 @@ Transform:
   m_GameObject: {fileID: 3569963794363431194}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.78, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -0.5188, y: -1.08, z: 0}
+  m_LocalScale: {x: 0.6475049, y: 0.6475049, z: 0.6475049}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 160035848761791491}
@@ -78,8 +78,8 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
-  m_Sprite: {fileID: 3957965626179673213, guid: 70e7a60a7ca0fd1498d94dca4f973905, type: 3}
+  m_SortingOrder: -11
+  m_Sprite: {fileID: 2921881210539883323, guid: 0b0d1942066744b44b6eaeb469279a81, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -279,7 +279,7 @@ MonoBehaviour:
   guardPool: 0
   firePoint: {fileID: 2662277246265213219}
   status: {fileID: 5189020765822597547}
-  worldUiTag: Standard
+  worldUiTag: PlayerUi
   uiAnchor: {fileID: 160035848761791491}
   autoSetupUiAnchor: 1
   uiAnchorName: UIAnchor
@@ -330,7 +330,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: -0.052078962, y: 0.039059043}
+  m_Offset: {x: -0.34819698, y: 0.6312966}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
@@ -340,7 +340,7 @@ BoxCollider2D:
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 1.6249452, y: 1.6770236}
+  m_Size: {x: 4.3707743, y: 4.422852}
   m_EdgeRadius: 0
 --- !u!114 &6491087091743927717
 MonoBehaviour:

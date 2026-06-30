@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -31,6 +32,8 @@ public partial class CombatHUD
     public Color playerHpPreviewDamageColor = new Color(1f, 0.48f, 0.18f, 0.95f);
     [Range(1f, 8f)] public float playerHpPreviewBlinkSpeed = 4f;
     [Range(0f, 1f)] public float playerHpPreviewMinAlpha = 0.28f;
+    [SerializeField, Range(0.05f, 1.5f)] private float playerHpDamageTrailDuration = 0.45f;
+    [SerializeField, Range(0f, 0.5f)] private float playerHpDamageTrailHold = 0.08f;
 
     [Header("Player Status")]
     public RectTransform playerStatusRowRoot;
@@ -47,11 +50,13 @@ public partial class CombatHUD
     private int _lastHp = int.MinValue;
     private int _lastMaxHp = int.MinValue;
     private int _lastGuard = int.MinValue;
+    private int _lastDisplayedPlayerHp = int.MinValue;
     private int _lastStatusSignature = int.MinValue;
     private bool _lastStaggered;
     private bool _playerTargetPreviewActive;
     private TargetPreviewData _playerPreviewData;
     private Image _playerHpPreviewFill;
+    private Tween _playerHpDamageTrailTween;
     private readonly List<ActorWorldKeywordTooltipUI.TooltipContent> _playerTooltipContents = new List<ActorWorldKeywordTooltipUI.TooltipContent>(DefaultPlayerStatusSlotCount);
 
     private enum PlayerTooltipHotspotKind
@@ -96,6 +101,8 @@ public partial class CombatHUD
         if (!data.valid)
             return;
 
+        _playerHpDamageTrailTween?.Kill();
+        _playerHpDamageTrailTween = null;
         _playerTargetPreviewActive = true;
         _playerPreviewData = data;
         EnsurePlayerVitalsUi();
@@ -599,6 +606,11 @@ public partial class CombatHUD
     {
         int safeHp = Mathf.Max(0, hp);
         int safeMaxHp = Mathf.Max(1, maxHp);
+        int previousHp = _lastDisplayedPlayerHp == int.MinValue ? safeHp : Mathf.Clamp(_lastDisplayedPlayerHp, 0, safeMaxHp);
+        bool shouldPlayDamageTrail = Application.isPlaying &&
+                                     !_playerTargetPreviewActive &&
+                                     previousHp > safeHp &&
+                                     playerHpBarFill != null;
 
         if (playerHpText != null)
         {
@@ -616,7 +628,39 @@ public partial class CombatHUD
             CombatUiDirtySetUtility.SetColorIfChanged(playerHpBarFill, staggered ? playerHpStaggerFillColor : (guard > 0 ? playerHpGuardFillColor : playerHpFillColor));
         }
 
+        if (shouldPlayDamageTrail)
+            PlayPlayerHpDamageTrail(previousHp, safeHp, safeMaxHp);
+
         RefreshPlayerGuardVisual(guard);
+        _lastDisplayedPlayerHp = safeHp;
+    }
+
+    private void PlayPlayerHpDamageTrail(int hpBefore, int hpAfter, int maxHp)
+    {
+        EnsurePlayerHpPreviewFill();
+        if (_playerHpPreviewFill == null)
+            return;
+
+        _playerHpDamageTrailTween?.Kill();
+        _playerHpPreviewFill.gameObject.SetActive(true);
+        _playerHpPreviewFill.color = playerHpPreviewDamageColor;
+        _playerHpPreviewFill.fillAmount = Mathf.Clamp01((float)hpBefore / Mathf.Max(1, maxHp));
+
+        Sequence seq = DOTween.Sequence();
+        if (playerHpDamageTrailHold > 0f)
+            seq.AppendInterval(playerHpDamageTrailHold);
+
+        seq.Append(_playerHpPreviewFill
+            .DOFillAmount(Mathf.Clamp01((float)hpAfter / Mathf.Max(1, maxHp)), Mathf.Max(0.01f, playerHpDamageTrailDuration))
+            .SetEase(Ease.OutCubic));
+        seq.OnComplete(() =>
+        {
+            if (_playerHpPreviewFill != null && !_playerTargetPreviewActive)
+                _playerHpPreviewFill.gameObject.SetActive(false);
+            _playerHpDamageTrailTween = null;
+        });
+
+        _playerHpDamageTrailTween = seq;
     }
 
     private void RefreshPlayerGuardVisual(int guard)

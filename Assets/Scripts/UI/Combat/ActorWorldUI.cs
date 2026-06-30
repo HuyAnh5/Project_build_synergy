@@ -125,6 +125,8 @@ public partial class ActorWorldUI : MonoBehaviour
     public float hpPreviewBlinkSpeed = 3f;
     [Range(0f, 1f)]
     public float hpPreviewMinAlpha = 0.35f;
+    [SerializeField, Range(0.05f, 1.5f)] private float hpDamageTrailDuration = 0.45f;
+    [SerializeField, Range(0f, 0.5f)] private float hpDamageTrailHold = 0.08f;
 
     [Header("Editor Preview")]
     public bool showEditorPreview = true;
@@ -154,6 +156,7 @@ public partial class ActorWorldUI : MonoBehaviour
     private int _lastRuntimeHp = int.MinValue;
     private int _lastRuntimeMaxHp = int.MinValue;
     private int _lastRuntimeGuard = int.MinValue;
+    private int _lastDisplayedHp = int.MinValue;
     private int _lastRuntimeStatusSignature = int.MinValue;
     private int _lastRuntimeIntentSignature = int.MinValue;
     private int _nextIdleWorldTooltipRefreshFrame;
@@ -172,6 +175,7 @@ public partial class ActorWorldUI : MonoBehaviour
     private TargetPreviewData _previewData;
     private Image _hpPreviewFill;   // phần cam đè lên HP bar
     private Tween _hpHealBlinkTween;
+    private Tween _hpDamageTrailTween;
 
     private void Awake()
     {
@@ -253,6 +257,7 @@ public partial class ActorWorldUI : MonoBehaviour
         _lastRuntimeHp = int.MinValue;
         _lastRuntimeMaxHp = int.MinValue;
         _lastRuntimeGuard = int.MinValue;
+        _lastDisplayedHp = int.MinValue;
         _lastRuntimeStatusSignature = int.MinValue;
         _lastRuntimeIntentSignature = int.MinValue;
     }
@@ -593,6 +598,11 @@ public partial class ActorWorldUI : MonoBehaviour
     {
         int safeHp = Mathf.Max(0, hp);
         int safeMaxHp = Mathf.Max(1, maxHp);
+        int previousHp = _lastDisplayedHp == int.MinValue ? safeHp : Mathf.Clamp(_lastDisplayedHp, 0, safeMaxHp);
+        bool shouldPlayDamageTrail = Application.isPlaying &&
+                                     !_targetPreviewActive &&
+                                     previousHp > safeHp &&
+                                     hpBarFill != null;
 
 
         if (hpText != null)
@@ -613,10 +623,43 @@ public partial class ActorWorldUI : MonoBehaviour
             CombatUiDirtySetUtility.SetColorIfChanged(hpBarFill, staggered ? hpStaggerFillColor : (guard > 0 ? hpGuardFillColor : hpFillColor));
         }
 
+        if (shouldPlayDamageTrail)
+            PlayHpDamageTrail(previousHp, safeHp, safeMaxHp);
+
         if (guardRoot != null && Application.isPlaying && autoToggleGuardRootInPlayMode)
             CombatUiDirtySetUtility.SetActiveIfChanged(guardRoot.gameObject, guard > 0);
         if (guardText != null)
             CombatUiDirtySetUtility.SetTextIfChanged(guardText, Mathf.Max(0, guard).ToString());
+
+        _lastDisplayedHp = safeHp;
+    }
+
+    private void PlayHpDamageTrail(int hpBefore, int hpAfter, int maxHp)
+    {
+        EnsureHpPreviewFill();
+        if (_hpPreviewFill == null)
+            return;
+
+        _hpDamageTrailTween?.Kill();
+        _hpPreviewFill.gameObject.SetActive(true);
+        _hpPreviewFill.color = hpPreviewDamageColor;
+        _hpPreviewFill.fillAmount = Mathf.Clamp01((float)hpBefore / Mathf.Max(1, maxHp));
+
+        Sequence seq = DOTween.Sequence();
+        if (hpDamageTrailHold > 0f)
+            seq.AppendInterval(hpDamageTrailHold);
+
+        seq.Append(_hpPreviewFill
+            .DOFillAmount(Mathf.Clamp01((float)hpAfter / Mathf.Max(1, maxHp)), Mathf.Max(0.01f, hpDamageTrailDuration))
+            .SetEase(Ease.OutCubic));
+        seq.OnComplete(() =>
+        {
+            if (_hpPreviewFill != null && !_targetPreviewActive)
+                _hpPreviewFill.gameObject.SetActive(false);
+            _hpDamageTrailTween = null;
+        });
+
+        _hpDamageTrailTween = seq;
     }
 
 }

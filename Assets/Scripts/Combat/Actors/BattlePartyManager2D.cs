@@ -67,6 +67,9 @@ public class BattlePartyManager2D : MonoBehaviour
     [SerializeField] private float enemyBackRowScale = 0.8f;
     [SerializeField] private float formationTweenDuration = 0.3f;
     [SerializeField] private Ease formationEase = Ease.OutQuad;
+    [SerializeField] private bool applyEnemyRowSorting = true;
+    [SerializeField] private int enemyBackRowSortingBase = 0;
+    [SerializeField] private int enemyFrontRowSortingBase = 100;
 
     [Header("World UI")]
     [Tooltip("Data-driven mapping from actor worldUiTag to the prefab that should be spawned.")]
@@ -113,6 +116,9 @@ public class BattlePartyManager2D : MonoBehaviour
         public int gapSideBias;
         public float enemyFrontRowScale;
         public float enemyBackRowScale;
+        public bool applyEnemyRowSorting;
+        public int enemyBackRowSortingBase;
+        public int enemyFrontRowSortingBase;
         public float formationTweenDuration;
         public Ease formationEase;
 
@@ -130,6 +136,9 @@ public class BattlePartyManager2D : MonoBehaviour
                    gapSideBias == other.gapSideBias &&
                    Mathf.Approximately(enemyFrontRowScale, other.enemyFrontRowScale) &&
                    Mathf.Approximately(enemyBackRowScale, other.enemyBackRowScale) &&
+                   applyEnemyRowSorting == other.applyEnemyRowSorting &&
+                   enemyBackRowSortingBase == other.enemyBackRowSortingBase &&
+                   enemyFrontRowSortingBase == other.enemyFrontRowSortingBase &&
                    Mathf.Approximately(formationTweenDuration, other.formationTweenDuration) &&
                    formationEase == other.formationEase;
         }
@@ -156,6 +165,9 @@ public class BattlePartyManager2D : MonoBehaviour
             gapSideBias = gapSideBias,
             enemyFrontRowScale = enemyFrontRowScale,
             enemyBackRowScale = enemyBackRowScale,
+            applyEnemyRowSorting = applyEnemyRowSorting,
+            enemyBackRowSortingBase = enemyBackRowSortingBase,
+            enemyFrontRowSortingBase = enemyFrontRowSortingBase,
             formationTweenDuration = formationTweenDuration,
             formationEase = formationEase,
         };
@@ -652,8 +664,44 @@ public class BattlePartyManager2D : MonoBehaviour
         if (enemy == null || anchor == null)
             return;
 
+        ApplyEnemyRowSorting(enemy);
         Vector3 worldTarget = anchor.TransformPoint(new Vector3(localX, localY, 0f));
         AnimateEnemyFormation(enemy, worldTarget, targetScale);
+    }
+
+    private void ApplyEnemyRowSorting(CombatActor enemy)
+    {
+        if (!applyEnemyRowSorting || enemy == null)
+            return;
+
+        int baseOrder = enemy.row == CombatActor.RowTag.Front
+            ? enemyFrontRowSortingBase
+            : enemyBackRowSortingBase;
+        Renderer[] renderers = enemy.GetComponentsInChildren<Renderer>(true);
+        if (renderers == null || renderers.Length == 0)
+            return;
+
+        int minOrder = int.MaxValue;
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null || renderer is ParticleSystemRenderer)
+                continue;
+
+            minOrder = Mathf.Min(minOrder, renderer.sortingOrder);
+        }
+
+        if (minOrder == int.MaxValue)
+            minOrder = 0;
+
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null || renderer is ParticleSystemRenderer)
+                continue;
+
+            renderer.sortingOrder = baseOrder + (renderer.sortingOrder - minOrder);
+        }
     }
 
     private List<EnemyFormationSlot> CalculateEnemyFormationSlots(List<CombatActor> frontEnemies, List<CombatActor> backEnemies)
@@ -843,6 +891,9 @@ public class BattlePartyManager2D : MonoBehaviour
     private void AnimateEnemyFormation(CombatActor enemy, Vector3 targetPosition, float targetScale)
     {
         if (enemy == null)
+            return;
+
+        if (CombatActorMotionLock.IsLocked(enemy))
             return;
 
         if (_formationMoveTweens.TryGetValue(enemy, out Tween moveTween) && moveTween != null && moveTween.IsActive())
