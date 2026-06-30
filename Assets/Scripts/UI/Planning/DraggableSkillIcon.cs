@@ -122,6 +122,8 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     private Sequence _transientAffectedAuraSequence;
     private bool _isActiveRuntimeSkill;
     private bool _lastActiveRuntimeSkill;
+    private bool _runtimePassiveDisabled;
+    private bool _lastRuntimePassiveDisabled;
     private int _activeRuntimeTurns;
     private int _lastActiveRuntimeTurns = int.MinValue;
     private float _lastAuraWaveSeconds = -1f;
@@ -287,6 +289,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         RefreshElementBadge();
         RefreshTesterPassiveVisualState();
         RefreshActiveRuntimeState();
+        RefreshRuntimePassiveDisabledState();
         ApplyVisualState();
         CaptureVisualSnapshot();
     }
@@ -471,7 +474,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         if (_img == null) return;
 
         float alpha = _inUse ? inUseAlpha : 1f;
-        if (!_castable)
+        if (!_castable || _runtimePassiveDisabled)
             alpha *= unavailableAlpha;
 
         Color c = _img.color;
@@ -536,6 +539,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         bool hasElement = SkillUiMetadataUtility.TryGetElementType(asset, out ElementType element);
         SkillUiIconLibrarySO resolvedIconLibrary = ResolveIconLibrary();
         RefreshActiveRuntimeState();
+        RefreshRuntimePassiveDisabledState();
 
         if (asset == _lastVisualAsset &&
             currentIcon == _lastVisualIcon &&
@@ -546,6 +550,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
             (!hasElement || element == _lastVisualElement) &&
             resolvedIconLibrary == _lastResolvedIconLibrary &&
             _isActiveRuntimeSkill == _lastActiveRuntimeSkill &&
+            _runtimePassiveDisabled == _lastRuntimePassiveDisabled &&
             _activeRuntimeTurns == _lastActiveRuntimeTurns)
         {
             return;
@@ -580,6 +585,7 @@ public partial class DraggableSkillIcon : MonoBehaviour,
 
         _lastResolvedIconLibrary = ResolveIconLibrary();
         _lastActiveRuntimeSkill = _isActiveRuntimeSkill;
+        _lastRuntimePassiveDisabled = _runtimePassiveDisabled;
         _lastActiveRuntimeTurns = _activeRuntimeTurns;
     }
 
@@ -613,6 +619,15 @@ public partial class DraggableSkillIcon : MonoBehaviour,
         ResolveTurnManager();
         ScriptableObject asset = GetSkillAsset();
         _isActiveRuntimeSkill = SkillActiveStateUtility.IsSkillActiveOnPlayer(asset, turn != null ? turn.player : null, out _activeRuntimeTurns);
+    }
+
+    private void RefreshRuntimePassiveDisabledState()
+    {
+        SkillPassiveSO passive = GetSkillAsset() as SkillPassiveSO;
+        PassiveSystem passiveSystem = PassiveSystemRegistry.GetPlayer();
+        _runtimePassiveDisabled = passive != null &&
+                                  passiveSystem != null &&
+                                  passiveSystem.IsPassiveDisabledForCombat(passive);
     }
 
     private int GetPreviewDieValue(SkillRuntime rt)

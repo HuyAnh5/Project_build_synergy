@@ -23,6 +23,7 @@ public partial class PassiveSystem : MonoBehaviour
     private readonly Dictionary<DiceSpinnerGeneric, int[]> _baseFaceValues = new Dictionary<DiceSpinnerGeneric, int[]>();
     private readonly Dictionary<DiceSpinnerGeneric, int[]> _permanentFaceBonuses = new Dictionary<DiceSpinnerGeneric, int[]>();
     private readonly Dictionary<DiceSpinnerGeneric, int> _combatAllFaceBonuses = new Dictionary<DiceSpinnerGeneric, int>();
+    private readonly HashSet<SkillPassiveSO> _disabledForCombatPassives = new HashSet<SkillPassiveSO>();
     private DiceSlotRig _cachedDiceRig;
     private const float RollThreeHitDelay = 0.15f;
 
@@ -180,9 +181,14 @@ public partial class PassiveSystem : MonoBehaviour
     private bool IsPassiveRuntimeEnabled(SkillPassiveSO passive)
     {
         bool enabled = true;
+        if (passive != null && _disabledForCombatPassives.Contains(passive))
+            enabled = false;
         OverrideTesterPassiveRuntimeEnabled(passive, ref enabled);
         return enabled;
     }
+
+    public bool IsPassiveDisabledForCombat(SkillPassiveSO passive)
+        => passive != null && _disabledForCombatPassives.Contains(passive);
 
     public bool Unequip(SkillPassiveSO passive)
     {
@@ -198,6 +204,7 @@ public partial class PassiveSystem : MonoBehaviour
     public void OnCombatStarted()
     {
         _combatAllFaceBonuses.Clear();
+        _disabledForCombatPassives.Clear();
         _temporaryCombatPassives.Clear();
         _bloodCounterAddedValueActive = false;
         _failDieNextSkillAddedValueActive = false;
@@ -211,6 +218,7 @@ public partial class PassiveSystem : MonoBehaviour
         ApplyRandomCommonPassiveForCombat();
         CaptureKnownDiceFaces(refreshTrackedBaseValues: true);
         ReapplyAllTrackedFaceBonuses();
+        RefreshPassiveIcons();
     }
 
     public void OnTurnStarted()
@@ -709,17 +717,14 @@ public partial class PassiveSystem : MonoBehaviour
             return false;
 
         _reviveUsedThisCombat = true;
-        int hpPercent = Mathf.Clamp(reviveEffect.valueI, 1, 100);
-        int reviveHp = Mathf.Max(1, Mathf.CeilToInt(owner.maxHP * hpPercent / 100f));
-        owner.hp = Mathf.Clamp(reviveHp, 1, Mathf.Max(1, owner.maxHP));
         PulsePassiveEffect(PassiveEffectId.OneTimeReviveThenEmptySlot);
+        owner.hp = Mathf.Max(1, owner.maxHP);
+        HandleHpChanged();
+        owner.hp = 1;
+        HandleHpChanged();
 
-        if (runInventory == null)
-            TryBindInventory();
-        if (runInventory != null)
-            runInventory.RemoveOwnedPassive(sourcePassive);
-
-        Unequip(sourcePassive);
+        _disabledForCombatPassives.Add(sourcePassive);
+        RefreshPassiveIcons();
         return true;
     }
 
@@ -769,6 +774,17 @@ public partial class PassiveSystem : MonoBehaviour
 
             if (hasEffect)
                 DraggableSkillIcon.PulseSkillAssetIcons(passive);
+        }
+    }
+
+    private void RefreshPassiveIcons()
+    {
+        DraggableSkillIcon[] icons = DraggableSkillIconRegistry.GetAllSnapshot();
+        for (int i = 0; i < icons.Length; i++)
+        {
+            DraggableSkillIcon icon = icons[i];
+            if (icon != null && icon.IsPassive)
+                icon.Refresh();
         }
     }
 
