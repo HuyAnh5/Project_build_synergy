@@ -484,10 +484,10 @@ public static partial class MapPrototypeGenerator
             if (node.id == parent.id || node.id == excludeNodeId)
                 continue;
 
-            float minDist = node.specialLeaf ? 182f : 158f;
+            float minDist = node.specialLeaf ? 204f : 176f;
             if (Distance(node.x, node.y, candidate.x, candidate.y) < minDist)
                 return false;
-            if (PointToSegmentDistance(node.x, node.y, parent.x, parent.y, candidate.x, candidate.y) < 92f)
+            if (PointToSegmentDistance(node.x, node.y, parent.x, parent.y, candidate.x, candidate.y) < 100f)
                 return false;
         }
 
@@ -505,7 +505,7 @@ public static partial class MapPrototypeGenerator
 
             if (SegmentsIntersect(parent.x, parent.y, candidate.x, candidate.y, from.x, from.y, to.x, to.y))
                 return false;
-            if (PointToSegmentDistance(candidate.x, candidate.y, from.x, from.y, to.x, to.y) < 104f)
+            if (PointToSegmentDistance(candidate.x, candidate.y, from.x, from.y, to.x, to.y) < 116f)
                 return false;
         }
 

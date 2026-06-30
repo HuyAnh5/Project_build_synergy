@@ -31,15 +31,23 @@ public sealed partial class MapPrototypeController
         MapPrototypeNodeData bossNode = _map.nodes.First(node => node.type == MapPrototypeNodeType.Boss);
         bool revealed = _hintsCollected >= config.bossHintsRequired;
         _bossRevealed = revealed;
+        string bossBadge = bossNode.bossData != null ? bossNode.bossData.badgeText : "?";
+        string bossName = bossNode.bossData != null ? bossNode.bossData.bossName : "Unknown Boss";
+        if (bossNode.encounterDefinition != null)
+        {
+            bossName = bossNode.encounterDefinition.DisplayName;
+            if (!string.IsNullOrWhiteSpace(bossName))
+                bossBadge = bossName.Length >= 2 ? bossName.Substring(0, 2).ToUpperInvariant() : bossName.ToUpperInvariant();
+        }
 
         if (bossHintText != null)
             bossHintText.text = $"Boss Hint: {Mathf.Min(_hintsCollected, config.bossHintsRequired)}/{config.bossHintsRequired}";
 
         if (bossIconText != null)
-            bossIconText.text = revealed && bossNode.bossData != null ? bossNode.bossData.badgeText : "?";
+            bossIconText.text = revealed ? bossBadge : "?";
 
         if (bossNameText != null)
-            bossNameText.text = revealed && bossNode.bossData != null ? bossNode.bossData.bossName : "Unknown Boss";
+            bossNameText.text = revealed ? bossName : "Unknown Boss";
     }
 
     private void RenderStatusPanel()
@@ -50,8 +58,8 @@ public sealed partial class MapPrototypeController
 
         if (currentNodeTitleText != null)
         {
-            string title = current.type == MapPrototypeNodeType.Boss && _bossRevealed && current.bossData != null
-                ? $"{current.bossData.bossName} - Boss"
+            string title = current.type == MapPrototypeNodeType.Boss && _bossRevealed
+                ? $"{GetBossDisplayName(current)} - Boss"
                 : MapPrototypeNodeCatalog.GetLabel(current.type);
             currentNodeTitleText.text = title;
         }
@@ -100,6 +108,15 @@ public sealed partial class MapPrototypeController
             return "You have already stepped on this node once.";
 
         return detail;
+    }
+
+    private static string GetBossDisplayName(MapPrototypeNodeData bossNode)
+    {
+        if (bossNode != null && bossNode.encounterDefinition != null && !string.IsNullOrWhiteSpace(bossNode.encounterDefinition.DisplayName))
+            return bossNode.encounterDefinition.DisplayName;
+        if (bossNode != null && bossNode.bossData != null && !string.IsNullOrWhiteSpace(bossNode.bossData.bossName))
+            return bossNode.bossData.bossName;
+        return "Unknown Boss";
     }
 
     private void RenderMap()

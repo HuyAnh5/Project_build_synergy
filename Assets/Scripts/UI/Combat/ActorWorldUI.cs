@@ -349,6 +349,8 @@ public partial class ActorWorldUI : MonoBehaviour
         if (intentCanvasGroup == null)
             return;
 
+        _lastRuntimeIntentSignature = int.MinValue;
+        RefreshIntent();
         intentCanvasGroup.DOKill();
         intentCanvasGroup.alpha = 1f;
     }

@@ -1,4 +1,4 @@
-%YAML 1.1
+﻿%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!114 &11400000
 MonoBehaviour:
@@ -12,4 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c09358fd2fc8ac34e887874457d501f5, type: 3}
   m_Name: MapEncounterDatabase
   m_EditorClassIdentifier: Assembly-CSharp::MapEncounterDatabaseSO
-  encounters: []
+  pools:
+  - {fileID: 11400000, guid: 83a28ee6a0e044888fe1023288bbbc59, type: 2}
+  - {fileID: 11400000, guid: da1baca0ee3a4617a670540b2672e4fa, type: 2}
+  - {fileID: 11400000, guid: 623922e6a0524b40a70b596d790c65dc, type: 2}
+  - {fileID: 11400000, guid: fc595374bea04c75b08d3982b1568b7f, type: 2}

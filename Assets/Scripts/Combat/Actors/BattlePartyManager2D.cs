@@ -559,6 +559,7 @@ public class BattlePartyManager2D : MonoBehaviour
     public void SpawnPrototypeEncounter(SpawnSlot[] slots, bool resetPlayerForBattle)
     {
         enemySlots = slots ?? new SpawnSlot[maxEnemies];
+        CacheEnemySlotsSignature();
         maxEnemies = Mathf.Max(maxEnemies, CountValidSpawnSlots(enemySlots));
         ClearAll(destroyObjects: false);
         EnsurePlayerExists();

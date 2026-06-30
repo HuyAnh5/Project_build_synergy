@@ -14,6 +14,10 @@ public sealed partial class MapPrototypeController : MonoBehaviour
     [SerializeField] private bool useExternalHostileFlow;
     [SerializeField] private bool verboseLogging = true;
 
+    [Header("Encounter Data")]
+    [SerializeField] private MapEncounterDatabaseSO encounterDatabase;
+    [SerializeField] private MapRunAct currentAct = MapRunAct.Act1;
+
     [Header("Runtime UI")]
     [SerializeField] private RectTransform topBar;
     [SerializeField] private RectTransform mapCard;
@@ -136,6 +140,7 @@ public sealed partial class MapPrototypeController : MonoBehaviour
             WireButtons();
 
             _map = MapPrototypeGenerator.GenerateAct(config);
+            AssignEncountersToGeneratedMap();
             MapPrototypeNodeData startNode = _map.nodes.First(node => node.type == MapPrototypeNodeType.Start);
             _currentNodeId = startNode.id;
             _hintsCollected = 0;

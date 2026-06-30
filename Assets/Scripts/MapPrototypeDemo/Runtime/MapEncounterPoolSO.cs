@@ -41,10 +41,12 @@ public sealed class MapEncounterPoolSO : ScriptableObject
     public static MapEncounterLayerPhase GetLayerPhase(int layer, int maxLayer)
     {
         int safeMaxLayer = Mathf.Max(1, maxLayer);
-        float t = Mathf.Clamp01(layer / (float)safeMaxLayer);
-        if (t < 0.34f)
+        int earlyMax = Mathf.Max(1, Mathf.CeilToInt(safeMaxLayer * 0.375f));
+        int midMax = Mathf.Max(earlyMax, Mathf.CeilToInt(safeMaxLayer * 0.75f));
+
+        if (layer <= earlyMax)
             return MapEncounterLayerPhase.Early;
-        if (t < 0.67f)
+        if (layer <= midMax)
             return MapEncounterLayerPhase.Mid;
 
         return MapEncounterLayerPhase.Late;

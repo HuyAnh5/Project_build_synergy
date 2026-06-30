@@ -145,7 +145,10 @@ public sealed class PrototypeLinearMapFlowController : MonoBehaviour
             return;
 
         _pendingPreCombatReward = false;
-        combatController.StartCombatAtIndex(Mathf.Max(0, _activeNode.encounterIndex));
+        if (_activeNode.encounterDefinition != null)
+            combatController.StartCombat(_activeNode.encounterDefinition);
+        else
+            combatController.StartCombatAtIndex(Mathf.Max(0, _activeNode.encounterIndex));
     }
 
     private void HideMapScreen()

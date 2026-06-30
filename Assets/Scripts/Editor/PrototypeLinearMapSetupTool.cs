@@ -87,4 +87,102 @@ public static class PrototypeLinearMapSetupTool
         so.ApplyModifiedPropertiesWithoutUndo();
     }
 }
+
+public static class MapEncounterRunSetupTool
+{
+    private const string EncounterDatabasePath = "Assets/GameData/enemySpawn/MapEncounterDatabase.asset";
+
+    [MenuItem("Tools/Build Synergy/Map/Setup Encounter Run Map In Current Scene")]
+    public static void SetupEncounterRunMapInCurrentScene()
+    {
+        Scene scene = SceneManager.GetActiveScene();
+        if (!scene.IsValid())
+        {
+            Debug.LogWarning("[MapEncounterRunSetupTool] No active scene to setup.");
+            return;
+        }
+
+        CombatLabPrototypeSetupTool.SetupCombatLabPrototypeInCurrentScene();
+        MapPrototypeSetupTool.SetupMapPrototypeDemo();
+
+        CombatLabPrototypeController combatController = Object.FindFirstObjectByType<CombatLabPrototypeController>(FindObjectsInactive.Include);
+        MapPrototypeController mapController = Object.FindFirstObjectByType<MapPrototypeController>(FindObjectsInactive.Include);
+        TurnManager turnManager = Object.FindFirstObjectByType<TurnManager>(FindObjectsInactive.Include);
+
+        if (combatController == null || mapController == null)
+        {
+            Debug.LogWarning("[MapEncounterRunSetupTool] Missing CombatLabPrototypeController or MapPrototypeController after setup.");
+            return;
+        }
+
+        MapEncounterRunFlowController flowController = combatController.GetComponent<MapEncounterRunFlowController>();
+        if (flowController == null)
+            flowController = Undo.AddComponent<MapEncounterRunFlowController>(combatController.gameObject);
+
+        PrototypeLinearMapFlowController linearFlow = combatController.GetComponent<PrototypeLinearMapFlowController>();
+        if (linearFlow != null)
+            linearFlow.enabled = false;
+
+        ConfigureCombatController(combatController);
+        ConfigureMapController(mapController);
+        ConfigureFlowController(flowController, combatController, mapController, turnManager);
+
+        mapController.gameObject.SetActive(true);
+        EditorUtility.SetDirty(combatController);
+        EditorUtility.SetDirty(mapController);
+        EditorUtility.SetDirty(flowController);
+        EditorSceneManager.MarkSceneDirty(scene);
+        Selection.activeGameObject = flowController.gameObject;
+    }
+
+    private static void ConfigureCombatController(CombatLabPrototypeController controller)
+    {
+        SerializedObject so = new SerializedObject(controller);
+        SerializedProperty autoRun = so.FindProperty("autoRunPrototypeFlow");
+        if (autoRun != null)
+            autoRun.boolValue = false;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    private static void ConfigureMapController(MapPrototypeController controller)
+    {
+        MapEncounterDatabaseSO database = AssetDatabase.LoadAssetAtPath<MapEncounterDatabaseSO>(EncounterDatabasePath);
+        SerializedObject so = new SerializedObject(controller);
+        so.FindProperty("autoGenerateOnStart").boolValue = true;
+        so.FindProperty("useExternalHostileFlow").boolValue = true;
+        so.FindProperty("encounterDatabase").objectReferenceValue = database;
+        so.FindProperty("currentAct").enumValueIndex = 0;
+
+        SerializedProperty config = so.FindProperty("config");
+        config.FindPropertyRelative("useLinearPrototypeLayout").boolValue = false;
+        config.FindPropertyRelative("columns").intValue = 7;
+        config.FindPropertyRelative("intermediateRows").intValue = 8;
+        config.FindPropertyRelative("pathCount").intValue = 6;
+        config.FindPropertyRelative("mapWidth").floatValue = 940f;
+        config.FindPropertyRelative("mapHeight").floatValue = 1320f;
+        config.FindPropertyRelative("padX").floatValue = 92f;
+        config.FindPropertyRelative("padY").floatValue = 82f;
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        if (database == null)
+            Debug.LogWarning($"[MapEncounterRunSetupTool] Missing encounter database at {EncounterDatabasePath}. Assign it manually on MapPrototypeController.", controller);
+    }
+
+    private static void ConfigureFlowController(
+        MapEncounterRunFlowController flowController,
+        CombatLabPrototypeController combatController,
+        MapPrototypeController mapController,
+        TurnManager turnManager)
+    {
+        SerializedObject so = new SerializedObject(flowController);
+        so.FindProperty("combatController").objectReferenceValue = combatController;
+        so.FindProperty("mapController").objectReferenceValue = mapController;
+        so.FindProperty("turnManager").objectReferenceValue = turnManager;
+        so.FindProperty("prepareCombatLoadoutOnStart").boolValue = true;
+        so.FindProperty("resetMapOnStart").boolValue = true;
+        so.FindProperty("grantRewardAfterCombat").boolValue = true;
+        so.FindProperty("grantRewardAfterBoss").boolValue = false;
+        so.ApplyModifiedPropertiesWithoutUndo();
+    }
+}
 #endif

@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9651d163d6d37db45a94efa9d3714e95, type: 3}
+  m_Name: Pool-Act1-elite
+  m_EditorClassIdentifier: Assembly-CSharp::MapEncounterPoolSO
+  act: 1
+  kind: 1
+  encounters:
+  - {fileID: 11400000, guid: 6a04c2f1f091485891c7e4c005c222b4, type: 2}
+  - {fileID: 11400000, guid: 62a20f5f837a41a1b15ec5d0e182cf7a, type: 2}
+  - {fileID: 11400000, guid: f9c2b93bca094053b9e64f228d9e74e2, type: 2}
+  - {fileID: 11400000, guid: e57e58ed786740acada39e563150cd6a, type: 2}

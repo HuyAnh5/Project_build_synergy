@@ -122,6 +122,31 @@ public class CombatLabPrototypeController : MonoBehaviour
         return result;
     }
 
+    private static BattlePartyManager2D.SpawnSlot[] BuildEnemySpawnSlots(MapEncounterDefinitionSO encounter)
+    {
+        BattlePartyManager2D.SpawnSlot[] result = new BattlePartyManager2D.SpawnSlot[3];
+        if (encounter == null || encounter.Enemies == null)
+            return result;
+
+        int writeIndex = 0;
+        for (int i = 0; i < encounter.Enemies.Length && writeIndex < result.Length; i++)
+        {
+            MapEncounterDefinitionSO.EnemySpawnEntry entry = encounter.Enemies[i];
+            if (entry == null || !entry.enabled || entry.prefab == null)
+                continue;
+
+            result[writeIndex] = new BattlePartyManager2D.SpawnSlot
+            {
+                prefab = entry.prefab,
+                row = entry.row,
+                orderInRow = writeIndex
+            };
+            writeIndex++;
+        }
+
+        return result;
+    }
+
     private CombatLabPrototypeConfigSO.EnemyEntry[] ResolveEncounterEnemies(int encounterIndex)
     {
         if (config == null)
@@ -258,11 +283,11 @@ public class CombatLabPrototypeController : MonoBehaviour
 
     private static bool IsValidSkillGroup(CombatLabPrototypeConfigSO.SkillPairEntry group)
     {
-        return IsActiveSkill(group.skillA) &&
-               IsActiveSkill(group.skillB) &&
-               IsActiveSkill(group.skillC) &&
-               IsActiveSkill(group.skillD) &&
-               IsActiveSkill(group.skillE);
+        return IsValidLoadoutSkill(group.skillA) &&
+               IsValidLoadoutSkill(group.skillB) &&
+               IsValidLoadoutSkill(group.skillC) &&
+               IsValidLoadoutSkill(group.skillD) &&
+               IsValidLoadoutSkill(group.skillE);
     }
 
     public void PreparePrototypeRun()
@@ -273,6 +298,11 @@ public class CombatLabPrototypeController : MonoBehaviour
     public void StartCombatAtIndex(int combatIndex)
     {
         StartCombat(combatIndex);
+    }
+
+    public void StartCombat(MapEncounterDefinitionSO encounter)
+    {
+        StartEncounterCombat(encounter);
     }
 
     public void ShowConsumableReward(System.Action onRewardClosed)
@@ -366,9 +396,9 @@ public class CombatLabPrototypeController : MonoBehaviour
         return skill != null ? skill.name : "null";
     }
 
-    private static bool IsActiveSkill(ScriptableObject asset)
+    private static bool IsValidLoadoutSkill(ScriptableObject asset)
     {
-        return asset is SkillDamageSO || asset is SkillBuffDebuffSO;
+        return asset is SkillDamageSO || asset is SkillBuffDebuffSO || asset is SkillPassiveSO;
     }
 
     private void AutoResolveReferences()
@@ -451,6 +481,22 @@ public class CombatLabPrototypeController : MonoBehaviour
         _currentCombatIndex = Mathf.Clamp(combatIndex, 0, count - 1);
         if (party != null)
             party.SpawnPrototypeEncounter(BuildEnemySpawnSlots(_currentCombatIndex), resetPlayerForBattle: true);
+
+        if (turnManager != null)
+            turnManager.BeginPrototypeCombat();
+    }
+
+    private void StartEncounterCombat(MapEncounterDefinitionSO encounter)
+    {
+        AutoResolveReferences();
+        if (encounter == null)
+        {
+            Debug.LogWarning("[CombatLabPrototypeController] Cannot start encounter combat because encounter is null.", this);
+            return;
+        }
+
+        if (party != null)
+            party.SpawnPrototypeEncounter(BuildEnemySpawnSlots(encounter), resetPlayerForBattle: true);
 
         if (turnManager != null)
             turnManager.BeginPrototypeCombat();

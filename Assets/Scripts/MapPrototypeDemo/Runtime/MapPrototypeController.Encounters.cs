@@ -27,6 +27,12 @@ public sealed partial class MapPrototypeController
 
         if (MapPrototypeNodeCatalog.IsHostile(node.type) && !node.cleared)
         {
+            if (useExternalHostileFlow)
+            {
+                BeginExternalHostileEncounter(node);
+                return;
+            }
+
             OpenHostileModal(node);
             return;
         }
@@ -71,12 +77,17 @@ public sealed partial class MapPrototypeController
     private void OpenHostileModal(MapPrototypeNodeData node)
     {
         string title = node.type == MapPrototypeNodeType.Boss
-            ? (_bossRevealed && node.bossData != null ? node.bossData.bossName : "Unknown Boss")
-            : MapPrototypeNodeCatalog.GetLabel(node.type);
+            ? (_bossRevealed ? GetBossDisplayName(node) : "Unknown Boss")
+            : !string.IsNullOrWhiteSpace(node.encounterDefinition != null ? node.encounterDefinition.DisplayName : null)
+                ? node.encounterDefinition.DisplayName
+                : MapPrototypeNodeCatalog.GetLabel(node.type);
 
         string body = node.type == MapPrototypeNodeType.Boss && _bossRevealed && node.bossData != null
             ? node.bossData.description
             : MapPrototypeNodeCatalog.GetDescription(node.type);
+
+        if (node.encounterDefinition != null && node.type != MapPrototypeNodeType.Boss)
+            body += $" Encounter: {node.encounterDefinition.DisplayName}.";
 
         if (node.hasHint && !node.hintTaken)
             body += " This node is holding one boss hint if you fight and clear it.";
@@ -156,6 +167,8 @@ public sealed partial class MapPrototypeController
     {
         string body = MapPrototypeNodeCatalog.GetDescription(node.type)
             + " After the first visit this node becomes a safe path node.";
+        if (node.type == MapPrototypeNodeType.Event && node.encounterDefinition != null && !string.IsNullOrWhiteSpace(node.encounterDefinition.EventSummary))
+            body += " " + node.encounterDefinition.EventSummary;
         if (node.hasHint && node.hintTaken)
             body += " You collected one boss hint here.";
 

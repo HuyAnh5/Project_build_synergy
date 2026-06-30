@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9651d163d6d37db45a94efa9d3714e95, type: 3}
+  m_Name: Pool-Act1-combat
+  m_EditorClassIdentifier: Assembly-CSharp::MapEncounterPoolSO
+  act: 1
+  kind: 0
+  encounters:
+  - {fileID: 11400000, guid: ef343f15c8c64c47a0a549fcdf55cd38, type: 2}
+  - {fileID: 11400000, guid: de2037c8c43b46d0ba1baeffc1c754f7, type: 2}
+  - {fileID: 11400000, guid: 1ac188a086b74b8fa35f40fb8947f473, type: 2}
+  - {fileID: 11400000, guid: 15ef97cab1bb4ec2b886800f59d929a9, type: 2}
+  - {fileID: 11400000, guid: 7617f546957f42b89476aca569b0122f, type: 2}
+  - {fileID: 11400000, guid: 9a0d525018824bfbb3423084dc28a700, type: 2}
+  - {fileID: 11400000, guid: a3fa62d6c47c42c1acf4ecb210a3ea60, type: 2}
+  - {fileID: 11400000, guid: e7518c1f59e24e7f84317494e5456911, type: 2}
+  - {fileID: 11400000, guid: 28fa8cac4d4848fd8360f1ca18dd56e5, type: 2}
+  - {fileID: 11400000, guid: 96a2fe1a7d26483fb017493b030faa5c, type: 2}
+  - {fileID: 11400000, guid: a3544ed5623743fab3cf836c8719fc17, type: 2}
+  - {fileID: 11400000, guid: 3d6b1d1f37ff4055845f88fe0249d48d, type: 2}

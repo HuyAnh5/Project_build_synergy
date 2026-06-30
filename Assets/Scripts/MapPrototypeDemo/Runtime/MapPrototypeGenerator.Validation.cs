@@ -196,8 +196,44 @@ public static partial class MapPrototypeGenerator
                 return false;
 
             float dist = Distance(node.x, node.y, parent.x, parent.y);
-            return dist >= config.leafMinDistance && dist <= config.leafMaxDistance;
+            return dist >= config.leafMinDistance
+                && dist <= config.leafMaxDistance
+                && HasSafeLeafClearance(map, node, parent);
         });
+    }
+
+    private static bool HasSafeLeafClearance(MapPrototypeData map, MapPrototypeNodeData leaf, MapPrototypeNodeData parent)
+    {
+        foreach (MapPrototypeNodeData node in map.nodes)
+        {
+            if (node.id == leaf.id || node.id == parent.id)
+                continue;
+
+            float minNodeDistance = node.specialLeaf ? 204f : 176f;
+            if (Distance(node.x, node.y, leaf.x, leaf.y) < minNodeDistance)
+                return false;
+
+            if (PointToSegmentDistance(node.x, node.y, parent.x, parent.y, leaf.x, leaf.y) < 100f)
+                return false;
+        }
+
+        foreach (MapPrototypeEdgeData edge in map.edges)
+        {
+            if (edge.from == leaf.id || edge.to == leaf.id || edge.from == parent.id || edge.to == parent.id)
+                continue;
+
+            MapPrototypeNodeData from = GetNodeById(map, edge.from);
+            MapPrototypeNodeData to = GetNodeById(map, edge.to);
+            if (from == null || to == null)
+                continue;
+
+            if (SegmentsIntersect(parent.x, parent.y, leaf.x, leaf.y, from.x, from.y, to.x, to.y))
+                return false;
+            if (PointToSegmentDistance(leaf.x, leaf.y, from.x, from.y, to.x, to.y) < 116f)
+                return false;
+        }
+
+        return true;
     }
 
     private static float LeafSpacingScore(MapPrototypeConfig config, MapPrototypeData map)

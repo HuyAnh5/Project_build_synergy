@@ -44,6 +44,7 @@ public sealed class MapPrototypeNodeData
     public int side;
     public bool lockedCombat;
     public MapPrototypeBossData bossData;
+    public MapEncounterDefinitionSO encounterDefinition;
 }
 
 [Serializable]

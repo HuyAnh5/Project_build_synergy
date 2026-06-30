@@ -23,6 +23,6 @@ MonoBehaviour:
     normalizedText: 
     designIntent: 
   effects:
-  - id: 10
-    valueI: 4
-    value2I: 3
+  - id: 3
+    valueI: 2
+    value2I: 5

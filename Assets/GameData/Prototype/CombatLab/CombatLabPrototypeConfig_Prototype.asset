@@ -23,10 +23,10 @@ MonoBehaviour:
       orderInRow: 0
     - enabled: 1
       prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
-      row: 1
+      row: 0
       orderInRow: 0
     - enabled: 1
-      prefab: {fileID: 3343973332019958161, guid: 3f8572d06979e2044a38116ac5b8bca7, type: 3}
+      prefab: {fileID: 0}
       row: 0
       orderInRow: 0
   - label: Combat 2
@@ -147,7 +147,7 @@ MonoBehaviour:
   - label: 
     skillA: {fileID: 11400000, guid: 5263cf5ec9fce1643bee3f5e8e1d027e, type: 2}
     skillB: {fileID: 11400000, guid: ae03d7f30437ba9468c724b3c4ad15f0, type: 2}
-    skillC: {fileID: 11400000, guid: 9afb0b02949741bba16e3bed67dc6848, type: 2}
+    skillC: {fileID: 11400000, guid: f2f10c4a550d178439b91fe3979e3e0a, type: 2}
     skillD: {fileID: 11400000, guid: d0a72a3e8f4a917bf4280516f7087207, type: 2}
     skillE: {fileID: 11400000, guid: ccf6192d7e39806ae317f405e6f76106, type: 2}
   consumables: []
