@@ -29,16 +29,12 @@ public partial class DraggableSkillIcon
         ShowResourcePreview(a);
         UiDragState.BeginDrag(this);
         _dragRegistered = true;
-        CreateGhost();
-        MoveGhost(eventData.position);
+        TargetingArrowUI.EnsureFor(this);
         _cg.blocksRaycasts = false;
     }
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (_ghostRT != null)
-            MoveGhost(eventData.position);
-
         // Target preview: detect actor under cursor
         if (_dragRegistered)
             UpdateTargetPreviewUnderCursor(eventData);
@@ -54,8 +50,6 @@ public partial class DraggableSkillIcon
             _dragRegistered = false;
         }
 
-        if (_ghostRT == null) return;
-
         if (!_dropAccepted &&
             eventData != null &&
             CanDropToSelf(GetSkillAsset()) &&
@@ -67,17 +61,12 @@ public partial class DraggableSkillIcon
 
         if (_dropAccepted)
         {
-            ReleaseGhost();
+            TargetingArrowUI.Hide();
             return;
         }
 
-        _ghostRT.DOKill();
-        _ghostRT.DOAnchorPos(_ghostHomeAnchoredPos, invalidDropReturnDuration)
-            .SetEase(Ease.OutCubic)
-            .OnComplete(() =>
-            {
-                ReleaseGhost();
-            });
+        TargetingArrowUI.Hide();
+        RejectActionFeedback();
     }
 
     public void NotifyDropAccepted()

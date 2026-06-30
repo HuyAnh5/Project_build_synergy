@@ -28,6 +28,10 @@ public sealed class TargetingArrowUI : MonoBehaviour
     private readonly List<Image> _segments = new List<Image>();
     private readonly List<Image> _activeSegments = new List<Image>();
     private Image _arrowHead;
+    private Sprite _generatedSegmentSprite;
+    private Sprite _generatedArrowHeadSprite;
+    private Sprite _segmentSpriteOverride;
+    private Sprite _arrowHeadSpriteOverride;
     private DraggableSkillIcon _selectedSkill;
     private Transform _worldTarget;
     private Vector2 _lastStartScreen;
@@ -54,6 +58,7 @@ public sealed class TargetingArrowUI : MonoBehaviour
         if (_instance == null)
             return;
 
+        _instance.ApplySpriteOverrides(skill);
         _instance.RefreshSelectedSkill(skill, asset, runtime);
     }
 
@@ -178,6 +183,8 @@ public sealed class TargetingArrowUI : MonoBehaviour
             hash = hash * 31 + arcHeight.GetHashCode();
             hash = hash * 31 + segmentSize.GetHashCode();
             hash = hash * 31 + arrowHeadSize.GetHashCode();
+            hash = hash * 31 + (_segmentSpriteOverride != null ? _segmentSpriteOverride.GetHashCode() : 0);
+            hash = hash * 31 + (_arrowHeadSpriteOverride != null ? _arrowHeadSpriteOverride.GetHashCode() : 0);
             return hash;
         }
     }
@@ -200,6 +207,7 @@ public sealed class TargetingArrowUI : MonoBehaviour
             _hasLastDraw = false;
 
         _selectedSkill = skill;
+        ApplySpriteOverrides(skill);
         _worldTarget = null;
 
         if (!ShouldShowForRuntime(runtime))
@@ -358,6 +366,9 @@ public sealed class TargetingArrowUI : MonoBehaviour
             rect.anchoredPosition = point;
             rect.localRotation = Quaternion.Euler(0f, 0f, angle);
             rect.sizeDelta = segmentSize;
+            segment.sprite = ResolveSegmentSprite();
+            segment.type = Image.Type.Simple;
+            segment.preserveAspect = true;
             segment.color = segmentColor;
             segment.gameObject.SetActive(true);
             _activeSegments.Add(segment);
@@ -370,6 +381,9 @@ public sealed class TargetingArrowUI : MonoBehaviour
         headRect.anchoredPosition = end;
         headRect.localRotation = Quaternion.Euler(0f, 0f, headAngle);
         headRect.sizeDelta = arrowHeadSize;
+        _arrowHead.sprite = ResolveArrowHeadSprite();
+        _arrowHead.type = Image.Type.Simple;
+        _arrowHead.preserveAspect = true;
         _arrowHead.color = segmentColor;
         _arrowHead.gameObject.SetActive(true);
     }
@@ -390,8 +404,9 @@ public sealed class TargetingArrowUI : MonoBehaviour
             return;
 
         _arrowHead = CreateSegment("ArrowHead");
-        _arrowHead.sprite = null;
+        _arrowHead.sprite = ResolveArrowHeadSprite();
         _arrowHead.type = Image.Type.Simple;
+        _arrowHead.preserveAspect = true;
         _arrowHead.gameObject.SetActive(false);
     }
 
@@ -407,9 +422,44 @@ public sealed class TargetingArrowUI : MonoBehaviour
         Image image = go.GetComponent<Image>();
         image.raycastTarget = false;
         image.color = segmentColor;
-        image.sprite = BuildSprite(objectName == "ArrowHead");
+        image.sprite = objectName == "ArrowHead" ? ResolveArrowHeadSprite() : ResolveSegmentSprite();
+        image.preserveAspect = true;
         image.SetNativeSize();
         return image;
+    }
+
+    private void ApplySpriteOverrides(DraggableSkillIcon skill)
+    {
+        Sprite nextSegmentSprite = skill != null ? skill.TargetingArrowSegmentSprite : null;
+        Sprite nextArrowHeadSprite = skill != null ? skill.TargetingArrowHeadSprite : null;
+        if (_segmentSpriteOverride == nextSegmentSprite && _arrowHeadSpriteOverride == nextArrowHeadSprite)
+            return;
+
+        _segmentSpriteOverride = nextSegmentSprite;
+        _arrowHeadSpriteOverride = nextArrowHeadSprite;
+        _hasLastDraw = false;
+    }
+
+    private Sprite ResolveSegmentSprite()
+    {
+        if (_segmentSpriteOverride != null)
+            return _segmentSpriteOverride;
+
+        if (_generatedSegmentSprite == null)
+            _generatedSegmentSprite = BuildSprite(false);
+
+        return _generatedSegmentSprite;
+    }
+
+    private Sprite ResolveArrowHeadSprite()
+    {
+        if (_arrowHeadSpriteOverride != null)
+            return _arrowHeadSpriteOverride;
+
+        if (_generatedArrowHeadSprite == null)
+            _generatedArrowHeadSprite = BuildSprite(true);
+
+        return _generatedArrowHeadSprite;
     }
 
     private Sprite BuildSprite(bool arrowHead)

@@ -268,6 +268,7 @@ public partial class DraggableSkillIcon
     private void RejectActionFeedback()
     {
         transform.DOKill(complete: true);
-        transform.DOShakePosition(0.3f, new Vector3(10f, 0, 0), 30, 90f, false, true).SetUpdate(true);
+        float duration = Mathf.Max(0.08f, invalidDropReturnDuration);
+        transform.DOShakePosition(duration, new Vector3(10f, 0, 0), 30, 90f, false, true).SetUpdate(true);
     }
 }
