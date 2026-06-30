@@ -1,4 +1,5 @@
 using System.Collections;
+using DG.Tweening;
 using UnityEngine;
 
 /// <summary>
@@ -90,6 +91,9 @@ public class CombatHitFeedback : MonoBehaviour
 
     private void StartShake()
     {
+        if (DOTween.IsTweening(transform, true))
+            return;
+
         if (_shakeRoutine != null)
         {
             StopCoroutine(_shakeRoutine);
