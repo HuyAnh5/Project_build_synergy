@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using DG.Tweening;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class BattlePartyManager2D : MonoBehaviour
 {
@@ -61,8 +62,9 @@ public class BattlePartyManager2D : MonoBehaviour
     [SerializeField] private int crossRowResolveIterations = 2;
     [SerializeField] private float outerGapFactor = 0.75f;
     [SerializeField] private int gapSideBias = 1;
+    [FormerlySerializedAs("enemySingleRowScale")]
+    [SerializeField] private float enemyFrontRowScale = 1f;
     [SerializeField] private float enemyBackRowScale = 0.8f;
-    [SerializeField] private float enemySingleRowScale = 1f;
     [SerializeField] private float formationTweenDuration = 0.3f;
     [SerializeField] private Ease formationEase = Ease.OutQuad;
 
@@ -109,8 +111,8 @@ public class BattlePartyManager2D : MonoBehaviour
         public int crossRowResolveIterations;
         public float outerGapFactor;
         public int gapSideBias;
+        public float enemyFrontRowScale;
         public float enemyBackRowScale;
-        public float enemySingleRowScale;
         public float formationTweenDuration;
         public Ease formationEase;
 
@@ -126,8 +128,8 @@ public class BattlePartyManager2D : MonoBehaviour
                    crossRowResolveIterations == other.crossRowResolveIterations &&
                    Mathf.Approximately(outerGapFactor, other.outerGapFactor) &&
                    gapSideBias == other.gapSideBias &&
+                   Mathf.Approximately(enemyFrontRowScale, other.enemyFrontRowScale) &&
                    Mathf.Approximately(enemyBackRowScale, other.enemyBackRowScale) &&
-                   Mathf.Approximately(enemySingleRowScale, other.enemySingleRowScale) &&
                    Mathf.Approximately(formationTweenDuration, other.formationTweenDuration) &&
                    formationEase == other.formationEase;
         }
@@ -152,8 +154,8 @@ public class BattlePartyManager2D : MonoBehaviour
             crossRowResolveIterations = crossRowResolveIterations,
             outerGapFactor = outerGapFactor,
             gapSideBias = gapSideBias,
+            enemyFrontRowScale = enemyFrontRowScale,
             enemyBackRowScale = enemyBackRowScale,
-            enemySingleRowScale = enemySingleRowScale,
             formationTweenDuration = formationTweenDuration,
             formationEase = formationEase,
         };
@@ -674,7 +676,7 @@ public class BattlePartyManager2D : MonoBehaviour
                     actor = singleRowActors[i],
                     localX = xs[i],
                     localY = centerRowY,
-                    targetScale = enemySingleRowScale,
+                    targetScale = enemyFrontRowScale,
                     isFrontRow = true,
                 });
             }
@@ -715,7 +717,7 @@ public class BattlePartyManager2D : MonoBehaviour
                 actor = frontEnemies[i],
                 localX = frontXs[i],
                 localY = frontRowY,
-                targetScale = frontScale,
+                targetScale = enemyFrontRowScale,
                 isFrontRow = true,
             });
         }
