@@ -83,7 +83,7 @@ public class PassiveEffectEntry
             case PassiveEffectId.RandomCommonPassiveThisCombat:
                 return "At combat start, gain a random Common passive for this combat.";
             case PassiveEffectId.OneTimeReviveThenEmptySlot:
-                return $"Once, revive with {Mathf.Clamp(value, 1, 100)}% HP, then empty this passive slot.";
+                return "Once, revive to full HP then drop to 1 HP, disable this passive for this combat, and end the enemy phase.";
             default:
                 return id.ToString();
         }
@@ -104,7 +104,7 @@ public class PassiveEffectEntry
         yield return new ValueDropdownItem<PassiveEffectId>("Range / Hit Chance -> Apply Mark", PassiveEffectId.RangedHitChanceApplyMark);
         yield return new ValueDropdownItem<PassiveEffectId>("HP / Low HP Percent -> Refill AP", PassiveEffectId.LowHpRefillApOncePerCombat);
         yield return new ValueDropdownItem<PassiveEffectId>("Combat / Random Common Passive Behavior", PassiveEffectId.RandomCommonPassiveThisCombat);
-        yield return new ValueDropdownItem<PassiveEffectId>("Death / One-Time Revive Then Empty Slot", PassiveEffectId.OneTimeReviveThenEmptySlot);
+        yield return new ValueDropdownItem<PassiveEffectId>("Death / One-Time Revive Then Disable For Combat", PassiveEffectId.OneTimeReviveThenEmptySlot);
     }
 
     private bool UsesValue()
@@ -121,7 +121,6 @@ public class PassiveEffectEntry
             case PassiveEffectId.FailDiceCountdownCombatAddedValue:
             case PassiveEffectId.RangedHitChanceApplyMark:
             case PassiveEffectId.LowHpRefillApOncePerCombat:
-            case PassiveEffectId.OneTimeReviveThenEmptySlot:
                 return true;
             default:
                 return false;
