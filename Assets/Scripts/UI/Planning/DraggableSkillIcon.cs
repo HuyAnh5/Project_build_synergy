@@ -70,6 +70,10 @@ public partial class DraggableSkillIcon : MonoBehaviour,
     [SerializeField] private Sprite targetingArrowHeadSprite;
     [Tooltip("Optional sprite for each targeting arrow segment/dot. If empty, the built-in generated segment is used.")]
     [SerializeField] private Sprite targetingArrowSegmentSprite;
+    [Tooltip("When enabled, this skill icon overrides the targeting arrow colors below.")]
+    [SerializeField] private bool overrideTargetingArrowColors;
+    [SerializeField] private Color targetingArrowHeadColor = new Color(0.9f, 0.14f, 0.18f, 0.95f);
+    [SerializeField] private Color targetingArrowSegmentColor = new Color(0.9f, 0.14f, 0.18f, 0.95f);
 
     [Title("Active Icon Outer Glow")]
     [SerializeField] private bool enableActiveAura = true;
@@ -243,6 +247,9 @@ public partial class DraggableSkillIcon : MonoBehaviour,
 
     public Sprite TargetingArrowHeadSprite => targetingArrowHeadSprite;
     public Sprite TargetingArrowSegmentSprite => targetingArrowSegmentSprite;
+    public bool OverrideTargetingArrowColors => overrideTargetingArrowColors;
+    public Color TargetingArrowHeadColor => targetingArrowHeadColor;
+    public Color TargetingArrowSegmentColor => targetingArrowSegmentColor;
 
     private bool IsPointerInsidePreviewHoverContainer(PointerEventData eventData)
     {

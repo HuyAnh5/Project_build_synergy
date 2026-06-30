@@ -32,6 +32,9 @@ public sealed class TargetingArrowUI : MonoBehaviour
     private Sprite _generatedArrowHeadSprite;
     private Sprite _segmentSpriteOverride;
     private Sprite _arrowHeadSpriteOverride;
+    private bool _colorOverrideActive;
+    private Color _segmentColorOverride;
+    private Color _arrowHeadColorOverride;
     private DraggableSkillIcon _selectedSkill;
     private Transform _worldTarget;
     private Vector2 _lastStartScreen;
@@ -185,6 +188,9 @@ public sealed class TargetingArrowUI : MonoBehaviour
             hash = hash * 31 + arrowHeadSize.GetHashCode();
             hash = hash * 31 + (_segmentSpriteOverride != null ? _segmentSpriteOverride.GetHashCode() : 0);
             hash = hash * 31 + (_arrowHeadSpriteOverride != null ? _arrowHeadSpriteOverride.GetHashCode() : 0);
+            hash = hash * 31 + _colorOverrideActive.GetHashCode();
+            hash = hash * 31 + _segmentColorOverride.GetHashCode();
+            hash = hash * 31 + _arrowHeadColorOverride.GetHashCode();
             return hash;
         }
     }
@@ -369,7 +375,7 @@ public sealed class TargetingArrowUI : MonoBehaviour
             segment.sprite = ResolveSegmentSprite();
             segment.type = Image.Type.Simple;
             segment.preserveAspect = true;
-            segment.color = segmentColor;
+            segment.color = ResolveSegmentColor();
             segment.gameObject.SetActive(true);
             _activeSegments.Add(segment);
         }
@@ -384,7 +390,7 @@ public sealed class TargetingArrowUI : MonoBehaviour
         _arrowHead.sprite = ResolveArrowHeadSprite();
         _arrowHead.type = Image.Type.Simple;
         _arrowHead.preserveAspect = true;
-        _arrowHead.color = segmentColor;
+        _arrowHead.color = ResolveArrowHeadColor();
         _arrowHead.gameObject.SetActive(true);
     }
 
@@ -421,7 +427,7 @@ public sealed class TargetingArrowUI : MonoBehaviour
 
         Image image = go.GetComponent<Image>();
         image.raycastTarget = false;
-        image.color = segmentColor;
+        image.color = objectName == "ArrowHead" ? ResolveArrowHeadColor() : ResolveSegmentColor();
         image.sprite = objectName == "ArrowHead" ? ResolveArrowHeadSprite() : ResolveSegmentSprite();
         image.preserveAspect = true;
         image.SetNativeSize();
@@ -432,13 +438,31 @@ public sealed class TargetingArrowUI : MonoBehaviour
     {
         Sprite nextSegmentSprite = skill != null ? skill.TargetingArrowSegmentSprite : null;
         Sprite nextArrowHeadSprite = skill != null ? skill.TargetingArrowHeadSprite : null;
-        if (_segmentSpriteOverride == nextSegmentSprite && _arrowHeadSpriteOverride == nextArrowHeadSprite)
+        bool nextColorOverrideActive = skill != null && skill.OverrideTargetingArrowColors;
+        Color nextSegmentColor = nextColorOverrideActive ? skill.TargetingArrowSegmentColor : default;
+        Color nextArrowHeadColor = nextColorOverrideActive ? skill.TargetingArrowHeadColor : default;
+        if (_segmentSpriteOverride == nextSegmentSprite &&
+            _arrowHeadSpriteOverride == nextArrowHeadSprite &&
+            _colorOverrideActive == nextColorOverrideActive &&
+            _segmentColorOverride == nextSegmentColor &&
+            _arrowHeadColorOverride == nextArrowHeadColor)
+        {
             return;
+        }
 
         _segmentSpriteOverride = nextSegmentSprite;
         _arrowHeadSpriteOverride = nextArrowHeadSprite;
+        _colorOverrideActive = nextColorOverrideActive;
+        _segmentColorOverride = nextSegmentColor;
+        _arrowHeadColorOverride = nextArrowHeadColor;
         _hasLastDraw = false;
     }
+
+    private Color ResolveSegmentColor()
+        => _colorOverrideActive ? _segmentColorOverride : segmentColor;
+
+    private Color ResolveArrowHeadColor()
+        => _colorOverrideActive ? _arrowHeadColorOverride : segmentColor;
 
     private Sprite ResolveSegmentSprite()
     {
