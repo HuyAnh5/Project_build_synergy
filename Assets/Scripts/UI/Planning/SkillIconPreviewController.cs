@@ -111,8 +111,7 @@ internal sealed partial class SkillIconPreviewController
         CombatActor hoveredActor = RaycastForActor(eventData);
         ActorWorldUI hoveredUi = FindActorWorldUi(hoveredActor);
 
-        bool hoveringSelfZone = hoveredActor == null &&
-                                CanPreviewOnSelf(_getSkillAsset()) &&
+        bool hoveringSelfZone = CanPreviewOnSelf(_getSkillAsset()) &&
                                 _selfCastZone != null &&
                                 _selfCastZone.ContainsScreenPoint(eventData.position, _uiCamera);
 
