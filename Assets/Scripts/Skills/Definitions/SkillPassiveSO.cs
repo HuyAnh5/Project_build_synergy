@@ -23,7 +23,8 @@ public enum PassiveEffectId
     RangedHitChanceApplyMark = 11,
     LowHpRefillApOncePerCombat = 12,
     RandomCommonPassiveThisCombat = 13,
-    OneTimeReviveThenEmptySlot = 14
+    OneTimeReviveThenEmptySlot = 14,
+    LowHpDamageAllEnemiesOncePerCombat = 15
 }
 
 [Serializable, InlineProperty]
@@ -84,6 +85,8 @@ public class PassiveEffectEntry
                 return "At combat start, gain a random Common passive for this combat.";
             case PassiveEffectId.OneTimeReviveThenEmptySlot:
                 return "Once, revive to full HP then drop to 1 HP, disable this passive for this combat, and end the enemy phase.";
+            case PassiveEffectId.LowHpDamageAllEnemiesOncePerCombat:
+                return $"Once per combat, when HP falls to {Mathf.Clamp(value, 1, 100)}% or lower, deal {Mathf.Max(0, value2I)} damage to all enemies.";
             default:
                 return id.ToString();
         }
@@ -105,6 +108,7 @@ public class PassiveEffectEntry
         yield return new ValueDropdownItem<PassiveEffectId>("HP / Low HP Percent -> Refill AP", PassiveEffectId.LowHpRefillApOncePerCombat);
         yield return new ValueDropdownItem<PassiveEffectId>("Combat / Random Common Passive Behavior", PassiveEffectId.RandomCommonPassiveThisCombat);
         yield return new ValueDropdownItem<PassiveEffectId>("Death / One-Time Revive Then Disable For Combat", PassiveEffectId.OneTimeReviveThenEmptySlot);
+        yield return new ValueDropdownItem<PassiveEffectId>("HP / Low HP Percent -> Damage All Enemies", PassiveEffectId.LowHpDamageAllEnemiesOncePerCombat);
     }
 
     private bool UsesValue()
@@ -121,6 +125,7 @@ public class PassiveEffectEntry
             case PassiveEffectId.FailDiceCountdownCombatAddedValue:
             case PassiveEffectId.RangedHitChanceApplyMark:
             case PassiveEffectId.LowHpRefillApOncePerCombat:
+            case PassiveEffectId.LowHpDamageAllEnemiesOncePerCombat:
                 return true;
             default:
                 return false;
@@ -128,7 +133,8 @@ public class PassiveEffectEntry
     }
 
     private bool UsesValue2()
-        => id == PassiveEffectId.FailDiceCountdownCombatAddedValue;
+        => id == PassiveEffectId.FailDiceCountdownCombatAddedValue ||
+           id == PassiveEffectId.LowHpDamageAllEnemiesOncePerCombat;
 }
 
 [CreateAssetMenu(menuName = "Game/Skill/Passive", fileName = "SkillPassive_")]

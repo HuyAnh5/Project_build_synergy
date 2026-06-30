@@ -30,6 +30,7 @@ public partial class PassiveSystem : MonoBehaviour
     private bool _bloodCounterAddedValueActive;
     private bool _failDieNextSkillAddedValueActive;
     private bool _lowHpRefillUsedThisCombat;
+    private bool _lowHpDamageAllEnemiesUsedThisCombat;
     private bool _randomCommonPassiveRolledThisCombat;
     private bool _reviveUsedThisCombat;
     private bool _endEnemyTurnRequestedByRevive;
@@ -221,6 +222,7 @@ public partial class PassiveSystem : MonoBehaviour
         _bloodCounterAddedValueActive = false;
         _failDieNextSkillAddedValueActive = false;
         _lowHpRefillUsedThisCombat = false;
+        _lowHpDamageAllEnemiesUsedThisCombat = false;
         _randomCommonPassiveRolledThisCombat = false;
         _reviveUsedThisCombat = false;
         _endEnemyTurnRequestedByRevive = false;
@@ -648,6 +650,7 @@ public partial class PassiveSystem : MonoBehaviour
     public void HandleHpChanged()
     {
         HandleLowHpRefillApIfNeeded();
+        HandleLowHpDamageAllEnemiesIfNeeded();
     }
 
     private IEnumerator ApplyGuardCounterDamageAfterDelay(CombatActor attacker, int damage)
@@ -763,6 +766,87 @@ public partial class PassiveSystem : MonoBehaviour
         _lowHpRefillUsedThisCombat = true;
         owner.GainFocus(owner.maxFocus);
         PulsePassiveEffect(PassiveEffectId.LowHpRefillApOncePerCombat);
+    }
+
+    private void HandleLowHpDamageAllEnemiesIfNeeded()
+    {
+        if (_lowHpDamageAllEnemiesUsedThisCombat || equipped == null)
+            return;
+
+        CombatActor owner = GetComponent<CombatActor>();
+        if (owner == null || owner.maxHP <= 0 || owner.hp <= 0)
+            return;
+
+        for (int i = 0; i < equipped.Count; i++)
+        {
+            SkillPassiveSO passive = equipped[i];
+            if (passive == null || passive.effects == null || !IsPassiveRuntimeEnabled(passive))
+                continue;
+
+            for (int k = 0; k < passive.effects.Count; k++)
+            {
+                PassiveEffectEntry effect = passive.effects[k];
+                if (effect == null || effect.id != PassiveEffectId.LowHpDamageAllEnemiesOncePerCombat)
+                    continue;
+
+                int thresholdPercent = Mathf.Clamp(effect.valueI, 1, 100);
+                int damage = Mathf.Max(0, effect.value2I);
+                if (damage <= 0)
+                    continue;
+
+                float hpPercent = owner.hp / (float)owner.maxHP * 100f;
+                if (hpPercent > thresholdPercent)
+                    continue;
+
+                _lowHpDamageAllEnemiesUsedThisCombat = true;
+                DealDamageToAllEnemies(owner, damage);
+                PulsePassiveEffect(PassiveEffectId.LowHpDamageAllEnemiesOncePerCombat);
+                return;
+            }
+        }
+    }
+
+    private void DealDamageToAllEnemies(CombatActor owner, int damage)
+    {
+        if (owner == null || damage <= 0)
+            return;
+
+        BattlePartyManager2D party = BattlePartyManagerRegistry.Get();
+        List<CombatActor> targets = TurnManagerCombatUtility.ResolveAliveEnemiesSnapshot(party, null);
+        if (targets.Count == 0)
+            AddEnemyTargetsFromRegistry(owner, targets);
+        DamagePopupSystem popups = DamagePopupSystemRegistry.Get();
+
+        for (int i = 0; i < targets.Count; i++)
+        {
+            CombatActor target = targets[i];
+            if (target == null || target.IsDead || target.team == owner.team)
+                continue;
+
+            CombatActor.DamageResult result = target.TakeDamageDetailed(damage, bypassGuard: false, attacker: owner);
+            if (result.blocked > 0 || result.hpLost > 0)
+                CombatHitFeedback.Play(target, CombatHitFeedback.FeedbackKind.Hit);
+            if (result.guardBroken && target.status != null)
+                target.status.ApplyStagger();
+            if (popups != null)
+                popups.SpawnDamageSplit(owner, target, result.blocked, result.hpLost);
+        }
+    }
+
+    private static void AddEnemyTargetsFromRegistry(CombatActor owner, List<CombatActor> targets)
+    {
+        if (owner == null || targets == null)
+            return;
+
+        CombatActor[] actors = CombatActorRegistry.GetAllSnapshot(includeInactive: false);
+        for (int i = 0; i < actors.Length; i++)
+        {
+            CombatActor actor = actors[i];
+            if (actor == null || actor.IsDead || actor.team == owner.team || targets.Contains(actor))
+                continue;
+
+            targets.Add(actor);
+        }
     }
 
     public void PulsePassiveEffect(PassiveEffectId effectId)
