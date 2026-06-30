@@ -65,6 +65,9 @@ internal sealed class EnemyTurnCoordinator
 
             FinishEnemyTurn(enemy);
 
+            if (ConsumePlayerReviveEnemyTurnEndRequest(player))
+                break;
+
             if (player != null && player.IsDead)
                 break;
         }
@@ -201,6 +204,12 @@ internal sealed class EnemyTurnCoordinator
     {
         if (enemy != null && enemy.status != null)
             enemy.status.OnOwnerTurnEnded();
+    }
+
+    private static bool ConsumePlayerReviveEnemyTurnEndRequest(CombatActor player)
+    {
+        PassiveSystem passiveSystem = player != null ? player.GetComponent<PassiveSystem>() : null;
+        return passiveSystem != null && passiveSystem.ConsumeEnemyTurnEndRequestFromRevive();
     }
 
     private static void ClearEnemyGuardsAtTurnStart(BattlePartyManager2D party, CombatActor fallbackEnemy)

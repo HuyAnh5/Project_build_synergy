@@ -84,6 +84,9 @@ public partial class SkillExecutor
             yield return new WaitForSeconds(GlobalDelayedSecondaryStep);
         }
 
+        if (ShouldStopEnemyActionForRevive(caster))
+            yield break;
+
         if (result.HasDelayedFollowUpEffects)
         {
             SkillAttackResolutionUtility.ApplyResolvedGameplayFollowUpEffects(rt, caster, primaryTarget, result.delayedFollowUpEffects, GetPopups());
@@ -94,6 +97,9 @@ public partial class SkillExecutor
             yield return new WaitForSeconds(GlobalDelayedSecondaryStep);
         }
 
+        if (ShouldStopEnemyActionForRevive(caster))
+            yield break;
+
         if (result.HasDelayedPassiveMeleeFollowUpEffects)
         {
             SkillAttackResolutionUtility.ApplyPassiveMeleeFollowUpEffects(rt, caster, primaryTarget, result.delayedPassiveMeleeFollowUpEffects, GetPopups());
@@ -103,6 +109,9 @@ public partial class SkillExecutor
         {
             yield return new WaitForSeconds(GlobalDelayedSecondaryStep);
         }
+
+        if (ShouldStopEnemyActionForRevive(caster))
+            yield break;
 
         if (result.delayedBurnConsumeDamage > 0)
         {
@@ -115,6 +124,9 @@ public partial class SkillExecutor
             {
                 yield return new WaitForSeconds(GlobalDelayedSecondaryStep);
             }
+
+            if (ShouldStopEnemyActionForRevive(caster))
+                yield break;
 
             yield return ApplyLightningMarkShockSequence(caster, result.lightningShockDamage, result.lightningShockProcCount);
         }
@@ -129,12 +141,24 @@ public partial class SkillExecutor
 
         for (int i = 0; i < procCount; i++)
         {
+            if (ShouldStopEnemyActionForRevive(caster))
+                yield break;
+
             ApplyLightningMarkShock(caster, damage);
             if (i < procCount - 1 && GlobalDelayedSecondaryStep > 0f)
             {
                 yield return new WaitForSeconds(GlobalDelayedSecondaryStep);
             }
         }
+    }
+
+    private static bool ShouldStopEnemyActionForRevive(CombatActor caster)
+    {
+        if (caster == null || caster.team != CombatActor.TeamSide.Enemy)
+            return false;
+
+        PassiveSystem playerPassiveSystem = PassiveSystemRegistry.GetPlayer();
+        return playerPassiveSystem != null && playerPassiveSystem.IsEnemyTurnEndRequestedByRevive;
     }
 
     private void ApplyLightningMarkShock(CombatActor caster, int damage)

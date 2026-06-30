@@ -32,6 +32,7 @@ public partial class PassiveSystem : MonoBehaviour
     private bool _lowHpRefillUsedThisCombat;
     private bool _randomCommonPassiveRolledThisCombat;
     private bool _reviveUsedThisCombat;
+    private bool _endEnemyTurnRequestedByRevive;
     private SkillPassiveSO _randomCommonPassivePickedThisCombat;
     private int _failDiceCountdownProgress;
     private int _combatAddedValueBonus;
@@ -190,6 +191,17 @@ public partial class PassiveSystem : MonoBehaviour
     public bool IsPassiveDisabledForCombat(SkillPassiveSO passive)
         => passive != null && _disabledForCombatPassives.Contains(passive);
 
+    public bool IsEnemyTurnEndRequestedByRevive => _endEnemyTurnRequestedByRevive;
+
+    public bool ConsumeEnemyTurnEndRequestFromRevive()
+    {
+        if (!_endEnemyTurnRequestedByRevive)
+            return false;
+
+        _endEnemyTurnRequestedByRevive = false;
+        return true;
+    }
+
     public bool Unequip(SkillPassiveSO passive)
     {
         if (passive == null || !equipped.Remove(passive))
@@ -211,6 +223,7 @@ public partial class PassiveSystem : MonoBehaviour
         _lowHpRefillUsedThisCombat = false;
         _randomCommonPassiveRolledThisCombat = false;
         _reviveUsedThisCombat = false;
+        _endEnemyTurnRequestedByRevive = false;
         _randomCommonPassivePickedThisCombat = null;
         _failDiceCountdownProgress = 0;
         _combatAddedValueBonus = 0;
@@ -724,6 +737,8 @@ public partial class PassiveSystem : MonoBehaviour
         HandleHpChanged();
 
         _disabledForCombatPassives.Add(sourcePassive);
+        TurnManager turnManager = TurnManagerRegistry.Get();
+        _endEnemyTurnRequestedByRevive = turnManager != null && turnManager.phase == TurnManager.Phase.EnemyTurn;
         RefreshPassiveIcons();
         return true;
     }
