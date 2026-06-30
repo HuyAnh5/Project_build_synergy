@@ -116,6 +116,8 @@ public partial class ActorWorldUI : MonoBehaviour
     public float targetOverlayMinAlpha = 0.25f;
     [Range(0f, 10f)]
     public float targetOverlayBlinkSpeed = 2.5f;
+    [Range(1f, 1.5f)]
+    public float targetOverlayPulseScale = 1.1f;
 
     [Header("Target Preview")]
     public Color hpPreviewDamageColor = new Color(1f, 0.55f, 0.1f, 0.92f);
@@ -160,6 +162,8 @@ public partial class ActorWorldUI : MonoBehaviour
     // --- Targetability overlay runtime ---
     private RectTransform _targetOverlayRoot;
     private Image _targetOverlayImage;
+    private Vector3 _targetOverlayBaseScale = Vector3.one;
+    private bool _targetOverlayBaseScaleCaptured;
     private bool _targetOverlayActive;
     private bool _targetOverlayIsValid = true;
 
@@ -300,6 +304,7 @@ public partial class ActorWorldUI : MonoBehaviour
         {
             Color baseColor = _targetOverlayIsValid ? targetOverlayColor : targetOverlayInvalidColor;
             float maxAlpha = baseColor.a;
+            float t = 1f;
 
             if (_targetPreviewActive)
             {
@@ -309,11 +314,12 @@ public partial class ActorWorldUI : MonoBehaviour
             else
             {
                 // Nếu chỉ đang hiện target hợp lệ chung chung, nhấp nháy
-                float t = Mathf.PingPong(Time.time * targetOverlayBlinkSpeed, 1f);
+                t = Mathf.PingPong(Time.time * targetOverlayBlinkSpeed, 1f);
                 baseColor.a = Mathf.Lerp(targetOverlayMinAlpha, maxAlpha, t);
             }
 
             _targetOverlayImage.color = baseColor;
+            UpdateTargetOverlayPulse(t);
         }
 
         // Update target preview blink
@@ -391,6 +397,7 @@ public partial class ActorWorldUI : MonoBehaviour
         EnsureTargetOverlay();
         _targetOverlayActive = true;
         _targetOverlayIsValid = isValid;
+        CaptureTargetOverlayBaseScale();
         if (_targetOverlayRoot != null)
             _targetOverlayRoot.gameObject.SetActive(true);
     }
@@ -402,7 +409,10 @@ public partial class ActorWorldUI : MonoBehaviour
     {
         _targetOverlayActive = false;
         if (_targetOverlayRoot != null)
+        {
+            ResetTargetOverlayPulse();
             _targetOverlayRoot.gameObject.SetActive(false);
+        }
     }
 
     private void EnsureTargetOverlay()
@@ -428,7 +438,35 @@ public partial class ActorWorldUI : MonoBehaviour
             // Đặt phía sau HP bar để không che thông tin
             _targetOverlayRoot.SetAsFirstSibling();
             _targetOverlayRoot.gameObject.SetActive(false);
+            CaptureTargetOverlayBaseScale();
         }
+    }
+
+    private void CaptureTargetOverlayBaseScale()
+    {
+        if (_targetOverlayRoot == null || _targetOverlayBaseScaleCaptured)
+            return;
+
+        _targetOverlayBaseScale = _targetOverlayRoot.localScale;
+        _targetOverlayBaseScaleCaptured = true;
+    }
+
+    private void UpdateTargetOverlayPulse(float t)
+    {
+        if (_targetOverlayRoot == null)
+            return;
+
+        CaptureTargetOverlayBaseScale();
+        float scale = Mathf.Lerp(1f, targetOverlayPulseScale, t);
+        _targetOverlayRoot.localScale = _targetOverlayBaseScale * scale;
+    }
+
+    private void ResetTargetOverlayPulse()
+    {
+        if (_targetOverlayRoot == null || !_targetOverlayBaseScaleCaptured)
+            return;
+
+        _targetOverlayRoot.localScale = _targetOverlayBaseScale;
     }
 
     private static Sprite _sharedCircleSprite;
