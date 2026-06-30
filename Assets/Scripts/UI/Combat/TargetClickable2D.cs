@@ -31,6 +31,8 @@ public class TargetClickable2D : MonoBehaviour, IPointerClickHandler, IDropHandl
                     return;
                 }
 
+                selected.RejectSelectedTargetFeedback();
+                UiDragState.DeselectSkill();
                 return;
             }
         }

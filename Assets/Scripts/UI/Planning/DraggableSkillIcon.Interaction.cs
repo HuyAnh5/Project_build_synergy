@@ -98,6 +98,11 @@ public partial class DraggableSkillIcon
             _img.color = Color.white;
     }
 
+    public void RejectSelectedTargetFeedback()
+    {
+        RejectActionFeedback();
+    }
+
     public static void PulseAffectedSkillIconsOnce(TurnManager turn)
     {
         if (turn == null)
