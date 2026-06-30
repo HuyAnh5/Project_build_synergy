@@ -511,7 +511,11 @@ public partial class PassiveSystem : MonoBehaviour
 
     private void ApplyRandomCommonPassiveForCombat()
     {
-        if (_randomCommonPassiveRolledThisCombat || !HasEffect(PassiveEffectId.RandomCommonPassiveThisCombat))
+        if (_randomCommonPassiveRolledThisCombat)
+            return;
+
+        PassiveEffectEntry randomCommonEffect = FindFirstEffect(PassiveEffectId.RandomCommonPassiveThisCombat, out SkillPassiveSO sourcePassive);
+        if (randomCommonEffect == null || sourcePassive == null)
             return;
 
         _randomCommonPassiveRolledThisCombat = true;
@@ -531,6 +535,7 @@ public partial class PassiveSystem : MonoBehaviour
             equipped.Add(picked);
 
         PulsePassiveEffect(PassiveEffectId.RandomCommonPassiveThisCombat);
+        DisablePassiveForCombat(sourcePassive);
     }
 
     public SkillPassiveSO GetRandomCommonPassivePickedThisCombat()
@@ -739,10 +744,9 @@ public partial class PassiveSystem : MonoBehaviour
         owner.hp = 1;
         HandleHpChanged();
 
-        _disabledForCombatPassives.Add(sourcePassive);
+        DisablePassiveForCombat(sourcePassive);
         TurnManager turnManager = TurnManagerRegistry.Get();
         _endEnemyTurnRequestedByRevive = turnManager != null && turnManager.phase == TurnManager.Phase.EnemyTurn;
-        RefreshPassiveIcons();
         return true;
     }
 
@@ -751,21 +755,23 @@ public partial class PassiveSystem : MonoBehaviour
         if (_lowHpRefillUsedThisCombat)
             return;
 
-        int thresholdPercent = GetEffectValue(PassiveEffectId.LowHpRefillApOncePerCombat);
-        if (thresholdPercent <= 0)
+        PassiveEffectEntry refillEffect = FindFirstEffect(PassiveEffectId.LowHpRefillApOncePerCombat, out SkillPassiveSO sourcePassive);
+        if (refillEffect == null || sourcePassive == null)
             return;
 
+        int thresholdPercent = Mathf.Clamp(refillEffect.valueI, 1, 100);
         CombatActor owner = GetComponent<CombatActor>();
         if (owner == null || owner.maxHP <= 0 || owner.hp <= 0)
             return;
 
         float hpPercent = owner.hp / (float)owner.maxHP * 100f;
-        if (hpPercent > Mathf.Clamp(thresholdPercent, 1, 100))
+        if (hpPercent > thresholdPercent)
             return;
 
         _lowHpRefillUsedThisCombat = true;
         owner.GainFocus(owner.maxFocus);
         PulsePassiveEffect(PassiveEffectId.LowHpRefillApOncePerCombat);
+        DisablePassiveForCombat(sourcePassive);
     }
 
     private void HandleLowHpDamageAllEnemiesIfNeeded()
@@ -801,6 +807,7 @@ public partial class PassiveSystem : MonoBehaviour
                 _lowHpDamageAllEnemiesUsedThisCombat = true;
                 DealDamageToAllEnemies(owner, damage);
                 PulsePassiveEffect(PassiveEffectId.LowHpDamageAllEnemiesOncePerCombat);
+                DisablePassiveForCombat(passive);
                 return;
             }
         }
@@ -885,6 +892,15 @@ public partial class PassiveSystem : MonoBehaviour
             if (icon != null && icon.IsPassive)
                 icon.Refresh();
         }
+    }
+
+    private void DisablePassiveForCombat(SkillPassiveSO passive)
+    {
+        if (passive == null)
+            return;
+
+        _disabledForCombatPassives.Add(passive);
+        RefreshPassiveIcons();
     }
 
     public float GetBurnConsumeMultiplier() => 1f;
