@@ -127,7 +127,10 @@ internal sealed partial class SkillIconPreviewController
 
         ClearTargetPreviewIfActive();
         if (hoveredUi == null || hoveredActor == null)
+        {
+            TargetingArrowUI.ClearWorldTarget();
             return;
+        }
 
         if (_cachedDragRuntime == null)
         {
@@ -147,10 +150,18 @@ internal sealed partial class SkillIconPreviewController
         }
 
         if (_cachedDragRuntime == null)
+        {
+            TargetingArrowUI.ClearWorldTarget();
             return;
+        }
 
         if (!TurnManagerTargetingUtility.IsValidTargetForPendingSkill(_cachedDragRuntime, hoveredActor, _turn.player, _turn.party, _turn.enemy))
+        {
+            TargetingArrowUI.ClearWorldTarget();
             return;
+        }
+
+        TargetingArrowUI.SetWorldTarget(hoveredActor.transform);
 
         int rawDieValue = _previewPlan.valid ? _previewPlan.resolvedDieValue : _getPreviewDieValue(_cachedDragRuntime);
         int guardLocalIndex = _previewPlan.valid ? Mathf.Clamp(_previewPlan.anchor0 - _previewPlan.start0, 0, 2) : 0;

@@ -279,13 +279,17 @@ public sealed class TargetingArrowUI : MonoBehaviour
             return false;
 
         if (!runtime.useV2Targeting)
-            return runtime.target == TargetRule.Enemy;
+            return runtime.target == TargetRule.Enemy || runtime.target == TargetRule.Self;
 
         switch (runtime.targetRuleV2)
         {
+            case SkillTargetRule.Self:
             case SkillTargetRule.SingleEnemy:
             case SkillTargetRule.RowEnemies:
             case SkillTargetRule.AllEnemies:
+            case SkillTargetRule.SingleAlly:
+            case SkillTargetRule.RowAllies:
+            case SkillTargetRule.AllAllies:
                 return true;
             default:
                 return false;
