@@ -21,7 +21,7 @@ public static partial class MapPrototypeGenerator
     public static MapPrototypeData GenerateAct(MapPrototypeConfig config)
     {
         if (config == null)
-            throw new ArgumentNullException(nameof(config));
+            config = new MapPrototypeConfig();
 
         if (config.useLinearPrototypeLayout)
             return BuildLinearPrototypeAct(config);
@@ -31,15 +31,19 @@ public static partial class MapPrototypeGenerator
         int highestIntermediateSeen = 0;
         int highestPostLayoutIntermediateSeen = 0;
         int builtCount = 0;
+        int graphNullCount = 0;
         int layoutRejectedCount = 0;
-        int typingRejectedCount = 0;
         int routeRejectedCount = 0;
+        int specialPlacementRejectedCount = 0;
 
         for (int attempt = 0; attempt < config.maxAttempts; attempt++)
         {
-            MapPrototypeData map = BuildStsStyleMap(config);
+            MapPrototypeData map = BuildBudgetedLaneMap(config);
             if (map == null)
+            {
+                graphNullCount += 1;
                 continue;
+            }
 
             builtCount += 1;
             highestIntermediateSeen = Mathf.Max(highestIntermediateSeen, CountIntermediateNodes(map));
@@ -47,59 +51,121 @@ public static partial class MapPrototypeGenerator
                 continue;
 
             if (!InsertSpecialSideBranches(config, map) || !ValidateNodeDegrees(config, map))
+            {
+                specialPlacementRejectedCount += 1;
                 continue;
+            }
 
-            RebalanceMapLayout(config, map);
+            if (!FinalizeFixedGridLayout(config, map))
+            {
+                layoutRejectedCount += 1;
+                continue;
+            }
             highestPostLayoutIntermediateSeen = Mathf.Max(highestPostLayoutIntermediateSeen, CountIntermediateNodes(map));
-            if (HasBadEdgeNodeOverlap(map) || !ValidateLeafSpacing(config, map) || !ValidateNodeDegrees(config, map))
+            if (!ValidateNodeDegrees(config, map))
             {
                 layoutRejectedCount += 1;
                 continue;
             }
 
-            bool typesAttached = AttachTypesAndHints(config, map);
-            if (!typesAttached
-                || !ValidateRestSpacing(config, map)
-                || !ValidateHintRules(config, map)
-                || !ValidateEventAdjacencyRules(config, map)
-                || !ValidateEliteSpacing(config, map)
-                || !ValidateBossEntranceRoutes(config, map))
-            {
-                typingRejectedCount += 1;
+            if (!ValidateSpecialTopology(map) || GetBossParentIds(map).Count < 2)
                 continue;
-            }
 
+            AttachTypesAndHints(config, map);
             RouteValidationResult routeCheck = ValidateRoutes(config, map);
-            if (!routeCheck.ok
-                || HasBadEdgeNodeOverlap(map)
-                || !ValidateLeafSpacing(config, map)
-                || !ValidateNodeDegrees(config, map)
-                || !ValidateRestSpacing(config, map)
-                || !ValidateHintRules(config, map)
-                || !ValidateEventAdjacencyRules(config, map)
-                || !ValidateEliteSpacing(config, map)
-                || !ValidateBossEntranceRoutes(config, map))
-            {
+            if (!routeCheck.ok)
                 routeRejectedCount += 1;
-                continue;
-            }
 
-            float combinedScore = routeCheck.rhythm.score + LeafSpacingScore(config, map) * 0.08f;
+            int restTarget = CountIntermediateNodes(map) <= 26 ? 2 : 3;
+            int eliteTarget = CountIntermediateNodes(map) <= 26 ? 2 : 3;
+            int restCount = map.nodes.Count(node => node.type == MapPrototypeNodeType.Rest);
+            int eliteCount = map.nodes.Count(node => node.type == MapPrototypeNodeType.Elite);
+            int eventHintCount = map.nodes.Count(node => node.type == MapPrototypeNodeType.Event && node.hasHint);
+            float combinedScore = routeCheck.rhythm.score
+                + LeafSpacingScore(config, map) * 0.08f
+                + Mathf.Abs(restTarget - restCount) * 4f
+                + Mathf.Abs(eliteTarget - eliteCount) * 5f
+                + Mathf.Abs(config.extraHintSources - eventHintCount) * 3f
+                + (routeCheck.ok ? 0f : 18f);
             if (combinedScore < bestScore)
             {
                 bestScore = combinedScore;
                 bestMap = map;
             }
 
-            if (combinedScore <= 3f)
+            if (routeCheck.ok && combinedScore <= 6f)
                 return map;
         }
 
         if (bestMap != null)
             return bestMap;
 
-        throw new InvalidOperationException(
-            $"Could not generate a valid map after many attempts. built={builtCount}, maxIntermediateBuilt={highestIntermediateSeen}, maxIntermediateAfterLayout={highestPostLayoutIntermediateSeen}, layoutRejected={layoutRejectedCount}, typingRejected={typingRejectedCount}, routeRejected={routeRejectedCount}");
+        Debug.LogWarning(
+            $"Map generation used emergency fallback. built={builtCount}, graphNull={graphNullCount}, maxIntermediateBuilt={highestIntermediateSeen}, maxIntermediateAfterLayout={highestPostLayoutIntermediateSeen}, layoutRejected={layoutRejectedCount}, specialPlacementRejected={specialPlacementRejectedCount}, routeSoftFail={routeRejectedCount}");
+        return BuildEmergencyFallbackAct(config);
+    }
+
+    private static bool ValidateSpecialTopology(MapPrototypeData map)
+    {
+        List<MapPrototypeNodeData> leaves = map.nodes
+            .Where(node => node.type == MapPrototypeNodeType.Shop || node.type == MapPrototypeNodeType.Forge)
+            .ToList();
+        return leaves.Count == 2
+            && leaves.Count(node => node.type == MapPrototypeNodeType.Shop) == 1
+            && leaves.Count(node => node.type == MapPrototypeNodeType.Forge) == 1
+            && leaves.All(node => node.specialLeaf && GetNodeDegree(map, node.id) == 1);
+    }
+
+    private static MapPrototypeData BuildEmergencyFallbackAct(MapPrototypeConfig config)
+    {
+        const int rows = 9;
+        MapPrototypeNodeData start = MakeNode(MapPrototypeNodeType.Start, 0f, 3f);
+        MapPrototypeNodeData boss = MakeNode(MapPrototypeNodeType.Boss, rows + 1f, 3f);
+        List<MapPrototypeNodeData> nodes = new List<MapPrototypeNodeData> { start, boss };
+        Dictionary<int, List<int>> rowColumns = new Dictionary<int, List<int>>();
+
+        for (int row = 1; row <= rows; row++)
+        {
+            rowColumns[row] = row <= 7
+                ? new List<int> { 1, 3, 5 }
+                : new List<int> { 1, 5 };
+            foreach (int column in rowColumns[row])
+                nodes.Add(MakeNode(MapPrototypeNodeType.Combat, row, column));
+        }
+
+        List<MapPrototypeEdgeData> edges = new List<MapPrototypeEdgeData>();
+        foreach (int column in rowColumns[1])
+            AddKeyEdge(edges, start.key, $"1:{column}");
+        for (int row = 1; row < rows; row++)
+            ConnectBudgetedRows(edges, row, rowColumns[row], rowColumns[row + 1]);
+        foreach (int column in rowColumns[rows])
+            AddKeyEdge(edges, $"{rows}:{column}", boss.key);
+
+        PositionNodes(config, nodes);
+        MapPrototypeData map = BuildGraph(config, nodes, edges);
+        if (map == null)
+            return BuildLinearPrototypeAct(config);
+
+        MapPrototypeNodeData shopParent = nodes.First(node => Mathf.Approximately(node.row, 3f) && Mathf.Approximately(node.col, 5f));
+        MapPrototypeNodeData forgeParent = nodes.First(node => Mathf.Approximately(node.row, 7f) && Mathf.Approximately(node.col, 5f));
+        shopParent.lockedCombat = true;
+        forgeParent.lockedCombat = true;
+        AddLeafNode(config, map, shopParent, MapPrototypeNodeType.Shop, new LeafPlacement
+        {
+            x = shopParent.x + 142f,
+            y = shopParent.y - 54f,
+            side = 1,
+            rowOffset = 0.45f
+        });
+        AddLeafNode(config, map, forgeParent, MapPrototypeNodeType.Forge, new LeafPlacement
+        {
+            x = forgeParent.x + 142f,
+            y = forgeParent.y - 54f,
+            side = 1,
+            rowOffset = 0.45f
+        });
+        AttachTypesAndHints(config, map);
+        return map;
     }
 
     private static MapPrototypeData BuildLinearPrototypeAct(MapPrototypeConfig config)
@@ -232,6 +298,8 @@ public static partial class MapPrototypeGenerator
 
             rowColumns[row + 1] = nextCols.Distinct().ToList();
         }
+
+        ExpandIntermediateCoverage(config, rowColumns, edgesSet, ChooseTargetIntermediateCount(config));
 
         Dictionary<string, MapPrototypeNodeData> nodesByKey = new Dictionary<string, MapPrototypeNodeData>();
 

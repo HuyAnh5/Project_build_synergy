@@ -68,11 +68,13 @@ public sealed class MapPrototypeConfig
     public bool useLinearPrototypeLayout;
     public int linearCombatNodeCount = 4;
     public int columns = 7;
-    public int intermediateRows = 8;
-    public int pathCount = 6;
+    public int intermediateRows = 9;
+    public int pathCount = 3;
+    public int minMainNodeCount = 25;
+    public int maxMainNodeCount = 30;
 
     public float mapWidth = 940f;
-    public float mapHeight = 1320f;
+    public float mapHeight = 1450f;
     public float padX = 92f;
     public float padY = 82f;
     public float minNodeSpacing = 104f;
@@ -87,7 +89,7 @@ public sealed class MapPrototypeConfig
     public float nodeOverlapPenalty = 12f;
     public float tooSparsePenalty = 0.11f;
 
-    public int maxAttempts = 140;
+    public int maxAttempts = 32;
     public int maxForcedLinearStreak = 5;
     public int maxFourNodeLinearSegments = 4;
     public int maxLinearPenalty = 40;
@@ -103,6 +105,7 @@ public sealed class MapPrototypeConfig
     public int minRestRowGap = 2;
     public int targetRestCount = 2;
     public int restThreeThresholdIntermediateNodes = 25;
+    public int restFourThresholdIntermediateNodes = 32;
     public float eventRatioTarget = 0.23f;
     public int eventVarianceMin = -1;
     public int eventVarianceMax = 2;
@@ -111,22 +114,24 @@ public sealed class MapPrototypeConfig
     public int eliteMinNodeGap = 1;
     public int eliteThreeThresholdIntermediateNodes = 25;
     public int maxHostileStreak = 5;
-    public int bossRouteMaxSharedRow = 6;
+    public int bossRouteMaxSharedRow = 8;
 
     public int bossHintsRequired = 3;
     public int extraHintSources = 3;
-    public int latestHintRow = 6;
+    public int latestHintRow = 8;
 
     public List<MapPrototypeBossData> bosses = CreateHtmlBossPool();
 
     public void ApplyHtmlSourceOfTruthDefaults()
     {
         columns = 7;
-        intermediateRows = 8;
-        pathCount = 6;
+        intermediateRows = 9;
+        pathCount = 3;
+        minMainNodeCount = 25;
+        maxMainNodeCount = 30;
 
         mapWidth = 940f;
-        mapHeight = 1320f;
+        mapHeight = 1450f;
         padX = 92f;
         padY = 82f;
         minNodeSpacing = 104f;
@@ -141,7 +146,7 @@ public sealed class MapPrototypeConfig
         nodeOverlapPenalty = 12f;
         tooSparsePenalty = 0.11f;
 
-        maxAttempts = 140;
+        maxAttempts = 32;
         maxForcedLinearStreak = 5;
         maxFourNodeLinearSegments = 4;
         maxLinearPenalty = 40;
@@ -157,6 +162,7 @@ public sealed class MapPrototypeConfig
         minRestRowGap = 2;
         targetRestCount = 2;
         restThreeThresholdIntermediateNodes = 25;
+        restFourThresholdIntermediateNodes = 32;
         eventRatioTarget = 0.23f;
         eventVarianceMin = -1;
         eventVarianceMax = 2;
@@ -165,11 +171,11 @@ public sealed class MapPrototypeConfig
         eliteMinNodeGap = 1;
         eliteThreeThresholdIntermediateNodes = 25;
         maxHostileStreak = 5;
-        bossRouteMaxSharedRow = 6;
+        bossRouteMaxSharedRow = 8;
 
         bossHintsRequired = 3;
         extraHintSources = 3;
-        latestHintRow = 6;
+        latestHintRow = 8;
         bosses = CreateHtmlBossPool();
     }
 

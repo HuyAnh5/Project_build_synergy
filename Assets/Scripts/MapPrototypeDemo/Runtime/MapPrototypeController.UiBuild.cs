@@ -34,6 +34,7 @@ public sealed partial class MapPrototypeController
             bossIconText = null;
             bossNameText = null;
             bossHintText = null;
+            timeText = null;
             currentNodeTitleText = null;
             currentNodeMetaText = null;
             statusPillsRoot = null;
@@ -45,6 +46,9 @@ public sealed partial class MapPrototypeController
             modalTitleText = null;
             modalBodyText = null;
             modalActionsRoot = null;
+            _renderedMap = null;
+            _nodeVisuals.Clear();
+            _edgeVisuals.Clear();
         }
 
         Image background = GetComponent<Image>();
@@ -53,10 +57,41 @@ public sealed partial class MapPrototypeController
         background.color = AppBackground;
 
         if (topBar != null && mapCard != null && sidebar != null && mapScrollRect != null && modalCanvasGroup != null)
+        {
+            EnsureTimeText();
             return;
+        }
 
         BuildStaticUi(root);
         LogMap("Static UI hierarchy built.");
+    }
+
+    private void EnsureTimeText()
+    {
+        if (timeText != null || topBar == null)
+            return;
+
+        Transform existing = topBar.Find("ActionsPanel/TimeText");
+        if (existing != null)
+        {
+            timeText = existing.GetComponent<TextMeshProUGUI>();
+            if (timeText != null)
+                return;
+        }
+
+        Transform actionsPanel = topBar.Find("ActionsPanel");
+        if (actionsPanel == null)
+            return;
+
+        timeText = MapPrototypeUIFactory.CreateText(
+            "TimeText",
+            actionsPanel,
+            "Time: 0  |  Boss Status: 1",
+            13,
+            FontStyles.Bold,
+            MutedColor,
+            TextAlignmentOptions.Center);
+        MapPrototypeUIFactory.AddLayoutElement(timeText.gameObject, preferredHeight: 30f);
     }
 
     private void EnsureRuntimeEventSystem()
@@ -162,6 +197,15 @@ public sealed partial class MapPrototypeController
         MapPrototypeUIFactory.ConfigureLayoutGroup(actionsLayout, 8f, new RectOffset(0, 0, 0, 0), true, true, true, false);
         startOverButton = MapPrototypeUIFactory.CreateButton("StartOverButton", actionsPanel, "Start Over", DangerColor, InkColor, 18);
         MapPrototypeUIFactory.AddLayoutElement(startOverButton.gameObject, preferredHeight: 44f);
+        timeText = MapPrototypeUIFactory.CreateText(
+            "TimeText",
+            actionsPanel,
+            "Time: 0  |  Boss Status: 1",
+            13,
+            FontStyles.Bold,
+            MutedColor,
+            TextAlignmentOptions.Center);
+        MapPrototypeUIFactory.AddLayoutElement(timeText.gameObject, preferredHeight: 30f);
 
         mapCard = MapPrototypeUIFactory.CreateRect("MapCard", root);
         mapCard.anchorMin = Vector2.zero;

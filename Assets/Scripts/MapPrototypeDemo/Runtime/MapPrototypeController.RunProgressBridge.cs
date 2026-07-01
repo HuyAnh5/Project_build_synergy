@@ -12,6 +12,23 @@ public sealed partial class MapPrototypeController
     public MapPrototypeData CurrentMap => _map;
     public string CurrentNodeId => _currentNodeId;
     public int BossHintsCollected => _hintsCollected;
+    public int MapTime => _time;
+    public int BossStatus
+    {
+        get
+        {
+            if (_time >= 25)
+                return 4;
+            if (_time >= 19)
+                return 3;
+            if (_time >= 14)
+                return 2;
+            return 1;
+        }
+    }
+
+    [Obsolete("Use BossStatus for boss scaling. BossPreparationTime remains for compatibility.")]
+    public int BossPreparationTime => _time;
     public bool BossRevealed => _bossRevealed;
     public MapRunAct CurrentAct => currentAct;
     public MapEncounterDatabaseSO EncounterDatabase => encounterDatabase;

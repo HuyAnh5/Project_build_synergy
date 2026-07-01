@@ -35,6 +35,7 @@ public sealed partial class MapPrototypeController : MonoBehaviour
     [SerializeField] private TextMeshProUGUI currentNodeMetaText;
     [SerializeField] private RectTransform statusPillsRoot;
     [SerializeField] private Button startOverButton;
+    [SerializeField] private TextMeshProUGUI timeText;
     [SerializeField] private Button hintToggleButton;
     [SerializeField] private TextMeshProUGUI hintToggleLabel;
 
@@ -50,6 +51,7 @@ public sealed partial class MapPrototypeController : MonoBehaviour
     private HashSet<string> _safeReachable = new HashSet<string>();
     private HashSet<string> _frontierIds = new HashSet<string>();
     private int _hintsCollected;
+    private int _time;
     private bool _bossRevealed;
     private bool _showHintNodes;
     private bool _modalLocked;
@@ -104,11 +106,40 @@ public sealed partial class MapPrototypeController : MonoBehaviour
 
     private void Awake()
     {
-        ApplyHtmlSourceOfTruthDefaults();
+        if (config == null)
+            config = new MapPrototypeConfig();
+        UpgradeLegacyRuntimeConfig();
         EnsureRuntimeEventSystem();
         EnsureUiHierarchy(false);
         WireButtons();
         LogMap("Awake complete.");
+    }
+
+    private void UpgradeLegacyRuntimeConfig()
+    {
+        bool hasLegacyNodeRange = config.minMainNodeCount == 28 && config.maxMainNodeCount >= 35;
+        if (config.intermediateRows == 8 || config.intermediateRows == 10)
+            config.intermediateRows = 9;
+        if (config.pathCount >= 5)
+            config.pathCount = 3;
+        if (config.mapHeight <= 1580f)
+            config.mapHeight = 1450f;
+        if (hasLegacyNodeRange)
+        {
+            config.minMainNodeCount = 25;
+            config.maxMainNodeCount = 30;
+        }
+
+        config.columns = Mathf.Max(7, config.columns);
+        config.minMainNodeCount = Mathf.Clamp(
+            config.minMainNodeCount <= 0 ? 25 : config.minMainNodeCount,
+            25,
+            30);
+        config.maxMainNodeCount = Mathf.Clamp(
+            config.maxMainNodeCount <= 0 ? 30 : config.maxMainNodeCount,
+            config.minMainNodeCount,
+            30);
+        config.maxAttempts = Mathf.Clamp(config.maxAttempts, 1, 32);
     }
 
     private void Start()
@@ -122,7 +153,6 @@ public sealed partial class MapPrototypeController : MonoBehaviour
     [ContextMenu("Rebuild Prototype UI")]
     public void RebuildPrototypeUi()
     {
-        ApplyHtmlSourceOfTruthDefaults();
         EnsureUiHierarchy(true);
         WireButtons();
         RenderHintToggle();
@@ -135,7 +165,6 @@ public sealed partial class MapPrototypeController : MonoBehaviour
 
         try
         {
-            ApplyHtmlSourceOfTruthDefaults();
             EnsureUiHierarchy(false);
             WireButtons();
 
@@ -144,6 +173,7 @@ public sealed partial class MapPrototypeController : MonoBehaviour
             MapPrototypeNodeData startNode = _map.nodes.First(node => node.type == MapPrototypeNodeType.Start);
             _currentNodeId = startNode.id;
             _hintsCollected = 0;
+            _time = 0;
             _bossRevealed = false;
             _modalLocked = false;
             _isAnimating = false;

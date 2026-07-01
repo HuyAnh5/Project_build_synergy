@@ -7,13 +7,15 @@ public static partial class MapPrototypeGenerator
 {
     private static bool AttachTypesAndHints(MapPrototypeConfig config, MapPrototypeData map)
     {
-        List<MapPrototypeNodeData> nodes = map.nodes
-            .Where(node => node.type != MapPrototypeNodeType.Start && node.type != MapPrototypeNodeType.Boss)
-            .ToList();
-
         MapPrototypeNodeData shopNode = map.nodes.FirstOrDefault(node => node.type == MapPrototypeNodeType.Shop);
         MapPrototypeNodeData forgeNode = map.nodes.FirstOrDefault(node => node.type == MapPrototypeNodeType.Forge);
-        List<MapPrototypeNodeData> coreNodes = nodes.Where(node => node != shopNode && node != forgeNode).ToList();
+        List<MapPrototypeNodeData> coreNodes = map.nodes
+            .Where(node => node.type != MapPrototypeNodeType.Start
+                && node.type != MapPrototypeNodeType.Boss
+                && node != shopNode
+                && node != forgeNode
+                && !node.specialLeaf)
+            .ToList();
 
         foreach (MapPrototypeNodeData node in coreNodes)
         {
@@ -36,39 +38,38 @@ public static partial class MapPrototypeGenerator
         foreach (MapPrototypeNodeData node in lockedCombatNodes)
             node.type = MapPrototypeNodeType.Combat;
 
+        int mainNodeCount = coreNodes.Count;
+        int targetRestCount = mainNodeCount <= 26 ? 2 : 3;
         List<MapPrototypeNodeData> restCandidates = coreNodes
-            .Where(node => !node.lockedCombat && node.row >= 2f && node.row <= 7f)
+            .Where(node => !node.lockedCombat && node.row >= 3f && node.row <= config.intermediateRows - 1f)
             .ToList();
-        int targetRestCount = GetTargetRestCount(config, coreNodes.Count);
         List<MapPrototypeNodeData> chosenRests = PickSpacedNodes(map, restCandidates, targetRestCount, config.minRestNodeGap, config.minRestRowGap);
-        if (chosenRests.Count != targetRestCount)
-            return false;
         foreach (MapPrototypeNodeData node in chosenRests)
             node.type = MapPrototypeNodeType.Rest;
 
+        int targetEliteCount = mainNodeCount <= 26 ? 2 : 3;
         List<MapPrototypeNodeData> eliteCandidates = coreNodes
-            .Where(node => !node.lockedCombat && node.row >= 4f && node.row <= 7f && node.type == MapPrototypeNodeType.Combat)
+            .Where(node => !node.lockedCombat
+                && node.row >= 5f
+                && node.row <= config.intermediateRows - 1f
+                && node.type == MapPrototypeNodeType.Combat)
             .ToList();
-        int targetEliteCount = GetTargetEliteCount(config, coreNodes.Count);
         List<MapPrototypeNodeData> chosenElites = PickSpacedNodes(map, eliteCandidates, targetEliteCount, config.eliteMinNodeGap, 0);
-        if (chosenElites.Count != targetEliteCount)
-            return false;
         foreach (MapPrototypeNodeData node in chosenElites)
             node.type = MapPrototypeNodeType.Elite;
 
         List<MapPrototypeNodeData> eventCandidates = coreNodes
-            .Where(node => !node.lockedCombat && node.row >= 1f && node.row <= 7f && node.type == MapPrototypeNodeType.Combat)
+            .Where(node => !node.lockedCombat
+                && node.row >= 1f
+                && node.row <= config.intermediateRows - 1f
+                && node.type == MapPrototypeNodeType.Combat)
             .ToList();
-        int eventTargetBase = Mathf.RoundToInt(nodes.Count * config.eventRatioTarget);
-        int desiredEventCount = Mathf.Max(4, Mathf.Min(eventCandidates.Count, eventTargetBase + RandInt(config.eventVarianceMin, config.eventVarianceMax)));
+        float eventRatio = UnityEngine.Random.Range(0.20f, 0.251f);
+        int desiredEventCount = Mathf.Clamp(Mathf.RoundToInt(mainNodeCount * eventRatio), 4, eventCandidates.Count);
 
         List<MapPrototypeNodeData> firstRowCandidates = eventCandidates.Where(node => Mathf.Approximately(node.row, 1f)).ToList();
         List<MapPrototypeNodeData> nonFirstRowCandidates = eventCandidates.Where(node => !Mathf.Approximately(node.row, 1f)).ToList();
-        List<MapPrototypeNodeData> chosenEvents = AssignEventNodes(config, map, firstRowCandidates, nonFirstRowCandidates, desiredEventCount);
-        if (chosenEvents.Count < desiredEventCount)
-            return false;
-        if (!ValidateEventAdjacencyRules(config, map))
-            return false;
+        AssignEventNodes(config, map, firstRowCandidates, nonFirstRowCandidates, desiredEventCount);
 
         MapPrototypeNodeData bossNode = map.nodes.FirstOrDefault(node => node.type == MapPrototypeNodeType.Boss);
         if (bossNode != null)
@@ -78,9 +79,36 @@ public static partial class MapPrototypeGenerator
         List<MapPrototypeNodeData> hintEligibleEvents = coreNodes
             .Where(node => node.type == MapPrototypeNodeType.Event && node.row > 1f && node.row <= latestHintRow)
             .ToList();
-        List<MapPrototypeNodeData> chosenHints = PickSpacedNodes(map, hintEligibleEvents, config.extraHintSources, config.hintMinNodesBetween, 0);
-        if (chosenHints.Count != config.extraHintSources)
-            return false;
+        List<MapPrototypeNodeData> chosenHints = PickSpacedNodes(
+            map,
+            hintEligibleEvents,
+            config.extraHintSources,
+            config.hintMinNodesBetween,
+            0);
+
+        if (chosenHints.Count < config.extraHintSources)
+        {
+            List<MapPrototypeNodeData> repairCandidates = Shuffle(coreNodes
+                .Where(node => node.type == MapPrototypeNodeType.Combat
+                    && !node.lockedCombat
+                    && node.row > 1f
+                    && node.row <= latestHintRow)
+                .ToList());
+
+            foreach (MapPrototypeNodeData candidate in repairCandidates)
+            {
+                if (chosenHints.Count >= config.extraHintSources)
+                    break;
+                if (!CanAssignEventNode(config, map, candidate))
+                    continue;
+                if (chosenHints.Any(chosen => ShortestNodeDistance(map, candidate.id, chosen.id) <= config.hintMinNodesBetween))
+                    continue;
+
+                candidate.type = MapPrototypeNodeType.Event;
+                chosenHints.Add(candidate);
+            }
+        }
+
         foreach (MapPrototypeNodeData node in chosenHints)
             node.hasHint = true;
 
@@ -210,7 +238,7 @@ public static partial class MapPrototypeGenerator
         int maxFirstRowEvents = Mathf.Min(config.firstRowMaxEvents, firstRowCandidates.Count, desiredEventCount);
         List<string> bestIds = new List<string>();
 
-        for (int attempt = 0; attempt < 96; attempt++)
+        for (int attempt = 0; attempt < 16; attempt++)
         {
             foreach (MapPrototypeNodeData node in allCandidates)
             {

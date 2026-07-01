@@ -6,6 +6,28 @@ using UnityEngine.UI;
 
 public sealed partial class MapPrototypeController
 {
+    private sealed class NodeVisualBinding
+    {
+        public MapPrototypeNodeData node;
+        public Button button;
+        public Image border;
+        public TextMeshProUGUI badgeText;
+        public TextMeshProUGUI clearedRing;
+        public Image hintBadge;
+        public TextMeshProUGUI label;
+    }
+
+    private sealed class EdgeVisualBinding
+    {
+        public MapPrototypeNodeData from;
+        public MapPrototypeNodeData to;
+        public Image line;
+    }
+
+    private MapPrototypeData _renderedMap;
+    private readonly List<NodeVisualBinding> _nodeVisuals = new List<NodeVisualBinding>();
+    private readonly List<EdgeVisualBinding> _edgeVisuals = new List<EdgeVisualBinding>();
+
     private void RenderHintToggle()
     {
         if (hintToggleLabel != null)
@@ -22,8 +44,15 @@ public sealed partial class MapPrototypeController
     private void RenderAll()
     {
         RenderBossPanel();
+        RenderTime();
         RenderStatusPanel();
         RenderMap();
+    }
+
+    private void RenderTime()
+    {
+        if (timeText != null)
+            timeText.text = $"Time: {_time}  |  Boss Status: {BossStatus}";
     }
 
     private void RenderBossPanel()
@@ -125,9 +154,20 @@ public sealed partial class MapPrototypeController
             return;
 
         ConfigureMapContentTransform();
+        if (ReferenceEquals(_renderedMap, _map)
+            && _nodeVisuals.Count == _map.nodes.Count
+            && _edgeVisuals.Count == _map.edges.Count)
+        {
+            RefreshMapVisuals();
+            return;
+        }
+
         ClearChildren(linesLayer);
         ClearChildren(nodesLayer);
         _playerTokenRect = null;
+        _nodeVisuals.Clear();
+        _edgeVisuals.Clear();
+        _renderedMap = _map;
 
         foreach (MapPrototypeEdgeData edge in _map.edges)
         {
@@ -145,6 +185,38 @@ public sealed partial class MapPrototypeController
         CreatePlayerToken();
     }
 
+    private void RefreshMapVisuals()
+    {
+        foreach (EdgeVisualBinding visual in _edgeVisuals)
+        {
+            if (visual.line == null)
+                continue;
+
+            visual.line.color = GetEdgeColor(visual.from, visual.to);
+            Vector2 size = visual.line.rectTransform.sizeDelta;
+            size.y = IsReachableEdge(visual.from, visual.to) ? 4.5f : 4f;
+            visual.line.rectTransform.sizeDelta = size;
+        }
+
+        foreach (NodeVisualBinding visual in _nodeVisuals)
+        {
+            if (visual.button == null)
+                continue;
+
+            MapPrototypeNodeData node = visual.node;
+            visual.badgeText.text = MapPrototypeNodeCatalog.GetBadge(node.type, _bossRevealed, node.bossData);
+            visual.badgeText.fontSize = node.type == MapPrototypeNodeType.Boss && _bossRevealed ? 16 : 20;
+            visual.label.text = node.type == MapPrototypeNodeType.Boss && _bossRevealed && node.bossData != null
+                ? node.bossData.bossName
+                : MapPrototypeNodeCatalog.GetLabel(node.type);
+            visual.hintBadge.gameObject.SetActive(_showHintNodes && node.hasHint && !node.hintTaken);
+            ApplyNodeVisualState(node, visual.button, visual.border, visual.badgeText, visual.clearedRing, visual.label);
+            visual.button.interactable = node.id == _currentNodeId || _travelOptions.ContainsKey(node.id);
+        }
+
+        UpdatePlayerToken();
+    }
+
     private void CreateEdgeVisual(MapPrototypeNodeData from, MapPrototypeNodeData to)
     {
         Image line = MapPrototypeUIFactory.CreateImage("Edge", linesLayer, GetEdgeColor(from, to), false);
@@ -159,6 +231,7 @@ public sealed partial class MapPrototypeController
         rect.sizeDelta = new Vector2(delta.magnitude, IsReachableEdge(from, to) ? 4.5f : 4f);
         rect.anchoredPosition = start;
         rect.localRotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg);
+        _edgeVisuals.Add(new EdgeVisualBinding { from = from, to = to, line = line });
     }
 
     private Color GetEdgeColor(MapPrototypeNodeData from, MapPrototypeNodeData to)
@@ -256,6 +329,16 @@ public sealed partial class MapPrototypeController
         bool isClickable = node.id == _currentNodeId || _travelOptions.ContainsKey(node.id);
         button.interactable = isClickable;
         button.onClick.AddListener(() => HandleNodeClicked(node.id));
+        _nodeVisuals.Add(new NodeVisualBinding
+        {
+            node = node,
+            button = button,
+            border = border,
+            badgeText = badgeText,
+            clearedRing = clearedRing,
+            hintBadge = hintBadge,
+            label = label
+        });
     }
 
     private void ApplyNodeVisualState(MapPrototypeNodeData node, Button button, Image border, TextMeshProUGUI badgeText, TextMeshProUGUI clearedRing, TextMeshProUGUI label)

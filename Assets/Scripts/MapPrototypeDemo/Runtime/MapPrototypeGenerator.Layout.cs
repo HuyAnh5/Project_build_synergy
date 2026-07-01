@@ -5,11 +5,48 @@ using UnityEngine;
 
 public static partial class MapPrototypeGenerator
 {
-    private static void RebalanceMapLayout(MapPrototypeConfig config, MapPrototypeData map)
+    private static bool FinalizeFixedGridLayout(MapPrototypeConfig config, MapPrototypeData map)
+    {
+        List<MapPrototypeNodeData> gridNodes = map.nodes.Where(node => !node.specialLeaf).ToList();
+        PositionNodes(config, gridNodes);
+
+        foreach (MapPrototypeNodeData leaf in map.nodes.Where(node => node.specialLeaf))
+        {
+            MapPrototypeEdgeData parentEdge = map.edges.FirstOrDefault(edge => edge.from == leaf.id || edge.to == leaf.id);
+            if (parentEdge == null)
+                return false;
+
+            MapPrototypeNodeData parent = GetNodeById(map, parentEdge.from == leaf.id ? parentEdge.to : parentEdge.from);
+            if (parent == null)
+                return false;
+
+            MapPrototypeData withoutLeaf = new MapPrototypeData();
+            withoutLeaf.nodes.AddRange(map.nodes.Where(node => node.id != leaf.id));
+            withoutLeaf.edges.AddRange(map.edges.Where(edge => edge.from != leaf.id && edge.to != leaf.id));
+            foreach (KeyValuePair<string, HashSet<string>> pair in map.adjacency)
+            {
+                if (pair.Key != leaf.id)
+                    withoutLeaf.adjacency[pair.Key] = new HashSet<string>(pair.Value.Where(id => id != leaf.id));
+            }
+
+            LeafPlacement slot = FindSideSlot(config, withoutLeaf, parent, leaf.id);
+            if (slot == null)
+                return false;
+
+            leaf.row = parent.row + slot.rowOffset;
+            leaf.x = slot.x;
+            leaf.y = slot.y;
+            leaf.side = slot.side;
+        }
+
+        return !HasNodeOverlap(map);
+    }
+
+    private static bool RebalanceMapLayout(MapPrototypeConfig config, MapPrototypeData map)
     {
         Dictionary<string, Vector2> bestPositions = null;
         float bestScore = float.PositiveInfinity;
-        const int candidateCount = 24;
+        const int candidateCount = 6;
 
         for (int i = 0; i < candidateCount; i++)
         {
@@ -26,15 +63,17 @@ public static partial class MapPrototypeGenerator
         if (bestPositions != null)
             RestorePositions(map, bestPositions);
 
+        ResolveGlobalNodeSpacing(config, map);
+
         foreach (MapPrototypeNodeData node in map.nodes.Where(n => n.specialLeaf))
         {
             MapPrototypeEdgeData parentEdge = map.edges.FirstOrDefault(edge => edge.to == node.id || edge.from == node.id);
             if (parentEdge == null)
-                continue;
+                return false;
 
             MapPrototypeNodeData parent = GetNodeById(map, parentEdge.from == node.id ? parentEdge.to : parentEdge.from);
             if (parent == null)
-                continue;
+                return false;
 
             MapPrototypeData tempMap = new MapPrototypeData();
             foreach (MapPrototypeNodeData candidate in map.nodes.Where(n => n.id != node.id))
@@ -49,15 +88,17 @@ public static partial class MapPrototypeGenerator
                 tempMap.adjacency[pair.Key] = new HashSet<string>(pair.Value.Where(id => id != node.id));
             }
 
-            LeafPlacement placement = FindLeafPlacement(config, tempMap, parent, node.type, node.id);
+            LeafPlacement placement = FindSideSlot(config, tempMap, parent, node.id);
             if (placement == null)
-                continue;
+                return false;
 
-            node.row = parent.row + 1f;
+            node.row = parent.row + placement.rowOffset;
             node.x = placement.x;
             node.y = placement.y;
             node.side = placement.side;
         }
+
+        return !HasNodeOverlap(map);
     }
 
     private static void AssignLayeredOrganicPositions(MapPrototypeConfig config, MapPrototypeData map)
@@ -294,51 +335,53 @@ public static partial class MapPrototypeGenerator
     private static bool InsertSpecialSideBranches(MapPrototypeConfig config, MapPrototypeData map)
     {
         List<MapPrototypeNodeData> mainNodes = map.nodes
-            .Where(node => node.type != MapPrototypeNodeType.Start && node.type != MapPrototypeNodeType.Boss)
+            .Where(node => node.type != MapPrototypeNodeType.Start
+                && node.type != MapPrototypeNodeType.Boss
+                && !node.specialLeaf)
             .ToList();
 
-        List<MapPrototypeNodeData> earlyParents = Shuffle(mainNodes
-            .Where(node => (Mathf.Approximately(node.row, 1f) || Mathf.Approximately(node.row, 2f))
-                && GetNodeDegree(map, node.id) < config.maxNodeDegree)
-            .ToList());
+        MapPrototypeNodeData shopParent = TryAddSideLeaf(
+            config,
+            map,
+            mainNodes.Where(node => node.row >= 2f && node.row <= 4f),
+            MapPrototypeNodeType.Shop,
+            null);
 
-        MapPrototypeNodeData shopParent = null;
-        bool shopPlaced = false;
-        bool forgePlaced = false;
+        MapPrototypeNodeData forgeParent = TryAddSideLeaf(
+            config,
+            map,
+            mainNodes.Where(node => node.row >= 6f && node.row <= 8f),
+            MapPrototypeNodeType.Forge,
+            shopParent);
 
-        foreach (MapPrototypeNodeData candidate in earlyParents)
+        return shopParent != null && forgeParent != null;
+    }
+
+    private static MapPrototypeNodeData TryAddSideLeaf(
+        MapPrototypeConfig config,
+        MapPrototypeData map,
+        IEnumerable<MapPrototypeNodeData> parentCandidates,
+        MapPrototypeNodeType type,
+        MapPrototypeNodeData excludedParent)
+    {
+        List<MapPrototypeNodeData> candidates = Shuffle(parentCandidates
+            .Where(node => node != excludedParent && GetNodeDegree(map, node.id) < config.maxNodeDegree)
+            .ToList())
+            .OrderByDescending(node => Mathf.Abs(node.x - config.mapWidth * 0.5f))
+            .ToList();
+
+        foreach (MapPrototypeNodeData parent in candidates)
         {
-            LeafPlacement placement = FindLeafPlacement(config, map, candidate, MapPrototypeNodeType.Shop, null);
+            LeafPlacement placement = FindSideSlot(config, map, parent, null);
             if (placement == null)
                 continue;
 
-            candidate.lockedCombat = true;
-            AddLeafNode(config, map, candidate, MapPrototypeNodeType.Shop, placement);
-            shopParent = candidate;
-            shopPlaced = true;
-            break;
+            parent.lockedCombat = true;
+            if (AddLeafNode(config, map, parent, type, placement) != null)
+                return parent;
         }
 
-        List<MapPrototypeNodeData> lateParents = Shuffle(mainNodes
-            .Where(node => node.row >= config.intermediateRows - 2
-                && node.row <= config.intermediateRows - 1
-                && node != shopParent
-                && GetNodeDegree(map, node.id) < config.maxNodeDegree)
-            .ToList());
-
-        foreach (MapPrototypeNodeData candidate in lateParents)
-        {
-            LeafPlacement placement = FindLeafPlacement(config, map, candidate, MapPrototypeNodeType.Forge, null);
-            if (placement == null)
-                continue;
-
-            candidate.lockedCombat = true;
-            AddLeafNode(config, map, candidate, MapPrototypeNodeType.Forge, placement);
-            forgePlaced = true;
-            break;
-        }
-
-        return shopPlaced && forgePlaced;
+        return null;
     }
 
     private sealed class LeafPlacement
@@ -360,7 +403,7 @@ public static partial class MapPrototypeGenerator
         {
             id = $"{type}-{parent.id}-{MakeSuffix()}",
             key = $"{type}:{parent.key}",
-            row = parent.row + 1f,
+            row = parent.row + placement.rowOffset,
             col = (placement.x - config.padX) / colGap,
             type = type,
             x = placement.x,
@@ -387,6 +430,65 @@ public static partial class MapPrototypeGenerator
         map.adjacency[parent.id].Add(node.id);
         map.adjacency[node.id].Add(parent.id);
         return node;
+    }
+
+    private static LeafPlacement FindSideSlot(
+        MapPrototypeConfig config,
+        MapPrototypeData map,
+        MapPrototypeNodeData parent,
+        string excludeNodeId)
+    {
+        int outward = parent.x <= config.mapWidth * 0.5f ? -1 : 1;
+        int[] sides = { outward, -outward };
+        float[] horizontalOffsets = { 118f, 142f, 164f };
+        float[] verticalOffsets = { -54f, -38f, -70f };
+
+        foreach (int side in sides)
+        {
+            foreach (float horizontal in horizontalOffsets)
+            {
+                foreach (float vertical in verticalOffsets)
+                {
+                    LeafPlacement slot = new LeafPlacement
+                    {
+                        x = parent.x + side * horizontal,
+                        y = parent.y + vertical,
+                        distance = Mathf.Sqrt(horizontal * horizontal + vertical * vertical),
+                        side = side,
+                        rowOffset = 0.45f
+                    };
+                    if (IsSideSlotClear(config, map, parent, slot, excludeNodeId))
+                        return slot;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsSideSlotClear(
+        MapPrototypeConfig config,
+        MapPrototypeData map,
+        MapPrototypeNodeData parent,
+        LeafPlacement slot,
+        string excludeNodeId)
+    {
+        const float marginX = 64f;
+        const float minimumDistance = 106f;
+        if (slot.x < marginX || slot.x > config.mapWidth - marginX)
+            return false;
+        if (slot.y < config.padY || slot.y > config.mapHeight - config.padY)
+            return false;
+
+        foreach (MapPrototypeNodeData node in map.nodes)
+        {
+            if (node.id == parent.id || node.id == excludeNodeId)
+                continue;
+            if (Distance(node.x, node.y, slot.x, slot.y) < minimumDistance)
+                return false;
+        }
+
+        return true;
     }
 
     private static LeafPlacement FindLeafPlacement(MapPrototypeConfig config, MapPrototypeData map, MapPrototypeNodeData parent, MapPrototypeNodeType type, string excludeNodeId)
@@ -484,10 +586,10 @@ public static partial class MapPrototypeGenerator
             if (node.id == parent.id || node.id == excludeNodeId)
                 continue;
 
-            float minDist = node.specialLeaf ? 204f : 176f;
+            float minDist = node.specialLeaf ? 148f : Mathf.Max(112f, config.minNodeSpacing * 1.15f);
             if (Distance(node.x, node.y, candidate.x, candidate.y) < minDist)
                 return false;
-            if (PointToSegmentDistance(node.x, node.y, parent.x, parent.y, candidate.x, candidate.y) < 100f)
+            if (PointToSegmentDistance(node.x, node.y, parent.x, parent.y, candidate.x, candidate.y) < 72f)
                 return false;
         }
 
@@ -505,7 +607,7 @@ public static partial class MapPrototypeGenerator
 
             if (SegmentsIntersect(parent.x, parent.y, candidate.x, candidate.y, from.x, from.y, to.x, to.y))
                 return false;
-            if (PointToSegmentDistance(candidate.x, candidate.y, from.x, from.y, to.x, to.y) < 116f)
+            if (PointToSegmentDistance(candidate.x, candidate.y, from.x, from.y, to.x, to.y) < 82f)
                 return false;
         }
 
@@ -575,13 +677,8 @@ public static partial class MapPrototypeGenerator
             rowNodes.Sort((a, b) => a.col.CompareTo(b.col));
             foreach (MapPrototypeNodeData node in rowNodes)
             {
-                float baseX = config.padX + node.col * colGap;
-                float jitter = (node.type == MapPrototypeNodeType.Start || node.type == MapPrototypeNodeType.Boss)
-                    ? 0f
-                    : RandInt(-18, 18);
-
-                node.x = Mathf.Clamp(baseX + jitter, config.padX - 12f, config.mapWidth - config.padX + 12f);
-                node.y = config.mapHeight - config.padY - node.row * rowGap + RandInt(-5, 5);
+                node.x = config.padX + node.col * colGap;
+                node.y = config.mapHeight - config.padY - node.row * rowGap;
             }
         }
 
@@ -638,24 +735,30 @@ public static partial class MapPrototypeGenerator
 
     private static List<MapPrototypeNodeData> PickSpacedNodes(MapPrototypeData map, List<MapPrototypeNodeData> candidates, int count, int minNodeGap, int minRowGap)
     {
-        List<MapPrototypeNodeData> pool = Shuffle(new List<MapPrototypeNodeData>(candidates));
-        List<MapPrototypeNodeData> picked = new List<MapPrototypeNodeData>();
-
-        foreach (MapPrototypeNodeData candidate in pool)
+        List<MapPrototypeNodeData> best = new List<MapPrototypeNodeData>();
+        for (int attempt = 0; attempt < 16; attempt++)
         {
-            bool valid = picked.All(chosen =>
-                Mathf.Abs(candidate.row - chosen.row) >= minRowGap
-                && PathNodesBetween(map, candidate.id, chosen.id) >= minNodeGap);
+            List<MapPrototypeNodeData> pool = Shuffle(new List<MapPrototypeNodeData>(candidates));
+            List<MapPrototypeNodeData> picked = new List<MapPrototypeNodeData>();
+            foreach (MapPrototypeNodeData candidate in pool)
+            {
+                bool valid = picked.All(chosen =>
+                    Mathf.Abs(candidate.row - chosen.row) >= minRowGap
+                    && PathNodesBetween(map, candidate.id, chosen.id) >= minNodeGap);
 
-            if (!valid)
-                continue;
+                if (!valid)
+                    continue;
 
-            picked.Add(candidate);
-            if (picked.Count >= count)
-                break;
+                picked.Add(candidate);
+                if (picked.Count >= count)
+                    return picked;
+            }
+
+            if (picked.Count > best.Count)
+                best = picked;
         }
 
-        return picked;
+        return best;
     }
 
     private static void SeparateNearVerticalLinks(MapPrototypeConfig config, MapPrototypeData map)

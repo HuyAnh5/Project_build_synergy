@@ -14,8 +14,8 @@ public static partial class MapPrototypeGenerator
         if (rowsCovered.Count != config.intermediateRows)
             return false;
 
-        int intermediateCount = map.nodes.Count(node => node.type != MapPrototypeNodeType.Start && node.type != MapPrototypeNodeType.Boss);
-        if (intermediateCount < 20 || intermediateCount > 30)
+        int intermediateCount = CountIntermediateNodes(map);
+        if (intermediateCount < config.minMainNodeCount || intermediateCount > config.maxMainNodeCount)
             return false;
 
         return ValidateNodeDegrees(config, map);
@@ -444,6 +444,23 @@ public static partial class MapPrototypeGenerator
 
                 float clearance = node.specialLeaf ? 66f : 56f;
                 if (PointToSegmentDistance(node.x, node.y, from.x, from.y, to.x, to.y) < clearance)
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool HasNodeOverlap(MapPrototypeData map)
+    {
+        const float minimumNodeDistance = 96f;
+        for (int i = 0; i < map.nodes.Count; i++)
+        {
+            MapPrototypeNodeData a = map.nodes[i];
+            for (int j = i + 1; j < map.nodes.Count; j++)
+            {
+                MapPrototypeNodeData b = map.nodes[j];
+                if (Distance(a.x, a.y, b.x, b.y) < minimumNodeDistance)
                     return true;
             }
         }

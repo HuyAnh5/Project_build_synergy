@@ -126,7 +126,10 @@ public sealed partial class MapPrototypeController
         _currentNodeId = path[path.Count - 1];
         MapPrototypeNodeData node = GetCurrentNode();
         _playerPos = new Vector2(node.x, node.y);
+        bool isFirstVisit = !node.visited;
         node.visited = true;
+        if (isFirstVisit)
+            _time += 1;
         _isAnimating = false;
         ComputeTravelOptions();
         RenderAll();
